@@ -1,1 +1,2 @@
 cmd/smoke/smoke
+*.log

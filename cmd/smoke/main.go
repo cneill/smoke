@@ -8,7 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/log"
 	"github.com/cneill/smoke/pkg/models"
-	"github.com/cneill/smoke/pkg/smoke"
 	"github.com/urfave/cli/v2"
 )
 
@@ -23,7 +22,7 @@ const (
 
 	EnvDir          = "SMOKE_DIRECTORY"
 	EnvDebug        = "SMOKE_DEBUG"
-	EnvMaxTokens    = "SMOKE_MAX_TOKENS" //nolint:gosec // No these are not credentials...
+	EnvMaxTokens    = "SMOKE_MAX_TOKENS"
 	EnvSessionName  = "SMOKE_SESSION_NAME"
 	EnvProvider     = "SMOKE_PROVIDER"
 	EnvOpenAIKey    = "OPENAI_API_KEY"
@@ -95,9 +94,9 @@ func run() error {
 	app := &cli.App{
 		Name:        "smoke",
 		HelpName:    "smoke",
-		Description: "smoke my code up.",
+		Description: "Smoke 'em if you got 'em.",
 		Flags:       flags(),
-		Before: func(ctx *cli.Context) error {
+		Action: func(ctx *cli.Context) error {
 			level := slog.LevelInfo
 			if ctx.Bool(FlagDebug) {
 				level = slog.LevelDebug
@@ -112,38 +111,12 @@ func run() error {
 
 			log.Setup(logFile, level)
 
-			switch models.ModelType(ctx.String(FlagProvider)) {
-			case models.ModelTypeChatGPT:
-				if ctx.String(FlagOpenAIKey) == "" {
-					return fmt.Errorf("must supply %s flag or %s environment variable", FlagOpenAIKey, EnvOpenAIKey)
-				}
-			case models.ModelTypeClaude:
-				if ctx.String(FlagAnthropicKey) == "" {
-					return fmt.Errorf("must supply %s flag or %s environment variable", FlagAnthropicKey, EnvAnthropicKey)
-				}
-			default:
-				return fmt.Errorf("unknown model provider: %s", ctx.String(FlagProvider))
-			}
-
-			return nil
-		},
-		Action: func(ctx *cli.Context) error {
-			opts := &smoke.Opts{
-				Debug:           ctx.Bool(FlagDebug),
-				ProjectPath:     ctx.Path(FlagDir),
-				Provider:        models.ModelType(ctx.String(FlagProvider)),
-				OpenAIAPIKey:    ctx.String(FlagOpenAIKey),
-				AnthropicAPIKey: ctx.String(FlagAnthropicKey),
-				MaxTokens:       ctx.Int64(FlagMaxTokens),
-				SessionName:     ctx.String(FlagSessionName),
-			}
-
-			smoke, err := smoke.New(opts)
+			smokeModel, err := models.New()
 			if err != nil {
-				return fmt.Errorf("failed to initialize smoke: %w", err)
+				return fmt.Errorf("failed to set up UI: %w", err)
 			}
 
-			p := tea.NewProgram(smoke)
+			p := tea.NewProgram(smokeModel)
 
 			if _, err := p.Run(); err != nil {
 				return fmt.Errorf("app error: %w", err)
