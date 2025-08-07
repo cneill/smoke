@@ -92,6 +92,11 @@ func (m *Model) View() string {
 func (m *Model) Resize(width, height int) {
 	m.viewport.Width = width
 	m.viewport.Height = height
+
+	newRenderer, err := getGlamourRenderer(width)
+	if err == nil {
+		m.mdRenderer = newRenderer
+	}
 }
 
 func (m *Model) GetWidth() int {

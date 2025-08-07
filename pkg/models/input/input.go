@@ -176,8 +176,6 @@ func (m *Model) handleKeyTextarea(msg tea.KeyMsg) tea.Cmd {
 	m.textarea = newTextarea
 
 	return cmd
-
-	return nil
 }
 
 func (m *Model) handleKeySpinner(msg tea.KeyMsg) tea.Cmd {
@@ -213,7 +211,7 @@ func (m *Model) LineHeight() int {
 	for _, line := range explicitLines {
 		lineWidth := runewidth.StringWidth(line)
 		if lineWidth > inputWidth {
-			extraLines := (lineWidth / inputWidth)
+			extraLines := (lineWidth - 1) / inputWidth
 			numLines += extraLines
 		}
 	}
