@@ -1,6 +1,7 @@
 package input
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -9,6 +10,24 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 )
+
+type Opts struct {
+	Width           int
+	Height          int
+	MaxHeight       int
+	PlaceholderText string
+}
+
+func (o *Opts) OK() error {
+	switch {
+	case o.Width <= 0:
+		return fmt.Errorf("width must be >0")
+	case o.Height <= 0:
+		return fmt.Errorf("height must be >0")
+	}
+
+	return nil
+}
 
 const prompt = "│"
 
@@ -19,27 +38,39 @@ type Model struct {
 	waiting bool
 }
 
-func New(width, height int) (*Model, error) {
+func New(opts *Opts) (*Model, error) {
+	if err := opts.OK(); err != nil {
+		return nil, fmt.Errorf("options error: %w", err)
+	}
+
 	model := &Model{
-		textarea: getTextArea(width, height),
-		spinner:  getSpinner(height),
+		textarea: getTextArea(opts),
+		spinner:  getSpinner(opts.Height),
 	}
 
 	return model, nil
 }
 
-func getTextArea(width, height int) textarea.Model {
+func getTextArea(opts *Opts) textarea.Model {
 	model := textarea.New()
+
 	model.Placeholder = "Enter your message."
-	model.Focus()
+	if opts.PlaceholderText != "" {
+		model.Placeholder = opts.PlaceholderText
+	}
 
 	model.Prompt = prompt
 	model.CharLimit = 0
 
-	model.SetWidth(width)
-	model.SetHeight(height)
-	model.MaxHeight = 5 // TODO: make customizable
+	model.SetWidth(opts.Width)
+	model.SetHeight(opts.Height)
 
+	model.MaxHeight = 5
+	if opts.MaxHeight > 0 {
+		model.MaxHeight = opts.MaxHeight
+	}
+
+	// Focused
 	model.FocusedStyle.CursorLine = lipgloss.NewStyle().
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#eeeeee"))
@@ -50,8 +81,21 @@ func getTextArea(width, height int) textarea.Model {
 		Bold(true).
 		Padding(2, 2, 2, 2)
 
+	// Blurred
+	model.BlurredStyle.CursorLine = lipgloss.NewStyle().
+		Background(lipgloss.Color("#000000")).
+		Foreground(lipgloss.Color("#888888"))
+	model.BlurredStyle.Text = lipgloss.NewStyle().
+		Background(lipgloss.Color("#000000")).
+		Foreground(lipgloss.Color("#888888"))
+	model.BlurredStyle.Prompt = lipgloss.NewStyle().
+		Bold(true).
+		Padding(2, 2, 2, 2)
+
 	model.ShowLineNumbers = false
 	// model.KeyMap.InsertNewline.SetEnabled(false)
+
+	model.Focus()
 
 	return model
 }
@@ -77,17 +121,27 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	commands := []tea.Cmd{}
 	startHeight := m.textarea.Height()
 
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if m.waiting {
+			cmd := m.handleKeySpinner(msg)
+			if cmd != nil {
+				commands = append(commands, cmd)
+			}
+		} else {
+			cmd := m.handleKeyTextarea(msg)
+			if cmd != nil {
+				commands = append(commands, cmd)
+			}
+		}
+	}
+
 	if m.waiting {
 		newSpinner, cmd := m.spinner.Update(msg)
 		m.spinner = newSpinner
 
 		commands = append(commands, cmd)
 	}
-
-	newTextarea, cmd := m.textarea.Update(msg)
-	m.textarea = newTextarea
-
-	commands = append(commands, cmd)
 
 	if m.LineHeight() != startHeight {
 		commands = append(commands, func() tea.Msg {
@@ -96,6 +150,43 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(commands...)
+}
+
+func (m *Model) handleKeyTextarea(msg tea.KeyMsg) tea.Cmd {
+	switch msg.Type { //nolint:exhaustive
+	case tea.KeyEnter:
+		content := m.textarea.Value()
+		m.textarea.Reset()
+
+		return func() tea.Msg {
+			return ContentMessage{
+				Content: content,
+			}
+		}
+	case tea.KeyEsc:
+		m.textarea.Blur()
+	case tea.KeyRunes:
+		if !m.Focused() && msg.String() == "i" {
+			m.textarea.Focus()
+			return nil
+		}
+	}
+
+	newTextarea, cmd := m.textarea.Update(msg)
+	m.textarea = newTextarea
+
+	return cmd
+
+	return nil
+}
+
+func (m *Model) handleKeySpinner(msg tea.KeyMsg) tea.Cmd {
+	switch msg.Type { //nolint:exhaustive
+	case tea.KeyEsc:
+		// kill current wait cycle with context cancel
+	}
+
+	return nil
 }
 
 func (m *Model) View() string {
@@ -140,8 +231,16 @@ func (m *Model) GetHeight() int {
 	return m.textarea.Height()
 }
 
+func (m *Model) Focused() bool {
+	return m.textarea.Focused()
+}
+
 type Message struct {
 	Underlying tea.Msg
 }
 
 type ResizeMessage struct{}
+
+type ContentMessage struct {
+	Content string
+}

@@ -6,29 +6,46 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
-	"github.com/cneill/smoke/pkg/models/banner"
 )
 
+type Opts struct {
+	Width       int
+	Height      int
+	InitContent string
+}
+
+func (o *Opts) OK() error {
+	switch {
+	case o.Width <= 0:
+		return fmt.Errorf("width must be >0")
+	case o.Height <= 0:
+		return fmt.Errorf("height must be >0")
+	}
+
+	return nil
+}
+
 type Model struct {
-	banner     *banner.Model
 	viewport   viewport.Model
 	mdRenderer *glamour.TermRenderer
 
 	haveContent bool // TODO: can this be eliminated with something checking the viewport for message content?
 }
 
-func New(width, height int) (*Model, error) {
-	banner := banner.New()
-	viewport := viewport.New(width, height)
-	viewport.SetContent(banner.View())
+func New(opts *Opts) (*Model, error) {
+	if err := opts.OK(); err != nil {
+		return nil, fmt.Errorf("options error: %w", err)
+	}
 
-	mdRenderer, err := getGlamourRenderer(width)
+	viewport := viewport.New(opts.Width, opts.Height)
+	viewport.SetContent(opts.InitContent)
+
+	mdRenderer, err := getGlamourRenderer(opts.Width)
 	if err != nil {
 		return nil, err
 	}
 
 	model := &Model{
-		banner:     banner,
 		viewport:   viewport,
 		mdRenderer: mdRenderer,
 

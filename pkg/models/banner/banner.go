@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const banner = `
+const bannerText = `
  ░▒▓███████▓▒░▒▓██████████████▓▒░ ░▒▓██████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░ 
 ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░        
 ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░        
@@ -18,8 +18,6 @@ const banner = `
 ░▒▓███████▓▒░░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░░▒▓██████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░ 
 `
 
-var rendered string //nolint:gochecknoglobals
-
 func interpolate(start, end, step, totalSteps int) int {
 	return start + ((end-start)*step)/totalSteps
 }
@@ -27,6 +25,8 @@ func interpolate(start, end, step, totalSteps int) int {
 type Model struct {
 	StartColor lipgloss.Color
 	EndColor   lipgloss.Color
+
+	rendered string
 }
 
 func New() *Model {
@@ -45,12 +45,12 @@ func (m *Model) Update(_ tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	if rendered != "" {
-		return rendered
+	if m.rendered != "" {
+		return m.rendered
 	}
 
 	builder := &strings.Builder{}
-	lines := strings.Split(banner, "\n")
+	lines := strings.Split(bannerText, "\n")
 	numLines := len(lines)
 
 	for lineNum, line := range lines {
@@ -66,7 +66,7 @@ func (m *Model) View() string {
 		fmt.Fprintln(builder, style.Render(line))
 	}
 
-	rendered = builder.String()
+	m.rendered = builder.String()
 
-	return rendered
+	return m.rendered
 }

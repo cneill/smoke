@@ -27,12 +27,25 @@ func New() (*Model, error) {
 
 	bannerModel := banner.New()
 
-	historyModel, err := history.New(width, height-2)
+	historyOpts := &history.Opts{
+		Width:       width,
+		Height:      height - 2,
+		InitContent: bannerModel.View(),
+	}
+
+	historyModel, err := history.New(historyOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up history view: %w", err)
 	}
 
-	inputModel, err := input.New(width, 2)
+	inputOpts := &input.Opts{
+		Width:           width,
+		Height:          2,
+		MaxHeight:       5,
+		PlaceholderText: "Enter your message...",
+	}
+
+	inputModel, err := input.New(inputOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up input view: %w", err)
 	}
