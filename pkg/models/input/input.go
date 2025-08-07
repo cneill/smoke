@@ -123,24 +123,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.waiting {
-			cmd := m.handleKeySpinner(msg)
-			if cmd != nil {
-				commands = append(commands, cmd)
-			}
-		} else {
-			cmd := m.handleKeyTextarea(msg)
-			if cmd != nil {
-				commands = append(commands, cmd)
-			}
+		spinnerCmd := m.handleKeySpinner(msg)
+		if spinnerCmd != nil {
+			commands = append(commands, spinnerCmd)
 		}
-	}
 
-	if m.waiting {
-		newSpinner, cmd := m.spinner.Update(msg)
-		m.spinner = newSpinner
-
-		commands = append(commands, cmd)
+		textareaCmd := m.handleKeyTextarea(msg)
+		if textareaCmd != nil {
+			commands = append(commands, textareaCmd)
+		}
 	}
 
 	if m.LineHeight() != startHeight {
@@ -153,6 +144,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) handleKeyTextarea(msg tea.KeyMsg) tea.Cmd {
+	if m.waiting {
+		return nil
+	}
+
 	switch msg.Type { //nolint:exhaustive
 	case tea.KeyEnter:
 		content := m.textarea.Value()
@@ -182,6 +177,13 @@ func (m *Model) handleKeySpinner(msg tea.KeyMsg) tea.Cmd {
 	switch msg.Type { //nolint:exhaustive
 	case tea.KeyEsc:
 		// kill current wait cycle with context cancel
+	}
+
+	if m.waiting {
+		newSpinner, cmd := m.spinner.Update(msg)
+		m.spinner = newSpinner
+
+		return cmd
 	}
 
 	return nil

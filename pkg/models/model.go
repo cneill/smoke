@@ -77,13 +77,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			inputModel, inputCmd := m.input.Update(msg)
 			m.input = inputModel
 
-			commands = append(commands, inputCmd) // TODO: wrap?
+			if inputCmd != nil {
+				commands = append(commands, inputCmd)
+			}
 
 			historyModel, historyCmd := m.history.Update(msg)
 			m.history = historyModel
 
-			commands = append(commands, historyCmd) // TODO: wrap/
+			if historyCmd != nil {
+				commands = append(commands, historyCmd)
+			}
 		}
+	case input.ContentMessage:
+		// TODO: Process the content (e.g., send to LLM, etc.)
+		_ = msg.Content // placeholder to avoid unused variable
+
 	case history.Message:
 		historyModel, historyCmd := m.history.Update(msg)
 		m.history = historyModel
