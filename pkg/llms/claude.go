@@ -85,6 +85,8 @@ func (c *Claude) getSessionMessages(session *Session) []anthropic.MessageParam {
 						}
 						contentBlocks = append(contentBlocks, toolUseContentBlock)
 					}
+				} else {
+					c.logger.Warn("got ToolCallInfo of unexpected type", "type", fmt.Sprintf("%T", msg.ToolCallInfo))
 				}
 			}
 

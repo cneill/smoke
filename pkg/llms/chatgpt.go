@@ -6,9 +6,9 @@ import (
 	"log/slog"
 
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/shared"
+	"github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/shared"
 )
 
 type ChatGPTOpts struct {
@@ -63,6 +63,8 @@ func (c *ChatGPT) Type() LLMType               { return LLMTypeChatGPT }
 func (c *ChatGPT) ModelName() string           { return c.opts.Model }
 func (c *ChatGPT) RequiresSessionSystem() bool { return true }
 
+// getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation
+// history.
 func (c *ChatGPT) getSessionMessages(session *Session) []openai.ChatCompletionMessageParamUnion {
 	results := make([]openai.ChatCompletionMessageParamUnion, len(session.Messages))
 
@@ -72,11 +74,13 @@ func (c *ChatGPT) getSessionMessages(session *Session) []openai.ChatCompletionMe
 			assistantMsg := openai.AssistantMessage(msg.Content)
 
 			if msg.HasToolCalls() {
-				rawCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCall)
+				rawCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnion)
 				if ok {
 					for _, toolCall := range rawCalls {
 						assistantMsg.OfAssistant.ToolCalls = append(assistantMsg.OfAssistant.ToolCalls, toolCall.ToParam())
 					}
+				} else {
+					c.logger.Warn("got ToolCallInfo of unexpected type", "type", fmt.Sprintf("%T", msg.ToolCallInfo))
 				}
 			}
 
@@ -95,8 +99,8 @@ func (c *ChatGPT) getSessionMessages(session *Session) []openai.ChatCompletionMe
 	return results
 }
 
-func (c *ChatGPT) CompletionTools() []openai.ChatCompletionToolParam {
-	results := []openai.ChatCompletionToolParam{}
+func (c *ChatGPT) CompletionTools() []openai.ChatCompletionToolUnionParam {
+	results := []openai.ChatCompletionToolUnionParam{}
 
 	for _, tool := range c.tools.Tools {
 		properties := map[string]any{}
@@ -119,13 +123,11 @@ func (c *ChatGPT) CompletionTools() []openai.ChatCompletionToolParam {
 			"required":   required,
 		}
 
-		results = append(results, openai.ChatCompletionToolParam{
-			Function: openai.FunctionDefinitionParam{
-				Name:        tool.Name(),
-				Description: openai.String(tool.Description()),
-				Parameters:  params,
-			},
-		})
+		results = append(results, openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+			Name:        tool.Name(),
+			Description: openai.String(tool.Description()),
+			Parameters:  params,
+		}))
 	}
 
 	return results
@@ -224,7 +226,7 @@ func (c *ChatGPT) handleToolCalls(ctx context.Context, session *Session, message
 	return nil
 }
 
-func (c *ChatGPT) getToolCallNames(toolCalls []openai.ChatCompletionMessageToolCall) []string {
+func (c *ChatGPT) getToolCallNames(toolCalls []openai.ChatCompletionMessageToolCallUnion) []string {
 	results := []string{}
 	for _, toolCall := range toolCalls {
 		results = append(results, toolCall.Function.Name)
