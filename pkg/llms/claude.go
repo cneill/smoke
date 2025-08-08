@@ -118,10 +118,18 @@ func (c *Claude) NewMessageTools() []anthropic.ToolUnionParam {
 		requiredKeys := []string{}
 
 		for _, param := range tool.Params() {
-			properties[param.Key] = map[string]any{
+			keyParams := map[string]any{
 				"type":        param.Type,
 				"description": param.Description,
 			}
+
+			if param.Type == tools.ParamTypeArray {
+				keyParams["items"] = map[string]any{
+					"type": param.ItemType,
+				}
+			}
+
+			properties[param.Key] = keyParams
 
 			if param.Required {
 				requiredKeys = append(requiredKeys, param.Key)

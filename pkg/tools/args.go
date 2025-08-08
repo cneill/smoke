@@ -88,6 +88,7 @@ func (a Args) checkTypes(params Params) error { //nolint:cyclop
 		case ParamTypeArray:
 			typ := reflect.TypeOf(val)
 			rightType = typ.Kind() == reflect.Array
+			// TODO: validate ItemType
 		case ParamTypeObject:
 			typ := reflect.TypeOf(val)
 			rightType = typ.Kind() == reflect.Map

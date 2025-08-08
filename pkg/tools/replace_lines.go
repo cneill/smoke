@@ -58,6 +58,7 @@ func (r *ReplaceLinesTool) Params() Params {
 				ReplaceLinesReplace,
 			),
 			Type:     ParamTypeArray,
+			ItemType: ParamTypeString,
 			Required: false,
 		},
 	}

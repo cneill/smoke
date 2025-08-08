@@ -16,6 +16,7 @@ type Param struct {
 	Description string
 	Type        ParamType
 	Required    bool
+	ItemType    ParamType
 }
 
 type Params []Param
