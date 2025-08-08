@@ -59,6 +59,8 @@ func getTextArea(opts *Opts) textarea.Model {
 		model.Placeholder = opts.PlaceholderText
 	}
 
+	model.Focus()
+
 	model.Prompt = prompt
 	model.CharLimit = 0
 
@@ -95,8 +97,6 @@ func getTextArea(opts *Opts) textarea.Model {
 	model.ShowLineNumbers = false
 	// model.KeyMap.InsertNewline.SetEnabled(false)
 
-	model.Focus()
-
 	return model
 }
 
@@ -121,17 +121,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	commands := []tea.Cmd{}
 	startHeight := m.textarea.Height()
 
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		spinnerCmd := m.handleKeySpinner(msg)
-		if spinnerCmd != nil {
-			commands = append(commands, spinnerCmd)
-		}
+	if cmd := m.handleSpinnerMsg(msg); cmd != nil {
+		commands = append(commands, cmd)
+	}
 
-		textareaCmd := m.handleKeyTextarea(msg)
-		if textareaCmd != nil {
-			commands = append(commands, textareaCmd)
-		}
+	if cmd := m.handleTextareaMsg(msg); cmd != nil {
+		commands = append(commands, cmd)
 	}
 
 	if m.LineHeight() != startHeight {
@@ -143,27 +138,30 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, tea.Batch(commands...)
 }
 
-func (m *Model) handleKeyTextarea(msg tea.KeyMsg) tea.Cmd {
+func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	if m.waiting {
 		return nil
 	}
 
-	switch msg.Type { //nolint:exhaustive
-	case tea.KeyEnter:
-		content := m.textarea.Value()
-		m.textarea.Reset()
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type { //nolint:exhaustive
+		case tea.KeyEnter:
+			content := m.textarea.Value()
+			m.textarea.Reset()
 
-		return func() tea.Msg {
-			return ContentMessage{
-				Content: content,
+			return func() tea.Msg {
+				return ContentMessage{
+					Content: content,
+				}
 			}
-		}
-	case tea.KeyEsc:
-		m.textarea.Blur()
-	case tea.KeyRunes:
-		if !m.Focused() && msg.String() == "i" {
-			m.textarea.Focus()
-			return nil
+		case tea.KeyEsc:
+			m.textarea.Blur()
+		case tea.KeyRunes:
+			if !m.Focused() && msg.String() == "i" {
+				m.textarea.Focus()
+				return nil
+			}
 		}
 	}
 
@@ -173,20 +171,14 @@ func (m *Model) handleKeyTextarea(msg tea.KeyMsg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) handleKeySpinner(msg tea.KeyMsg) tea.Cmd {
-	switch msg.Type { //nolint:exhaustive
-	case tea.KeyEsc:
-		// kill current wait cycle with context cancel
+func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
+	if !m.waiting {
+		return nil
 	}
+	newSpinner, cmd := m.spinner.Update(msg)
+	m.spinner = newSpinner
 
-	if m.waiting {
-		newSpinner, cmd := m.spinner.Update(msg)
-		m.spinner = newSpinner
-
-		return cmd
-	}
-
-	return nil
+	return cmd
 }
 
 func (m *Model) View() string {
@@ -205,6 +197,7 @@ func (m *Model) Resize(width, height int) {
 // LineHeight calculates the number of effective lines - both those ended with \n and those that are necessitated by
 // text running off the screen - and returns the minimum of this or the maxlines of the textarea.
 func (m *Model) LineHeight() int {
+	// return lipgloss.Height(m.textarea.Value()) + 1
 	content := m.textarea.Value()
 	explicitLines := strings.Split(content, "\n")
 	numLines := len(explicitLines)
@@ -233,14 +226,4 @@ func (m *Model) GetHeight() int {
 
 func (m *Model) Focused() bool {
 	return m.textarea.Focused()
-}
-
-type Message struct {
-	Underlying tea.Msg
-}
-
-type ResizeMessage struct{}
-
-type ContentMessage struct {
-	Content string
 }

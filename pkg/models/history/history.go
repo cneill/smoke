@@ -93,10 +93,12 @@ func (m *Model) Resize(width, height int) {
 	m.viewport.Width = width
 	m.viewport.Height = height
 
-	newRenderer, err := getGlamourRenderer(width)
-	if err == nil {
-		m.mdRenderer = newRenderer
-	}
+	// TODO: figure out how to make this reasonably performant....
+	// newRenderer, err := getGlamourRenderer(width)
+	// if err == nil {
+	// 	m.mdRenderer.Close()
+	// 	m.mdRenderer = newRenderer
+	// }
 }
 
 func (m *Model) GetWidth() int {

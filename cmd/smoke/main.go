@@ -134,6 +134,22 @@ func run() error {
 }
 
 func main() {
+	// f, err := os.Create("trace.out")
+	// if err != nil {
+	// 	panic(fmt.Errorf("trace file error: %w", err))
+	// }
+	//
+	// defer func() {
+	// 	if err := f.Close(); err != nil {
+	// 		fmt.Printf("Failed to close trace.out: %v\n", err)
+	// 	}
+	// }()
+	//
+	// if err := trace.Start(f); err != nil {
+	// 	panic(err)
+	// }
+	// defer trace.Stop()
+
 	if err := run(); err != nil {
 		panic(fmt.Errorf("error: %w", err))
 	}

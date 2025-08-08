@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -60,11 +61,26 @@ func New() (*Model, error) {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(m.history.Init(), m.input.Init())
+	cmds := tea.Batch(m.history.Init(), m.input.Init())
+	return cmds
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	commands := []tea.Cmd{}
+
+	inputModel, inputCmd := m.input.Update(msg)
+	m.input = inputModel
+
+	if inputCmd != nil {
+		commands = append(commands, inputCmd)
+	}
+
+	historyModel, historyCmd := m.history.Update(msg)
+	m.history = historyModel
+
+	if historyCmd != nil {
+		commands = append(commands, historyCmd)
+	}
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg, input.ResizeMessage:
@@ -73,35 +89,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type { //nolint:exhaustive
 		case tea.KeyCtrlC:
 			return m, tea.Quit
-		default:
-			inputModel, inputCmd := m.input.Update(msg)
-			m.input = inputModel
-
-			if inputCmd != nil {
-				commands = append(commands, inputCmd)
-			}
-
-			historyModel, historyCmd := m.history.Update(msg)
-			m.history = historyModel
-
-			if historyCmd != nil {
-				commands = append(commands, historyCmd)
-			}
 		}
 	case input.ContentMessage:
 		// TODO: Process the content (e.g., send to LLM, etc.)
-		_ = msg.Content // placeholder to avoid unused variable
-
-	case history.Message:
-		historyModel, historyCmd := m.history.Update(msg)
-		m.history = historyModel
-
-		commands = append(commands, historyCmd)
-	case input.Message:
-		newInput, inputCmd := m.input.Update(msg)
-		m.input = newInput
-
-		commands = append(commands, inputCmd)
+		slog.Debug("got content message", "content", msg.Content)
 	}
 
 	return m, tea.Batch(commands...)
