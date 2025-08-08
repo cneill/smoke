@@ -92,7 +92,8 @@ func (s *Smoke) setupLLM() error {
 		chatGPT, err := llms.NewChatGPT(&llms.ChatGPTOpts{
 			APIKey: s.opts.APIKey,
 			// Model:        openai.ChatModelGPT4o,
-			Model:        openai.ChatModelGPT4_1,
+			// Model:        openai.ChatModelGPT4_1,
+			Model:        openai.ChatModelO3Mini,
 			MaxTokens:    s.opts.MaxTokens,
 			ToolsManager: s.tools,
 		})
