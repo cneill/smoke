@@ -90,9 +90,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		}
-	case input.ContentMessage:
+	case input.UserMessage:
 		// TODO: Process the content (e.g., send to LLM, etc.)
 		slog.Debug("got content message", "content", msg.Content)
+	case input.ExitCommand:
+		return m, tea.Quit
+	case input.UnknownCommand:
+		slog.Warn("unknown command", "command", msg.Command, "args", msg.Args)
 	}
 
 	return m, tea.Batch(commands...)

@@ -147,13 +147,8 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch msg.Type { //nolint:exhaustive
 		case tea.KeyEnter:
-			content := m.textarea.Value()
-			m.textarea.Reset()
-
-			return func() tea.Msg {
-				return ContentMessage{
-					Content: content,
-				}
+			if m.Focused() {
+				return m.handleContentSubmit()
 			}
 		case tea.KeyEsc:
 			m.textarea.Blur()
@@ -175,6 +170,7 @@ func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 	if !m.waiting {
 		return nil
 	}
+
 	newSpinner, cmd := m.spinner.Update(msg)
 	m.spinner = newSpinner
 
@@ -197,7 +193,6 @@ func (m *Model) Resize(width, height int) {
 // LineHeight calculates the number of effective lines - both those ended with \n and those that are necessitated by
 // text running off the screen - and returns the minimum of this or the maxlines of the textarea.
 func (m *Model) LineHeight() int {
-	// return lipgloss.Height(m.textarea.Value()) + 1
 	content := m.textarea.Value()
 	explicitLines := strings.Split(content, "\n")
 	numLines := len(explicitLines)
@@ -226,4 +221,44 @@ func (m *Model) GetHeight() int {
 
 func (m *Model) Focused() bool {
 	return m.textarea.Focused()
+}
+
+// handleContentSubmit interprets the content the user has entered in the textarea and returns an appropriate tea.Cmd.
+func (m *Model) handleContentSubmit() tea.Cmd {
+	content := m.textarea.Value()
+	m.textarea.Reset()
+
+	if strings.HasPrefix(content, "/") {
+		return m.handlePromptCommand(content)
+	}
+
+	return wrapMsg(UserMessage{
+		Content: content,
+	})
+}
+
+func (m *Model) handlePromptCommand(content string) tea.Cmd {
+	fields := strings.Fields(content)
+	cmdName := strings.TrimPrefix(fields[0], "/")
+
+	args := []string{}
+	if len(fields) > 1 {
+		args = fields[1:]
+	}
+
+	switch cmdName {
+	case "exit":
+		return wrapMsg(ExitCommand{})
+	default:
+		return wrapMsg(UnknownCommand{
+			Command: cmdName,
+			Args:    args,
+		})
+	}
+}
+
+func wrapMsg(msg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		return msg
+	}
 }
