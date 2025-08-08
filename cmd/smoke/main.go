@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/log"
-	"github.com/cneill/smoke/pkg/models"
+	"github.com/cneill/smoke/pkg/models/ui"
 	"github.com/urfave/cli/v2"
 )
 
@@ -111,7 +111,7 @@ func run() error {
 
 			log.Setup(logFile, level)
 
-			smokeModel, err := models.New()
+			smokeModel, err := ui.New()
 			if err != nil {
 				return fmt.Errorf("failed to set up UI: %w", err)
 			}
