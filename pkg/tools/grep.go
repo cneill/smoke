@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/cneill/smack/pkg/paths"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const (
@@ -57,7 +57,7 @@ func (g *GrepTool) Run(args Args) (string, error) {
 		return "", fmt.Errorf("no path supplied")
 	}
 
-	fullPath, err := paths.GetRelative(g.ProjectPath, *path)
+	fullPath, err := utils.GetRelativePath(g.ProjectPath, *path)
 	if err != nil {
 		return "", fmt.Errorf("path error: %w", err)
 	}

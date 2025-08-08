@@ -6,7 +6,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/cneill/smack/pkg/paths"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const (
@@ -55,7 +55,7 @@ func (w *WriteFileTool) Run(args Args) (string, error) {
 		return "", fmt.Errorf("no path supplied")
 	}
 
-	fullPath, err := paths.GetRelative(w.ProjectPath, *path)
+	fullPath, err := utils.GetRelativePath(w.ProjectPath, *path)
 	if err != nil {
 		return "", fmt.Errorf("path error: %w", err)
 	}

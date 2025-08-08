@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cneill/smack/pkg/paths"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const (
@@ -39,7 +39,7 @@ func (c *CreateDirectoryTool) Run(args Args) (string, error) {
 		return "", fmt.Errorf("no path supplied")
 	}
 
-	fullPath, err := paths.GetRelative(c.ProjectPath, *path)
+	fullPath, err := utils.GetRelativePath(c.ProjectPath, *path)
 	if err != nil {
 		return "", fmt.Errorf("path error: %w", err)
 	}

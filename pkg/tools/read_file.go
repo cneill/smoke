@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cneill/smack/pkg/paths"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const (
@@ -77,7 +77,7 @@ func (r *ReadFileTool) Run(args Args) (string, error) {
 		return "", fmt.Errorf("no path supplied")
 	}
 
-	fullPath, err := paths.GetRelative(r.ProjectPath, *path)
+	fullPath, err := utils.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
 		return "", fmt.Errorf("path error: %w", err)
 	}
