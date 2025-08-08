@@ -113,27 +113,27 @@ func (m *Model) logContent() string {
 			switch item.Role {
 			case llms.RoleUser:
 				roleStr = "👤 User:"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#0087ff"))
 
 				if mdContent, err := m.mdRenderer.Render(content); err == nil {
 					content = mdContent
 				}
 			case llms.RoleAssistant:
 				roleStr = "🤖 Assistant:"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("32"))
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00af00"))
 
 				if mdContent, err := m.mdRenderer.Render(content); err == nil {
 					content = mdContent
 				}
 			case llms.RoleTool:
 				roleStr = "🔧 Tool:"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00afaf"))
 			case llms.RoleSystem:
 				roleStr = "🛠 System:"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("35"))
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#af00af"))
 			case llms.RoleUnknown:
 				roleStr = "❓ UNKNOWN ROLE:"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("31"))
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#af0000"))
 			}
 
 			lines := strings.Split(content, "\n")
