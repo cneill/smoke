@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/pkg/llms"
 )
 
@@ -98,34 +99,59 @@ func (m *Model) logContent() string {
 		switch item := item.(type) {
 		case *llms.Message:
 			var (
-				roleStr string
-				content = item.Content
+				roleStr  string
+				curStyle lipgloss.Style
+				content  = item.Content
 			)
 
 			switch item.Role {
 			case llms.RoleUser:
-				roleStr = "User:"
+				roleStr = "👤 User:"
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
 
-				mdContent, err := m.mdRenderer.Render(content)
-				if err == nil {
+				if mdContent, err := m.mdRenderer.Render(content); err == nil {
 					content = mdContent
 				}
 			case llms.RoleAssistant:
-				roleStr = "Assistant:"
+				roleStr = "🤖 Assistant:"
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("32"))
 
-				mdContent, err := m.mdRenderer.Render(content)
-				if err == nil {
+				if mdContent, err := m.mdRenderer.Render(content); err == nil {
 					content = mdContent
 				}
 			case llms.RoleTool:
-				roleStr = "Tool:"
+				roleStr = "🔧 Tool:"
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
 			case llms.RoleSystem:
-				roleStr = "System:"
+				roleStr = "🛠 System:"
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("35"))
 			case llms.RoleUnknown:
-				roleStr = "UNKNOWN ROLE:"
+				roleStr = "❓ UNKNOWN ROLE:"
+				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("31"))
 			}
 
-			fmt.Fprintf(builder, "%s\n%s\n", roleStr, content)
+			lines := strings.Split(content, "\n")
+			maxWidth := len(roleStr)
+
+			for _, line := range lines {
+				if l := len(line); l > maxWidth {
+					maxWidth = l
+				}
+			}
+
+			topBorder := curStyle.Render(fmt.Sprintf("╭%s╮", strings.Repeat("─", maxWidth+2)))
+			roleLine := curStyle.Render(fmt.Sprintf("│ %-*s │", maxWidth, roleStr))
+
+			var contentLines strings.Builder
+			for _, line := range lines {
+				contentLines.WriteString(curStyle.Render(fmt.Sprintf("│ %-*s │", maxWidth, line)))
+				contentLines.WriteString("\n")
+			}
+
+			bottomBorder := curStyle.Render(fmt.Sprintf("╰%s╯", strings.Repeat("─", maxWidth+2)))
+
+			fmt.Fprintf(builder, "%s\n%s\n%s%s\n\n", topBorder, roleLine, contentLines.String(), bottomBorder)
+
 		case error:
 			fmt.Fprintf(builder, "ERROR: %v\n", item)
 		}
