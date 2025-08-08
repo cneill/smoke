@@ -10,7 +10,7 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/v2"
 )
 
 type Opts struct {
@@ -93,7 +93,8 @@ func (s *Smoke) setupLLM() error {
 			APIKey: s.opts.APIKey,
 			// Model:        openai.ChatModelGPT4o,
 			// Model:        openai.ChatModelGPT4_1,
-			Model:        openai.ChatModelO3Mini,
+			// Model:        openai.ChatModelO3Mini,
+			Model:        openai.ChatModelGPT5,
 			MaxTokens:    s.opts.MaxTokens,
 			ToolsManager: s.tools,
 		})
