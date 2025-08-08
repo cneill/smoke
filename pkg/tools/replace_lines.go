@@ -36,24 +36,9 @@ func (r *ReplaceLinesTool) Params() Params {
 		{
 			Key:         ReplaceLinesSearch,
 			Description: fmt.Sprintf("The content to search for that will be replaced by the contents of '%s'", ReplaceLinesReplace),
-			// Description: fmt.Sprintf(
-			// 	"The content to search for that will be replaced by the contents of '%s'. Mutually exclusive with '%s'",
-			// 	ReplaceLinesReplace,
-			// 	ReplaceLinesSearchRegex,
-			// ),
-			Type:     ParamTypeString,
-			Required: true,
+			Type:        ParamTypeString,
+			Required:    true,
 		},
-		// {
-		// 	Key:         ReplaceLinesSearchRegex,
-		// 	Description: fmt.Sprintf(
-		// 		"A regular expression (in Golang syntax) that will be replaced by the contents of '%s'. Mutually exclusive with '%s'",
-		// 		ReplaceLinesReplace,
-		// 		ReplaceLinesSearch,
-		// 	),
-		// 	Type:        ParamTypeNumber,
-		// 	Required:    true,
-		// },
 		{
 			Key:         ReplaceLinesReplace,
 			Description: fmt.Sprintf("The content that will replace all occurrences of the content in '%s' within the specified file", ReplaceLinesSearch),
