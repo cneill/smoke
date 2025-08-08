@@ -90,8 +90,9 @@ func (s *Smoke) setupLLM() error {
 	switch s.opts.Provider {
 	case llms.LLMTypeChatGPT:
 		chatGPT, err := llms.NewChatGPT(&llms.ChatGPTOpts{
-			APIKey:       s.opts.APIKey,
-			Model:        openai.ChatModelGPT4o,
+			APIKey: s.opts.APIKey,
+			// Model:        openai.ChatModelGPT4o,
+			Model:        openai.ChatModelGPT4_1,
 			MaxTokens:    s.opts.MaxTokens,
 			ToolsManager: s.tools,
 		})

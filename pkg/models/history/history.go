@@ -84,7 +84,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	m.viewport.SetContent(m.logContent())
+	if len(m.log) > 0 {
+		m.viewport.SetContent(m.logContent())
+	}
+
 	return m.viewport.View()
 }
 
