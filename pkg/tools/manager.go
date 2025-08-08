@@ -32,7 +32,7 @@ func NewManager(projectPath string) *Manager {
 		Tools: Tools{
 			&ListFilesTool{ProjectPath: projectPath},
 			&ReadFileTool{ProjectPath: projectPath},
-			// &WriteFileTool{ProjectPath: projectPath},
+			&WriteFileTool{ProjectPath: projectPath},
 			&GrepTool{ProjectPath: projectPath},
 			&CreateDirectoryTool{ProjectPath: projectPath},
 			&LintTool{ProjectPath: projectPath},

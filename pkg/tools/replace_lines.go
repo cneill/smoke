@@ -22,7 +22,7 @@ type ReplaceLinesTool struct {
 func (r *ReplaceLinesTool) Name() string { return "replace_lines" }
 
 func (r *ReplaceLinesTool) Description() string {
-	return "Replace specific lines in a file given a start and end line number."
+	return "Replace strings in the given file with new contents."
 }
 
 func (r *ReplaceLinesTool) Params() Params {
