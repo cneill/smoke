@@ -6,8 +6,10 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/log"
 	"github.com/cneill/smoke/pkg/models/ui"
+	"github.com/cneill/smoke/pkg/smoke"
 	"github.com/urfave/cli/v2"
 )
 
@@ -85,18 +87,13 @@ func flags() []cli.Flag {
 
 func run() error {
 	var logFile *os.File
-	defer func() {
-		if logFile != nil {
-			logFile.Close()
-		}
-	}()
 
 	app := &cli.App{
 		Name:        "smoke",
 		HelpName:    "smoke",
 		Description: "Smoke 'em if you got 'em.",
 		Flags:       flags(),
-		Action: func(ctx *cli.Context) error {
+		Before: func(ctx *cli.Context) error {
 			level := slog.LevelInfo
 			if ctx.Bool(FlagDebug) {
 				level = slog.LevelDebug
@@ -111,15 +108,27 @@ func run() error {
 
 			log.Setup(logFile, level)
 
-			smokeModel, err := ui.New()
-			if err != nil {
-				return fmt.Errorf("failed to set up UI: %w", err)
+			switch llms.LLMType(ctx.String(FlagProvider)) {
+			case llms.LLMTypeChatGPT:
+				if ctx.String(FlagOpenAIKey) == "" {
+					return fmt.Errorf("must supply %s flag or %s environment variable", FlagOpenAIKey, EnvOpenAIKey)
+				}
+			case llms.LLMTypeClaude:
+				if ctx.String(FlagAnthropicKey) == "" {
+					return fmt.Errorf("must supply %s flag or %s environment variable", FlagAnthropicKey, EnvAnthropicKey)
+				}
+			default:
+				return fmt.Errorf("unknown model provider: %s", ctx.String(FlagProvider))
 			}
 
-			p := tea.NewProgram(smokeModel)
-
-			if _, err := p.Run(); err != nil {
-				return fmt.Errorf("app error: %w", err)
+			return nil
+		},
+		Action: action,
+		After: func(_ *cli.Context) error {
+			if logFile != nil {
+				if err := logFile.Close(); err != nil {
+					return fmt.Errorf("failed to close log file %q: %w", logFile.Name(), err)
+				}
 			}
 
 			return nil
@@ -128,6 +137,47 @@ func run() error {
 
 	if err := app.Run(os.Args); err != nil {
 		return fmt.Errorf("run error: %w", err)
+	}
+
+	return nil
+}
+
+func action(ctx *cli.Context) error {
+	provider := llms.LLMType(ctx.String(FlagProvider))
+
+	smokeOpts := &smoke.Opts{
+		Debug:       ctx.Bool(FlagDebug),
+		ProjectPath: ctx.Path(FlagDir),
+		Provider:    provider,
+		MaxTokens:   ctx.Int64(FlagMaxTokens),
+		SessionName: ctx.String(FlagSessionName),
+	}
+
+	switch provider {
+	case llms.LLMTypeChatGPT:
+		smokeOpts.APIKey = ctx.String(FlagOpenAIKey)
+	case llms.LLMTypeClaude:
+		smokeOpts.APIKey = ctx.String(FlagAnthropicKey)
+	}
+
+	smokeInstance, err := smoke.New(smokeOpts)
+	if err != nil {
+		return fmt.Errorf("failed to set up smoke: %w", err)
+	}
+
+	uiOpts := &ui.Opts{
+		Smoke: smokeInstance,
+	}
+
+	uiModel, err := ui.New(uiOpts)
+	if err != nil {
+		return fmt.Errorf("failed to set up UI: %w", err)
+	}
+
+	p := tea.NewProgram(uiModel)
+
+	if _, err := p.Run(); err != nil {
+		return fmt.Errorf("app error: %w", err)
 	}
 
 	return nil

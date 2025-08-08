@@ -2,10 +2,12 @@ package history
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
+	"github.com/cneill/smoke/pkg/llms"
 )
 
 type Opts struct {
@@ -29,7 +31,7 @@ type Model struct {
 	viewport   viewport.Model
 	mdRenderer *glamour.TermRenderer
 
-	haveContent bool // TODO: can this be eliminated with something checking the viewport for message content?
+	log []any
 }
 
 func New(opts *Opts) (*Model, error) {
@@ -49,7 +51,7 @@ func New(opts *Opts) (*Model, error) {
 		viewport:   viewport,
 		mdRenderer: mdRenderer,
 
-		haveContent: false,
+		log: []any{},
 	}
 
 	return model, nil
@@ -74,19 +76,61 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) { //nolint:gocritic
-	case Message:
-		switch msg.Underlying.(type) { //nolint:gocritic
-		case ContentUpdate:
-			// TODO: render bubbles / etc
-			m.haveContent = true
-		}
+	case ContentUpdate:
+		m.log = append(m.log, msg.Message)
 	}
 
 	return m, nil
 }
 
 func (m *Model) View() string {
+	m.viewport.SetContent(m.logContent())
 	return m.viewport.View()
+}
+
+func (m *Model) logContent() string {
+	builder := &strings.Builder{}
+
+	for _, item := range m.log {
+		switch item := item.(type) {
+		case *llms.Message:
+			var (
+				roleStr string
+				content = item.Content
+			)
+
+			switch item.Role {
+			case llms.RoleUser:
+				roleStr = "User:"
+
+				mdContent, err := m.mdRenderer.Render(content)
+				if err == nil {
+					content = mdContent
+				}
+			case llms.RoleAssistant:
+				roleStr = "Assistant:"
+
+				mdContent, err := m.mdRenderer.Render(content)
+				if err == nil {
+					content = mdContent
+				}
+			case llms.RoleTool:
+				roleStr = "Tool:"
+			case llms.RoleSystem:
+				roleStr = "System:"
+			case llms.RoleUnknown:
+				roleStr = "UNKNOWN ROLE:"
+			}
+
+			fmt.Fprintf(builder, "%s\n%s\n", roleStr, content)
+		case error:
+			fmt.Fprintf(builder, "ERROR: %v\n", item)
+		}
+
+		builder.WriteRune('\n')
+	}
+
+	return builder.String()
 }
 
 func (m *Model) Resize(width, height int) {
@@ -109,8 +153,6 @@ func (m *Model) GetHeight() int {
 	return m.viewport.Height
 }
 
-type Message struct {
-	Underlying tea.Msg
+type ContentUpdate struct {
+	Message any
 }
-
-type ContentUpdate struct{}

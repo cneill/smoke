@@ -1,26 +1,48 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
 	"github.com/cneill/smoke/pkg/models/input"
+	"github.com/cneill/smoke/pkg/smoke"
 	"golang.org/x/term"
 )
 
 const gap = "\n"
 
+type Opts struct {
+	Smoke *smoke.Smoke
+}
+
+func (o *Opts) OK() error {
+	if o.Smoke == nil {
+		return fmt.Errorf("missing smoke")
+	}
+
+	return nil
+}
+
 type Model struct {
+	smoke *smoke.Smoke
+
 	banner  *banner.Model
 	history *history.Model
 	input   *input.Model
 }
 
-func New() (*Model, error) {
+func New(opts *Opts) (*Model, error) {
+	if err := opts.OK(); err != nil {
+		return nil, fmt.Errorf("options error: %w", err)
+	}
+
 	width, height, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get terminal size: %w", err)
@@ -52,6 +74,8 @@ func New() (*Model, error) {
 	}
 
 	model := &Model{
+		smoke: opts.Smoke,
+
 		banner:  bannerModel,
 		history: historyModel,
 		input:   inputModel,
@@ -91,12 +115,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case input.UserMessage:
-		// TODO: Process the content (e.g., send to LLM, etc.)
-		slog.Debug("got content message", "content", msg.Content)
+		if cmd := m.handleUserMessage(msg); cmd != nil {
+			commands = append(commands, cmd)
+		}
 	case input.ExitCommand:
 		return m, tea.Quit
 	case input.UnknownCommand:
 		slog.Warn("unknown command", "command", msg.Command, "args", msg.Args)
+	case assistantError:
+		commands = append(commands, updateHistory(msg.err))
+	case assistantResponse:
+		commands = append(commands, updateHistory(msg.msg))
 	}
 
 	return m, tea.Batch(commands...)
@@ -119,4 +148,40 @@ func (m *Model) resize(msg tea.Msg) {
 
 func (m *Model) View() string {
 	return fmt.Sprintf("%s%s%s", m.history.View(), gap, m.input.View())
+}
+
+type assistantResponse struct {
+	msg *llms.Message
+}
+
+type assistantError struct {
+	err error
+}
+
+func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
+	llmMessage := llms.SimpleMessage(llms.RoleUser, msg.Content)
+
+	sendMessage := func() tea.Msg {
+		slog.Debug("got user message", "content", msg.Content)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+		defer cancel()
+
+		response, err := m.smoke.SendUserMessage(ctx, llmMessage)
+		if err != nil {
+			return assistantError{err}
+		}
+
+		return assistantResponse{response}
+	}
+
+	return tea.Batch(updateHistory(llmMessage), sendMessage)
+}
+
+func updateHistory(msg any) tea.Cmd {
+	return func() tea.Msg {
+		return history.ContentUpdate{
+			Message: msg,
+		}
+	}
 }

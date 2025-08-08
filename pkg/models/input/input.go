@@ -179,7 +179,7 @@ func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 
 func (m *Model) View() string {
 	if m.waiting {
-		return m.spinner.View()
+		return "Waiting" + m.spinner.View()
 	}
 
 	return m.textarea.View()
