@@ -63,8 +63,9 @@ func New(opts *Opts) (*Smoke, error) {
 	}
 
 	session, err := llms.NewSession(&llms.SessionOpts{
-		Name:          opts.SessionName,
-		SystemMessage: prompts.System,
+		Name: opts.SessionName,
+		// SystemMessage: prompts.System,
+		SystemMessage: prompts.SystemJSON(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize session: %w", err)
