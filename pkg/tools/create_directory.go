@@ -17,7 +17,7 @@ type CreateDirectoryTool struct {
 
 var _ = Tool(&CreateDirectoryTool{})
 
-func (c *CreateDirectoryTool) Name() string { return "create_directory" }
+func (c *CreateDirectoryTool) Name() string { return ToolCreateDirectory }
 func (c *CreateDirectoryTool) Description() string {
 	return "Create a new directory at the given path."
 }

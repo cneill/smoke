@@ -23,7 +23,7 @@ type GrepTool struct {
 	ProjectPath string
 }
 
-func (g *GrepTool) Name() string { return "grep" }
+func (g *GrepTool) Name() string { return ToolGrep }
 func (g *GrepTool) Description() string {
 	return "Search a file or directory for a regular expression. Does not search recursively."
 }

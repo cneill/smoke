@@ -7,9 +7,14 @@ import (
 )
 
 const (
-	ToolListFiles = "list_files"
-	ToolReadFile  = "read_file"
-	ToolWriteFile = "write_file"
+	ToolCreateDirectory = "create_directory"
+	ToolGitDiff         = "git_diff"
+	ToolGrep            = "grep"
+	ToolLint            = "lint"
+	ToolListFiles       = "list_files"
+	ToolReadFile        = "read_file"
+	ToolReplaceLines    = "replace_lines"
+	ToolWriteFile       = "write_file"
 )
 
 var (
@@ -30,14 +35,14 @@ func NewManager(projectPath string) *Manager {
 		logger:      slog.Default().WithGroup("tools_manager"),
 		ProjectPath: projectPath,
 		Tools: Tools{
+			&CreateDirectoryTool{ProjectPath: projectPath},
+			&GitDiffTool{ProjectPath: projectPath},
+			&GrepTool{ProjectPath: projectPath},
+			&LintTool{ProjectPath: projectPath},
 			&ListFilesTool{ProjectPath: projectPath},
 			&ReadFileTool{ProjectPath: projectPath},
-			&WriteFileTool{ProjectPath: projectPath},
-			&GrepTool{ProjectPath: projectPath},
-			&CreateDirectoryTool{ProjectPath: projectPath},
-			&LintTool{ProjectPath: projectPath},
-			&GitDiffTool{ProjectPath: projectPath},
 			&ReplaceLinesTool{ProjectPath: projectPath},
+			&WriteFileTool{ProjectPath: projectPath},
 			// &GofmtTool{ProjectPath: projectPath},
 		},
 	}

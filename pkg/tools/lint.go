@@ -20,9 +20,7 @@ type LintTool struct {
 	ProjectPath string
 }
 
-func (l *LintTool) Name() string {
-	return "lint"
-}
+func (l *LintTool) Name() string { return ToolLint }
 
 func (l *LintTool) Description() string {
 	return "Runs the golangci-lint linter against the specified file/directory, or the whole project directory if a " +

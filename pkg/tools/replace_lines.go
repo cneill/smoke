@@ -19,7 +19,7 @@ type ReplaceLinesTool struct {
 	ProjectPath string
 }
 
-func (r *ReplaceLinesTool) Name() string { return "replace_lines" }
+func (r *ReplaceLinesTool) Name() string { return ToolReplaceLines }
 
 func (r *ReplaceLinesTool) Description() string {
 	return fmt.Sprintf(
