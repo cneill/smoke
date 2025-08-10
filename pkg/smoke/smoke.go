@@ -107,8 +107,9 @@ func (s *Smoke) setupLLM() error {
 
 	case llms.LLMTypeClaude:
 		claude, err := llms.NewClaude(&llms.ClaudeOpts{
-			APIKey:       s.opts.APIKey,
-			Model:        anthropic.ModelClaude4Sonnet20250514,
+			APIKey: s.opts.APIKey,
+			// Model:        anthropic.ModelClaude4Sonnet20250514,
+			Model:        anthropic.ModelClaudeOpus4_1_20250805,
 			MaxTokens:    s.opts.MaxTokens,
 			ToolsManager: s.tools,
 		})
