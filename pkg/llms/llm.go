@@ -10,7 +10,7 @@ const (
 )
 
 type LLM interface {
-	LLMInfo() LLMInfo
+	LLMInfo() *LLMInfo
 	SendSession(ctx context.Context, s *Session) (*Message, error)
 	RequiresSessionSystem() bool
 	HandleToolCalls(msg *Message) ([]*Message, error)

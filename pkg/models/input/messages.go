@@ -8,6 +8,10 @@ type UserMessage struct {
 
 type ExitCommand struct{}
 
+type SaveCommand struct {
+	Path string
+}
+
 type UnknownCommand struct {
 	Command string
 	Args    []string

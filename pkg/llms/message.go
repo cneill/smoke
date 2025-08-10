@@ -10,24 +10,26 @@ import (
 )
 
 type Message struct {
-	ID    string
-	Added time.Time
+	ID    string    `json:"id"`
+	Added time.Time `json:"added"`
 
-	Role    Role
-	Content string
-	Error   error
+	Role    Role   `json:"role"`
+	Content string `json:"content,omitempty"`
+	Error   error  `json:"error,omitempty"`
 
 	// ToolsCalled contains the names of tools the assistant requested to use.
-	ToolsCalled []string
+	ToolsCalled []string `json:"tools_called,omitempty"`
 	// ToolCallInfo contains the raw representation of the tool call information from the assistant.
-	ToolCallInfo any
+	// TODO: hide this?
+	ToolCallInfo any `json:"tool_call_info,omitempty,omitzero"`
 
 	// ToolCallID is the ID associated with the assistant's tool use request.
-	ToolCallID string // TODO: Should this be a []string?
+	ToolCallID string `json:"tool_call_id,omitempty"` // TODO: Should this be a []string?
 	// ToolCallArgs are the arguments provided by the assistant to the specified tool.
-	ToolCallArgs tools.Args
+	ToolCallArgs tools.Args `json:"tool_call_args,omitempty"`
 
-	LLMInfo LLMInfo
+	// LLMInfo contains details about the LLM that generated the assistant message
+	LLMInfo *LLMInfo `json:"llm_info,omitempty"`
 }
 
 func NewMessage(opts ...MessageOpt) *Message {
@@ -131,7 +133,7 @@ func WithError(err error) MessageOpt {
 	}
 }
 
-func WithLLMInfo(info LLMInfo) MessageOpt {
+func WithLLMInfo(info *LLMInfo) MessageOpt {
 	return func(message *Message) *Message {
 		message.LLMInfo = info
 		return message

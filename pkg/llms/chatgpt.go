@@ -59,8 +59,8 @@ func NewChatGPT(opts *ChatGPTOpts) (*ChatGPT, error) {
 	return chatGPT, nil
 }
 
-func (c *ChatGPT) LLMInfo() LLMInfo {
-	return LLMInfo{
+func (c *ChatGPT) LLMInfo() *LLMInfo {
+	return &LLMInfo{
 		Type:      LLMTypeChatGPT,
 		ModelName: c.opts.Model,
 	}

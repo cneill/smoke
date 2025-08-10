@@ -59,8 +59,8 @@ func NewClaude(opts *ClaudeOpts) (*Claude, error) {
 	return claude, nil
 }
 
-func (c *Claude) LLMInfo() LLMInfo {
-	return LLMInfo{
+func (c *Claude) LLMInfo() *LLMInfo {
+	return &LLMInfo{
 		Type:      LLMTypeClaude,
 		ModelName: string(c.opts.Model),
 	}

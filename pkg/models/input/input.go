@@ -251,6 +251,13 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 	switch cmdName {
 	case "exit":
 		return wrapMsg(ExitCommand{})
+	case "save":
+		save := SaveCommand{}
+		if len(args) > 0 {
+			save.Path = args[0]
+		}
+
+		return wrapMsg(save)
 	default:
 		return wrapMsg(UnknownCommand{
 			Command: cmdName,

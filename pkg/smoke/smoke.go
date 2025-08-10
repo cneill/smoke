@@ -2,9 +2,11 @@ package smoke
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/cneill/smoke/pkg/llms"
@@ -172,4 +174,21 @@ func (s *Smoke) HandleToolCallResults(ctx context.Context, messages []*llms.Mess
 
 func (s *Smoke) GetMessages() []*llms.Message {
 	return s.session.Messages
+}
+
+func (s *Smoke) SaveSession(path string) error {
+	if path == "" {
+		path = fmt.Sprintf("%s_saved_%s.json", s.session.Name, time.Now().Format(time.DateTime))
+	}
+
+	sessionBytes, err := json.MarshalIndent(s.session, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal session JSON: %w", err)
+	}
+
+	if err := os.WriteFile(path, sessionBytes, 0o644); err != nil {
+		return fmt.Errorf("failed to write session to file %q: %w", path, err)
+	}
+
+	return nil
 }

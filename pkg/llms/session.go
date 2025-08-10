@@ -7,9 +7,9 @@ import (
 )
 
 type Session struct {
-	Name          string
-	SystemMessage string
-	Messages      []*Message
+	Name          string     `json:"name"`
+	SystemMessage string     `json:"system_message"`
+	Messages      []*Message `json:"messages"`
 
 	messageMutex sync.RWMutex
 }
