@@ -115,13 +115,22 @@ func (l *LintTool) Run(args Args) (string, error) {
 		return buf.String(), nil
 	}
 
-	var targetIssues []Issue
+	for _, issue := range results.Issues {
+		slog.Debug("issue detected", "path", issue.Pos.Filename, "detail", issue.Text)
+	}
+
+	targetIssues := []Issue{}
 
 	if targetFile == "" {
 		targetIssues = results.Issues
 	} else {
 		for _, issue := range results.Issues {
-			if issue.Pos.Filename == originalPath {
+			issuePath, err := utils.GetRelativePath(l.ProjectPath, issue.Pos.Filename)
+			if err != nil {
+				continue
+			}
+
+			if issuePath == originalPath {
 				targetIssues = append(targetIssues, issue)
 			}
 		}
