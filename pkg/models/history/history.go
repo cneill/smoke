@@ -79,6 +79,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ContentUpdate:
 		m.log = append(m.log, msg.Message)
+		m.viewport.SetContent(m.logContent())
+		// only scroll down if we're already at the bottom
+		if m.viewport.AtBottom() {
+			m.viewport.GotoBottom()
+		}
 	default:
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
@@ -90,11 +95,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	if len(m.log) > 0 {
-		m.viewport.SetContent(m.logContent())
-		m.viewport.GotoBottom()
-	}
-
 	return m.viewport.View()
 }
 
