@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/mattn/go-runewidth"
+	"github.com/muesli/reflow/wordwrap"
 )
 
 type Opts struct {
@@ -174,7 +175,7 @@ func (m *Model) renderBubble(header string, style lipgloss.Style, content string
 		}
 	}
 
-	fmt.Fprintln(builder, content)
+	fmt.Fprintln(builder, wordwrap.String(content, m.viewport.Width))
 
 	return builder.String()
 }
