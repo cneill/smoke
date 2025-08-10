@@ -63,7 +63,7 @@ func New(opts *Opts) (*Model, error) {
 
 func getGlamourRenderer(width int) (*glamour.TermRenderer, error) {
 	renderer, err := glamour.NewTermRenderer(
-		glamour.WithWordWrap(width-4),
+		glamour.WithWordWrap(width),
 		glamour.WithEmoji(),
 		glamour.WithAutoStyle(),
 	)
@@ -108,7 +108,10 @@ func (m *Model) logContent() string {
 
 	for _, item := range m.log {
 		info := bubbleInfo{
+			titleStyle: lipgloss.NewStyle().
+				Background(lipgloss.Color("#000000")),
 			subtitleStyle: lipgloss.NewStyle().
+				Background(lipgloss.Color("#000000")).
 				Foreground(lipgloss.Color("#444444")).
 				Italic(true),
 			useMarkdown: false,
@@ -122,31 +125,31 @@ func (m *Model) logContent() string {
 			switch item.Role {
 			case llms.RoleUser:
 				info.title = "👤 User"
-				info.titleStyle = lipgloss.NewStyle().
+				info.titleStyle = info.titleStyle.
 					Foreground(lipgloss.Color("#0087ff"))
 				info.useMarkdown = true
 			case llms.RoleAssistant:
 				info.title = fmt.Sprintf("🤖 %s (%s)", item.LLMInfo.Type, item.LLMInfo.ModelName)
-				info.titleStyle = lipgloss.NewStyle().
+				info.titleStyle = info.titleStyle.
 					Foreground(lipgloss.Color("#00af00"))
 				info.useMarkdown = true
 			case llms.RoleTool:
 				info.title = "🔧 Tool"
-				info.titleStyle = lipgloss.NewStyle().
+				info.titleStyle = info.titleStyle.
 					Foreground(lipgloss.Color("#00afaf"))
 			case llms.RoleSystem:
 				info.title = "🖥️ System"
-				info.titleStyle = lipgloss.NewStyle().
+				info.titleStyle = info.titleStyle.
 					Foreground(lipgloss.Color("#af00af"))
 			case llms.RoleUnknown:
 				info.title = "❓ UNKNOWN ROLE"
-				info.titleStyle = lipgloss.NewStyle().
+				info.titleStyle = info.titleStyle.
 					Foreground(lipgloss.Color("#af0000"))
 			}
 
 		case error:
 			info.title = "⛔ Error"
-			info.titleStyle = lipgloss.NewStyle().
+			info.titleStyle = info.titleStyle.
 				Foreground(lipgloss.Color("#af0000"))
 			info.content = item.Error()
 		}
@@ -168,7 +171,8 @@ type bubbleInfo struct {
 	useMarkdown   bool
 }
 
-// renderBubble displays messages and errors with a nice title/subtitle bubble before the item's content.
+// renderBubble displays messages and errors with a nice title/subtitle bubble before the item's content. It word-wraps
+// the content of the actual message to ensure it doesn't run off the screen.
 func (m *Model) renderBubble(info bubbleInfo) string {
 	builder := &strings.Builder{}
 	content := info.content
@@ -193,9 +197,9 @@ func (m *Model) renderBubble(info bubbleInfo) string {
 
 	fmt.Fprintln(builder, info.titleStyle.Render("╭"+line+"╮"))
 	fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("│%*s%s%*s│", titlePaddingLeft, "", info.title, titlePaddingRight, "")))
-	fmt.Fprint(builder, info.titleStyle.Render("│"))
-	fmt.Fprintf(builder, "%*s%s%*s", subtitlePaddingLeft, "", info.subtitleStyle.Render(info.subtitle), subtitlePaddingRight, "")
-	fmt.Fprintln(builder, info.titleStyle.Render("│"))
+	fmt.Fprint(builder, info.titleStyle.Render(fmt.Sprintf("│%*s", subtitlePaddingLeft, "")))
+	fmt.Fprintf(builder, "%s", info.subtitleStyle.Render(info.subtitle))
+	fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("%*s│", subtitlePaddingRight, "")))
 	fmt.Fprintln(builder, info.titleStyle.Render("╰"+line+"╯"))
 
 	if info.useMarkdown {

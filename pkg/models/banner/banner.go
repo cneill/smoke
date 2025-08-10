@@ -31,8 +31,8 @@ type Model struct {
 
 func New() *Model {
 	return &Model{
-		StartColor: lipgloss.Color("#ffffff"),
-		EndColor:   lipgloss.Color("#111111"),
+		StartColor: lipgloss.Color("#111111"),
+		EndColor:   lipgloss.Color("#ffffff"),
 	}
 }
 
