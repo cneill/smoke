@@ -3,6 +3,7 @@ package history
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -106,45 +107,51 @@ func (m *Model) logContent() string {
 	builder := &strings.Builder{}
 
 	for _, item := range m.log {
+		info := bubbleInfo{
+			subtitleStyle: lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#444444")).
+				Italic(true),
+			useMarkdown: false,
+		}
+
 		switch item := item.(type) {
 		case *llms.Message:
-			var (
-				roleStr  string
-				curStyle lipgloss.Style
-				content  = item.Content
-				useMD    bool
-			)
+			info.content = item.Content
+			info.subtitle = item.Added.Format(time.DateTime)
 
 			switch item.Role {
 			case llms.RoleUser:
-				roleStr = "👤 User:"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#0087ff"))
-				useMD = true
+				info.title = "👤 User"
+				info.titleStyle = lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#0087ff"))
+				info.useMarkdown = true
 			case llms.RoleAssistant:
-				roleStr = fmt.Sprintf("🤖 %s (%s)", item.LLMInfo.Type, item.LLMInfo.ModelName)
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00af00"))
-				useMD = true
+				info.title = fmt.Sprintf("🤖 %s (%s)", item.LLMInfo.Type, item.LLMInfo.ModelName)
+				info.titleStyle = lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#00af00"))
+				info.useMarkdown = true
 			case llms.RoleTool:
-				roleStr = "🔧 Tool:"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00afaf"))
-				useMD = false
+				info.title = "🔧 Tool"
+				info.titleStyle = lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#00afaf"))
 			case llms.RoleSystem:
-				roleStr = "🖥️ System"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#af00af"))
-				useMD = false
+				info.title = "🖥️ System"
+				info.titleStyle = lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#af00af"))
 			case llms.RoleUnknown:
-				roleStr = "❓ UNKNOWN ROLE:"
-				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#af0000"))
-				useMD = false
+				info.title = "❓ UNKNOWN ROLE"
+				info.titleStyle = lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#af0000"))
 			}
 
-			fmt.Fprint(builder, m.renderBubble(roleStr, curStyle, content, useMD))
-
 		case error:
-			header := "⛔ Error:"
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color("#af0000"))
-			fmt.Fprint(builder, m.renderBubble(header, style, item.Error(), false))
+			info.title = "⛔ Error"
+			info.titleStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#af0000"))
+			info.content = item.Error()
 		}
+
+		fmt.Fprint(builder, m.renderBubble(info))
 
 		builder.WriteRune('\n')
 	}
@@ -152,25 +159,47 @@ func (m *Model) logContent() string {
 	return builder.String()
 }
 
-func (m *Model) renderBubble(header string, style lipgloss.Style, content string, useMarkdown bool) string {
+type bubbleInfo struct {
+	title         string
+	titleStyle    lipgloss.Style
+	subtitle      string
+	subtitleStyle lipgloss.Style
+	content       string
+	useMarkdown   bool
+}
+
+// renderBubble displays messages and errors with a nice title/subtitle bubble before the item's content.
+func (m *Model) renderBubble(info bubbleInfo) string {
 	builder := &strings.Builder{}
-
-	bubbleWidth := 40
+	content := info.content
+	bubbleWidth := 64
 	line := strings.Repeat("─", bubbleWidth)
-	roleWidth := runewidth.StringWidth(header)
-	paddingLeft := (bubbleWidth - roleWidth) / 2
-	paddingRight := paddingLeft
 
-	if (bubbleWidth-roleWidth)%2 != 0 {
-		paddingRight++
+	titleWidth := runewidth.StringWidth(info.title)
+	titlePaddingLeft := (bubbleWidth - titleWidth) / 2
+	titlePaddingRight := titlePaddingLeft
+
+	if (bubbleWidth-titleWidth)%2 != 0 {
+		titlePaddingRight++
 	}
 
-	fmt.Fprintln(builder, style.Render("╭"+line+"╮"))
-	fmt.Fprintln(builder, style.Render(fmt.Sprintf("│%*s%s%*s│", paddingLeft, "", header, paddingRight, "")))
-	fmt.Fprintln(builder, style.Render("╰"+line+"╯"))
+	subtitleWidth := runewidth.StringWidth(info.subtitle)
+	subtitlePaddingLeft := (bubbleWidth - subtitleWidth) / 2
+	subtitlePaddingRight := subtitlePaddingLeft
 
-	if useMarkdown {
-		if mdContent, err := m.mdRenderer.Render(content); err == nil {
+	if (bubbleWidth-subtitleWidth)%2 != 0 {
+		subtitlePaddingRight++
+	}
+
+	fmt.Fprintln(builder, info.titleStyle.Render("╭"+line+"╮"))
+	fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("│%*s%s%*s│", titlePaddingLeft, "", info.title, titlePaddingRight, "")))
+	fmt.Fprint(builder, info.titleStyle.Render("│"))
+	fmt.Fprintf(builder, "%*s%s%*s", subtitlePaddingLeft, "", info.subtitleStyle.Render(info.subtitle), subtitlePaddingRight, "")
+	fmt.Fprintln(builder, info.titleStyle.Render("│"))
+	fmt.Fprintln(builder, info.titleStyle.Render("╰"+line+"╯"))
+
+	if info.useMarkdown {
+		if mdContent, err := m.mdRenderer.Render(info.content); err == nil {
 			content = mdContent
 		}
 	}
