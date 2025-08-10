@@ -154,7 +154,7 @@ func (c *Claude) NewMessageTools() []anthropic.ToolUnionParam {
 	return results
 }
 
-func (c *Claude) SendSession(ctx context.Context, session *Session) error {
+func (c *Claude) SendSession(ctx context.Context, session *Session) (*Message, error) {
 	messageParams := anthropic.MessageNewParams{
 		Messages:  c.getSessionMessages(session),
 		MaxTokens: c.opts.MaxTokens,
@@ -170,32 +170,24 @@ func (c *Claude) SendSession(ctx context.Context, session *Session) error {
 		c.logger.Debug("sending session", "msg", latest)
 	}
 
-	result, err := c.client.Messages.New(ctx, messageParams)
+	response, err := c.client.Messages.New(ctx, messageParams)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrCompletion, err)
+		return nil, fmt.Errorf("%w: %w", ErrCompletion, err)
 	}
 
-	if len(result.Content) == 0 {
-		return fmt.Errorf("%w: no messages returned", ErrEmptyResponse)
+	if len(response.Content) == 0 {
+		return nil, fmt.Errorf("%w: no messages returned", ErrEmptyResponse)
 	}
 
-	if result.StopReason == anthropic.StopReasonRefusal {
-		return fmt.Errorf("%w: %s", ErrPromptRefused, result.Content[0].Text)
+	if response.StopReason == anthropic.StopReasonRefusal {
+		return nil, fmt.Errorf("%w: %s", ErrPromptRefused, response.Content[0].Text)
 	}
 
-	if err := c.handleToolCalls(ctx, session, result); err != nil {
-		return fmt.Errorf("failed to handle tool calls: %w", err)
-	}
-
-	return nil
-}
-
-func (c *Claude) handleToolCalls(ctx context.Context, session *Session, message *anthropic.Message) error {
 	textBuilder := strings.Builder{}
 	toolCalls := []anthropic.ToolUseBlock{}
 	toolCallNames := []string{}
 
-	for _, block := range message.Content {
+	for _, block := range response.Content {
 		switch block := block.AsAny().(type) {
 		case anthropic.TextBlock:
 			// TODO: citations?
@@ -215,11 +207,21 @@ func (c *Claude) handleToolCalls(ctx context.Context, session *Session, message 
 		WithToolCallInfo(toolCalls),
 	)
 
-	c.logger.Debug("adding assistant message to session", "msg", msg)
-	session.AddMessage(msg)
+	return msg, nil
+}
 
-	for _, toolCall := range toolCalls {
-		// TODO: refactor to return a *Message from CallTool()?
+func (c *Claude) HandleToolCalls(msg *Message) ([]*Message, error) {
+	if !msg.HasToolCalls() {
+		return nil, ErrNoToolCalls
+	}
+
+	toolCalls, ok := msg.ToolCallInfo.([]anthropic.ToolUseBlock)
+	if !ok {
+		return nil, fmt.Errorf("tool call info was of unexpected type: %T", msg.ToolCallInfo)
+	}
+
+	results := make([]*Message, len(toolCalls))
+	for i, toolCall := range toolCalls {
 		name := toolCall.Name
 
 		var (
@@ -229,12 +231,12 @@ func (c *Claude) handleToolCalls(ctx context.Context, session *Session, message 
 
 		params, err := c.tools.Tools.Params(name)
 		if err != nil {
-			return fmt.Errorf("failed to get params for tool %q: %w", name, err)
+			return nil, fmt.Errorf("failed to get params for tool %q: %w", name, err)
 		}
 
 		args, err := tools.GetArgs([]byte(toolCall.Input), params)
 		if err != nil {
-			return fmt.Errorf("failed to get args for tool %q: %w", name, err)
+			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}
 
 		output, err := c.tools.CallTool(name, args)
@@ -246,7 +248,7 @@ func (c *Claude) handleToolCalls(ctx context.Context, session *Session, message 
 			content = output
 		}
 
-		toolCallMsg := NewMessage(
+		toolCallResultMsg := NewMessage(
 			WithRole(RoleTool),
 			WithToolCallID(toolCall.ID),
 			WithToolCallArgs(args),
@@ -254,15 +256,8 @@ func (c *Claude) handleToolCalls(ctx context.Context, session *Session, message 
 			WithError(toolCallErr),
 		)
 
-		c.logger.Debug("adding tool result message to session", "msg", toolCallMsg)
-		session.AddMessage(toolCallMsg)
+		results[i] = toolCallResultMsg
 	}
 
-	if msg.HasToolCalls() {
-		if err := c.SendSession(ctx, session); err != nil {
-			return fmt.Errorf("failed to send session with tool call results: %w", err)
-		}
-	}
-
-	return nil
+	return results, nil
 }

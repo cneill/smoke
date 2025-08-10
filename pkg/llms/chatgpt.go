@@ -141,7 +141,7 @@ func (c *ChatGPT) CompletionTools() []openai.ChatCompletionToolUnionParam {
 	return results
 }
 
-func (c *ChatGPT) SendSession(ctx context.Context, session *Session) error {
+func (c *ChatGPT) SendSession(ctx context.Context, session *Session) (*Message, error) {
 	options := openai.ChatCompletionNewParams{
 		Messages: c.getSessionMessages(session),
 		Model:    c.opts.Model,
@@ -156,38 +156,41 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *Session) error {
 
 	result, err := c.client.Chat.Completions.New(ctx, options)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrCompletion, err)
+		return nil, fmt.Errorf("%w: %w", ErrCompletion, err)
 	}
 
 	if len(result.Choices) == 0 {
-		return fmt.Errorf("%w: no messages returned", ErrEmptyResponse)
+		return nil, fmt.Errorf("%w: no messages returned", ErrEmptyResponse)
 	}
 
 	if refusal := result.Choices[0].Message.Refusal; refusal != "" {
-		return fmt.Errorf("%w: %s", ErrPromptRefused, refusal)
+		return nil, fmt.Errorf("%w: %s", ErrPromptRefused, refusal)
 	}
 
-	if err := c.handleToolCalls(ctx, session, result.Choices[0].Message); err != nil {
-		return fmt.Errorf("failed to handle tool calls: %w", err)
-	}
-
-	return nil
-}
-
-func (c *ChatGPT) handleToolCalls(ctx context.Context, session *Session, message openai.ChatCompletionMessage) error {
-	toolCalls := message.ToolCalls
+	response := result.Choices[0].Message
 
 	msg := NewMessage(
 		WithRole(RoleAssistant),
-		WithContent(message.Content),
-		WithToolsCalled(c.getToolCallNames(toolCalls)...),
-		WithToolCallInfo(toolCalls),
+		WithContent(response.Content),
+		WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
+		WithToolCallInfo(response.ToolCalls),
 	)
 
-	session.AddMessage(msg)
+	return msg, nil
+}
 
-	for _, toolCall := range toolCalls {
-		// TODO: refactor to return a *Message from CallTool()?
+func (c *ChatGPT) HandleToolCalls(msg *Message) ([]*Message, error) {
+	if !msg.HasToolCalls() {
+		return nil, ErrNoToolCalls
+	}
+
+	toolCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnion)
+	if !ok {
+		return nil, fmt.Errorf("tool call info was of unexpected type: %T", msg.ToolCallInfo)
+	}
+
+	results := make([]*Message, len(toolCalls))
+	for i, toolCall := range toolCalls {
 		name := toolCall.Function.Name
 
 		var (
@@ -197,12 +200,12 @@ func (c *ChatGPT) handleToolCalls(ctx context.Context, session *Session, message
 
 		params, err := c.tools.Tools.Params(name)
 		if err != nil {
-			return fmt.Errorf("failed to get params for tool %q: %w", name, err)
+			return nil, fmt.Errorf("failed to get params for tool %q: %w", name, err)
 		}
 
 		args, err := tools.GetArgs([]byte(toolCall.Function.Arguments), params)
 		if err != nil {
-			return fmt.Errorf("failed to get args for tool %q: %w", name, err)
+			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}
 
 		output, err := c.tools.CallTool(name, args)
@@ -214,7 +217,7 @@ func (c *ChatGPT) handleToolCalls(ctx context.Context, session *Session, message
 			content = output
 		}
 
-		toolCallMsg := NewMessage(
+		toolCallResultMsg := NewMessage(
 			WithRole(RoleTool),
 			WithToolCallID(toolCall.ID),
 			WithToolCallArgs(args),
@@ -222,16 +225,10 @@ func (c *ChatGPT) handleToolCalls(ctx context.Context, session *Session, message
 			WithError(err),
 		)
 
-		session.AddMessage(toolCallMsg)
+		results[i] = toolCallResultMsg
 	}
 
-	if msg.HasToolCalls() {
-		if err := c.SendSession(ctx, session); err != nil {
-			return fmt.Errorf("failed to send session with tool call results: %w", err)
-		}
-	}
-
-	return nil
+	return results, nil
 }
 
 func (c *ChatGPT) getToolCallNames(toolCalls []openai.ChatCompletionMessageToolCallUnion) []string {

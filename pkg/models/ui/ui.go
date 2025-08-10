@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/llms"
@@ -125,7 +124,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case assistantError:
 		commands = append(commands, updateHistory(msg.err))
 	case assistantResponse:
-		commands = append(commands, updateHistory(msg.msg))
+		if cmd := m.handleAssistantResponse(msg); cmd != nil {
+			commands = append(commands, cmd)
+		}
+	case toolCallResponse:
+		if cmd := m.handleToolCallResponse(msg); cmd != nil {
+			commands = append(commands, cmd)
+		}
 	}
 
 	return m, tea.Batch(commands...)
@@ -151,7 +156,7 @@ func (m *Model) View() string {
 }
 
 type assistantResponse struct {
-	msg *llms.Message
+	message *llms.Message
 }
 
 type assistantError struct {
@@ -162,12 +167,13 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 	llmMessage := llms.SimpleMessage(llms.RoleUser, msg.Content)
 
 	sendMessage := func() tea.Msg {
-		slog.Debug("got user message", "content", msg.Content)
+		slog.Debug("got user message", "msg", llmMessage)
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-		defer cancel()
+		// TODO: reasonable, adjustable context timeouts
+		// ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+		// defer cancel()
 
-		response, err := m.smoke.SendUserMessage(ctx, llmMessage)
+		response, err := m.smoke.SendUserMessage(context.TODO(), llmMessage)
 		if err != nil {
 			return assistantError{err}
 		}
@@ -176,6 +182,60 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 	}
 
 	return tea.Batch(updateHistory(llmMessage), sendMessage)
+}
+
+type toolCallResponse struct {
+	messages []*llms.Message
+	err      error
+}
+
+func (m *Model) handleAssistantResponse(response assistantResponse) tea.Cmd {
+	commands := []tea.Cmd{
+		updateHistory(response.message),
+	}
+
+	if response.message.HasToolCalls() {
+		commands = append(commands, func() tea.Msg {
+			slog.Debug("got assistant message", "msg", response)
+
+			results, err := m.smoke.HandleAssistantToolCalls(response.message)
+			if err != nil {
+				return toolCallResponse{err: err}
+			}
+
+			return toolCallResponse{messages: results}
+		})
+	}
+
+	return tea.Batch(commands...)
+}
+
+func (m *Model) handleToolCallResponse(response toolCallResponse) tea.Cmd {
+	commands := []tea.Cmd{}
+
+	if response.err != nil {
+		commands = append(commands, updateHistory(response.err))
+	}
+
+	if response.messages != nil {
+		for _, message := range response.messages {
+			commands = append(commands, updateHistory(message))
+		}
+
+		commands = append(commands, func() tea.Msg {
+			// TODO: fix the logging for a slice of these messages?
+			slog.Debug("got tool call results", "messages", response.messages)
+
+			response, err := m.smoke.HandleToolCallResults(context.TODO(), response.messages)
+			if err != nil {
+				return assistantError{err}
+			}
+
+			return assistantResponse{response}
+		})
+	}
+
+	return tea.Batch(commands...)
 }
 
 func updateHistory(msg any) tea.Cmd {

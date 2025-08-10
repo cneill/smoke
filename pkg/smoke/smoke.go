@@ -130,13 +130,43 @@ func (s *Smoke) setupLLM() error {
 func (s *Smoke) SendUserMessage(ctx context.Context, msg *llms.Message) (*llms.Message, error) {
 	s.session.AddMessage(msg)
 
-	if err := s.llm.SendSession(ctx, s.session); err != nil {
-		return nil, fmt.Errorf("failed to send session: %w", err)
+	response, err := s.llm.SendSession(ctx, s.session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send session with user message: %w", err)
 	}
 
-	last := s.session.LastByRole(llms.RoleAssistant)
+	s.session.AddMessage(response)
 
-	return last, nil
+	return response, nil
+}
+
+func (s *Smoke) HandleAssistantToolCalls(msg *llms.Message) ([]*llms.Message, error) {
+	if !msg.HasToolCalls() {
+		return nil, llms.ErrNoToolCalls
+	}
+
+	results, err := s.llm.HandleToolCalls(msg)
+	if err != nil {
+		return nil, fmt.Errorf("error handling tool calls: %w", err)
+	}
+
+	return results, nil
+}
+
+func (s *Smoke) HandleToolCallResults(ctx context.Context, messages []*llms.Message) (*llms.Message, error) {
+	for _, message := range messages {
+		s.session.AddMessage(message)
+	}
+
+	// TODO: combine SendUserMessage + this in a more coherent way?
+	response, err := s.llm.SendSession(ctx, s.session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send session with tool call results: %w", err)
+	}
+
+	s.session.AddMessage(response)
+
+	return response, nil
 }
 
 func (s *Smoke) GetMessages() []*llms.Message {
