@@ -196,7 +196,7 @@ func (m *Model) handleAssistantResponse(response assistantResponse) tea.Cmd {
 
 	if response.message.HasToolCalls() {
 		commands = append(commands, func() tea.Msg {
-			slog.Debug("got assistant message", "msg", response)
+			slog.Debug("got assistant message", "msg", response.message)
 
 			results, err := m.smoke.HandleAssistantToolCalls(response.message)
 			if err != nil {

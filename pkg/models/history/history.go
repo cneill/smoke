@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/mattn/go-runewidth"
 )
 
 type Opts struct {
@@ -110,62 +111,70 @@ func (m *Model) logContent() string {
 				roleStr  string
 				curStyle lipgloss.Style
 				content  = item.Content
+				useMD    bool
 			)
 
 			switch item.Role {
 			case llms.RoleUser:
 				roleStr = "👤 User:"
 				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#0087ff"))
-
-				if mdContent, err := m.mdRenderer.Render(content); err == nil {
-					content = mdContent
-				}
+				useMD = true
 			case llms.RoleAssistant:
 				roleStr = "🤖 Assistant:"
 				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00af00"))
-
-				if mdContent, err := m.mdRenderer.Render(content); err == nil {
-					content = mdContent
-				}
+				useMD = true
 			case llms.RoleTool:
 				roleStr = "🔧 Tool:"
 				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00afaf"))
+				useMD = false
 			case llms.RoleSystem:
-				roleStr = "🛠 System:"
+				roleStr = "🖥️ System"
 				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#af00af"))
+				useMD = false
 			case llms.RoleUnknown:
 				roleStr = "❓ UNKNOWN ROLE:"
 				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#af0000"))
+				useMD = false
 			}
 
-			lines := strings.Split(content, "\n")
-			maxWidth := len(roleStr)
-
-			for _, line := range lines {
-				if l := len(line); l > maxWidth {
-					maxWidth = l
-				}
-			}
-
-			topBorder := curStyle.Render(fmt.Sprintf("╭%s╮", strings.Repeat("─", maxWidth+2)))
-			roleLine := curStyle.Render(fmt.Sprintf("│ %-*s │", maxWidth, roleStr))
-
-			var contentLines strings.Builder
-			for _, line := range lines {
-				contentLines.WriteString(curStyle.Render(fmt.Sprintf("│ %-*s │", maxWidth, line)))
-				contentLines.WriteString("\n")
-			}
-
-			bottomBorder := curStyle.Render(fmt.Sprintf("╰%s╯", strings.Repeat("─", maxWidth+2)))
-
-			fmt.Fprintf(builder, "%s\n%s\n%s%s\n\n", topBorder, roleLine, contentLines.String(), bottomBorder)
+			fmt.Fprint(builder, m.renderBubble(roleStr, curStyle, content, useMD))
 
 		case error:
-			fmt.Fprintf(builder, "ERROR: %v\n", item)
+			header := "⛔ Error:"
+			style := lipgloss.NewStyle().Foreground(lipgloss.Color("#af0000"))
+			fmt.Fprint(builder, m.renderBubble(header, style, item.Error(), false))
 		}
 
 		builder.WriteRune('\n')
 	}
+
+	return builder.String()
+}
+
+func (m *Model) renderBubble(header string, style lipgloss.Style, content string, useMarkdown bool) string {
+	builder := &strings.Builder{}
+
+	bubbleWidth := 40
+	line := strings.Repeat("─", bubbleWidth)
+	roleWidth := runewidth.StringWidth(header)
+	paddingLeft := (bubbleWidth - roleWidth) / 2
+	paddingRight := paddingLeft
+
+	if (bubbleWidth-roleWidth)%2 != 0 {
+		paddingRight++
+	}
+
+	fmt.Fprintln(builder, style.Render("╭"+line+"╮"))
+	fmt.Fprintln(builder, style.Render(fmt.Sprintf("│%*s%s%*s│", paddingLeft, "", header, paddingRight, "")))
+	fmt.Fprintln(builder, style.Render("╰"+line+"╯"))
+
+	if useMarkdown {
+		if mdContent, err := m.mdRenderer.Render(content); err == nil {
+			content = mdContent
+		}
+	}
+
+	fmt.Fprintln(builder, content)
 
 	return builder.String()
 }
