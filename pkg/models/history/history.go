@@ -76,12 +76,14 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+	wasAtBottom := m.viewport.AtBottom()
+
 	switch msg := msg.(type) {
 	case ContentUpdate:
 		m.log = append(m.log, msg.Message)
 		m.viewport.SetContent(m.logContent())
-		// only scroll down if we're already at the bottom
-		if m.viewport.AtBottom() {
+		// only scroll down if we were already at the bottom before updating the history
+		if wasAtBottom {
 			m.viewport.GotoBottom()
 		}
 	default:
