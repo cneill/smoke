@@ -98,11 +98,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		commands = append(commands, inputCmd)
 	}
 
-	historyModel, historyCmd := m.history.Update(msg)
-	m.history = historyModel
+	// don't send key messages unless the input is unfocused
+	if _, ok := msg.(tea.KeyMsg); !ok || ok && !m.input.Focused() {
+		historyModel, historyCmd := m.history.Update(msg)
+		m.history = historyModel
 
-	if historyCmd != nil {
-		commands = append(commands, historyCmd)
+		if historyCmd != nil {
+			commands = append(commands, historyCmd)
+		}
 	}
 
 	switch msg := msg.(type) {
