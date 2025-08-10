@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -185,6 +186,8 @@ func (s *Smoke) SaveSession(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal session JSON: %w", err)
 	}
+
+	slog.Debug("saving session to file", "path", path)
 
 	if err := os.WriteFile(path, sessionBytes, 0o644); err != nil {
 		return fmt.Errorf("failed to write session to file %q: %w", path, err)

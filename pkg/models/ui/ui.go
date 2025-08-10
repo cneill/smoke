@@ -120,8 +120,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case input.ExitCommand:
 		return m, tea.Quit
 	case input.SaveCommand:
-		slog.Debug("saving session")
-
 		commands = append(commands, func() tea.Msg {
 			if err := m.smoke.SaveSession(msg.Path); err != nil {
 				return promptCommandError{err}
@@ -132,6 +130,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case input.UnknownCommand:
 		slog.Warn("unknown prompt command", "command", msg.Command, "args", msg.Args)
 		commands = append(commands, updateHistory(fmt.Errorf("unknown prompt command: %q", msg.Command)))
+	case promptCommandError:
+		commands = append(commands, updateHistory(msg.err))
 	case assistantError:
 		commands = append(commands, updateHistory(msg.err))
 	case assistantResponse:
