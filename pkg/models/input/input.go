@@ -237,6 +237,8 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 	})
 }
 
+// handlePromptCommand checks for a command specified by the user (e.g. "/exit") and returns the appropriate message
+// struct with the arguments parsed and populated.
 func (m *Model) handlePromptCommand(content string) tea.Cmd {
 	fields := strings.Fields(content)
 	cmdName := strings.TrimPrefix(fields[0], "/")

@@ -121,7 +121,7 @@ func (m *Model) logContent() string {
 				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#0087ff"))
 				useMD = true
 			case llms.RoleAssistant:
-				roleStr = "🤖 Assistant:"
+				roleStr = fmt.Sprintf("🤖 %s (%s)", item.LLMInfo.Type, item.LLMInfo.ModelName)
 				curStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00af00"))
 				useMD = true
 			case llms.RoleTool:

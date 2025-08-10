@@ -59,9 +59,26 @@ func NewClaude(opts *ClaudeOpts) (*Claude, error) {
 	return claude, nil
 }
 
-func (c *Claude) Type() LLMType               { return LLMTypeClaude }
-func (c *Claude) ModelName() string           { return string(c.opts.Model) }
+func (c *Claude) LLMInfo() LLMInfo {
+	return LLMInfo{
+		Type:      LLMTypeClaude,
+		ModelName: string(c.opts.Model),
+	}
+}
+
 func (c *Claude) RequiresSessionSystem() bool { return false }
+
+func (c *Claude) newMessage(opts ...MessageOpt) *Message {
+	msg := NewMessage(
+		WithLLMInfo(c.LLMInfo()),
+	)
+
+	for _, opt := range opts {
+		msg = opt(msg)
+	}
+
+	return msg
+}
 
 func (c *Claude) getSessionMessages(session *Session) []anthropic.MessageParam {
 	results := make([]anthropic.MessageParam, len(session.Messages))
@@ -200,7 +217,7 @@ func (c *Claude) SendSession(ctx context.Context, session *Session) (*Message, e
 		}
 	}
 
-	msg := NewMessage(
+	msg := c.newMessage(
 		WithRole(RoleAssistant),
 		WithContent(textBuilder.String()),
 		WithToolsCalled(toolCallNames...),
@@ -248,7 +265,7 @@ func (c *Claude) HandleToolCalls(msg *Message) ([]*Message, error) {
 			content = output
 		}
 
-		toolCallResultMsg := NewMessage(
+		toolCallResultMsg := c.newMessage(
 			WithRole(RoleTool),
 			WithToolCallID(toolCall.ID),
 			WithToolCallArgs(args),

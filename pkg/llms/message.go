@@ -26,6 +26,8 @@ type Message struct {
 	ToolCallID string // TODO: Should this be a []string?
 	// ToolCallArgs are the arguments provided by the assistant to the specified tool.
 	ToolCallArgs tools.Args
+
+	LLMInfo LLMInfo
 }
 
 func NewMessage(opts ...MessageOpt) *Message {
@@ -125,6 +127,13 @@ func WithToolCallArgs(args tools.Args) MessageOpt {
 func WithError(err error) MessageOpt {
 	return func(message *Message) *Message {
 		message.Error = err
+		return message
+	}
+}
+
+func WithLLMInfo(info LLMInfo) MessageOpt {
+	return func(message *Message) *Message {
+		message.LLMInfo = info
 		return message
 	}
 }

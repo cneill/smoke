@@ -59,9 +59,25 @@ func NewChatGPT(opts *ChatGPTOpts) (*ChatGPT, error) {
 	return chatGPT, nil
 }
 
-func (c *ChatGPT) Type() LLMType               { return LLMTypeChatGPT }
-func (c *ChatGPT) ModelName() string           { return c.opts.Model }
+func (c *ChatGPT) LLMInfo() LLMInfo {
+	return LLMInfo{
+		Type:      LLMTypeChatGPT,
+		ModelName: c.opts.Model,
+	}
+}
 func (c *ChatGPT) RequiresSessionSystem() bool { return true }
+
+func (c *ChatGPT) newMessage(opts ...MessageOpt) *Message {
+	msg := NewMessage(
+		WithLLMInfo(c.LLMInfo()),
+	)
+
+	for _, opt := range opts {
+		msg = opt(msg)
+	}
+
+	return msg
+}
 
 // getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation
 // history.
@@ -169,7 +185,7 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *Session) (*Message, 
 
 	response := result.Choices[0].Message
 
-	msg := NewMessage(
+	msg := c.newMessage(
 		WithRole(RoleAssistant),
 		WithContent(response.Content),
 		WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
@@ -217,7 +233,7 @@ func (c *ChatGPT) HandleToolCalls(msg *Message) ([]*Message, error) {
 			content = output
 		}
 
-		toolCallResultMsg := NewMessage(
+		toolCallResultMsg := c.newMessage(
 			WithRole(RoleTool),
 			WithToolCallID(toolCall.ID),
 			WithToolCallArgs(args),
