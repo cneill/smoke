@@ -46,7 +46,11 @@ var _ = Tool(&ReadFileTool{})
 
 func (r *ReadFileTool) Name() string { return ToolReadFile }
 func (r *ReadFileTool) Description() string {
-	return "Read the contents of a file"
+	return fmt.Sprintf(
+		"Read the contents of a file. If you just want to read the whole file, don't include '%s'/'%s'.",
+		ReadFileStart,
+		ReadFileEnd,
+	)
 }
 
 func (r *ReadFileTool) Params() Params {

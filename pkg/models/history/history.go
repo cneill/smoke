@@ -36,6 +36,9 @@ type Model struct {
 	mdRenderer *glamour.TermRenderer
 
 	log []any
+
+	pendingG  bool
+	lastGTime time.Time
 }
 
 func New(opts *Opts) (*Model, error) {
@@ -89,6 +92,30 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if wasAtBottom {
 			m.viewport.GotoBottom()
 		}
+	case tea.KeyMsg:
+		// Handle VIM-like scrolling commands
+		switch msg.String() {
+		case "G":
+			m.viewport.GotoBottom()
+			m.pendingG = false
+
+			return m, nil
+		case "g":
+			if m.pendingG && time.Since(m.lastGTime) <= time.Second {
+				m.viewport.GotoTop()
+				m.pendingG = false
+
+				return m, nil
+			}
+
+			m.pendingG = true
+			m.lastGTime = time.Now()
+
+			return m, nil
+		default:
+			m.pendingG = false
+		}
+
 	default:
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
