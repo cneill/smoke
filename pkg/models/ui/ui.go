@@ -155,7 +155,7 @@ func (m *Model) resize(msg tea.Msg) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.history.Resize(msg.Width, msg.Height-lineHeight)
+		m.history.Resize(msg.Width, msg.Height-(lineHeight+1)) // +1 for the border
 		m.input.Resize(msg.Width, lineHeight)
 	case input.ResizeMessage:
 		delta := lineHeight - m.input.GetHeight() // how many lines did we resize by

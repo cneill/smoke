@@ -203,12 +203,14 @@ func (m *Model) renderBubble(info bubbleInfo) string {
 	fmt.Fprintln(builder, info.titleStyle.Render("╰"+line+"╯"))
 
 	if info.useMarkdown {
-		if mdContent, err := m.mdRenderer.Render(info.content); err == nil {
+		if mdContent, err := m.mdRenderer.Render(content); err == nil {
 			content = mdContent
 		}
+	} else {
+		content = wordwrap.String(content, m.viewport.Width)
 	}
 
-	fmt.Fprintln(builder, wordwrap.String(content, m.viewport.Width))
+	fmt.Fprintln(builder, content)
 
 	return builder.String()
 }
