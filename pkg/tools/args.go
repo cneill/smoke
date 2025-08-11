@@ -190,12 +190,24 @@ func (a Args) GetStringSlice(key string) []string {
 		return nil
 	}
 
-	sliceVal, isSlice := val.([]string)
+	sliceVal, isSlice := val.([]any)
 	if !isSlice {
 		return nil
 	}
 
-	return sliceVal
+	stringSlice := make([]string, len(sliceVal))
+
+	for itemNum, rawVal := range sliceVal {
+		strVal, ok := rawVal.(string)
+		// be brutal - no non-strings allowed
+		if !ok {
+			return nil
+		}
+
+		stringSlice[itemNum] = strVal
+	}
+
+	return stringSlice
 }
 
 func (a Args) LogValue() slog.Value {

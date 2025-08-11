@@ -94,9 +94,14 @@ func getSearchesReplaces(args Args) (searches, replaces []string, err error) {
 	}
 
 	searches, replaces = make([]string, len(batches)/2), make([]string, len(batches)/2)
-	for i := 0; i < len(batches); i += 2 {
-		searches[i] = batches[i]
-		replaces[i] = batches[i+1]
+
+	for batchIndex := 0; batchIndex < len(batches); batchIndex += 2 {
+		if batches[batchIndex] == "" {
+			return nil, nil, fmt.Errorf("empty searches are not allowed in batch replaces")
+		}
+
+		searches[batchIndex/2] = batches[batchIndex]
+		replaces[batchIndex/2] = batches[batchIndex+1]
 	}
 
 	return searches, replaces, nil

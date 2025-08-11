@@ -34,6 +34,7 @@ func SystemJSON() string {
 			"make changes. When finished, run the linter again and fix any newly introduced errors.",
 		"tips": []string{
 			"Use the 'batch' parameter of the 'replace_lines' tool to be efficient when making multiple changes.",
+			"You should still use Markdown formatting, including using language-specific code blocks.",
 		},
 		"important": "Be sure to track your plans and progress in the `smoke_plan.md` file. Do not make changes " +
 			"without planning first. Read and update your plan as you go to stay on task.",
