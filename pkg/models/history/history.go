@@ -135,13 +135,17 @@ func (m *Model) logContent() string {
 				info.useMarkdown = true
 
 				if len(item.ToolsCalled) > 0 {
-					info.content += fmt.Sprintf("\nTools called: %s\n", strings.Join(item.ToolsCalled, ", "))
-					info.content += fmt.Sprintf("\nTool call args: %s\n", item.ToolCallArgs.String())
+					info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(item.ToolsCalled, ", "))
 				}
 			case llms.RoleTool:
 				info.title = "🔧 Tool"
 				info.titleStyle = info.titleStyle.
 					Foreground(lipgloss.Color("#00afaf"))
+
+				if len(item.ToolsCalled) > 0 {
+					info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(item.ToolsCalled, ", "))
+					info.content += fmt.Sprintf("\n\nTool call args: %s\n\n", item.ToolCallArgs.String())
+				}
 			case llms.RoleSystem:
 				info.title = "🖥️ System"
 				info.titleStyle = info.titleStyle.

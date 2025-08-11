@@ -271,6 +271,7 @@ func (c *Claude) HandleToolCalls(msg *llms.Message) ([]*llms.Message, error) {
 			llms.WithRole(llms.RoleTool),
 			llms.WithToolCallID(toolCall.ID),
 			llms.WithToolCallArgs(args),
+			llms.WithToolsCalled(toolCall.Name),
 			llms.WithContent(content),
 			llms.WithError(toolCallErr),
 		)
