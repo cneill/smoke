@@ -113,18 +113,6 @@ func (r *ReplaceLinesTool) Run(args Args) (string, error) {
 		return "", fmt.Errorf("path error: %w", err)
 	}
 
-	// search := args.GetString(ReplaceLinesSearch)
-	// if search == nil || *search == "" {
-	// 	return "", fmt.Errorf("no search supplied")
-	// }
-
-	// replace := args.GetString(ReplaceLinesReplace)
-	// if replace == nil {
-	// 	return "", fmt.Errorf("no replace supplied")
-	// }
-
-	// batch := args.GetStringSlice(ReplaceLinesBatch)
-
 	searches, replaces, err := getSearchesReplaces(args)
 	if err != nil {
 		return "", fmt.Errorf("failed to interpret parameters: %w", err)
