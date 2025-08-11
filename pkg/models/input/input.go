@@ -73,9 +73,17 @@ func getTextArea(opts *Opts) textarea.Model {
 	}
 
 	// Focused
+	model.FocusedStyle.Base = lipgloss.NewStyle().
+		// BorderStyle(lipgloss.DoubleBorder()).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderTopForeground(lipgloss.Color("#666666")).
+		BorderTop(true)
 	model.FocusedStyle.CursorLine = lipgloss.NewStyle().
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#eeeeee"))
+	model.FocusedStyle.Placeholder = lipgloss.NewStyle().
+		Background(lipgloss.Color("#000000")).
+		Foreground(lipgloss.Color("#666666"))
 	model.FocusedStyle.Text = lipgloss.NewStyle().
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#eeeeee"))
@@ -84,9 +92,16 @@ func getTextArea(opts *Opts) textarea.Model {
 		Padding(2, 2, 2, 2)
 
 	// Blurred
+	model.BlurredStyle.Base = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderTopForeground(lipgloss.Color("#333333")).
+		BorderTop(true)
 	model.BlurredStyle.CursorLine = lipgloss.NewStyle().
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#888888"))
+	model.BlurredStyle.Placeholder = lipgloss.NewStyle().
+		Background(lipgloss.Color("#000000")).
+		Foreground(lipgloss.Color("#666666"))
 	model.BlurredStyle.Text = lipgloss.NewStyle().
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#888888"))
@@ -155,7 +170,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		case tea.KeyRunes:
 			if !m.Focused() && msg.String() == "i" {
 				m.textarea.Focus()
-				return nil
+				return textarea.Blink
 			}
 		}
 	}
