@@ -5,7 +5,7 @@ import "context"
 type LLMType string
 
 const (
-	LLMTypeChatGPT = "chatGPT"
+	LLMTypeChatGPT = "chatgpt"
 	LLMTypeClaude  = "claude"
 )
 

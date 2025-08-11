@@ -64,7 +64,7 @@ func flags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:     FlagProvider,
-			Usage:    "Either 'chatGPT' or 'claude'",
+			Usage:    fmt.Sprintf("Either '%s' or '%s'", llms.LLMTypeChatGPT, llms.LLMTypeClaude),
 			Category: "Models",
 			Aliases:  []string{"p"},
 			EnvVars:  []string{EnvProvider},
@@ -85,6 +85,23 @@ func flags() []cli.Flag {
 	}
 }
 
+func validate(ctx *cli.Context) error {
+	switch llms.LLMType(ctx.String(FlagProvider)) {
+	case llms.LLMTypeChatGPT:
+		if ctx.String(FlagOpenAIKey) == "" {
+			return fmt.Errorf("must supply %s flag or %s environment variable", FlagOpenAIKey, EnvOpenAIKey)
+		}
+	case llms.LLMTypeClaude:
+		if ctx.String(FlagAnthropicKey) == "" {
+			return fmt.Errorf("must supply %s flag or %s environment variable", FlagAnthropicKey, EnvAnthropicKey)
+		}
+	default:
+		return fmt.Errorf("unknown model provider: %s", ctx.String(FlagProvider))
+	}
+
+	return nil
+}
+
 func run() error {
 	var logFile *os.File
 
@@ -94,6 +111,10 @@ func run() error {
 		Description: "Smoke 'em if you got 'em.",
 		Flags:       flags(),
 		Before: func(ctx *cli.Context) error {
+			if err := validate(ctx); err != nil {
+				return fmt.Errorf("flag validation error: %w", err)
+			}
+
 			level := slog.LevelInfo
 			if ctx.Bool(FlagDebug) {
 				level = slog.LevelDebug
@@ -107,19 +128,6 @@ func run() error {
 			}
 
 			log.Setup(logFile, level)
-
-			switch llms.LLMType(ctx.String(FlagProvider)) {
-			case llms.LLMTypeChatGPT:
-				if ctx.String(FlagOpenAIKey) == "" {
-					return fmt.Errorf("must supply %s flag or %s environment variable", FlagOpenAIKey, EnvOpenAIKey)
-				}
-			case llms.LLMTypeClaude:
-				if ctx.String(FlagAnthropicKey) == "" {
-					return fmt.Errorf("must supply %s flag or %s environment variable", FlagAnthropicKey, EnvAnthropicKey)
-				}
-			default:
-				return fmt.Errorf("unknown model provider: %s", ctx.String(FlagProvider))
-			}
 
 			return nil
 		},
@@ -174,7 +182,7 @@ func action(ctx *cli.Context) error {
 		return fmt.Errorf("failed to set up UI: %w", err)
 	}
 
-	p := tea.NewProgram(uiModel)
+	p := tea.NewProgram(uiModel, tea.WithReportFocus(), tea.WithMouseCellMotion())
 
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("app error: %w", err)
@@ -184,22 +192,6 @@ func action(ctx *cli.Context) error {
 }
 
 func main() {
-	// f, err := os.Create("trace.out")
-	// if err != nil {
-	// 	panic(fmt.Errorf("trace file error: %w", err))
-	// }
-	//
-	// defer func() {
-	// 	if err := f.Close(); err != nil {
-	// 		fmt.Printf("Failed to close trace.out: %v\n", err)
-	// 	}
-	// }()
-	//
-	// if err := trace.Start(f); err != nil {
-	// 	panic(err)
-	// }
-	// defer trace.Stop()
-
 	if err := run(); err != nil {
 		panic(fmt.Errorf("error: %w", err))
 	}

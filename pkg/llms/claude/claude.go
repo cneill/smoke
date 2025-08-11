@@ -1,4 +1,4 @@
-package llms
+package claude
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -59,18 +60,18 @@ func NewClaude(opts *ClaudeOpts) (*Claude, error) {
 	return claude, nil
 }
 
-func (c *Claude) LLMInfo() *LLMInfo {
-	return &LLMInfo{
-		Type:      LLMTypeClaude,
+func (c *Claude) LLMInfo() *llms.LLMInfo {
+	return &llms.LLMInfo{
+		Type:      llms.LLMTypeClaude,
 		ModelName: string(c.opts.Model),
 	}
 }
 
 func (c *Claude) RequiresSessionSystem() bool { return false }
 
-func (c *Claude) newMessage(opts ...MessageOpt) *Message {
-	msg := NewMessage(
-		WithLLMInfo(c.LLMInfo()),
+func (c *Claude) newMessage(opts ...llms.MessageOpt) *llms.Message {
+	msg := llms.NewMessage(
+		llms.WithLLMInfo(c.LLMInfo()),
 	)
 
 	for _, opt := range opts {
@@ -80,12 +81,12 @@ func (c *Claude) newMessage(opts ...MessageOpt) *Message {
 	return msg
 }
 
-func (c *Claude) getSessionMessages(session *Session) []anthropic.MessageParam {
+func (c *Claude) getSessionMessages(session *llms.Session) []anthropic.MessageParam {
 	results := make([]anthropic.MessageParam, len(session.Messages))
 
 	for num, msg := range session.Messages {
 		switch msg.Role {
-		case RoleAssistant:
+		case llms.RoleAssistant:
 			contentBlocks := []anthropic.ContentBlockParamUnion{}
 
 			if strings.TrimSpace(msg.Content) != "" {
@@ -108,18 +109,18 @@ func (c *Claude) getSessionMessages(session *Session) []anthropic.MessageParam {
 			}
 
 			results[num] = anthropic.NewAssistantMessage(contentBlocks...)
-		case RoleSystem:
+		case llms.RoleSystem:
 			// Anthropic defines the system prompt outside of messages
-		case RoleUser:
+		case llms.RoleUser:
 			results[num] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.Content))
-		case RoleTool:
+		case llms.RoleTool:
 			content := msg.Content
 			if content == "" {
 				content = "[no output]" // can't be empty?
 			}
 
 			results[num] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, content, msg.Error != nil))
-		case RoleUnknown:
+		case llms.RoleUnknown:
 			c.logger.Warn("got message with unknown role", "message", msg.Content)
 		}
 	}
@@ -171,7 +172,7 @@ func (c *Claude) NewMessageTools() []anthropic.ToolUnionParam {
 	return results
 }
 
-func (c *Claude) SendSession(ctx context.Context, session *Session) (*Message, error) {
+func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
 	messageParams := anthropic.MessageNewParams{
 		Messages:  c.getSessionMessages(session),
 		MaxTokens: c.opts.MaxTokens,
@@ -189,15 +190,15 @@ func (c *Claude) SendSession(ctx context.Context, session *Session) (*Message, e
 
 	response, err := c.client.Messages.New(ctx, messageParams)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrCompletion, err)
+		return nil, fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
 	if len(response.Content) == 0 {
-		return nil, fmt.Errorf("%w: no messages returned", ErrEmptyResponse)
+		return nil, fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
 	}
 
 	if response.StopReason == anthropic.StopReasonRefusal {
-		return nil, fmt.Errorf("%w: %s", ErrPromptRefused, response.Content[0].Text)
+		return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, response.Content[0].Text)
 	}
 
 	textBuilder := strings.Builder{}
@@ -218,18 +219,18 @@ func (c *Claude) SendSession(ctx context.Context, session *Session) (*Message, e
 	}
 
 	msg := c.newMessage(
-		WithRole(RoleAssistant),
-		WithContent(textBuilder.String()),
-		WithToolsCalled(toolCallNames...),
-		WithToolCallInfo(toolCalls),
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithContent(textBuilder.String()),
+		llms.WithToolsCalled(toolCallNames...),
+		llms.WithToolCallInfo(toolCalls),
 	)
 
 	return msg, nil
 }
 
-func (c *Claude) HandleToolCalls(msg *Message) ([]*Message, error) {
+func (c *Claude) HandleToolCalls(msg *llms.Message) ([]*llms.Message, error) {
 	if !msg.HasToolCalls() {
-		return nil, ErrNoToolCalls
+		return nil, llms.ErrNoToolCalls
 	}
 
 	toolCalls, ok := msg.ToolCallInfo.([]anthropic.ToolUseBlock)
@@ -237,8 +238,9 @@ func (c *Claude) HandleToolCalls(msg *Message) ([]*Message, error) {
 		return nil, fmt.Errorf("tool call info was of unexpected type: %T", msg.ToolCallInfo)
 	}
 
-	results := make([]*Message, len(toolCalls))
-	for i, toolCall := range toolCalls {
+	results := make([]*llms.Message, len(toolCalls))
+
+	for toolCallName, toolCall := range toolCalls {
 		name := toolCall.Name
 
 		var (
@@ -266,14 +268,14 @@ func (c *Claude) HandleToolCalls(msg *Message) ([]*Message, error) {
 		}
 
 		toolCallResultMsg := c.newMessage(
-			WithRole(RoleTool),
-			WithToolCallID(toolCall.ID),
-			WithToolCallArgs(args),
-			WithContent(content),
-			WithError(toolCallErr),
+			llms.WithRole(llms.RoleTool),
+			llms.WithToolCallID(toolCall.ID),
+			llms.WithToolCallArgs(args),
+			llms.WithContent(content),
+			llms.WithError(toolCallErr),
 		)
 
-		results[i] = toolCallResultMsg
+		results[toolCallName] = toolCallResultMsg
 	}
 
 	return results, nil

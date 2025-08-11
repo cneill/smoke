@@ -11,6 +11,8 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/llms/chatgpt"
+	"github.com/cneill/smoke/pkg/llms/claude"
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v2"
@@ -93,7 +95,7 @@ func (s *Smoke) setupLLM() error {
 
 	switch s.opts.Provider {
 	case llms.LLMTypeChatGPT:
-		chatGPT, err := llms.NewChatGPT(&llms.ChatGPTOpts{
+		chatGPT, err := chatgpt.NewChatGPT(&chatgpt.ChatGPTOpts{
 			APIKey: s.opts.APIKey,
 			// Model:        openai.ChatModelGPT4o,
 			// Model:        openai.ChatModelGPT4_1,
@@ -109,7 +111,7 @@ func (s *Smoke) setupLLM() error {
 		llm = chatGPT
 
 	case llms.LLMTypeClaude:
-		claude, err := llms.NewClaude(&llms.ClaudeOpts{
+		claude, err := claude.NewClaude(&claude.ClaudeOpts{
 			APIKey: s.opts.APIKey,
 			// Model:        anthropic.ModelClaude4Sonnet20250514,
 			Model:        anthropic.ModelClaudeOpus4_1_20250805,

@@ -1,10 +1,11 @@
-package llms
+package chatgpt
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 
+	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v2"
 	"github.com/openai/openai-go/v2/option"
@@ -59,17 +60,17 @@ func NewChatGPT(opts *ChatGPTOpts) (*ChatGPT, error) {
 	return chatGPT, nil
 }
 
-func (c *ChatGPT) LLMInfo() *LLMInfo {
-	return &LLMInfo{
-		Type:      LLMTypeChatGPT,
+func (c *ChatGPT) LLMInfo() *llms.LLMInfo {
+	return &llms.LLMInfo{
+		Type:      llms.LLMTypeChatGPT,
 		ModelName: c.opts.Model,
 	}
 }
 func (c *ChatGPT) RequiresSessionSystem() bool { return true }
 
-func (c *ChatGPT) newMessage(opts ...MessageOpt) *Message {
-	msg := NewMessage(
-		WithLLMInfo(c.LLMInfo()),
+func (c *ChatGPT) newMessage(opts ...llms.MessageOpt) *llms.Message {
+	msg := llms.NewMessage(
+		llms.WithLLMInfo(c.LLMInfo()),
 	)
 
 	for _, opt := range opts {
@@ -81,12 +82,12 @@ func (c *ChatGPT) newMessage(opts ...MessageOpt) *Message {
 
 // getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation
 // history.
-func (c *ChatGPT) getSessionMessages(session *Session) []openai.ChatCompletionMessageParamUnion {
+func (c *ChatGPT) getSessionMessages(session *llms.Session) []openai.ChatCompletionMessageParamUnion {
 	results := make([]openai.ChatCompletionMessageParamUnion, len(session.Messages))
 
 	for num, msg := range session.Messages {
 		switch msg.Role {
-		case RoleAssistant:
+		case llms.RoleAssistant:
 			assistantMsg := openai.AssistantMessage(msg.Content)
 
 			if msg.HasToolCalls() {
@@ -101,13 +102,13 @@ func (c *ChatGPT) getSessionMessages(session *Session) []openai.ChatCompletionMe
 			}
 
 			results[num] = assistantMsg
-		case RoleSystem:
+		case llms.RoleSystem:
 			results[num] = openai.SystemMessage(msg.Content)
-		case RoleUser:
+		case llms.RoleUser:
 			results[num] = openai.UserMessage(msg.Content)
-		case RoleTool:
+		case llms.RoleTool:
 			results[num] = openai.ToolMessage(msg.Content, msg.ToolCallID)
-		case RoleUnknown:
+		case llms.RoleUnknown:
 			c.logger.Warn("got message with unknown role", "message", msg.Content)
 		}
 	}
@@ -157,7 +158,7 @@ func (c *ChatGPT) CompletionTools() []openai.ChatCompletionToolUnionParam {
 	return results
 }
 
-func (c *ChatGPT) SendSession(ctx context.Context, session *Session) (*Message, error) {
+func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
 	options := openai.ChatCompletionNewParams{
 		Messages: c.getSessionMessages(session),
 		Model:    c.opts.Model,
@@ -172,32 +173,32 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *Session) (*Message, 
 
 	result, err := c.client.Chat.Completions.New(ctx, options)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrCompletion, err)
+		return nil, fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
 	if len(result.Choices) == 0 {
-		return nil, fmt.Errorf("%w: no messages returned", ErrEmptyResponse)
+		return nil, fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
 	}
 
 	if refusal := result.Choices[0].Message.Refusal; refusal != "" {
-		return nil, fmt.Errorf("%w: %s", ErrPromptRefused, refusal)
+		return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
 	}
 
 	response := result.Choices[0].Message
 
 	msg := c.newMessage(
-		WithRole(RoleAssistant),
-		WithContent(response.Content),
-		WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
-		WithToolCallInfo(response.ToolCalls),
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithContent(response.Content),
+		llms.WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
+		llms.WithToolCallInfo(response.ToolCalls),
 	)
 
 	return msg, nil
 }
 
-func (c *ChatGPT) HandleToolCalls(msg *Message) ([]*Message, error) {
+func (c *ChatGPT) HandleToolCalls(msg *llms.Message) ([]*llms.Message, error) {
 	if !msg.HasToolCalls() {
-		return nil, ErrNoToolCalls
+		return nil, llms.ErrNoToolCalls
 	}
 
 	toolCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnion)
@@ -205,8 +206,9 @@ func (c *ChatGPT) HandleToolCalls(msg *Message) ([]*Message, error) {
 		return nil, fmt.Errorf("tool call info was of unexpected type: %T", msg.ToolCallInfo)
 	}
 
-	results := make([]*Message, len(toolCalls))
-	for i, toolCall := range toolCalls {
+	results := make([]*llms.Message, len(toolCalls))
+
+	for toolCallNum, toolCall := range toolCalls {
 		name := toolCall.Function.Name
 
 		var (
@@ -234,14 +236,14 @@ func (c *ChatGPT) HandleToolCalls(msg *Message) ([]*Message, error) {
 		}
 
 		toolCallResultMsg := c.newMessage(
-			WithRole(RoleTool),
-			WithToolCallID(toolCall.ID),
-			WithToolCallArgs(args),
-			WithContent(content),
-			WithError(err),
+			llms.WithRole(llms.RoleTool),
+			llms.WithToolCallID(toolCall.ID),
+			llms.WithToolCallArgs(args),
+			llms.WithContent(content),
+			llms.WithError(err),
 		)
 
-		results[i] = toolCallResultMsg
+		results[toolCallNum] = toolCallResultMsg
 	}
 
 	return results, nil
