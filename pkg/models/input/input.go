@@ -77,7 +77,9 @@ func getTextArea(opts *Opts) textarea.Model {
 		// BorderStyle(lipgloss.DoubleBorder()).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderTopForeground(lipgloss.Color("#666666")).
-		BorderTop(true)
+		BorderTopBackground(lipgloss.Color("#000000")).
+		BorderTop(true).
+		Background(lipgloss.Color("#000000"))
 	model.FocusedStyle.CursorLine = lipgloss.NewStyle().
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#eeeeee"))
@@ -89,13 +91,17 @@ func getTextArea(opts *Opts) textarea.Model {
 		Foreground(lipgloss.Color("#eeeeee"))
 	model.FocusedStyle.Prompt = lipgloss.NewStyle().
 		Bold(true).
-		Padding(2, 2, 2, 2)
+		Padding(2, 2, 2, 2).
+		Background(lipgloss.Color("#000000")).
+		Foreground(lipgloss.Color("#eeeeee"))
 
 	// Blurred
 	model.BlurredStyle.Base = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderTopForeground(lipgloss.Color("#333333")).
-		BorderTop(true)
+		BorderTopBackground(lipgloss.Color("#000000")).
+		BorderTop(true).
+		Background(lipgloss.Color("#000000"))
 	model.BlurredStyle.CursorLine = lipgloss.NewStyle().
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#888888"))
@@ -107,7 +113,9 @@ func getTextArea(opts *Opts) textarea.Model {
 		Foreground(lipgloss.Color("#888888"))
 	model.BlurredStyle.Prompt = lipgloss.NewStyle().
 		Bold(true).
-		Padding(2, 2, 2, 2)
+		Padding(2, 2, 2, 2).
+		Background(lipgloss.Color("#000000")).
+		Foreground(lipgloss.Color("#888888"))
 
 	model.ShowLineNumbers = false
 	// model.KeyMap.InsertNewline.SetEnabled(false)
