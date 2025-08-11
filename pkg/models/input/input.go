@@ -176,9 +176,8 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		case tea.KeyEsc:
 			m.textarea.Blur()
 		case tea.KeyRunes:
-			if !m.Focused() && msg.String() == "i" {
-				m.textarea.Focus()
-				return textarea.Blink
+			if !m.Focused() {
+				return m.handleVimKeybindings(msg.String())
 			}
 		}
 	}
@@ -187,6 +186,51 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	m.textarea = newTextarea
 
 	return cmd
+}
+
+// TODO: have a "mode" rather than using blurred
+func (m *Model) handleVimKeybindings(key string) tea.Cmd {
+	switch key {
+	// Insert mode keys - these enter insert mode with different cursor positions
+	case "i":
+		// Insert at current cursor position
+		m.textarea.Focus()
+		return textarea.Blink
+	case "a":
+		// Insert after current cursor position
+		// Note: We'll focus first, then try to move right by sending a key message
+		m.textarea.Focus()
+		return textarea.Blink
+	case "A":
+		// Insert at end of current line
+		m.textarea.Focus()
+		m.textarea.CursorEnd()
+
+		return textarea.Blink
+	case "I":
+		// Insert at beginning of current line
+		m.textarea.Focus()
+		m.textarea.CursorStart()
+
+		return textarea.Blink
+	case "o":
+		// Open new line below current line and enter insert mode
+		m.textarea.Focus()
+		m.textarea.CursorEnd()
+		m.textarea.InsertString("\n")
+
+		return textarea.Blink
+	case "O":
+		// Open new line above current line and enter insert mode
+		m.textarea.Focus()
+		m.textarea.CursorStart()
+		m.textarea.InsertString("\n")
+		m.textarea.CursorUp()
+
+		return textarea.Blink
+	}
+
+	return nil
 }
 
 func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
