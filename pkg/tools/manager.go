@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 )
@@ -15,12 +14,6 @@ const (
 	ToolReadFile        = "read_file"
 	ToolReplaceLines    = "replace_lines"
 	ToolWriteFile       = "write_file"
-)
-
-var (
-	ErrArguments   = errors.New("arguments error")
-	ErrCallFailed  = errors.New("tool call failed")
-	ErrUnknownTool = errors.New("unknown tool")
 )
 
 type Manager struct {

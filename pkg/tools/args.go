@@ -192,6 +192,11 @@ func (a Args) GetStringSlice(key string) []string {
 
 	sliceVal, isSlice := val.([]any)
 	if !isSlice {
+		stringSliceVal, isStringSlice := val.([]string)
+		if isStringSlice {
+			return stringSliceVal
+		}
+
 		return nil
 	}
 

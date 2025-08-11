@@ -74,10 +74,10 @@ func getSearchesReplaces(args Args) (searches, replaces []string, err error) {
 	}
 
 	if len(searches) != len(replaces) {
-		return nil, nil, fmt.Errorf("must supply both '%s' and '%s' when one is specified", ReplaceLinesSearch, ReplaceLinesReplace)
+		return nil, nil, fmt.Errorf("%w: must supply both '%s' and '%s' when one is specified", ErrArguments, ReplaceLinesSearch, ReplaceLinesReplace)
 	} else if len(searches) > 0 && len(replaces) > 0 {
 		if batch := args.GetStringSlice(ReplaceLinesBatch); batch != nil {
-			return nil, nil, fmt.Errorf("must supply EITHER '%s' AND '%s' OR '%s'", ReplaceLinesSearch, ReplaceLinesReplace, ReplaceLinesBatch)
+			return nil, nil, fmt.Errorf("%w: must supply EITHER '%s' AND '%s' OR '%s'", ErrArguments, ReplaceLinesSearch, ReplaceLinesReplace, ReplaceLinesBatch)
 		}
 
 		return searches, replaces, nil
@@ -85,10 +85,11 @@ func getSearchesReplaces(args Args) (searches, replaces []string, err error) {
 
 	batches := args.GetStringSlice(ReplaceLinesBatch)
 	if batches == nil {
-		return nil, nil, fmt.Errorf("must supply EITHER '%s' AND '%s' OR '%s'", ReplaceLinesSearch, ReplaceLinesReplace, ReplaceLinesBatch)
+		return nil, nil, fmt.Errorf("%w: must supply EITHER '%s' AND '%s' OR '%s'", ErrArguments, ReplaceLinesSearch, ReplaceLinesReplace, ReplaceLinesBatch)
 	} else if len(batches)%2 != 0 {
 		return nil, nil, fmt.Errorf(
-			"'%s' array must have even length, with items in the form [<search>, <replace>, <search>, <replace>, ...]",
+			"%w: '%s' array must have even length, with items in the form [<search>, <replace>, <search>, <replace>, ...]",
+			ErrArguments,
 			ReplaceLinesBatch,
 		)
 	}
@@ -97,7 +98,7 @@ func getSearchesReplaces(args Args) (searches, replaces []string, err error) {
 
 	for batchIndex := 0; batchIndex < len(batches); batchIndex += 2 {
 		if batches[batchIndex] == "" {
-			return nil, nil, fmt.Errorf("empty searches are not allowed in batch replaces")
+			return nil, nil, fmt.Errorf("%w: empty searches are not allowed in batch replaces", ErrArguments)
 		}
 
 		searches[batchIndex/2] = batches[batchIndex]
@@ -110,12 +111,12 @@ func getSearchesReplaces(args Args) (searches, replaces []string, err error) {
 func (r *ReplaceLinesTool) Run(args Args) (string, error) {
 	path := args.GetString(ReplaceLinesPath)
 	if path == nil {
-		return "", fmt.Errorf("no path supplied")
+		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
 
 	fullPath, err := utils.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("path error: %w", err)
+		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 	}
 
 	searches, replaces, err := getSearchesReplaces(args)
@@ -125,7 +126,7 @@ func (r *ReplaceLinesTool) Run(args Args) (string, error) {
 
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file %q: %w", *path, err)
+		return "", fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, *path, err)
 	}
 
 	for i := range searches {
@@ -133,7 +134,7 @@ func (r *ReplaceLinesTool) Run(args Args) (string, error) {
 	}
 
 	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
-		return "", fmt.Errorf("failed to write contents to %q: %w", fullPath, err)
+		return "", fmt.Errorf("%w: failed to write contents to %q: %w", ErrFileSystem, fullPath, err)
 	}
 
 	return fmt.Sprintf("Replaced requested lines in %q", *path), nil
