@@ -133,6 +133,11 @@ func (m *Model) logContent() string {
 				info.titleStyle = info.titleStyle.
 					Foreground(lipgloss.Color("#00af00"))
 				info.useMarkdown = true
+
+				if len(item.ToolsCalled) > 0 {
+					info.content += fmt.Sprintf("\nTools called: %s\n", strings.Join(item.ToolsCalled, ", "))
+					info.content += fmt.Sprintf("\nTool call args: %s\n", item.ToolCallArgs.String())
+				}
 			case llms.RoleTool:
 				info.title = "🔧 Tool"
 				info.titleStyle = info.titleStyle.
