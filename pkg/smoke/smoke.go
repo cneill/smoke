@@ -126,6 +126,10 @@ func (s *Smoke) setupLLM() error {
 		return fmt.Errorf("unknown LLM provider: %s", s.opts.Provider)
 	}
 
+	if llm.RequiresSessionSystem() {
+		s.session.AddMessage(llms.SimpleMessage(llms.RoleSystem, s.session.SystemMessage))
+	}
+
 	s.llm = llm
 
 	return nil
