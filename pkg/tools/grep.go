@@ -84,7 +84,7 @@ func (g *GrepTool) Run(args Args) (string, error) {
 		return "", fmt.Errorf("failed to stat path %q: %w", fullPath, err)
 	}
 
-	if !stat.Mode().IsRegular() {
+	if !stat.Mode().IsRegular() && !stat.IsDir() {
 		return "", fmt.Errorf("invalid file for grep: %q (mode=%s)", fullPath, stat.Mode().String())
 	}
 
