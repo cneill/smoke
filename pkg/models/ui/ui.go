@@ -195,7 +195,7 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 		return assistantResponse{response}
 	}
 
-	return tea.Batch(updateHistory(llmMessage), sendMessage)
+	return tea.Batch(updateHistory(llmMessage), sendMessage, m.input.SetWaiting(true))
 }
 
 type toolCallResponse struct {
@@ -219,6 +219,8 @@ func (m *Model) handleAssistantResponse(response assistantResponse) tea.Cmd {
 
 			return toolCallResponse{messages: results}
 		})
+	} else {
+		m.input.SetWaiting(false)
 	}
 
 	return tea.Batch(commands...)

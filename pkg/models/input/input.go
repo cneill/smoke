@@ -246,6 +246,15 @@ func (m *Model) Focused() bool {
 	return m.textarea.Focused()
 }
 
+func (m *Model) SetWaiting(value bool) tea.Cmd {
+	m.waiting = value
+	if value {
+		return m.spinner.Tick
+	}
+
+	return nil
+}
+
 // handleContentSubmit interprets the content the user has entered in the textarea and returns an appropriate tea.Cmd.
 func (m *Model) handleContentSubmit() tea.Cmd {
 	content := m.textarea.Value()
