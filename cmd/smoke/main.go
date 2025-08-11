@@ -5,11 +5,15 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/anthropics/anthropic-sdk-go"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/llms/chatgpt"
+	"github.com/cneill/smoke/pkg/llms/claude"
 	"github.com/cneill/smoke/pkg/log"
 	"github.com/cneill/smoke/pkg/models/ui"
 	"github.com/cneill/smoke/pkg/smoke"
+	"github.com/openai/openai-go/v2"
 	"github.com/urfave/cli/v2"
 )
 
@@ -17,6 +21,7 @@ const (
 	FlagDir          = "dir"
 	FlagDebug        = "debug"
 	FlagMaxTokens    = "max-tokens"
+	FlagModel        = "model"
 	FlagSessionName  = "session-name"
 	FlagProvider     = "provider"
 	FlagOpenAIKey    = "openai-api-key"
@@ -25,6 +30,7 @@ const (
 	EnvDir          = "SMOKE_DIRECTORY"
 	EnvDebug        = "SMOKE_DEBUG"
 	EnvMaxTokens    = "SMOKE_MAX_TOKENS"
+	EnvModel        = "SMOKE_MODEL"
 	EnvSessionName  = "SMOKE_SESSION_NAME"
 	EnvProvider     = "SMOKE_PROVIDER"
 	EnvOpenAIKey    = "OPENAI_API_KEY"
@@ -53,6 +59,13 @@ func flags() []cli.Flag {
 			Aliases:  []string{"t"},
 			EnvVars:  []string{EnvMaxTokens},
 			Value:    8192,
+		},
+		&cli.StringFlag{
+			Name:     FlagModel,
+			Usage:    "The provider's model to use, or an alias for it",
+			Category: "Models",
+			Aliases:  []string{"m"},
+			EnvVars:  []string{EnvModel},
 		},
 		&cli.StringFlag{
 			Name:     FlagSessionName,
@@ -161,11 +174,15 @@ func action(ctx *cli.Context) error {
 		SessionName: ctx.String(FlagSessionName),
 	}
 
+	modelFlag := ctx.String(FlagModel)
+
 	switch provider {
 	case llms.LLMTypeChatGPT:
 		smokeOpts.APIKey = ctx.String(FlagOpenAIKey)
+		smokeOpts.Model = chatgpt.GetModel(modelFlag, openai.ChatModelGPT5)
 	case llms.LLMTypeClaude:
 		smokeOpts.APIKey = ctx.String(FlagAnthropicKey)
+		smokeOpts.Model = string(claude.GetModel(modelFlag, anthropic.ModelClaudeSonnet4_0))
 	}
 
 	smokeInstance, err := smoke.New(smokeOpts)

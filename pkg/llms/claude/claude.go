@@ -12,22 +12,22 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 )
 
-type ClaudeOpts struct {
+type Opts struct {
 	APIKey       string
 	Model        anthropic.Model
 	MaxTokens    int64
 	ToolsManager *tools.Manager
 }
 
-func (c *ClaudeOpts) OK() error {
+func (o *Opts) OK() error {
 	switch {
-	case c.APIKey == "":
+	case o.APIKey == "":
 		return fmt.Errorf("missing api key")
-	case c.Model == "":
+	case o.Model == "":
 		return fmt.Errorf("missing model")
-	case c.MaxTokens <= 0:
+	case o.MaxTokens <= 0:
 		return fmt.Errorf("max tokens must be >0")
-	case c.ToolsManager == nil:
+	case o.ToolsManager == nil:
 		return fmt.Errorf("must supply a tools manager instance")
 	}
 
@@ -35,13 +35,13 @@ func (c *ClaudeOpts) OK() error {
 }
 
 type Claude struct {
-	opts   *ClaudeOpts
+	opts   *Opts
 	logger *slog.Logger
 	tools  *tools.Manager
 	client anthropic.Client
 }
 
-func NewClaude(opts *ClaudeOpts) (*Claude, error) {
+func NewClaude(opts *Opts) (*Claude, error) {
 	if err := opts.OK(); err != nil {
 		return nil, fmt.Errorf("error with Claude options: %w", err)
 	}

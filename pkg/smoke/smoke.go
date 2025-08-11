@@ -15,7 +15,6 @@ import (
 	"github.com/cneill/smoke/pkg/llms/claude"
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/openai/openai-go/v2"
 )
 
 type Opts struct {
@@ -23,6 +22,7 @@ type Opts struct {
 
 	Debug       bool
 	MaxTokens   int64
+	Model       string
 	SessionName string
 	Provider    llms.LLMType
 	APIKey      string
@@ -32,6 +32,8 @@ func (o *Opts) OK() error {
 	switch {
 	case o.ProjectPath == "":
 		return fmt.Errorf("missing project path")
+	case o.Model == "":
+		return fmt.Errorf("missing model")
 	case o.APIKey == "":
 		return fmt.Errorf("missing api key")
 	}
@@ -95,12 +97,13 @@ func (s *Smoke) setupLLM() error {
 
 	switch s.opts.Provider {
 	case llms.LLMTypeChatGPT:
-		chatGPT, err := chatgpt.NewChatGPT(&chatgpt.ChatGPTOpts{
+		chatGPT, err := chatgpt.NewChatGPT(&chatgpt.Opts{
 			APIKey: s.opts.APIKey,
 			// Model:        openai.ChatModelGPT4o,
 			// Model:        openai.ChatModelGPT4_1,
 			// Model:        openai.ChatModelO3Mini,
-			Model:        openai.ChatModelGPT5,
+			// Model:        openai.ChatModelGPT5,
+			Model:        s.opts.Model,
 			MaxTokens:    s.opts.MaxTokens,
 			ToolsManager: s.tools,
 		})
@@ -111,10 +114,11 @@ func (s *Smoke) setupLLM() error {
 		llm = chatGPT
 
 	case llms.LLMTypeClaude:
-		claude, err := claude.NewClaude(&claude.ClaudeOpts{
+		claude, err := claude.NewClaude(&claude.Opts{
 			APIKey: s.opts.APIKey,
 			// Model:        anthropic.ModelClaude4Sonnet20250514,
-			Model:        anthropic.ModelClaudeOpus4_1_20250805,
+			// Model:        anthropic.ModelClaudeOpus4_1_20250805,
+			Model:        anthropic.Model(s.opts.Model),
 			MaxTokens:    s.opts.MaxTokens,
 			ToolsManager: s.tools,
 		})

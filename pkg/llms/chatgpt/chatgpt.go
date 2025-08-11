@@ -12,22 +12,22 @@ import (
 	"github.com/openai/openai-go/v2/shared"
 )
 
-type ChatGPTOpts struct {
+type Opts struct {
 	APIKey       string
 	Model        shared.ChatModel
 	MaxTokens    int64
 	ToolsManager *tools.Manager
 }
 
-func (c *ChatGPTOpts) OK() error {
+func (o *Opts) OK() error {
 	switch {
-	case c.APIKey == "":
+	case o.APIKey == "":
 		return fmt.Errorf("missing api key")
-	case c.Model == "":
+	case o.Model == "":
 		return fmt.Errorf("missing model")
-	case c.MaxTokens <= 0:
+	case o.MaxTokens <= 0:
 		return fmt.Errorf("max tokens must be >0")
-	case c.ToolsManager == nil:
+	case o.ToolsManager == nil:
 		return fmt.Errorf("must supply a tools manager instance")
 	}
 
@@ -35,13 +35,13 @@ func (c *ChatGPTOpts) OK() error {
 }
 
 type ChatGPT struct {
-	opts   *ChatGPTOpts
+	opts   *Opts
 	logger *slog.Logger
 	tools  *tools.Manager
 	client openai.Client
 }
 
-func NewChatGPT(opts *ChatGPTOpts) (*ChatGPT, error) {
+func NewChatGPT(opts *Opts) (*ChatGPT, error) {
 	if err := opts.OK(); err != nil {
 		return nil, fmt.Errorf("error with ChatGPT options: %w", err)
 	}
