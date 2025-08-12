@@ -189,6 +189,10 @@ func (s *Smoke) GetMessages() []*llms.Message {
 	return s.session.Messages
 }
 
+func (s *Smoke) SetSession(newSession *llms.Session) {
+	s.session = newSession
+}
+
 func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error) {
 	cmd, err := s.commands.HandleCommand(s.session, msg)
 	if err != nil {

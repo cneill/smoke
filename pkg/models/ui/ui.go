@@ -130,6 +130,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case commands.HistoryUpdateMessage:
 		cmds = append(cmds, updateHistory(msg))
+	case commands.SessionUpdateMessage:
+		m.smoke.SetSession(msg.Session)
+
+		newLog := []any{}
+
+		for _, msg := range msg.Session.Messages {
+			newLog = append(newLog, msg)
+		}
+
+		refresh := func() tea.Msg {
+			return history.ContentRefresh{
+				Log: newLog,
+			}
+		}
+
+		cmds = append(cmds, tea.Batch(refresh, updateHistory(msg)))
 	case assistantError:
 		cmds = append(cmds, updateHistory(msg.err))
 	case assistantResponse:

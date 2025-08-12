@@ -93,6 +93,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if wasAtBottom {
 			m.viewport.GotoBottom()
 		}
+	case ContentRefresh:
+		m.log = msg.Log
+		m.viewport.SetContent(m.logContent())
+
+		if wasAtBottom {
+			m.viewport.GotoBottom()
+		}
 	case tea.KeyMsg:
 		// Handle VIM-like scrolling commands
 		switch msg.String() {
@@ -190,6 +197,13 @@ func (m *Model) logContent() string {
 				Foreground(lipgloss.Color("#dd9911"))
 			info.content = item.Message
 
+		case commands.SessionUpdateMessage:
+			// TODO: bounds-check?
+			info.title = "Loaded session from file " + item.PromptCommand.Args[0]
+			info.titleStyle = info.titleStyle.
+				Foreground(lipgloss.Color("#ffffff"))
+			info.content = item.Message
+
 		case error:
 			info.title = "⛔ Error"
 			info.titleStyle = info.titleStyle.
@@ -282,6 +296,12 @@ func (m *Model) GetHeight() int {
 	return m.viewport.Height
 }
 
+// ContentUpdate adds a new message to the log.
 type ContentUpdate struct {
 	Message any
+}
+
+// ContentRefresh replaces the current log with its own log.
+type ContentRefresh struct {
+	Log []any
 }

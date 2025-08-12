@@ -18,6 +18,7 @@ func NewManager(projectPath string) *Manager {
 		Commands: map[string]Initializer{
 			CommandExit: NewExitHandler,
 			CommandSave: NewSaveHandler,
+			CommandLoad: NewLoadHandler,
 		},
 	}
 }

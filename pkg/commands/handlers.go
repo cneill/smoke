@@ -78,3 +78,50 @@ func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 	return update.Cmd(), nil
 }
+
+const CommandLoad = "load"
+
+type LoadHandler struct {
+	*BaseHandler
+	Path string
+}
+
+func NewLoadHandler(msg PromptCommandMessage) (Command, error) {
+	load := &LoadHandler{
+		BaseHandler: &BaseHandler{promptCommand: msg},
+	}
+
+	if len(msg.Args) == 0 {
+		return nil, fmt.Errorf("missing path")
+	}
+
+	load.Path = msg.Args[0]
+
+	return load, nil
+}
+
+func (l *LoadHandler) Run(_ *llms.Session) (tea.Cmd, error) {
+	if l.Path == "" {
+		return nil, fmt.Errorf("must provide a path to a session file")
+	}
+
+	data, err := os.ReadFile(l.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read session file %q: %w", l.Path, err)
+	}
+
+	loaded := &llms.Session{}
+	if err := json.Unmarshal(data, loaded); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal session JSON from %q: %w", l.Path, err)
+	}
+
+	slog.Debug("loaded session from file", "path", l.Path, "num_messages", len(loaded.Messages))
+
+	update := SessionUpdateMessage{
+		PromptCommand: l.promptCommand,
+		Session:       loaded,
+		Message:       "Loaded session from file " + l.Path + ".",
+	}
+
+	return update.Cmd(), nil
+}
