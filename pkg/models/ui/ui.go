@@ -113,7 +113,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg, input.ResizeMessage:
 		m.resize(msg)
 	case tea.KeyMsg:
-		switch msg.Type { //nolint:exhaustive
+		switch msg.Type { //nolint:exhaustive,gocritic
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		}
@@ -264,10 +264,6 @@ func (m *Model) handleToolCallResponse(response toolCallResponse) tea.Cmd {
 	}
 
 	return tea.Batch(commands...)
-}
-
-type promptCommandError struct {
-	err error
 }
 
 func updateHistory(msg any) tea.Cmd {
