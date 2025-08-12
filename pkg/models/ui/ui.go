@@ -99,8 +99,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, inputCmd)
 	}
 
-	// don't send key messages unless the input is unfocused
-	if _, ok := msg.(tea.KeyMsg); !ok || ok && !m.input.Focused() {
+	// don't send key messages unless the input is unfocused or waiting
+	if _, ok := msg.(tea.KeyMsg); !ok || ok && (!m.input.Focused() || m.input.Waiting()) {
 		historyModel, historyCmd := m.history.Update(msg)
 		m.history = historyModel
 

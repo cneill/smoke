@@ -285,6 +285,8 @@ func (m *Model) Focused() bool {
 	return m.textarea.Focused()
 }
 
+func (m *Model) Waiting() bool { return m.waiting }
+
 func (m *Model) SetWaiting(value bool) tea.Cmd {
 	m.waiting = value
 	if value {
