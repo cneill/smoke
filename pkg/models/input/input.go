@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cneill/smoke/pkg/commands"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -318,22 +319,10 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 		args = fields[1:]
 	}
 
-	switch cmdName {
-	case "exit":
-		return wrapMsg(ExitCommand{})
-	case "save":
-		save := SaveCommand{}
-		if len(args) > 0 {
-			save.Path = args[0]
-		}
-
-		return wrapMsg(save)
-	default:
-		return wrapMsg(UnknownCommand{
-			Command: cmdName,
-			Args:    args,
-		})
-	}
+	return wrapMsg(commands.PromptCommandMessage{
+		Command: cmdName,
+		Args:    args,
+	})
 }
 
 func wrapMsg(msg tea.Msg) tea.Cmd {

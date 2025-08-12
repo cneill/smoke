@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/wordwrap"
@@ -183,6 +184,12 @@ func (m *Model) logContent() string {
 					Foreground(lipgloss.Color("#af0000"))
 			}
 
+		case commands.HistoryUpdateMessage:
+			info.title = item.PromptCommand.Command + " command result"
+			info.titleStyle = info.titleStyle.
+				Foreground(lipgloss.Color("#dd9911"))
+			info.content = item.Message
+
 		case error:
 			info.title = "⛔ Error"
 			info.titleStyle = info.titleStyle.
@@ -233,9 +240,13 @@ func (m *Model) renderBubble(info bubbleInfo) string {
 
 	fmt.Fprintln(builder, info.titleStyle.Render("╭"+line+"╮"))
 	fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("│%*s%s%*s│", titlePaddingLeft, "", info.title, titlePaddingRight, "")))
-	fmt.Fprint(builder, info.titleStyle.Render(fmt.Sprintf("│%*s", subtitlePaddingLeft, "")))
-	fmt.Fprintf(builder, "%s", info.subtitleStyle.Render(info.subtitle))
-	fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("%*s│", subtitlePaddingRight, "")))
+
+	if info.subtitle != "" {
+		fmt.Fprint(builder, info.titleStyle.Render(fmt.Sprintf("│%*s", subtitlePaddingLeft, "")))
+		fmt.Fprintf(builder, "%s", info.subtitleStyle.Render(info.subtitle))
+		fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("%*s│", subtitlePaddingRight, "")))
+	}
+
 	fmt.Fprintln(builder, info.titleStyle.Render("╰"+line+"╯"))
 
 	if info.useMarkdown {

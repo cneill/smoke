@@ -2,14 +2,14 @@ package smoke
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/llms/chatgpt"
 	"github.com/cneill/smoke/pkg/llms/claude"
@@ -47,6 +47,7 @@ type Smoke struct {
 	ProjectPath string
 	session     *llms.Session
 	tools       *tools.Manager
+	commands    *commands.Manager
 	llm         llms.LLM
 }
 
@@ -81,8 +82,9 @@ func New(opts *Opts) (*Smoke, error) {
 	smoke := &Smoke{
 		opts: opts,
 
-		session: session,
-		tools:   tools.NewManager(absPath),
+		session:  session,
+		tools:    tools.NewManager(absPath),
+		commands: commands.NewManager(absPath),
 	}
 
 	if err := smoke.setupLLM(); err != nil {
@@ -187,21 +189,11 @@ func (s *Smoke) GetMessages() []*llms.Message {
 	return s.session.Messages
 }
 
-func (s *Smoke) SaveSession(path string) error {
-	if path == "" {
-		path = fmt.Sprintf("%s_saved_%s.json", s.session.Name, time.Now().Format(time.DateTime))
-	}
-
-	sessionBytes, err := json.MarshalIndent(s.session, "", "  ")
+func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error) {
+	cmd, err := s.commands.HandleCommand(s.session, msg)
 	if err != nil {
-		return fmt.Errorf("failed to marshal session JSON: %w", err)
+		return nil, fmt.Errorf("failed to execute command %q: %w", msg.Command, err)
 	}
 
-	slog.Debug("saving session to file", "path", path)
-
-	if err := os.WriteFile(path, sessionBytes, 0o644); err != nil {
-		return fmt.Errorf("failed to write session to file %q: %w", path, err)
-	}
-
-	return nil
+	return cmd, nil
 }

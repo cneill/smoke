@@ -7,6 +7,7 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
@@ -89,13 +90,13 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	commands := []tea.Cmd{}
+	cmds := []tea.Cmd{}
 
 	inputModel, inputCmd := m.input.Update(msg)
 	m.input = inputModel
 
 	if inputCmd != nil {
-		commands = append(commands, inputCmd)
+		cmds = append(cmds, inputCmd)
 	}
 
 	// don't send key messages unless the input is unfocused
@@ -104,7 +105,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.history = historyModel
 
 		if historyCmd != nil {
-			commands = append(commands, historyCmd)
+			cmds = append(cmds, historyCmd)
 		}
 	}
 
@@ -118,36 +119,30 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case input.UserMessage:
 		if cmd := m.handleUserMessage(msg); cmd != nil {
-			commands = append(commands, cmd)
+			cmds = append(cmds, cmd)
 		}
-	case input.ExitCommand:
-		return m, tea.Quit
-	case input.SaveCommand:
-		commands = append(commands, func() tea.Msg {
-			if err := m.smoke.SaveSession(msg.Path); err != nil {
-				return promptCommandError{err}
-			}
-
-			return nil
-		})
-	case input.UnknownCommand:
-		slog.Warn("unknown prompt command", "command", msg.Command, "args", msg.Args)
-		commands = append(commands, updateHistory(fmt.Errorf("unknown prompt command: %q", msg.Command)))
-	case promptCommandError:
-		commands = append(commands, updateHistory(msg.err))
+	case commands.PromptCommandMessage:
+		cmd, err := m.smoke.HandleCommand(msg)
+		if err != nil {
+			cmds = append(cmds, updateHistory(err))
+		} else if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	case commands.HistoryUpdateMessage:
+		cmds = append(cmds, updateHistory(msg))
 	case assistantError:
-		commands = append(commands, updateHistory(msg.err))
+		cmds = append(cmds, updateHistory(msg.err))
 	case assistantResponse:
 		if cmd := m.handleAssistantResponse(msg); cmd != nil {
-			commands = append(commands, cmd)
+			cmds = append(cmds, cmd)
 		}
 	case toolCallResponse:
 		if cmd := m.handleToolCallResponse(msg); cmd != nil {
-			commands = append(commands, cmd)
+			cmds = append(cmds, cmd)
 		}
 	}
 
-	return m, tea.Batch(commands...)
+	return m, tea.Batch(cmds...)
 }
 
 func (m *Model) resize(msg tea.Msg) {
@@ -244,6 +239,7 @@ func (m *Model) handleToolCallResponse(response toolCallResponse) tea.Cmd {
 
 			response, err := m.smoke.HandleToolCallResults(context.TODO(), response.messages)
 			if err != nil {
+				commands = append(commands, m.input.SetWaiting(false))
 				return assistantError{err}
 			}
 

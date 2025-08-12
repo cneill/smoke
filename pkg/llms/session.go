@@ -11,7 +11,7 @@ type Session struct {
 	SystemMessage string     `json:"system_message"`
 	Messages      []*Message `json:"messages"`
 
-	messageMutex sync.RWMutex
+	messageMutex sync.RWMutex `json:"-"`
 }
 
 type SessionOpts struct {
