@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/cneill/smoke/pkg/utils"
@@ -42,13 +44,13 @@ func (g *GrepTool) Params() Params {
 		},
 		{
 			Key:         GrepRegex,
-			Description: "The regular expression (in Golang regexp syntax) to search for",
+			Description: "The regular expression (in Golang regexp syntax) to search for. Can only search on 1 line",
 			Type:        ParamTypeString,
 			Required:    true,
 		},
 		{
 			Key: GrepContextLines,
-			Description: "The number of lines of context to provide around matches. If empty/1, defaults to only " +
+			Description: "The number of lines of context to provide around matches. If empty/0, defaults to only " +
 				"returning matched lines",
 			Type:     ParamTypeNumber,
 			Required: false,
@@ -114,7 +116,12 @@ func (g *GrepTool) Run(args Args) (string, error) {
 
 	var output string
 
-	for filePath, fileResults := range dirResults {
+	sortedPaths := slices.Collect(maps.Keys(dirResults))
+	slices.Sort(sortedPaths)
+
+	for _, filePath := range sortedPaths {
+		fileResults := dirResults[filePath]
+
 		relPath, err := filepath.Rel(g.ProjectPath, filePath)
 		if err != nil {
 			return "", fmt.Errorf("%w: invalid file path %q: %w", ErrFileSystem, filePath, err)
@@ -137,47 +144,47 @@ func (g *GrepTool) getFileResults(fullPath string, pattern *regexp.Regexp, conte
 	defer file.Close()
 
 	var (
-		lineNum int64
+		// lineNum int64
 		lines   = []string{}
 		results = [][]string{}
 		scanner = bufio.NewScanner(file)
 	)
 
 	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-		lines = append(lines, line)
-		pendingMatch := []string{}
-
-		if pattern.MatchString(line) {
-			context := []string{}
-
-			if contextLines > 0 {
-				for i := max(0, lineNum-1-contextLines); i < lineNum-1; i++ {
-					context = append(context, fmt.Sprintf("%d: %s", i+1, lines[i]))
-				}
-			}
-
-			context = append(context, fmt.Sprintf("*%d: %s", lineNum, line))
-			// results = append(results, context)
-			pendingMatch = context
-		}
-
-		for i := range results {
-			if int64(len(results[i])) == 2*contextLines+1 {
-				continue
-			}
-
-			results[i] = append(results[i], fmt.Sprintf("%d: %s", lineNum, line))
-		}
-
-		if len(pendingMatch) > 0 {
-			results = append(results, pendingMatch)
-		}
+		lines = append(lines, scanner.Text())
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %w", fullPath, err)
+	}
+
+	for lineNum, line := range lines {
+		if pattern.MatchString(line) {
+			context := []string{}
+
+			// add the context preceding the match, if requested
+			if contextLines > 0 {
+				start := max(0, int64(lineNum)-contextLines)
+
+				for i := start; i < int64(lineNum); i++ {
+					context = append(context, fmt.Sprintf("%d: %s", i+1, lines[i]))
+				}
+			}
+
+			// add the matched line, prefixing its line number with '*'
+			context = append(context, fmt.Sprintf("*%d: %s", lineNum+1, line))
+
+			// add the context following the match, if requested
+			if contextLines > 0 {
+				end := min(int64(len(lines)), int64(lineNum+1)+contextLines)
+
+				for i := lineNum + 1; int64(i) < end; i++ {
+					context = append(context, fmt.Sprintf("%d: %s", i+1, lines[i]))
+				}
+			}
+
+			results = append(results, context)
+		}
 	}
 
 	return results, nil
@@ -191,7 +198,7 @@ func (g *GrepTool) getDirResults(fullPath string, pattern *regexp.Regexp, contex
 			return err
 		}
 
-		if dirEntry.IsDir() {
+		if dirEntry.IsDir() && path != fullPath {
 			return fs.SkipDir
 		}
 

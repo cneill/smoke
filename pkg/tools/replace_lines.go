@@ -76,6 +76,38 @@ func (r *ReplaceLinesTool) Params() Params {
 	}
 }
 
+func (r *ReplaceLinesTool) Run(args Args) (string, error) {
+	path := args.GetString(ReplaceLinesPath)
+	if path == nil {
+		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
+	}
+
+	fullPath, err := utils.GetRelativePath(r.ProjectPath, *path)
+	if err != nil {
+		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+	}
+
+	searches, replaces, err := getSearchesReplaces(args)
+	if err != nil {
+		return "", fmt.Errorf("failed to interpret arguments: %w", err)
+	}
+
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, *path, err)
+	}
+
+	for i := range searches {
+		data = bytes.ReplaceAll(data, []byte(searches[i]), []byte(replaces[i]))
+	}
+
+	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
+		return "", fmt.Errorf("%w: failed to write contents to %q: %w", ErrFileSystem, fullPath, err)
+	}
+
+	return fmt.Sprintf("Replaced requested lines in %q", *path), nil
+}
+
 // getSearchesReplaces returns 2 slices - one of "search" and one of "replace" - or an error.
 func getSearchesReplaces(args Args) ([]string, []string, error) {
 	var searches, replaces []string
@@ -139,36 +171,4 @@ func handleBatches(args Args) ([]string, []string, error) {
 	}
 
 	return searches, replaces, nil
-}
-
-func (r *ReplaceLinesTool) Run(args Args) (string, error) {
-	path := args.GetString(ReplaceLinesPath)
-	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
-	}
-
-	fullPath, err := utils.GetRelativePath(r.ProjectPath, *path)
-	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
-	}
-
-	searches, replaces, err := getSearchesReplaces(args)
-	if err != nil {
-		return "", fmt.Errorf("failed to interpret arguments: %w", err)
-	}
-
-	data, err := os.ReadFile(fullPath)
-	if err != nil {
-		return "", fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, *path, err)
-	}
-
-	for i := range searches {
-		data = bytes.ReplaceAll(data, []byte(searches[i]), []byte(replaces[i]))
-	}
-
-	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
-		return "", fmt.Errorf("%w: failed to write contents to %q: %w", ErrFileSystem, fullPath, err)
-	}
-
-	return fmt.Sprintf("Replaced requested lines in %q", *path), nil
 }

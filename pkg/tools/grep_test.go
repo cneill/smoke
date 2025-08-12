@@ -2,17 +2,22 @@ package tools_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/cneill/smoke/pkg/tools"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestGrepTool_Run(t *testing.T) { //nolint:cyclop,funlen
+func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tempDir := t.TempDir()
+	gt := &tools.GrepTool{ProjectPath: tempDir}
 
 	tests := []struct {
 		name           string
@@ -128,8 +133,6 @@ func TestGrepTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				t.Fatalf("failed to write initial content to file %q: %v", tempPath, err)
 			}
 
-			gt := &tools.GrepTool{ProjectPath: tempDir}
-
 			output, runErr := gt.Run(test.args)
 			if test.errors == nil && runErr != nil {
 				t.Errorf("expected no error, got %v", runErr)
@@ -144,6 +147,140 @@ func TestGrepTool_Run(t *testing.T) { //nolint:cyclop,funlen
 			if output != test.expectedOutput {
 				t.Errorf("returned output %q doesn't match expected %q", output, test.expectedOutput)
 			}
+		})
+	}
+}
+
+func TestGrepTool_Run_Directory(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	gt := &tools.GrepTool{ProjectPath: tempDir}
+
+	filePath1 := filepath.Join(tempDir, "file_1.txt")
+	if err := os.WriteFile(filePath1, []byte("abc\n123\nxyz\n"), 0o644); err != nil {
+		t.Fatalf("failed to create file %q: %v", filePath1, err)
+	}
+
+	filePath2 := filepath.Join(tempDir, "file_2.txt")
+	if err := os.WriteFile(filePath2, []byte("test\ntest2\ntest3\n"), 0o644); err != nil {
+		t.Fatalf("failed to create file %q: %v", filePath2, err)
+	}
+
+	filePath3 := filepath.Join(tempDir, "file_3.txt")
+	if err := os.WriteFile(filePath3, []byte("123\n456\n789\n193\n"), 0o644); err != nil {
+		t.Fatalf("failed to create file %q: %v", filePath3, err)
+	}
+
+	subdirPath := filepath.Join(tempDir, "subdir")
+	if err := os.Mkdir(subdirPath, 0o755); err != nil {
+		t.Fatalf("failed to create subdirectory %q: %v", subdirPath, err)
+	}
+
+	subdirFilePath := filepath.Join(tempDir, "subdir/file_4.txt")
+	if err := os.WriteFile(subdirFilePath, []byte("123\ntest2\nxyz\nunique\n"), 0o644); err != nil {
+		t.Fatalf("failed to create file %q: %v", subdirFilePath, err)
+	}
+
+	tests := []struct {
+		name           string
+		args           tools.Args
+		expectedOutput string
+		errors         []error
+	}{
+		{
+			name: "no_match",
+			args: tools.Args{
+				tools.GrepPath:  ".",
+				tools.GrepRegex: "NO_MATCH",
+			},
+			expectedOutput: "",
+			errors:         nil,
+		},
+		{
+			name: "no_match_subdir",
+			args: tools.Args{
+				tools.GrepPath:  ".",
+				tools.GrepRegex: "unique",
+			},
+			expectedOutput: "",
+			errors:         nil,
+		},
+		{
+			name: "single_match",
+			args: tools.Args{
+				tools.GrepPath:  ".",
+				tools.GrepRegex: "test2",
+			},
+			expectedOutput: fmt.Sprintf("file_2.txt\n%s\n*2: test2\n\n", tools.LineSep),
+			errors:         nil,
+		},
+		{
+			name: "single_match_multi_file",
+			args: tools.Args{
+				tools.GrepPath:  ".",
+				tools.GrepRegex: "123",
+			},
+			expectedOutput: fmt.Sprintf("file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\n", tools.LineSep, tools.LineSep),
+			errors:         nil,
+		},
+		{
+			name: "single_match_subdir",
+			args: tools.Args{
+				tools.GrepPath:  "subdir",
+				tools.GrepRegex: "test2",
+			},
+			expectedOutput: fmt.Sprintf("subdir/file_4.txt\n%s\n*2: test2\n\n", tools.LineSep),
+			errors:         nil,
+		},
+		{
+			name: "multi_match_single_file",
+			args: tools.Args{
+				tools.GrepPath:  ".",
+				tools.GrepRegex: `test(\d)?`,
+			},
+			expectedOutput: fmt.Sprintf("file_2.txt\n%s\n*1: test\n\n*2: test2\n\n*3: test3\n\n", tools.LineSep),
+			errors:         nil,
+		},
+		{
+			name: "multi_match_multi_file",
+			args: tools.Args{
+				tools.GrepPath:  ".",
+				tools.GrepRegex: `1(\d)3`,
+			},
+			expectedOutput: fmt.Sprintf("file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\n*4: 193\n\n", tools.LineSep, tools.LineSep),
+			errors:         nil,
+		},
+		{
+			name: "multi_match_multi_file_with_context",
+			args: tools.Args{
+				tools.GrepPath:         ".",
+				tools.GrepRegex:        `1(\d)3`,
+				tools.GrepContextLines: 2,
+			},
+			expectedOutput: fmt.Sprintf(
+				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\nfile_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n\n2: 456\n3: 789\n*4: 193\n\n",
+				tools.LineSep,
+				tools.LineSep,
+			),
+			errors: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			output, runErr := gt.Run(test.args)
+			if test.errors == nil {
+				require.NoError(t, runErr)
+			} else {
+				for _, testErr := range test.errors {
+					require.ErrorIs(t, runErr, testErr)
+				}
+			}
+
+			assert.Equal(t, test.expectedOutput, output, "returned output doesn't match expected")
 		})
 	}
 }
