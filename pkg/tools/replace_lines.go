@@ -23,7 +23,12 @@ func (r *ReplaceLinesTool) Name() string { return ToolReplaceLines }
 
 func (r *ReplaceLinesTool) Description() string {
 	return fmt.Sprintf(
-		"Replace strings in the given file with new contents. Must supply EITHER '%s' AND '%s' parameters OR '%s'.",
+		`Replace strings in the given file with new contents. Must supply EITHER %q AND %q parameters OR %q.
+		This is an exact string replace, not a regular expression replace.
+
+		Examples:
+		search="z", replace="c" on text "abz" will produce "abc"
+		batches=["a", "x", "b", "y", "c", "z"] on text "abc" will produce "xyz"`,
 		ReplaceLinesSearch,
 		ReplaceLinesReplace,
 		ReplaceLinesBatch,
@@ -39,21 +44,28 @@ func (r *ReplaceLinesTool) Params() Params {
 			Required:    true,
 		},
 		{
-			Key:         ReplaceLinesSearch,
-			Description: fmt.Sprintf("The content to search for that will be replaced by the contents of '%s'", ReplaceLinesReplace),
-			Type:        ParamTypeString,
-			Required:    false,
+			Key: ReplaceLinesSearch,
+			Description: fmt.Sprintf(
+				"The string content to search for that will be replaced by the contents of %q",
+				ReplaceLinesReplace,
+			),
+			Type:     ParamTypeString,
+			Required: false,
 		},
 		{
-			Key:         ReplaceLinesReplace,
-			Description: fmt.Sprintf("The content that will replace all occurrences of the content in '%s' within the specified file", ReplaceLinesSearch),
-			Type:        ParamTypeString,
-			Required:    false,
+			Key: ReplaceLinesReplace,
+			Description: fmt.Sprintf(
+				"The string content that will replace all occurrences of the content in %q within the specified file",
+				ReplaceLinesSearch,
+			),
+			Type:     ParamTypeString,
+			Required: false,
 		},
 		{
 			Key: ReplaceLinesBatch,
 			Description: fmt.Sprintf(
-				"Provide a batch of replacements in [<search>, <replace>, <search>, <replace>, ...] format. Mutually exclusive with '%s'/'%s' parameters.",
+				"Provide a batch of replacements in [<search>, <replace>, <search>, <replace>, ...] format. Mutually "+
+					"exclusive with %q/%q parameters",
 				ReplaceLinesSearch,
 				ReplaceLinesReplace,
 			),
@@ -64,7 +76,10 @@ func (r *ReplaceLinesTool) Params() Params {
 	}
 }
 
-func getSearchesReplaces(args Args) (searches, replaces []string, err error) {
+// getSearchesReplaces returns 2 slices - one of "search" and one of "replace" - or an error.
+func getSearchesReplaces(args Args) ([]string, []string, error) {
+	var searches, replaces []string
+
 	if search := args.GetString(ReplaceLinesSearch); search != nil && *search != "" {
 		searches = []string{*search}
 	}
@@ -77,15 +92,33 @@ func getSearchesReplaces(args Args) (searches, replaces []string, err error) {
 		return nil, nil, fmt.Errorf("%w: must supply both '%s' and '%s' when one is specified", ErrArguments, ReplaceLinesSearch, ReplaceLinesReplace)
 	} else if len(searches) > 0 && len(replaces) > 0 {
 		if batch := args.GetStringSlice(ReplaceLinesBatch); batch != nil {
-			return nil, nil, fmt.Errorf("%w: must supply EITHER '%s' AND '%s' OR '%s'", ErrArguments, ReplaceLinesSearch, ReplaceLinesReplace, ReplaceLinesBatch)
+			return nil, nil, fmt.Errorf(
+				"%w: must supply EITHER '%s' AND '%s' OR '%s'",
+				ErrArguments,
+				ReplaceLinesSearch,
+				ReplaceLinesReplace,
+				ReplaceLinesBatch,
+			)
 		}
 
 		return searches, replaces, nil
 	}
 
+	return handleBatches(args)
+}
+
+func handleBatches(args Args) ([]string, []string, error) {
+	var searches, replaces []string
+
 	batches := args.GetStringSlice(ReplaceLinesBatch)
 	if batches == nil {
-		return nil, nil, fmt.Errorf("%w: must supply EITHER '%s' AND '%s' OR '%s'", ErrArguments, ReplaceLinesSearch, ReplaceLinesReplace, ReplaceLinesBatch)
+		return nil, nil, fmt.Errorf(
+			"%w: must supply EITHER '%s' AND '%s' OR '%s'",
+			ErrArguments,
+			ReplaceLinesSearch,
+			ReplaceLinesReplace,
+			ReplaceLinesBatch,
+		)
 	} else if len(batches)%2 != 0 {
 		return nil, nil, fmt.Errorf(
 			"%w: '%s' array must have even length, with items in the form [<search>, <replace>, <search>, <replace>, ...]",

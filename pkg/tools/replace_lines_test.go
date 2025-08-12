@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
@@ -20,21 +21,32 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 		initContent     string
 		args            tools.Args
 		expectedContent string
-		err             error
+		errors          []error
 	}{
 		{
 			name:            "nil",
 			initContent:     "a\nb\nc",
 			args:            nil,
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:            "empty",
 			initContent:     "a\nb\nc",
 			args:            tools.Args{},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:        "relative_path",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:    "../../../../relative_path_test.txt",
+				tools.ReplaceLinesSearch:  "a",
+				tools.ReplaceLinesReplace: "1",
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments, utils.ErrInsecureTargetPath},
 		},
 		{
 			name:        "path_no_search_replace",
@@ -43,7 +55,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesPath: "path_no_search_replace_test.txt",
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "path_no_replace",
@@ -53,7 +65,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesSearch: "a",
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "path_no_search",
@@ -63,7 +75,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesReplace: "a",
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "mutually_exclusive",
@@ -75,7 +87,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesBatch:   []any{"test", "Test"},
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "empty_search_replace",
@@ -86,7 +98,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesReplace: "",
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "empty_batch_search_replace",
@@ -96,7 +108,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesBatch: []string{"", "abc"},
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "int_batch",
@@ -106,7 +118,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesBatch: []int{1, 2, 3},
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "mismatched_types_any_batch",
@@ -116,7 +128,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesBatch: []any{"a", "b", 1},
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "invalid_batch_size",
@@ -126,7 +138,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesBatch: []any{"a", "b", "c"},
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrArguments,
+			errors:          []error{tools.ErrArguments},
 		},
 		{
 			name:        "all_args_bad_file",
@@ -137,60 +149,70 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesReplace: "test2",
 			},
 			expectedContent: "a\nb\nc",
-			err:             tools.ErrFileSystem,
+			errors:          []error{tools.ErrFileSystem},
 		},
 		{
-			name:        "good_file_no_replace",
+			name:        "no_replace",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:    "good_file_no_replace_test.txt",
+				tools.ReplaceLinesPath:    "no_replace_test.txt",
 				tools.ReplaceLinesSearch:  "test",
 				tools.ReplaceLinesReplace: "test2",
 			},
 			expectedContent: "a\nb\nc",
-			err:             nil,
+			errors:          nil,
 		},
 		{
-			name:        "good_file_with_replace",
+			name:        "with_replace",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:    "good_file_with_replace_test.txt",
+				tools.ReplaceLinesPath:    "with_replace_test.txt",
 				tools.ReplaceLinesSearch:  "a",
 				tools.ReplaceLinesReplace: "1",
 			},
 			expectedContent: "1\nb\nc",
-			err:             nil,
+			errors:          nil,
 		},
 		{
-			name:        "good_file_multiline_replace",
+			name:        "multiline_replace",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:    "good_file_multiline_replace_test.txt",
+				tools.ReplaceLinesPath:    "multiline_replace_test.txt",
 				tools.ReplaceLinesSearch:  "a\nb",
 				tools.ReplaceLinesReplace: "1\n2",
 			},
 			expectedContent: "1\n2\nc",
-			err:             nil,
+			errors:          nil,
 		},
 		{
-			name:        "good_file_batch_string",
+			name:        "batch_string",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:  "good_file_batch_string_test.txt",
+				tools.ReplaceLinesPath:  "batch_string_test.txt",
 				tools.ReplaceLinesBatch: []string{"a", "1", "b\nc", "2"},
 			},
 			expectedContent: "1\n2",
-			err:             nil,
+			errors:          nil,
 		},
 		{
-			name:        "good_file_batch_any",
+			name:        "batch_any",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:  "good_file_batch_any_test.txt",
+				tools.ReplaceLinesPath:  "batch_any_test.txt",
 				tools.ReplaceLinesBatch: []any{"a", "1", "b\nc", "2"},
 			},
 			expectedContent: "1\n2",
-			err:             nil,
+			errors:          nil,
+		},
+		{
+			name:        "sequential_replace",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:  "sequential_replace_test.txt",
+				tools.ReplaceLinesBatch: []any{"a", "1", "1", "z"},
+			},
+			expectedContent: "z\nb\nc",
+			errors:          nil,
 		},
 	}
 
@@ -215,10 +237,14 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 			rlt := &tools.ReplaceLinesTool{ProjectPath: tempDir}
 
 			_, runErr := rlt.Run(test.args)
-			if test.err == nil && runErr != nil {
+			if test.errors == nil && runErr != nil {
 				t.Errorf("expected no error, got %v", runErr)
-			} else if test.err != nil && !errors.Is(runErr, test.err) {
-				t.Errorf("expected error %v, got %v", test.err, runErr)
+			} else if test.errors != nil {
+				for _, testErr := range test.errors {
+					if !errors.Is(runErr, testErr) {
+						t.Errorf("expected error %v, got %v", testErr, runErr)
+					}
+				}
 			}
 
 			if _, err := tempFile.Seek(0, 0); err != nil {
