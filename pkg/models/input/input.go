@@ -191,14 +191,8 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 // TODO: have a "mode" rather than using blurred
 func (m *Model) handleVimKeybindings(key string) tea.Cmd {
 	switch key {
-	// Insert mode keys - these enter insert mode with different cursor positions
 	case "i":
 		// Insert at current cursor position
-		m.textarea.Focus()
-		return textarea.Blink
-	case "a":
-		// Insert after current cursor position
-		// Note: We'll focus first, then try to move right by sending a key message
 		m.textarea.Focus()
 		return textarea.Blink
 	case "A":
