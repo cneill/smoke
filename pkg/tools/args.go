@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -138,12 +139,28 @@ func (a Args) GetInt64(key string) *int64 {
 		return &intVal
 	}
 
-	intVal, isInt := val.(int64)
-	if !isInt {
-		return nil
+	int64Val, isInt64 := val.(int64)
+	if isInt64 {
+		return &int64Val
 	}
 
-	return &intVal
+	intVal, isInt := val.(int)
+	if isInt {
+		convertedVal := int64(intVal)
+		return &convertedVal
+	}
+
+	strVal, isStr := val.(string)
+	if isStr {
+		parsedVal, err := strconv.ParseInt(strVal, 10, 64)
+		if err != nil {
+			return nil
+		}
+
+		return &parsedVal
+	}
+
+	return nil
 }
 
 func (a Args) GetFloat64(key string) *float64 {

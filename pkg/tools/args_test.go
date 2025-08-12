@@ -6,6 +6,74 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 )
 
+func int64Ptr(input int64) *int64 {
+	return &input
+}
+
+func TestArgs_GetInt64(t *testing.T) { //nolint:funlen
+	t.Parallel()
+
+	testKey := "test"
+	tests := []struct {
+		name     string
+		args     tools.Args
+		expected *int64
+	}{
+		{
+			name:     "nil",
+			args:     nil,
+			expected: nil,
+		},
+		{
+			name:     "empty",
+			args:     tools.Args{},
+			expected: nil,
+		},
+		{
+			name:     "bool",
+			args:     tools.Args{testKey: true},
+			expected: nil,
+		},
+		{
+			name:     "float",
+			args:     tools.Args{testKey: "1.2"},
+			expected: nil,
+		},
+		{
+			name:     "int",
+			args:     tools.Args{testKey: int(1)},
+			expected: int64Ptr(1),
+		},
+		{
+			name:     "int64",
+			args:     tools.Args{testKey: int64(1)},
+			expected: int64Ptr(1),
+		},
+		{
+			name:     "string",
+			args:     tools.Args{testKey: "1"},
+			expected: int64Ptr(1),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := test.args.GetInt64(testKey)
+
+			switch {
+			case result == nil && test.expected != nil:
+				t.Errorf("expecting %d, got nil", *test.expected)
+			case result != nil && test.expected == nil:
+				t.Errorf("expecting nil, got %d", *result)
+			case result != nil && test.expected != nil && *result != *test.expected:
+				t.Errorf("expecting %d, got %d", *test.expected, *result)
+			}
+		})
+	}
+}
+
 func TestArgs_GetStringSlice(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
@@ -28,6 +96,11 @@ func TestArgs_GetStringSlice(t *testing.T) { //nolint:funlen
 		args     tools.Args
 		expected []string
 	}{
+		{
+			name:     "nil",
+			args:     nil,
+			expected: nil,
+		},
 		{
 			name:     "empty",
 			args:     tools.Args{},
