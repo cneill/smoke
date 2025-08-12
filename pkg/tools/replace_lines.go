@@ -154,7 +154,7 @@ func (r *ReplaceLinesTool) Run(args Args) (string, error) {
 
 	searches, replaces, err := getSearchesReplaces(args)
 	if err != nil {
-		return "", fmt.Errorf("failed to interpret parameters: %w", err)
+		return "", fmt.Errorf("failed to interpret arguments: %w", err)
 	}
 
 	data, err := os.ReadFile(fullPath)

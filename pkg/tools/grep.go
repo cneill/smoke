@@ -25,7 +25,11 @@ type GrepTool struct {
 
 func (g *GrepTool) Name() string { return ToolGrep }
 func (g *GrepTool) Description() string {
-	return "Search a file or directory for a regular expression. Does not search recursively."
+	return fmt.Sprintf(
+		"Search a file or directory for a regular expression. Does not recurse into sub-directories. Lines matching "+
+			"%q are prefixed with '*', while context lines that do not include matches only include line numbers.",
+		GrepRegex,
+	)
 }
 
 func (g *GrepTool) Params() Params {
@@ -43,10 +47,11 @@ func (g *GrepTool) Params() Params {
 			Required:    true,
 		},
 		{
-			Key:         GrepContextLines,
-			Description: "The number of lines of context to provide around matches. If empty/0, defaults to only matched lines.",
-			Type:        ParamTypeNumber,
-			Required:    false,
+			Key: GrepContextLines,
+			Description: "The number of lines of context to provide around matches. If empty/1, defaults to only " +
+				"returning matched lines",
+			Type:     ParamTypeNumber,
+			Required: false,
 		},
 	}
 }
@@ -54,38 +59,41 @@ func (g *GrepTool) Params() Params {
 func (g *GrepTool) Run(args Args) (string, error) {
 	path := args.GetString(GrepPath)
 	if path == nil {
-		return "", fmt.Errorf("no path supplied")
+		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
 
 	fullPath, err := utils.GetRelativePath(g.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("path error: %w", err)
+		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 	}
 
 	regex := args.GetString(GrepRegex)
 	if regex == nil {
-		return "", fmt.Errorf("no regex supplied")
+		return "", fmt.Errorf("%w: no regex supplied", ErrArguments)
 	}
 
 	compiled, err := regexp.Compile(*regex)
 	if err != nil {
-		return "", fmt.Errorf("failed to compile regex pattern: %w", err)
+		return "", fmt.Errorf("%w: failed to compile regex pattern: %w", ErrArguments, err)
 	}
 
 	var contextLines int64
 
-	contextLinesPtr := args.GetInt64(GrepContextLines)
-	if contextLinesPtr != nil && *contextLinesPtr > 0 {
+	if contextLinesPtr := args.GetInt64(GrepContextLines); contextLinesPtr != nil {
+		if *contextLinesPtr <= 0 {
+			return "", fmt.Errorf("%w: %q must be >0", ErrArguments, *contextLinesPtr)
+		}
+
 		contextLines = *contextLinesPtr
 	}
 
 	stat, err := os.Stat(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to stat path %q: %w", fullPath, err)
+		return "", fmt.Errorf("%w: failed to stat path %q: %w", ErrFileSystem, fullPath, err)
 	}
 
 	if !stat.Mode().IsRegular() && !stat.IsDir() {
-		return "", fmt.Errorf("invalid file for grep: %q (mode=%s)", fullPath, stat.Mode().String())
+		return "", fmt.Errorf("%w: invalid file for grep: %q (mode=%s)", ErrFileSystem, fullPath, stat.Mode().String())
 	}
 
 	dirResults := map[string][][]string{}
@@ -109,10 +117,10 @@ func (g *GrepTool) Run(args Args) (string, error) {
 	for filePath, fileResults := range dirResults {
 		relPath, err := filepath.Rel(g.ProjectPath, filePath)
 		if err != nil {
-			return "", fmt.Errorf("invalid file path %q: %w", filePath, err)
+			return "", fmt.Errorf("%w: invalid file path %q: %w", ErrFileSystem, filePath, err)
 		}
 
-		output += relPath + "\n---------\n"
+		output += relPath + "\n" + LineSep + "\n"
 		for _, result := range fileResults {
 			output += strings.Join(result, "\n") + "\n\n"
 		}
@@ -124,7 +132,7 @@ func (g *GrepTool) Run(args Args) (string, error) {
 func (g *GrepTool) getFileResults(fullPath string, pattern *regexp.Regexp, contextLines int64) ([][]string, error) {
 	file, err := os.Open(fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file %q: %w", fullPath, err)
+		return nil, fmt.Errorf("%w: failed to open file %q: %w", ErrFileSystem, fullPath, err)
 	}
 	defer file.Close()
 
@@ -189,7 +197,7 @@ func (g *GrepTool) getDirResults(fullPath string, pattern *regexp.Regexp, contex
 
 		info, err := dirEntry.Info()
 		if err != nil {
-			return fmt.Errorf("failed to stat %q: %w", path, err)
+			return fmt.Errorf("%w: failed to stat %q: %w", ErrFileSystem, path, err)
 		}
 
 		if info.Mode().IsRegular() {
