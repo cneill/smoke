@@ -122,6 +122,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			return m, nil
 		default:
 			m.pendingG = false
+
+			var cmd tea.Cmd
+			m.viewport, cmd = m.viewport.Update(msg)
+
+			return m, cmd
 		}
 
 	default:
