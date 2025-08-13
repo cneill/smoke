@@ -3,7 +3,6 @@ package tools
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/cneill/smoke/pkg/utils"
@@ -75,7 +74,7 @@ func (r *ReadFileTool) Params() Params {
 	}
 }
 
-func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
+func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop
 	path := args.GetString(ReadFilePath)
 	if path == nil {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
@@ -121,7 +120,10 @@ func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	}
 
 	lines := strings.Split(string(contents), "\n")
-	width := len(strconv.Itoa(len(lines)))
+
+	if end == -1 {
+		end = int64(len(lines))
+	}
 
 	if start > int64(len(lines)) {
 		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileStart)
@@ -129,19 +131,5 @@ func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileEnd)
 	}
 
-	builder := &strings.Builder{}
-
-	for lineNum, line := range lines {
-		if int64(lineNum+1) < start {
-			continue
-		}
-
-		if end > 1 && int64(lineNum+1) > end {
-			break
-		}
-
-		fmt.Fprintf(builder, "%*d: %s\n", width, lineNum+1, line)
-	}
-
-	return builder.String(), nil
+	return utils.WithLineNumbers(strings.Join(lines[start-1:end], "\n"), int(start)), nil
 }

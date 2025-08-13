@@ -105,7 +105,7 @@ func (r *ReplaceLinesTool) Run(args Args) (string, error) {
 		return "", fmt.Errorf("%w: failed to write contents to %q: %w", ErrFileSystem, fullPath, err)
 	}
 
-	return fmt.Sprintf("Replaced requested lines in %q", *path), nil
+	return fmt.Sprintf("Replaced requested lines in %q.\n%s\nNew content:\n%s", *path, LineSep, utils.WithLineNumbers(string(data))), nil
 }
 
 // getSearchesReplaces returns 2 slices - one of "search" and one of "replace" - or an error.
@@ -136,10 +136,10 @@ func getSearchesReplaces(args Args) ([]string, []string, error) {
 		return searches, replaces, nil
 	}
 
-	return handleBatches(args)
+	return batchesToSearchesReplaces(args)
 }
 
-func handleBatches(args Args) ([]string, []string, error) {
+func batchesToSearchesReplaces(args Args) ([]string, []string, error) {
 	var searches, replaces []string
 
 	batches := args.GetStringSlice(ReplaceLinesBatch)

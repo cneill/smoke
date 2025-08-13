@@ -150,7 +150,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 				tools.ReadFilePath:  "no_end_test.txt",
 				tools.ReadFileStart: 2,
 			},
-			expectedOutput: "2: test2\n3: test3\n4: \n",
+			expectedOutput: "2: test2\n3: test3\n",
 			err:            nil,
 		},
 	}
