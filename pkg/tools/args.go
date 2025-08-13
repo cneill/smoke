@@ -36,7 +36,7 @@ func GetArgs(input []byte, params Params) (Args, error) {
 	}
 
 	if len(unknownKeys) > 0 {
-		return nil, fmt.Errorf("got unknown keys: %s", strings.Join(unknownKeys, ", "))
+		return nil, fmt.Errorf("%w: %s", ErrUnknownKeys, strings.Join(unknownKeys, ", "))
 	}
 
 	missingKeys := []string{}
@@ -48,7 +48,7 @@ func GetArgs(input []byte, params Params) (Args, error) {
 	}
 
 	if len(missingKeys) > 0 {
-		return nil, fmt.Errorf("missing required keys: %s", strings.Join(missingKeys, ", "))
+		return nil, fmt.Errorf("%w: %s", ErrMissingKeys, strings.Join(missingKeys, ", "))
 	}
 
 	if err := result.checkTypes(params); err != nil {
@@ -69,6 +69,7 @@ func (a Args) String() string {
 	return result
 }
 
+// TODO: allow for e.g. "1" for number, "f" for bool?
 func (a Args) checkTypes(params Params) error { //nolint:cyclop
 	wrongTypeKeys := []string{}
 
@@ -81,9 +82,10 @@ func (a Args) checkTypes(params Params) error { //nolint:cyclop
 			_, rightType = val.(bool)
 		case ParamTypeNumber:
 			_, isNumber := val.(json.Number)
-			_, isInt := val.(int64)
+			_, isInt := val.(int)
+			_, isInt64 := val.(int64)
 			_, isFloat := val.(float64)
-			rightType = isNumber || isInt || isFloat
+			rightType = isNumber || isInt || isInt64 || isFloat
 		case ParamTypeString:
 			_, rightType = val.(string)
 		case ParamTypeArray:
@@ -103,7 +105,7 @@ func (a Args) checkTypes(params Params) error { //nolint:cyclop
 	}
 
 	if len(wrongTypeKeys) > 0 {
-		return fmt.Errorf("keys with wrong types: %s", strings.Join(wrongTypeKeys, ", "))
+		return fmt.Errorf("%w: %s", ErrWrongTypeKeys, strings.Join(wrongTypeKeys, ", "))
 	}
 
 	return nil
@@ -116,11 +118,17 @@ func (a Args) GetString(key string) *string {
 	}
 
 	strVal, isStr := val.(string)
-	if !isStr {
-		return nil
+	if isStr {
+		return &strVal
 	}
 
-	return &strVal
+	stringerVal, isStringer := val.(fmt.Stringer)
+	if isStringer {
+		val := stringerVal.String()
+		return &val
+	}
+
+	return nil
 }
 
 func (a Args) GetInt64(key string) *int64 {
@@ -180,11 +188,26 @@ func (a Args) GetFloat64(key string) *float64 {
 	}
 
 	floatVal, isFloat := val.(float64)
-	if !isFloat {
-		return nil
+	if isFloat {
+		return &floatVal
 	}
 
-	return &floatVal
+	stringVal, isStr := val.(string)
+	if isStr {
+		parsedVal, err := strconv.ParseFloat(stringVal, 64)
+		if err != nil {
+			return nil
+		}
+
+		return &parsedVal
+	}
+
+	if intVal := a.GetInt64(key); intVal != nil {
+		floatVal := float64(*intVal)
+		return &floatVal
+	}
+
+	return nil
 }
 
 func (a Args) GetBool(key string) *bool {
@@ -194,11 +217,21 @@ func (a Args) GetBool(key string) *bool {
 	}
 
 	boolVal, isBool := val.(bool)
-	if !isBool {
-		return nil
+	if isBool {
+		return &boolVal
 	}
 
-	return &boolVal
+	strVal, isStr := val.(string)
+	if isStr {
+		parsed, err := strconv.ParseBool(strVal)
+		if err != nil {
+			return nil
+		}
+
+		return &parsed
+	}
+
+	return nil
 }
 
 func (a Args) GetStringSlice(key string) []string {

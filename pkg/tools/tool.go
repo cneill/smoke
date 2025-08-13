@@ -1,14 +1,5 @@
 package tools
 
-import (
-	"errors"
-)
-
-var (
-	ErrInvalidJSON = errors.New("invalid JSON")
-	ErrUnknownKeys = errors.New("unknown argument keys")
-)
-
 type Tool interface {
 	Name() string
 	Description() string
