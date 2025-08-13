@@ -143,6 +143,16 @@ func TestReadFileTool_Run(t *testing.T) {
 			expectedOutput: " 9: test\n10: test\n11: test\n",
 			err:            nil,
 		},
+		{
+			name:        "no_end",
+			initContent: "test1\ntest2\ntest3\n",
+			args: tools.Args{
+				tools.ReadFilePath:  "no_end_test.txt",
+				tools.ReadFileStart: 2,
+			},
+			expectedOutput: "2: test2\n3: test3\n4: \n",
+			err:            nil,
+		},
 	}
 
 	for _, test := range tests {
