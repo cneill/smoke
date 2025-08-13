@@ -13,27 +13,27 @@ import (
 )
 
 const (
-	LintPath = "path"
+	GoLintPath = "path"
 )
 
-type LintTool struct {
+type GoLintTool struct {
 	ProjectPath string
 }
 
-func (l *LintTool) Name() string { return ToolLint }
+func (g *GoLintTool) Name() string { return ToolGoLint }
 
-func (l *LintTool) Description() string {
+func (g *GoLintTool) Description() string {
 	return fmt.Sprintf(
 		"Runs the golangci-lint linter against the file/directory specified in %q, or the whole project directory if "+
 			"not specified.",
-		LintPath,
+		GoLintPath,
 	)
 }
 
-func (l *LintTool) Params() Params {
+func (g *GoLintTool) Params() Params {
 	return Params{
 		{
-			Key:         LintPath,
+			Key:         GoLintPath,
 			Description: "The path of the directory/file to lint",
 			Type:        ParamTypeString,
 			Required:    false,
@@ -62,9 +62,9 @@ type Pos struct {
 	Column   int64  `json:"Column"`
 }
 
-func (l *LintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
-	targetPath := l.ProjectPath
-	originalPath := l.ProjectPath
+func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
+	targetPath := g.ProjectPath
+	originalPath := g.ProjectPath
 
 	if _, err := exec.LookPath("golangci-lint"); err != nil {
 		slog.Error("golangci-lint not found on the system", "error", err)
@@ -72,8 +72,8 @@ func (l *LintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	}
 
 	// path is optional
-	if path := args.GetString(LintPath); path != nil {
-		relPath, err := utils.GetRelativePath(l.ProjectPath, *path)
+	if path := args.GetString(GoLintPath); path != nil {
+		relPath, err := utils.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 		}
@@ -104,7 +104,7 @@ func (l *LintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
 	cmd := exec.Command("golangci-lint", cmdArgs...)
-	cmd.Dir = l.ProjectPath
+	cmd.Dir = g.ProjectPath
 	cmd.Stdout = buf
 	cmd.Stderr = errBuf
 
@@ -128,7 +128,7 @@ func (l *LintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 		targetIssues = results.Issues
 	} else {
 		for _, issue := range results.Issues {
-			issuePath, err := utils.GetRelativePath(l.ProjectPath, issue.Pos.Filename)
+			issuePath, err := utils.GetRelativePath(g.ProjectPath, issue.Pos.Filename)
 			if err != nil {
 				continue
 			}
