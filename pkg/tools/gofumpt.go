@@ -1,0 +1,77 @@
+package tools
+
+import (
+	"bytes"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/exec"
+
+	"github.com/cneill/smoke/pkg/utils"
+)
+
+const (
+	GoFumptPath = "path"
+)
+
+type GoFumptTool struct {
+	ProjectPath string
+}
+
+func (g *GoFumptTool) Name() string { return ToolGoFumpt }
+
+func (g *GoFumptTool) Description() string {
+	return fmt.Sprintf(
+		"Runs the gofumpt formatter against the file/directory specified in %q, or the whole project directory if "+
+			"not specified. Changes are written in place (-w) and the list of files formatted is returned (-l).",
+		GoFumptPath,
+	)
+}
+
+func (g *GoFumptTool) Params() Params {
+	return Params{
+		{
+			Key:         GoFumptPath,
+			Description: "The path of the directory/file to format",
+			Type:        ParamTypeString,
+			Required:    false,
+		},
+	}
+}
+
+func (g *GoFumptTool) Run(args Args) (string, error) {
+	targetPath := g.ProjectPath
+
+	if _, err := exec.LookPath("gofumpt"); err != nil {
+		slog.Error("gofumpt not found on the system", "error", err)
+		return "", fmt.Errorf("%w: gofumpt not found on the system", ErrFileSystem)
+	}
+
+	// path is optional
+	if path := args.GetString(GoFumptPath); path != nil {
+		relPath, err := utils.GetRelativePath(g.ProjectPath, *path)
+		if err != nil {
+			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+		}
+
+		targetPath = relPath
+	}
+
+	if _, err := os.Stat(targetPath); err != nil {
+		return "", fmt.Errorf("%w: failed to stat path %q: %w", ErrFileSystem, targetPath, err)
+	}
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	cmd := exec.Command("gofumpt", "-l", "-w", targetPath)
+	cmd.Dir = g.ProjectPath
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Run(); err != nil {
+		slog.Error("error from gofumpt", "target_path", targetPath, "error", err, "stderr", stderr.String())
+		return "", fmt.Errorf("%w: gofumpt: %s", ErrCommandExecution, stderr.String())
+	}
+
+	return stdout.String(), nil
+}
