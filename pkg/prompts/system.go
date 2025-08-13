@@ -26,12 +26,12 @@ func SystemJSON() string {
 	systemJSON := map[string]any{
 		"purpose": "You are a helpful coding assistant who is an expert in Golang. You always look at existing code " +
 			"before making changes and match the style and conventions of what already exists. Be concise.",
-		"process": "When asked to make changes to the codebase, look at the relevant files first and run the " +
-			"`go_lint` tool to set a baseline of what linter errors already exist. Before making ANY changes, lay " +
-			"out the plan for what you will do in a file called `smoke_plan.md` in the root directory. Be detailed " +
-			"enough that the user can interpret your plan. Keep a running log of your progress in the " +
-			"`smoke_plan.md` file as you make changes. When finished, run the linter again and fix any newly " +
-			"introduced errors.",
+		"process": []string{
+			"Before making changes to the codebase, run the `go_lint` tool to get a baseline of lint errors.",
+			"Next, write out a plan in `smoke_plan.md` for what you will do. Explain enough to pick up if interrupted.",
+			"Once finished with the plan, run the `go_test` tool and fix any unit test errors.",
+			"Finally, run the `go_lint` tool again and fix any errors introduced by your changes.",
+		},
 		"tips": []string{
 			"Use the 'batch' parameter of the `replace_lines` tool to be efficient when making multiple changes.",
 			"Use the `replace_lines` tool with \"\" as the replace value when you want to delete lines.",
