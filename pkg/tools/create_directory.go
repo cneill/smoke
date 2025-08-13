@@ -19,14 +19,14 @@ var _ = Tool(&CreateDirectoryTool{})
 
 func (c *CreateDirectoryTool) Name() string { return ToolCreateDirectory }
 func (c *CreateDirectoryTool) Description() string {
-	return "Create a new directory at the given path."
+	return "Create a new directory at the given path"
 }
 
 func (c *CreateDirectoryTool) Params() Params {
 	return Params{
 		{
 			Key:         CreateDirectoryPath,
-			Description: "The path where the directory should be created.",
+			Description: "The path where the directory should be created",
 			Type:        ParamTypeString,
 			Required:    true,
 		},
@@ -36,17 +36,17 @@ func (c *CreateDirectoryTool) Params() Params {
 func (c *CreateDirectoryTool) Run(args Args) (string, error) {
 	path := args.GetString(CreateDirectoryPath)
 	if path == nil {
-		return "", fmt.Errorf("no path supplied")
+		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
 
 	fullPath, err := utils.GetRelativePath(c.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("path error: %w", err)
+		return "", fmt.Errorf("%w: path error: %w", err, ErrArguments)
 	}
 
 	err = os.MkdirAll(fullPath, 0o755)
 	if err != nil {
-		return "", fmt.Errorf("failed to create directory %q: %w", fullPath, err)
+		return "", fmt.Errorf("%w: failed to create directory %q: %w", ErrFileSystem, fullPath, err)
 	}
 
 	return fmt.Sprintf("Created directory at %q", *path), nil

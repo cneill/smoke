@@ -70,36 +70,12 @@ func (a Args) String() string {
 }
 
 // TODO: allow for e.g. "1" for number, "f" for bool?
-func (a Args) checkTypes(params Params) error { //nolint:cyclop
+func (a Args) checkTypes(params Params) error {
 	wrongTypeKeys := []string{}
 
-	for key, val := range a {
+	for key, value := range a {
 		param := params.ByKey(key)
-		rightType := true
-
-		switch param.Type {
-		case ParamTypeBoolean:
-			_, rightType = val.(bool)
-		case ParamTypeNumber:
-			_, isNumber := val.(json.Number)
-			_, isInt := val.(int)
-			_, isInt64 := val.(int64)
-			_, isFloat := val.(float64)
-			rightType = isNumber || isInt || isInt64 || isFloat
-		case ParamTypeString:
-			_, rightType = val.(string)
-		case ParamTypeArray:
-			typ := reflect.TypeOf(val)
-			rightType = (typ.Kind() == reflect.Array) || (typ.Kind() == reflect.Slice)
-			// TODO: validate ItemType
-		case ParamTypeObject:
-			typ := reflect.TypeOf(val)
-			rightType = typ.Kind() == reflect.Map
-		case ParamTypeNull:
-			rightType = val == nil
-		}
-
-		if !rightType {
+		if !a.rightType(param, value) {
 			wrongTypeKeys = append(wrongTypeKeys, fmt.Sprintf("%s (expecting %s)", key, param.Type))
 		}
 	}
@@ -109,6 +85,42 @@ func (a Args) checkTypes(params Params) error { //nolint:cyclop
 	}
 
 	return nil
+}
+
+func (a Args) rightType(param *Param, value any) bool { //nolint:cyclop
+	rightType := true
+	typ := reflect.TypeOf(value)
+
+	switch param.Type {
+	case ParamTypeBoolean:
+		_, rightType = value.(bool)
+	case ParamTypeNumber:
+		_, isNumber := value.(json.Number)
+		_, isInt := value.(int)
+		_, isInt64 := value.(int64)
+		_, isFloat := value.(float64)
+		rightType = isNumber || isInt || isInt64 || isFloat
+	case ParamTypeString:
+		_, rightType = value.(string)
+	case ParamTypeArray:
+		rightType = (typ.Kind() == reflect.Array) || (typ.Kind() == reflect.Slice)
+
+		if rightType && param.ItemType != "" {
+			reflectVal := reflect.ValueOf(value)
+			for i := range reflectVal.Len() {
+				if !a.rightType(&Param{Type: param.ItemType}, reflectVal.Index(i).Interface()) {
+					rightType = false
+					break
+				}
+			}
+		}
+	case ParamTypeObject:
+		rightType = typ.Kind() == reflect.Map
+	case ParamTypeNull:
+		rightType = value == nil
+	}
+
+	return rightType
 }
 
 func (a Args) GetString(key string) *string {

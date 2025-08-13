@@ -115,9 +115,39 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 			errors:   []error{tools.ErrWrongTypeKeys},
 		},
 		{
+			name:  "wrong_item_type_string",
+			input: `{"wrong_type": [1, 2, 3]}`,
+			params: tools.Params{
+				{
+					Key:         "wrong_type",
+					Description: "wrong type key",
+					Type:        tools.ParamTypeArray,
+					ItemType:    tools.ParamTypeString,
+					Required:    true,
+				},
+			},
+			expected: nil,
+			errors:   []error{tools.ErrWrongTypeKeys},
+		},
+		{
+			name:  "wrong_item_type_number",
+			input: `{"wrong_type": ["1", "2", "3"]}`,
+			params: tools.Params{
+				{
+					Key:         "wrong_type",
+					Description: "wrong type key",
+					Type:        tools.ParamTypeArray,
+					ItemType:    tools.ParamTypeNumber,
+					Required:    true,
+				},
+			},
+			expected: nil,
+			errors:   []error{tools.ErrWrongTypeKeys},
+		},
+		{
 			name: "multiple_valid",
 			input: `{"number_key_int": 1, "number_key_float": 2.0, "str_key": "test", "bool_key": false, ` +
-				`"object_key": {}, "str_array_key": ["a", "b", "c"]}`,
+				`"object_key": {}, "str_array_key": ["a", "b", "c"], "int_array_key": [1, 2, 3]}`,
 			params: tools.Params{
 				{
 					Key:         "number_key_int",
@@ -153,6 +183,14 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 					Key:         "str_array_key",
 					Description: "string slice key",
 					Type:        tools.ParamTypeArray,
+					ItemType:    tools.ParamTypeString,
+					Required:    true,
+				},
+				{
+					Key:         "int_array_key",
+					Description: "string slice key",
+					Type:        tools.ParamTypeArray,
+					ItemType:    tools.ParamTypeNumber,
 					Required:    true,
 				},
 			},
@@ -163,6 +201,7 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 				"bool_key":         false,
 				"object_key":       map[string]any{},
 				"str_array_key":    []any{"a", "b", "c"},
+				"int_array_key":    []any{json.Number("1"), json.Number("2"), json.Number("3")},
 			},
 			errors: nil,
 		},
