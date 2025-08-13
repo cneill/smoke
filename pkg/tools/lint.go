@@ -23,8 +23,11 @@ type LintTool struct {
 func (l *LintTool) Name() string { return ToolLint }
 
 func (l *LintTool) Description() string {
-	return "Runs the golangci-lint linter against the specified file/directory, or the whole project directory if a " +
-		"path is not specified."
+	return fmt.Sprintf(
+		"Runs the golangci-lint linter against the file/directory specified in %q, or the whole project directory if "+
+			"not specified.",
+		LintPath,
+	)
 }
 
 func (l *LintTool) Params() Params {
@@ -59,40 +62,45 @@ type Pos struct {
 	Column   int64  `json:"Column"`
 }
 
-func (l *LintTool) Run(args Args) (string, error) {
-	fullPath := l.ProjectPath
+func (l *LintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
+	targetPath := l.ProjectPath
 	originalPath := l.ProjectPath
 
+	if _, err := exec.LookPath("golangci-lint"); err != nil {
+		slog.Error("golangci-lint not found on the system", "error", err)
+		return "", fmt.Errorf("%w: golangci-lint not found on the system", ErrFileSystem)
+	}
+
+	// path is optional
 	if path := args.GetString(LintPath); path != nil {
 		relPath, err := utils.GetRelativePath(l.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("path error: %w", err)
+			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 		}
 
-		fullPath = relPath
+		targetPath = relPath
 		originalPath = relPath
 	}
 
-	stat, err := os.Stat(fullPath)
+	stat, err := os.Stat(targetPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to stat path %s: %w", fullPath, err)
+		return "", fmt.Errorf("%w: failed to stat path %s: %w", ErrFileSystem, targetPath, err)
 	}
 
 	var targetFile string
 
 	if !stat.IsDir() {
-		fullPath, targetFile = filepath.Split(fullPath)
+		targetPath, targetFile = filepath.Split(targetPath)
 	}
 
-	fullPath = filepath.Join(fullPath, "...")
+	targetPath = filepath.Join(targetPath, "...")
 	cmdArgs := []string{
 		"run",
 		"--out-format=json",
 		"--issues-exit-code=0",
 		"--show-stats=false",
-		fullPath,
+		targetPath,
 	}
-
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
 	cmd := exec.Command("golangci-lint", cmdArgs...)
@@ -102,19 +110,16 @@ func (l *LintTool) Run(args Args) (string, error) {
 
 	if err := cmd.Run(); err != nil {
 		stderr := errBuf.String()
-		slog.Error("error from golangci-lint execution", "path", fullPath, "file", targetFile, "error", err, "stderr", stderr)
-		return "", fmt.Errorf("error from golangci-lint execution: %s", stderr)
+		slog.Error("error from golangci-lint", "path", targetPath, "file", targetFile, "error", err, "stderr", stderr)
+
+		return "", fmt.Errorf("%w: golangci-lint: %s", ErrCommandExecution, stderr)
 	}
 
 	results := Output{}
 	if err := json.Unmarshal(buf.Bytes(), &results); err != nil {
-		slog.Error("error parsing golangci-lint output", "err", err)
+		slog.Error("error parsing golangci-lint output", "error", err)
 		// TODO: Maybe revisit this..?
 		return buf.String(), nil
-	}
-
-	for _, issue := range results.Issues {
-		slog.Debug("issue detected", "path", issue.Pos.Filename, "detail", issue.Text)
 	}
 
 	targetIssues := []Issue{}
@@ -128,6 +133,8 @@ func (l *LintTool) Run(args Args) (string, error) {
 				continue
 			}
 
+			// we can't always lint individual files successfully, so we lint its directory and pick out the relevant
+			// issues
 			if issuePath == originalPath {
 				targetIssues = append(targetIssues, issue)
 			}
@@ -136,17 +143,10 @@ func (l *LintTool) Run(args Args) (string, error) {
 
 	issues, err := json.Marshal(targetIssues)
 	if err != nil {
-		slog.Error("failed to render JSON issues", "err", err)
+		slog.Error("failed to render JSON issues", "error", err)
 		// TODO: Maybe revisit this..?
 		return buf.String(), nil
 	}
 
 	return string(issues), nil
-
-	// output, err := cmd.CombinedOutput()
-	// if err != nil {
-	// 	slog.Warn("error from golangci-lint execution", "path", fullPath, "error", err)
-	// }
-
-	// return string(output), nil
 }
