@@ -62,6 +62,16 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			errors:         []error{tools.ErrArguments},
 		},
 		{
+			name:        "empty_regex",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.GrepRegex: "",
+				tools.GrepPath:  "empty_regex_test.txt",
+			},
+			expectedOutput: "",
+			errors:         []error{tools.ErrArguments},
+		},
+		{
 			name:        "negative_context_lines",
 			initContent: "a\nb\nc",
 			args: tools.Args{
@@ -71,6 +81,18 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			},
 			expectedOutput: "",
 			errors:         []error{tools.ErrArguments},
+		},
+		// TODO: maybe check for an invalid value instead of just ignoring when non-int64?
+		{
+			name:        "invalid_context_lines",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.GrepRegex:        `\w`,
+				tools.GrepPath:         "invalid_context_lines_test.txt",
+				tools.GrepContextLines: "garbage",
+			},
+			expectedOutput: "invalid_context_lines_test.txt\n" + tools.LineSep + "\n*1: a\n\n*2: b\n\n*3: c\n\n",
+			errors:         nil,
 		},
 		{
 			name:        "bad_path",
@@ -123,30 +145,25 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			tempPath := filepath.Join(tempDir, fileName)
 
 			tempFile, err := os.Create(tempPath)
-			if err != nil {
-				t.Fatalf("failed to create temporary file %q: %v", tempPath, err)
-			}
+			require.NoError(t, err, "failed to create temporary file: %w", err)
 
 			defer tempFile.Close()
 
-			if _, err := tempFile.WriteString(test.initContent); err != nil {
-				t.Fatalf("failed to write initial content to file %q: %v", tempPath, err)
-			}
+			_, writeErr := tempFile.WriteString(test.initContent)
+			require.NoError(t, writeErr, "failed to write initial content to file %q: %v", tempPath, writeErr)
 
 			output, runErr := gt.Run(test.args)
-			if test.errors == nil && runErr != nil {
-				t.Errorf("expected no error, got %v", runErr)
-			} else if test.errors != nil {
+			if test.errors == nil {
+				require.NoError(t, runErr, "unexpected error: %v", runErr)
+			} else {
 				for _, testErr := range test.errors {
 					if !errors.Is(runErr, testErr) {
-						t.Errorf("expected error %v, got %v", testErr, runErr)
+						require.ErrorIs(t, runErr, testErr)
 					}
 				}
 			}
 
-			if output != test.expectedOutput {
-				t.Errorf("returned output %q doesn't match expected %q", output, test.expectedOutput)
-			}
+			assert.Equal(t, test.expectedOutput, output)
 		})
 	}
 }
@@ -178,7 +195,7 @@ func TestGrepTool_Run_Directory(t *testing.T) {
 	}
 
 	subdirFilePath := filepath.Join(tempDir, "subdir/file_4.txt")
-	if err := os.WriteFile(subdirFilePath, []byte("123\ntest2\nxyz\nunique\n"), 0o644); err != nil {
+	if err := os.WriteFile(subdirFilePath, []byte("123 123\ntest2\nxyz\nunique\n"), 0o644); err != nil {
 		t.Fatalf("failed to create file %q: %v", subdirFilePath, err)
 	}
 
@@ -234,6 +251,15 @@ func TestGrepTool_Run_Directory(t *testing.T) {
 			errors:         nil,
 		},
 		{
+			name: "multi_match_same_line_subdir",
+			args: tools.Args{
+				tools.GrepPath:  "subdir",
+				tools.GrepRegex: "123",
+			},
+			expectedOutput: fmt.Sprintf("subdir/file_4.txt\n%s\n*1: 123 123\n\n", tools.LineSep),
+			errors:         nil,
+		},
+		{
 			name: "multi_match_single_file",
 			args: tools.Args{
 				tools.GrepPath:  ".",
@@ -252,6 +278,15 @@ func TestGrepTool_Run_Directory(t *testing.T) {
 			errors:         nil,
 		},
 		{
+			name: "no_multiline",
+			args: tools.Args{
+				tools.GrepPath:  ".",
+				tools.GrepRegex: "test\ntest2",
+			},
+			expectedOutput: "",
+			errors:         nil,
+		},
+		{
 			name: "multi_match_multi_file_with_context",
 			args: tools.Args{
 				tools.GrepPath:         ".",
@@ -260,6 +295,20 @@ func TestGrepTool_Run_Directory(t *testing.T) {
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\nfile_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n\n2: 456\n3: 789\n*4: 193\n\n",
+				tools.LineSep,
+				tools.LineSep,
+			),
+			errors: nil,
+		},
+		{
+			name: "multi_match_multi_file_with_long_context",
+			args: tools.Args{
+				tools.GrepPath:         ".",
+				tools.GrepRegex:        `1(\d)3`,
+				tools.GrepContextLines: 10,
+			},
+			expectedOutput: fmt.Sprintf(
+				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\nfile_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n4: 193\n\n1: 123\n2: 456\n3: 789\n*4: 193\n\n",
 				tools.LineSep,
 				tools.LineSep,
 			),

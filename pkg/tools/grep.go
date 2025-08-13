@@ -70,8 +70,8 @@ func (g *GrepTool) Run(args Args) (string, error) {
 	}
 
 	regex := args.GetString(GrepRegex)
-	if regex == nil {
-		return "", fmt.Errorf("%w: no regex supplied", ErrArguments)
+	if regex == nil || *regex == "" {
+		return "", fmt.Errorf("%w: no regex or empty regex supplied", ErrArguments)
 	}
 
 	compiled, err := regexp.Compile(*regex)
@@ -82,8 +82,8 @@ func (g *GrepTool) Run(args Args) (string, error) {
 	var contextLines int64
 
 	if contextLinesPtr := args.GetInt64(GrepContextLines); contextLinesPtr != nil {
-		if *contextLinesPtr <= 0 {
-			return "", fmt.Errorf("%w: %q must be >0", ErrArguments, *contextLinesPtr)
+		if *contextLinesPtr < 0 {
+			return "", fmt.Errorf("%w: %q must be >=0", ErrArguments, GrepContextLines)
 		}
 
 		contextLines = *contextLinesPtr
@@ -154,8 +154,9 @@ func (g *GrepTool) getFileResults(fullPath string, pattern *regexp.Regexp, conte
 		lines = append(lines, scanner.Text())
 	}
 
+	// TODO: test for / fix max line size issue for extremely long lines?
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read file %q: %w", fullPath, err)
+		return nil, fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, fullPath, err)
 	}
 
 	for lineNum, line := range lines {
