@@ -11,6 +11,7 @@ const (
 	ToolGrep            = "grep"
 	ToolLint            = "lint"
 	ToolListFiles       = "list_files"
+	ToolGoTest          = "go_test"
 	ToolReadFile        = "read_file"
 	ToolReplaceLines    = "replace_lines"
 	ToolWriteFile       = "write_file"
@@ -32,6 +33,7 @@ func NewManager(projectPath string) *Manager {
 			&GitDiffTool{ProjectPath: projectPath},
 			&GrepTool{ProjectPath: projectPath},
 			&LintTool{ProjectPath: projectPath},
+			&GoTestTool{ProjectPath: projectPath},
 			&ListFilesTool{ProjectPath: projectPath},
 			&ReadFileTool{ProjectPath: projectPath},
 			&ReplaceLinesTool{ProjectPath: projectPath},
