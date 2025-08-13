@@ -17,7 +17,7 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tempDir := t.TempDir()
-	gt := &tools.GrepTool{ProjectPath: tempDir}
+	grepTool := &tools.GrepTool{ProjectPath: tempDir}
 
 	tests := []struct {
 		name           string
@@ -152,7 +152,7 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			_, writeErr := tempFile.WriteString(test.initContent)
 			require.NoError(t, writeErr, "failed to write initial content to file %q: %v", tempPath, writeErr)
 
-			output, runErr := gt.Run(test.args)
+			output, runErr := grepTool.Run(test.args)
 			if test.errors == nil {
 				require.NoError(t, runErr, "unexpected error: %v", runErr)
 			} else {
@@ -168,11 +168,11 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 	}
 }
 
-func TestGrepTool_Run_Directory(t *testing.T) {
+func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tempDir := t.TempDir()
-	gt := &tools.GrepTool{ProjectPath: tempDir}
+	grepTool := &tools.GrepTool{ProjectPath: tempDir}
 
 	filePath1 := filepath.Join(tempDir, "file_1.txt")
 	if err := os.WriteFile(filePath1, []byte("abc\n123\nxyz\n"), 0o644); err != nil {
@@ -320,7 +320,7 @@ func TestGrepTool_Run_Directory(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			output, runErr := gt.Run(test.args)
+			output, runErr := grepTool.Run(test.args)
 			if test.errors == nil {
 				require.NoError(t, runErr)
 			} else {

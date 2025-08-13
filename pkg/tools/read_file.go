@@ -21,8 +21,8 @@ type ReadFileTool struct {
 
 var _ = Tool(&ReadFileTool{})
 
-// isBinary checks if the given byte slice contains binary data
-// by looking for null bytes and other non-printable characters
+// isBinary checks if the given byte slice contains binary data by looking for null bytes and other non-printable
+// characters.
 func isBinary(data []byte) bool {
 	checkSize := min(len(data), 8192)
 	nullBytes := 0
@@ -47,7 +47,7 @@ var _ = Tool(&ReadFileTool{})
 func (r *ReadFileTool) Name() string { return ToolReadFile }
 func (r *ReadFileTool) Description() string {
 	return fmt.Sprintf(
-		"Read the contents of a file. If you just want to read the whole file, don't include '%s'/'%s'.",
+		"Read the contents of a file. If you just want to read the whole file, don't include %q/%q",
 		ReadFileStart,
 		ReadFileEnd,
 	)
@@ -75,15 +75,15 @@ func (r *ReadFileTool) Params() Params {
 	}
 }
 
-func (r *ReadFileTool) Run(args Args) (string, error) {
+func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	path := args.GetString(ReadFilePath)
 	if path == nil {
-		return "", fmt.Errorf("no path supplied")
+		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
 
 	fullPath, err := utils.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("path error: %w", err)
+		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 	}
 
 	var (
@@ -91,17 +91,29 @@ func (r *ReadFileTool) Run(args Args) (string, error) {
 		end   int64 = -1
 	)
 
-	if startArg := args.GetInt64(ReadFileStart); startArg != nil && *startArg > 1 {
+	if startArg := args.GetInt64(ReadFileStart); startArg != nil {
+		if *startArg < 1 {
+			return "", fmt.Errorf("%w: %q must be >= 1", ErrArguments, ReadFileStart)
+		}
+
 		start = *startArg
 	}
 
-	if endArg := args.GetInt64(ReadFileEnd); endArg != nil && *endArg > 1 {
+	if endArg := args.GetInt64(ReadFileEnd); endArg != nil {
+		if *endArg < 1 {
+			return "", fmt.Errorf("%w: %q must be >= 1", ErrArguments, ReadFileEnd)
+		}
+
 		end = *endArg
+	}
+
+	if end != -1 && start > end {
+		return "", fmt.Errorf("%w: %q must be <= %q", ErrArguments, ReadFileStart, ReadFileEnd)
 	}
 
 	contents, err := os.ReadFile(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file %q: %w", fullPath, err)
+		return "", fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, fullPath, err)
 	}
 
 	if isBinary(contents) {
@@ -111,11 +123,13 @@ func (r *ReadFileTool) Run(args Args) (string, error) {
 	lines := strings.Split(string(contents), "\n")
 	width := len(strconv.Itoa(len(lines)))
 
-	if start > int64(len(lines)) || end > int64(len(lines)) {
-		return "", fmt.Errorf("'start' or 'end' is beyond the end of the file")
+	if start > int64(len(lines)) {
+		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileStart)
+	} else if end > int64(len(lines)) {
+		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileEnd)
 	}
 
-	var result strings.Builder
+	builder := &strings.Builder{}
 
 	for lineNum, line := range lines {
 		if int64(lineNum+1) < start {
@@ -123,11 +137,11 @@ func (r *ReadFileTool) Run(args Args) (string, error) {
 		}
 
 		if end > 1 && int64(lineNum+1) > end {
-			continue
+			break
 		}
 
-		fmt.Fprintf(&result, "%*d: %s\n", width, lineNum+1, line)
+		fmt.Fprintf(builder, "%*d: %s\n", width, lineNum+1, line)
 	}
 
-	return result.String(), nil
+	return builder.String(), nil
 }
