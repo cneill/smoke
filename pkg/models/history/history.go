@@ -36,7 +36,8 @@ type Model struct {
 	viewport   viewport.Model
 	mdRenderer *glamour.TermRenderer
 
-	log []any
+	initContent string
+	log         []any
 
 	pendingG  bool
 	lastGTime time.Time
@@ -59,7 +60,8 @@ func New(opts *Opts) (*Model, error) {
 		viewport:   viewport,
 		mdRenderer: mdRenderer,
 
-		log: []any{},
+		initContent: opts.InitContent,
+		log:         []any{},
 	}
 
 	return model, nil
@@ -95,7 +97,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 	case ContentRefresh:
 		m.log = msg.Log
-		m.viewport.SetContent(m.logContent())
+		if logContent := m.logContent(); strings.TrimSpace(logContent) != "" {
+			m.viewport.SetContent(logContent)
+		} else {
+			m.viewport.SetContent(m.initContent)
+		}
 
 		if wasAtBottom {
 			m.viewport.GotoBottom()
@@ -204,7 +210,15 @@ func (m *Model) logContent() string {
 
 		case commands.SessionUpdateMessage:
 			// TODO: bounds-check?
-			info.title = "Loaded session from file " + item.PromptCommand.Args[0]
+			switch item.PromptCommand.Command {
+			case commands.CommandClear:
+				info.title = "Cleared session"
+			case commands.CommandLoad:
+				info.title = "Loaded session from file " + item.PromptCommand.Args[0]
+			default:
+				info.title = "Updated session"
+			}
+
 			info.titleStyle = info.titleStyle.
 				Foreground(lipgloss.Color("#ffffff"))
 			info.content = item.Message

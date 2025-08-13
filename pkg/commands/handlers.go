@@ -15,6 +15,7 @@ type BaseHandler struct {
 	promptCommand PromptCommandMessage
 }
 
+// CommandExit closes the program
 const CommandExit = "exit"
 
 type ExitHandler struct {
@@ -35,6 +36,7 @@ func (e *ExitHandler) Run(_ *llms.Session) (tea.Cmd, error) {
 	return tea.Quit, nil
 }
 
+// CommandSave saves the current session to a file
 const CommandSave = "save"
 
 type SaveHandler struct {
@@ -79,6 +81,7 @@ func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	return update.Cmd(), nil
 }
 
+// CommandLoad loads a session from a JSON file and replaces the current session with it
 const CommandLoad = "load"
 
 type LoadHandler struct {
@@ -121,6 +124,39 @@ func (l *LoadHandler) Run(_ *llms.Session) (tea.Cmd, error) {
 		PromptCommand: l.promptCommand,
 		Session:       loaded,
 		Message:       "Loaded session from file " + l.Path + ".",
+	}
+
+	return update.Cmd(), nil
+}
+
+// CommandClear clears the current session contents
+const CommandClear = "clear"
+
+type ClearHandler struct {
+	*BaseHandler
+}
+
+func NewClearHandler(msg PromptCommandMessage) (Command, error) {
+	handler := &ClearHandler{
+		BaseHandler: &BaseHandler{promptCommand: msg},
+	}
+
+	return handler, nil
+}
+
+func (c *ClearHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	newSession, err := llms.NewSession(&llms.SessionOpts{
+		Name:          session.Name,
+		SystemMessage: session.SystemMessage,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to clear session and create new one: %w", err)
+	}
+
+	update := SessionUpdateMessage{
+		PromptCommand: c.promptCommand,
+		Session:       newSession,
+		Message:       "Cleared session.",
 	}
 
 	return update.Cmd(), nil
