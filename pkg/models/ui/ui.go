@@ -62,10 +62,11 @@ func New(opts *Opts) (*Model, error) {
 	}
 
 	inputOpts := &input.Opts{
-		Width:           width,
-		Height:          2,
-		MaxHeight:       5,
-		PlaceholderText: "Enter your message...",
+		Width:            width,
+		Height:           2,
+		MaxHeight:        5,
+		PlaceholderText:  "Enter your message...",
+		CommandCompleter: opts.Smoke.CommandCompleter(),
 	}
 
 	inputModel, err := input.New(inputOpts)

@@ -2,6 +2,7 @@ package input
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -13,10 +14,11 @@ import (
 )
 
 type Opts struct {
-	Width           int
-	Height          int
-	MaxHeight       int
-	PlaceholderText string
+	Width            int
+	Height           int
+	MaxHeight        int
+	PlaceholderText  string
+	CommandCompleter func(string) []string
 }
 
 func (o *Opts) OK() error {
@@ -25,6 +27,8 @@ func (o *Opts) OK() error {
 		return fmt.Errorf("width must be >0")
 	case o.Height <= 0:
 		return fmt.Errorf("height must be >0")
+	case o.CommandCompleter == nil:
+		return fmt.Errorf("must supply a command completer")
 	}
 
 	return nil
@@ -36,7 +40,12 @@ type Model struct {
 	textarea textarea.Model
 	spinner  spinner.Model
 
-	waiting bool
+	commandCompleter func(string) []string
+
+	waiting                 bool
+	inCommandCompletion     bool
+	userCompletionText      string
+	suggestedCompletionText string
 }
 
 func New(opts *Opts) (*Model, error) {
@@ -47,6 +56,8 @@ func New(opts *Opts) (*Model, error) {
 	model := &Model{
 		textarea: getTextArea(opts),
 		spinner:  getSpinner(opts.Height),
+
+		commandCompleter: opts.CommandCompleter,
 	}
 
 	return model, nil
@@ -180,6 +191,10 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 			if !m.Focused() {
 				return m.handleVimKeybindings(msg.String())
 			}
+
+			if (msg.String() == "/" && m.textarea.Value() == "") || m.userCompletionText != "" {
+				return m.handleCommandCompletion(msg)
+			}
 		}
 	}
 
@@ -190,6 +205,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 }
 
 // TODO: have a "mode" rather than using blurred
+// TODO: handle movement, not just insertion
 func (m *Model) handleVimKeybindings(key string) tea.Cmd {
 	switch key {
 	case "i":
@@ -228,6 +244,33 @@ func (m *Model) handleVimKeybindings(key string) tea.Cmd {
 	return nil
 }
 
+func (m *Model) handleCommandCompletion(msg tea.KeyMsg) tea.Cmd {
+	if msg.Type == tea.KeyBackspace {
+		m.userCompletionText = m.userCompletionText[:len(m.userCompletionText)-1]
+	} else {
+		m.userCompletionText += msg.String()
+	}
+
+	cmdPart := strings.TrimPrefix(m.userCompletionText, "/")
+	options := m.commandCompleter(cmdPart)
+
+	if len(options) == 0 {
+		return nil
+	}
+
+	m.suggestedCompletionText = strings.TrimPrefix(options[0], cmdPart)
+
+	var cmd tea.Cmd
+	m.textarea, cmd = m.textarea.Update(msg)
+
+	m.textarea.SetValue(m.userCompletionText + m.suggestedCompletionText)
+	m.textarea.SetCursor(len(m.userCompletionText))
+
+	slog.Debug("handling command completion", "user", m.userCompletionText, "suggested", m.suggestedCompletionText)
+
+	return cmd
+}
+
 func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 	if !m.waiting {
 		return nil
@@ -243,6 +286,10 @@ func (m *Model) View() string {
 	if m.waiting {
 		return "Waiting" + m.spinner.View()
 	}
+
+	// if m.userCompletionText != "" {
+	// 	return m.userCompletionText + m.suggestedCompletionText
+	// }
 
 	return m.textarea.View()
 }
@@ -313,6 +360,9 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 // handlePromptCommand checks for a command specified by the user (e.g. "/exit") and returns the appropriate message
 // struct with the arguments parsed and populated.
 func (m *Model) handlePromptCommand(content string) tea.Cmd {
+	m.userCompletionText = ""
+	m.suggestedCompletionText = ""
+
 	fields := strings.Fields(content)
 	cmdName := strings.TrimPrefix(fields[0], "/")
 
