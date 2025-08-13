@@ -10,9 +10,8 @@ import (
 )
 
 const (
-	WriteFilePath      = "path"
-	WriteFileContents  = "contents"
-	WriteFileOverwrite = "overwrite"
+	WriteFilePath     = "path"
+	WriteFileContents = "contents"
 )
 
 type WriteFileTool struct {
@@ -23,20 +22,24 @@ var _ = Tool(&WriteFileTool{})
 
 func (w *WriteFileTool) Name() string { return ToolWriteFile }
 func (w *WriteFileTool) Description() string {
-	return "Create a new file and write the specified contents to it. Cannot edit existing files."
+	return fmt.Sprintf(
+		"Create a new file at the path specified in %q and write the contents in %q to it. Cannot edit existing files",
+		WriteFilePath,
+		WriteFileContents,
+	)
 }
 
 func (w *WriteFileTool) Params() Params {
 	return Params{
 		{
 			Key:         WriteFilePath,
-			Description: "The path of the file to rewrite",
+			Description: "The path of the file to be created and written to",
 			Type:        ParamTypeString,
 			Required:    true,
 		},
 		{
 			Key:         WriteFileContents,
-			Description: "The contents to write to the specified file",
+			Description: "The contents to write to the new file",
 			Type:        ParamTypeString,
 			Required:    true,
 		},
@@ -46,30 +49,30 @@ func (w *WriteFileTool) Params() Params {
 func (w *WriteFileTool) Run(args Args) (string, error) {
 	path := args.GetString(WriteFilePath)
 	if path == nil {
-		return "", fmt.Errorf("no path supplied")
+		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
 
 	fullPath, err := utils.GetRelativePath(w.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("path error: %w", err)
+		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 	}
 
 	contents := args.GetString(WriteFileContents)
 	if contents == nil {
-		return "", fmt.Errorf("no contents supplied")
+		return "", fmt.Errorf("%w: no contents supplied", ErrArguments)
 	}
 
 	_, statErr := os.Stat(fullPath)
 	if statErr != nil && !errors.Is(statErr, fs.ErrNotExist) {
-		return "", fmt.Errorf("failed to stat %q: %w", *path, statErr)
+		return "", fmt.Errorf("%w: failed to stat %q: %w", ErrFileSystem, *path, statErr)
 	}
 
 	if statErr == nil {
-		return "", fmt.Errorf("refusing to overwrite %q", *path)
+		return "", fmt.Errorf("%w: refusing to overwrite %q", ErrFileSystem, *path)
 	}
 
 	if err := os.WriteFile(fullPath, []byte(*contents), 0o644); err != nil {
-		return "", fmt.Errorf("failed to write contents to %q: %w", *path, err)
+		return "", fmt.Errorf("%w: failed to write contents to %q: %w", ErrFileSystem, *path, err)
 	}
 
 	return fmt.Sprintf("Wrote contents to %q", *path), nil
