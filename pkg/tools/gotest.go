@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/cneill/smoke/pkg/utils"
 )
@@ -39,6 +40,17 @@ func (g *GoTestTool) Params() Params {
 			Required:    false,
 		},
 	}
+}
+
+type GoTestResult struct {
+	Action      string    `json:"Action"`
+	Elapsed     float64   `json:"Elapsed"`
+	FailedBuild string    `json:"FailedBuild"`
+	ImportPath  string    `json:"ImportPath"`
+	Output      string    `json:"Output"`
+	Package     string    `json:"Package"`
+	Test        string    `json:"Test"`
+	Time        time.Time `json:"Time"`
 }
 
 func (g *GoTestTool) Run(args Args) (string, error) {
@@ -75,7 +87,8 @@ func (g *GoTestTool) Run(args Args) (string, error) {
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	cmd := exec.Command("go", "test", "-json", targetDir)
+	// cmd := exec.Command("go", "test", "-json", targetDir)
+	cmd := exec.Command("go", "test", "-p=1", "-parallel=1", "-cover", targetDir)
 	cmd.Dir = g.ProjectPath
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -85,5 +98,41 @@ func (g *GoTestTool) Run(args Args) (string, error) {
 		slog.Warn("go test exited with error", "target_dir", targetDir, "error", err, "stderr", stderr.String())
 	}
 
+	// TODO: revisit JSON and stitching together its results - forces the -v flag and produces tons of junk
+	// results := []GoTestResult{}
+	//
+	// scanner := bufio.NewScanner(stdout)
+	// for scanner.Scan() {
+	// 	result := GoTestResult{}
+	// 	if err := json.Unmarshal(scanner.Bytes(), &result); err != nil {
+	// 		slog.Warn("failed to read JSON line", "error", err, "line", scanner.Text())
+	// 		break
+	// 	}
+	//
+	// 	results = append(results, result)
+	// }
+	//
+	// if err := scanner.Err(); err != nil {
+	// 	slog.Warn("failed to read JSON output from go test", "error", err)
+	// 	return stdout.String(), nil
+	// }
+	//
+	// usefulResults := make([]GoTestResult, 0, len(results))
+	//
+	// for _, result := range results {
+	// 	if result.Action != "fail" {
+	// 		continue
+	// 	}
+	//
+	// 	usefulResults = append(usefulResults, result)
+	// }
+	//
+	// usefulBytes, err := json.Marshal(usefulResults)
+	// if err != nil {
+	// 	slog.Warn("failed to marshal JSON results from go test", "error", err)
+	// 	return stdout.String(), nil
+	// }
+
+	// return string(usefulBytes), nil
 	return stdout.String(), nil
 }

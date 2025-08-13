@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/cneill/smoke/pkg/tools"
@@ -46,9 +45,8 @@ func TestGoTestTool_Run_NoPath_Passing(t *testing.T) {
 
 	out, err := tool.Run(nil)
 	require.NoError(t, err)
-	// Raw JSON stream should include our test name and a pass action.
-	assert.Contains(t, out, "\"TestSum\"")
-	assert.Contains(t, out, "\"Action\":\"pass\"")
+	assert.Contains(t, out, "ok")
+	assert.NotContains(t, out, "FAIL")
 }
 
 func TestGoTestTool_Run_WithFilePath_Passing(t *testing.T) {
@@ -60,7 +58,8 @@ func TestGoTestTool_Run_WithFilePath_Passing(t *testing.T) {
 	tool := &tools.GoTestTool{ProjectPath: tempDir}
 	out, err := tool.Run(tools.Args{tools.GoTestPath: testGoFile})
 	require.NoError(t, err)
-	assert.Contains(t, out, "\"TestSum\"")
+	assert.Contains(t, out, "ok")
+	assert.NotContains(t, out, "FAIL")
 }
 
 func TestGoTestTool_Run_FailingTest_ReturnsOutput(t *testing.T) {
@@ -74,8 +73,7 @@ func TestGoTestTool_Run_FailingTest_ReturnsOutput(t *testing.T) {
 	// Even with failing tests, error should be nil and output should include fail action.
 	require.NoError(t, err)
 	assert.NotEmpty(t, out)
-	// Either a fail action or a line mentioning FAIL in the JSON output
-	assert.True(t, strings.Contains(out, "\"Action\":\"fail\"") || strings.Contains(out, "FAIL"))
+	assert.Contains(t, out, "FAIL")
 }
 
 func TestGoTestTool_Run_InvalidAndMissingPaths(t *testing.T) {
