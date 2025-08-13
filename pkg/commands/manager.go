@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"log/slog"
 	"maps"
 	"slices"
 	"strings"
@@ -69,6 +70,8 @@ func (m *Manager) HandleCommand(session *llms.Session, msg PromptCommandMessage)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrRun, err)
 	}
+
+	slog.Debug("ran prompt command", "command", msg.Command, "args", msg.Args)
 
 	return cmd, nil
 }
