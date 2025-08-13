@@ -8,9 +8,9 @@ import (
 const (
 	ToolCreateDirectory = "create_directory"
 	ToolGitDiff         = "git_diff"
-	ToolGoTest          = "go_test"
-	ToolGoLint          = "go_lint"
 	ToolGoFumpt         = "go_fumpt"
+	ToolGoLint          = "go_lint"
+	ToolGoTest          = "go_test"
 	ToolGrep            = "grep"
 	ToolListFiles       = "list_files"
 	ToolReadFile        = "read_file"
@@ -32,10 +32,10 @@ func NewManager(projectPath string) *Manager {
 		Tools: Tools{
 			&CreateDirectoryTool{ProjectPath: projectPath},
 			&GitDiffTool{ProjectPath: projectPath},
-			&GrepTool{ProjectPath: projectPath},
+			&GoFumptTool{ProjectPath: projectPath},
 			&GoLintTool{ProjectPath: projectPath},
 			&GoTestTool{ProjectPath: projectPath},
-			&GoFumptTool{ProjectPath: projectPath},
+			&GrepTool{ProjectPath: projectPath},
 			&ListFilesTool{ProjectPath: projectPath},
 			&ReadFileTool{ProjectPath: projectPath},
 			&ReplaceLinesTool{ProjectPath: projectPath},
