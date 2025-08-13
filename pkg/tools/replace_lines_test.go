@@ -214,6 +214,17 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 			expectedContent: "z\nb\nc",
 			errors:          nil,
 		},
+		{
+			name:        "delete_lines",
+			initContent: "a\nb\nc\n",
+			args: tools.Args{
+				tools.ReplaceLinesPath:    "delete_lines_test.txt",
+				tools.ReplaceLinesSearch:  "a\nb\n",
+				tools.ReplaceLinesReplace: "",
+			},
+			expectedContent: "c\n",
+			errors:          nil,
+		},
 	}
 
 	for _, test := range tests {

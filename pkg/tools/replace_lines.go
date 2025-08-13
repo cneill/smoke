@@ -24,10 +24,11 @@ func (r *ReplaceLinesTool) Name() string { return ToolReplaceLines }
 func (r *ReplaceLinesTool) Description() string {
 	return fmt.Sprintf(
 		`Replace strings in the given file with new contents. Must supply EITHER %q AND %q parameters OR %q.
-		This is an exact string replace, not a regular expression replace.
+		This is an exact string replace, not a regular expression replace. You can use this for easy deletion.
 
 		Examples:
 		search="z", replace="c" on text "abz" will produce "abc"
+		search="a\nb\n", replace="" on text "a\nb\nc\n" will produce "c\n"
 		batches=["a", "x", "b", "y", "c", "z"] on text "abc" will produce "xyz"`,
 		ReplaceLinesSearch,
 		ReplaceLinesReplace,
@@ -116,7 +117,7 @@ func getSearchesReplaces(args Args) ([]string, []string, error) {
 		searches = []string{*search}
 	}
 
-	if replace := args.GetString(ReplaceLinesReplace); replace != nil && *replace != "" {
+	if replace := args.GetString(ReplaceLinesReplace); replace != nil {
 		replaces = []string{*replace}
 	}
 
