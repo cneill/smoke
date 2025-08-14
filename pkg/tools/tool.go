@@ -1,5 +1,7 @@
 package tools
 
+import "fmt"
+
 type Tool interface {
 	Name() string
 	Description() string
@@ -22,7 +24,12 @@ func (t Tools) Params(name string) (Params, error) {
 func (t Tools) Call(name string, args Args) (string, error) {
 	for _, tool := range t {
 		if tool.Name() == name {
-			return tool.Run(args)
+			output, err := tool.Run(args)
+			if err != nil {
+				return "", fmt.Errorf("%w: %w", ErrCallFailed, err)
+			}
+
+			return output, nil
 		}
 	}
 

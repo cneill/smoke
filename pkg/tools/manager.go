@@ -36,7 +36,8 @@ func (m *Manager) CallTool(toolName string, args Args) (string, error) {
 
 	output, err := m.Tools.Call(toolName, args)
 	if err != nil {
-		return output, fmt.Errorf("%w: %s: %w", ErrCallFailed, toolName, err)
+		m.logger.Debug("tool call unsuccessful", "tool_name", toolName, "args", args, "output", output, "error", err)
+		return output, fmt.Errorf("%s: %w", toolName, err)
 	}
 
 	m.logger.Debug("tool call successful", "tool_name", toolName, "args", args, "output", output)
