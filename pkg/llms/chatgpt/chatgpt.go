@@ -176,6 +176,8 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 		return nil, fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
+	c.logger.Debug("token usage", "prompt", result.Usage.PromptTokens, "completion", result.Usage.CompletionTokens)
+
 	if len(result.Choices) == 0 {
 		return nil, fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
 	}
