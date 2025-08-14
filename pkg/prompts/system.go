@@ -38,10 +38,12 @@ func SystemJSON() string {
 		},
 		"work_process": []string{
 			"If there is a `smoke_plan.md` document in the root directory, proceed with implementing the plan.",
-			"Before making changes to the codebase, run the `go_lint` tool on the relevant file/directory to get a " +
-				"baseline of lint errors.",
-			"Complete the work using the various tools available to you. Be as efficient as you can.",
-			"After you're finished writing code, run the `go_fumpt` tool to format it.",
+			"If you need to retrieve any context from the project after reading the plan, store those details in " +
+				"the plan file before continuing so that you can pick up where you left off if you get interrupted.",
+			"Before making changes to the codebase, run the `go_lint` tool on the relevant files/directories to get " +
+				"a baseline of lint errors.",
+			"Complete the work using the various tools available to you. Be as efficient as you can with tool calls.",
+			"After you're finished writing code, run the `go_fumpt` tool to format the modified files.",
 			"Run the `go_test` tool and fix any unit test errors. Run `go_fumpt` again if you need to make changes.",
 			"Run the `go_lint` tool against files you modified and fix any new errors introduced by your changes.",
 		},
