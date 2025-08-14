@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -48,16 +49,13 @@ func New(opts *Opts) (*Model, error) {
 		return nil, fmt.Errorf("options error: %w", err)
 	}
 
-	viewport := viewport.New(opts.Width, opts.Height)
-	viewport.SetContent(opts.InitContent)
-
 	mdRenderer, err := getGlamourRenderer(opts.Width)
 	if err != nil {
 		return nil, err
 	}
 
 	model := &Model{
-		viewport:   viewport,
+		viewport:   getViewport(opts),
 		mdRenderer: mdRenderer,
 
 		initContent: opts.InitContent,
@@ -65,6 +63,28 @@ func New(opts *Opts) (*Model, error) {
 	}
 
 	return model, nil
+}
+
+func getViewport(opts *Opts) viewport.Model {
+	newViewport := viewport.New(opts.Width, opts.Height)
+	newViewport.SetContent(opts.InitContent)
+
+	keyMap := viewport.DefaultKeyMap()
+	keyMap.PageUp = key.NewBinding(
+		key.WithKeys("pgup", "ctrl+b"),
+		key.WithHelp("pgup/ctrl+b", "page up"),
+	)
+	keyMap.PageDown = key.NewBinding(
+		key.WithKeys("pgdown", "ctrl+f"),
+		key.WithHelp("pgdown/ctrl+f", "page down"),
+	)
+
+	newViewport.Style = lipgloss.NewStyle().
+		Background(lipgloss.Color("#000000"))
+
+	newViewport.KeyMap = keyMap
+
+	return newViewport
 }
 
 func getGlamourRenderer(width int) (*glamour.TermRenderer, error) {
