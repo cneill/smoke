@@ -31,8 +31,9 @@ func SystemJSON() string {
 			"Next, write out a plan in `smoke_plan.md` for what you will do. Explain enough to pick up if interrupted.",
 			"Complete the work using the various tools available to you. Be as efficient as you can.",
 			"After you're finished writing code, run the `go_fumpt` tool to format it.",
-			"Run the `go_test` tool and fix any unit test errors. Run `go_fumpt` if you need to make changes.",
-			"Finally, run the `go_lint` tool again and fix any new errors introduced by your changes.",
+			"Run the `go_test` tool and fix any unit test errors. Run `go_fumpt` again if you need to make changes.",
+			"Run the `go_lint` tool again and fix any new errors introduced by your changes.",
+			"Once complete, run the `remove_plan` tool and provide a summary of what you did.",
 		},
 		"tips": []string{
 			"Use the 'batch' parameter of the `replace_lines` tool to be efficient when making multiple changes.",

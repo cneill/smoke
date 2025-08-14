@@ -25,6 +25,7 @@ func NewManager(projectPath string) *Manager {
 			&GrepTool{ProjectPath: projectPath},
 			&ListFilesTool{ProjectPath: projectPath},
 			&ReadFileTool{ProjectPath: projectPath},
+			&RemovePlanTool{ProjectPath: projectPath},
 			&ReplaceLinesTool{ProjectPath: projectPath},
 			&WriteFileTool{ProjectPath: projectPath},
 		},
