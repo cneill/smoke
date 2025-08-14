@@ -9,6 +9,7 @@ const (
 	ToolGitDiff         = "git_diff"
 	ToolGoFumpt         = "go_fumpt"
 	ToolGoLint          = "go_lint"
+	ToolGoPLS           = "go_pls"
 	ToolGoTest          = "go_test"
 	ToolGrep            = "grep"
 	ToolListFiles       = "list_files"
