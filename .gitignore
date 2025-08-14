@@ -1,3 +1,4 @@
 cmd/smoke/smoke
 logs/
 *.log
+smoke_plan.md

@@ -9,10 +9,11 @@ import (
 
 func GetModel(search string, defaultModel openai.ChatModel) openai.ChatModel {
 	aliases := llms.ModelAliases[openai.ChatModel]{
-		openai.ChatModelGPT4o:  []string{"4", "4o", "gpt4o", "gpt-4o"},
-		openai.ChatModelGPT4_1: []string{"4.1", "gpt4.1", "gpt-4.1"},
-		openai.ChatModelGPT5:   []string{"5", "gpt5", "gpt-5"},
-		openai.ChatModelO3:     []string{"o3", "gpto3", "gpt-o3"},
+		openai.ChatModelGPT4o:    []string{"4", "4o", "gpt4o", "gpt-4o"},
+		openai.ChatModelGPT4_1:   []string{"4.1", "gpt4.1", "gpt-4.1"},
+		openai.ChatModelGPT5:     []string{"5", "gpt5", "gpt-5"},
+		openai.ChatModelGPT5Mini: []string{"5-mini", "gpt5-mini", "gpt-5-mini"},
+		openai.ChatModelO3:       []string{"o3", "gpto3", "gpt-o3"},
 	}
 
 	if model := aliases.Match(search); model != "" {
