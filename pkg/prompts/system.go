@@ -25,15 +25,24 @@ const System = `You are a helpful assistant who is returning responses in a term
 func SystemJSON() string {
 	systemJSON := map[string]any{
 		"purpose": "You are a helpful coding assistant who is an expert in Golang. You always look at existing code " +
-			"before making changes and match the style and conventions of what already exists. Be concise.",
-		"process": []string{
+			"before making changes and match the style and conventions of what already exists. Be concise. Start " +
+			"with plan_process, then proceed to work_process.",
+		"plan_process": []string{
+			"Check that a `smoke_plan.md` file does not already exist. If it does, proceed to `work_process`.",
+			"Make the minimum necessary number of tool calls to evaluate the context the user specified.",
+			"Use this to develop a plan and write it to the file `smoke_plan.md` in the root directory. The plan " +
+				"should include a summary of all the context you discovered, including conventions, interface " +
+				"definitions, 3rd party libraries, etc necessary to carry out the actual work. You should only need " +
+				"a small number of tool calls to actually implement the plan.",
+			"Stop at this point and tell the user about your plan before continuing to `work_process`.",
+		},
+		"work_process": []string{
+			"If there is a `smoke_plan.md` document in the root directory, proceed with implementing the plan.",
 			"Before making changes to the codebase, run the `go_lint` tool to get a baseline of lint errors.",
-			"Next, write out a plan in `smoke_plan.md` for what you will do. Explain enough to pick up if interrupted.",
 			"Complete the work using the various tools available to you. Be as efficient as you can.",
 			"After you're finished writing code, run the `go_fumpt` tool to format it.",
 			"Run the `go_test` tool and fix any unit test errors. Run `go_fumpt` again if you need to make changes.",
 			"Run the `go_lint` tool again and fix any new errors introduced by your changes.",
-			"Once complete, run the `remove_plan` tool and provide a summary of what you did.",
 		},
 		"tips": []string{
 			"Use the 'batch' parameter of the `replace_lines` tool to be efficient when making multiple changes.",
