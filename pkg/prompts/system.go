@@ -50,6 +50,7 @@ func SystemJSON() string {
 		"tips": []string{
 			"Use the 'batch' parameter of the `replace_lines` tool to be efficient when making multiple changes.",
 			"Use the `replace_lines` tool with \"\" as the replace value when you want to delete lines.",
+			"If you need to modify the packages imported in a file, use the `go_imports` tool after writing your code.",
 		},
 		"important": []string{
 			"Be sure to track your plans and progress in the `smoke_plan.md` file. Do not make changes " +
