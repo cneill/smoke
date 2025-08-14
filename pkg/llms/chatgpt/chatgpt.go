@@ -171,7 +171,7 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 		c.logger.Debug("sending session", "msg", latest)
 	}
 
-	result, err := c.client.Chat.Completions.New(ctx, options)
+	result, err := c.client.Chat.Completions.New(ctx, options, option.WithMaxRetries(5))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
