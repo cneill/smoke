@@ -23,7 +23,8 @@ func (g *GoImportsTool) Name() string { return ToolGoImports }
 func (g *GoImportsTool) Description() string {
 	return fmt.Sprintf(
 		"Runs the goimports command to fix imports against the file/directory specified in %q, or the whole project "+
-			"directory if not specified. Changes are written in place (-w) and the list of files formatted is returned (-l).",
+			"directory if not specified. Changes are written in place (-w) and the list of files formatted is "+
+			"returned (-l).",
 		GoImportsPath,
 	)
 }
