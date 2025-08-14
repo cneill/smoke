@@ -33,7 +33,8 @@ func (o *Opts) OK() error {
 	return nil
 }
 
-const prompt = "│"
+// const prompt = "│"
+const prompt = "▶ "
 
 type Model struct {
 	textarea textarea.Model
@@ -65,10 +66,11 @@ func New(opts *Opts) (*Model, error) {
 func getTextArea(opts *Opts) textarea.Model {
 	model := textarea.New()
 
-	model.Placeholder = "Enter your message."
-	if opts.PlaceholderText != "" {
-		model.Placeholder = opts.PlaceholderText
-	}
+	// TODO: make this fill the whole width with padding so it doesn't look awkward
+	// model.Placeholder = "Enter your message."
+	// if opts.PlaceholderText != "" {
+	// 	model.Placeholder = opts.PlaceholderText
+	// }
 
 	model.Focus()
 
@@ -83,11 +85,11 @@ func getTextArea(opts *Opts) textarea.Model {
 		model.MaxHeight = opts.MaxHeight
 	}
 
-	// Focused
+	orange := lipgloss.Color("#cc4400")
+
 	model.FocusedStyle.Base = lipgloss.NewStyle().
-		// BorderStyle(lipgloss.DoubleBorder()).
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderTopForeground(lipgloss.Color("#666666")).
+		BorderStyle(lipgloss.OuterHalfBlockBorder()).
+		BorderTopForeground(orange).
 		BorderTopBackground(lipgloss.Color("#000000")).
 		BorderTop(true).
 		Background(lipgloss.Color("#000000"))
@@ -101,12 +103,10 @@ func getTextArea(opts *Opts) textarea.Model {
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#eeeeee"))
 	model.FocusedStyle.Prompt = lipgloss.NewStyle().
-		Bold(true).
-		Padding(2, 2, 2, 2).
 		Background(lipgloss.Color("#000000")).
-		Foreground(lipgloss.Color("#eeeeee"))
+		Foreground(orange).
+		Bold(true)
 
-	// Blurred
 	model.BlurredStyle.Base = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderTopForeground(lipgloss.Color("#333333")).
@@ -123,10 +123,9 @@ func getTextArea(opts *Opts) textarea.Model {
 		Background(lipgloss.Color("#000000")).
 		Foreground(lipgloss.Color("#888888"))
 	model.BlurredStyle.Prompt = lipgloss.NewStyle().
-		Bold(true).
-		Padding(2, 2, 2, 2).
 		Background(lipgloss.Color("#000000")).
-		Foreground(lipgloss.Color("#888888"))
+		Foreground(orange).
+		Bold(true)
 
 	model.ShowLineNumbers = false
 	// model.KeyMap.InsertNewline.SetEnabled(false)
@@ -136,9 +135,11 @@ func getTextArea(opts *Opts) textarea.Model {
 
 func getSpinner(height int) spinner.Model {
 	model := spinner.New(
-		spinner.WithSpinner(spinner.Ellipsis),
+		// spinner.WithSpinner(spinner.Ellipsis),
+		spinner.WithSpinner(spinner.Monkey),
 		spinner.WithStyle(
 			lipgloss.NewStyle().
+				Background(lipgloss.Color("#000000")).
 				Foreground(lipgloss.Color("#ff0000")).
 				Height(height),
 		),
@@ -283,7 +284,7 @@ func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 
 func (m *Model) View() string {
 	if m.waiting {
-		return "Waiting" + m.spinner.View()
+		return m.spinner.View() + "Waiting... " + m.spinner.View()
 	}
 
 	// if m.userCompletionText != "" {
