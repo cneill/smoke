@@ -79,9 +79,6 @@ func getViewport(opts *Opts) viewport.Model {
 		key.WithHelp("pgdown/ctrl+f", "page down"),
 	)
 
-	newViewport.Style = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000"))
-
 	newViewport.KeyMap = keyMap
 
 	return newViewport

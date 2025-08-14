@@ -55,7 +55,7 @@ func New(opts *Opts) (*Model, error) {
 
 	model := &Model{
 		textarea: getTextArea(opts),
-		spinner:  getSpinner(opts.Height),
+		spinner:  getSpinner(opts.Width, opts.Height),
 
 		commandCompleter: opts.CommandCompleter,
 	}
@@ -133,14 +133,20 @@ func getTextArea(opts *Opts) textarea.Model {
 	return model
 }
 
-func getSpinner(height int) spinner.Model {
+func getSpinner(width, height int) spinner.Model {
+	orange := lipgloss.Color("#cc4400")
 	model := spinner.New(
 		// spinner.WithSpinner(spinner.Ellipsis),
 		spinner.WithSpinner(spinner.Monkey),
 		spinner.WithStyle(
 			lipgloss.NewStyle().
+				BorderStyle(lipgloss.OuterHalfBlockBorder()).
+				BorderTopForeground(orange).
+				BorderTopBackground(lipgloss.Color("#000000")).
+				BorderTop(true).
 				Background(lipgloss.Color("#000000")).
 				Foreground(lipgloss.Color("#ff0000")).
+				Width(width).
 				Height(height),
 		),
 	)
@@ -284,7 +290,7 @@ func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 
 func (m *Model) View() string {
 	if m.waiting {
-		return m.spinner.View() + "Waiting... " + m.spinner.View()
+		return m.spinner.View()
 	}
 
 	// if m.userCompletionText != "" {
