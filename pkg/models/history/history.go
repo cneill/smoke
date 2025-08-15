@@ -1,3 +1,5 @@
+// Package history contains a Bubbletea model for holding onto LLM chat history and other items like errors, tool calls,
+// prompt commands, etc.
 package history
 
 import (

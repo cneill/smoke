@@ -1,3 +1,4 @@
+// Package claude contains an implementation of [llms.LLM] for Anthropic's Claude.
 package claude
 
 import (

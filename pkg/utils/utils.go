@@ -1,3 +1,4 @@
+// Package utils contains miscellaneous helper functions used by different parts of the application.
 package utils
 
 import "math/rand/v2"

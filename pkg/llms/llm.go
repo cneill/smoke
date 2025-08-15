@@ -1,3 +1,5 @@
+// Package llms contains generalized functions and types for interacting with different LLM providers. The LLM interface
+// is implemented by each provider to work with Sessions and Messages.
 package llms
 
 import "context"

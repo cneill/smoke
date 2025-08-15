@@ -1,3 +1,5 @@
+// Package input contains a Bubbletea model to allow the user to enter 1) user messages for the LLM, and 2) prompt
+// commands that may work with the session, exit the program, etc.
 package input
 
 import (

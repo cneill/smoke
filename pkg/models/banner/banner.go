@@ -1,3 +1,5 @@
+// Package banner contains a Bubbletea model that renders an ASCII art banner for the application for use in the history
+// viewport.
 package banner
 
 import (

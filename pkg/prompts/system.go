@@ -1,3 +1,5 @@
+// Package prompts contains prompts used to interact with the LLMs, such as the overall system prompt that describes how
+// the model should respond to questions or requests for code changes.
 package prompts
 
 import (

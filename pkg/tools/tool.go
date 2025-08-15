@@ -1,3 +1,5 @@
+// Package tools contains the [tools.Tool] interface defintion, as well as individual Tool implementations such as
+// [ReadFileTool]. These are used by an LLM to take actions on the codebase.
 package tools
 
 import "fmt"

@@ -1,3 +1,5 @@
+// Package smoke orchestrates the overall interactions with LLMs, session management, tool execution, prompt command
+// execution, etc. It is included in the [ui.Model] struct to allow the UI to interact with the state.
 package smoke
 
 import (

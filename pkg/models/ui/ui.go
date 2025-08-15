@@ -1,3 +1,6 @@
+// Package ui contains a Bubbletea model that wraps other models like [history.Model] and [input.Model], as well as the
+// [*smoke.Smoke] struct that contains and modifies application state. It is the main model for the application,
+// executed as part of the main() function.
 package ui
 
 import (

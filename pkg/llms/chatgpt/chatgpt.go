@@ -1,3 +1,4 @@
+// Package chatgpt contains an implementation of [llms.LLM] for OpenAI's ChatGPT.
 package chatgpt
 
 import (

@@ -1,3 +1,4 @@
+// Package log handles the basics of configuring the global slog *Logger.
 package log
 
 import (
