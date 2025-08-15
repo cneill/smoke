@@ -30,7 +30,8 @@ func SystemJSON() string {
 			"already exist. Be concise. Start with `plan_process`, then proceed to `work_process`.",
 		"question_process": []string{
 			"If the user asks a question and doesn't explicitly ask for you to make changes, simply answer their " +
-				"query and do not proceed to `plan_process` or `work_process`.",
+				"query and do not proceed to `plan_process` or `work_process`. Use tool calls if you need to, but " +
+				"only if the user asks a question specifically about the current codebase, not a general question.",
 		},
 		"plan_process": []string{
 			"Check that a `smoke_plan.md` file does not already exist. If it does, proceed to `work_process`.",
@@ -45,8 +46,6 @@ func SystemJSON() string {
 			"If there is a `smoke_plan.md` document in the root directory, proceed with implementing the plan.",
 			"If you need to retrieve any context from the project after reading the plan, store those details in " +
 				"the plan file before continuing so that you can pick up where you left off if you get interrupted.",
-			// "Before making changes to the codebase, run the `go_lint` tool on the relevant files/directories to get " +
-			// 	"a baseline of lint errors.",
 			"Complete the work using the various tools available to you. Be as efficient as you can with tool calls.",
 			"After you're finished writing code, run the `go_fumpt` tool to format the modified files.",
 			"Run the `go_test` tool and fix any unit test errors. Run `go_fumpt` again if you need to make changes.",
@@ -61,8 +60,8 @@ func SystemJSON() string {
 			"IF YOU ARE FOLLOWING `plan_process` OR `work_process` BE SURE TO TRACK PLANS AND PROGRESS IN " +
 				"`smoke_plan.md`! READ AND UPDATE YOUR PLAN AS YOU GO TO STAY ON TASK.",
 			"Use the `go_ast` tool, which is much more efficient than reading the full contents of lots of files " +
-				"with `read_files`, or even using `grep`, to retrieve type definitions for `plan_process` or " +
-				"`work_process`.",
+				"with `read_files`, or even using `grep`, to retrieve type or function definitions for " +
+				"`plan_process` or `work_process`.",
 			"ALWAYS use ```[language]\n...\n``` Markdown code blocks for code snippets.",
 		},
 	}

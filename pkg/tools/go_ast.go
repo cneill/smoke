@@ -5,10 +5,8 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -37,10 +35,10 @@ type parseResult struct {
 	path     string
 	file     fileInfo
 	parsed   *ast.File
-	typeInfo typeInfo
+	declInfo declInfo
 }
 
-type typeInfo struct {
+type declInfo struct {
 	Package  string
 	Name     string
 	StartPos token.Position
@@ -69,7 +67,7 @@ func (g *GoASTTool) Params() Params {
 		},
 		{
 			Key:         GoASTSearch,
-			Description: "The type definition to search for",
+			Description: "The type or function definition to search for",
 			Type:        ParamTypeString,
 			Required:    true,
 		},
@@ -120,7 +118,7 @@ func (g *GoASTTool) Run(args Args) (string, error) {
 
 	resultWG.Go(func() {
 		for result := range resultChan {
-			if result.typeInfo.Name != *search {
+			if result.declInfo.Name != *search {
 				continue
 			}
 
@@ -161,8 +159,8 @@ func (g *GoASTTool) Run(args Args) (string, error) {
 	buf := &bytes.Buffer{}
 	for _, result := range matches {
 		lines := bytes.Split(result.file.contents, []byte("\n"))
-		matchedLines := lines[result.typeInfo.StartPos.Line-1 : result.typeInfo.EndPos.Line]
-		content := utils.WithLineNumbers(matchedLines, result.typeInfo.StartPos.Line)
+		matchedLines := lines[result.declInfo.StartPos.Line-1 : result.declInfo.EndPos.Line]
+		content := utils.WithLineNumbers(matchedLines, result.declInfo.StartPos.Line)
 
 		relPath, err := filepath.Rel(g.ProjectPath, result.file.path)
 		if err == nil {
@@ -177,16 +175,14 @@ func (g *GoASTTool) Run(args Args) (string, error) {
 }
 
 type parserWorker struct {
-	wg         sync.WaitGroup
-	fset       *token.FileSet
-	typeConfig types.Config
+	wg   sync.WaitGroup
+	fset *token.FileSet
 }
 
 func newParserWorker() *parserWorker {
 	return &parserWorker{
-		wg:         sync.WaitGroup{},
-		fset:       token.NewFileSet(),
-		typeConfig: types.Config{Importer: importer.Default()},
+		wg:   sync.WaitGroup{},
+		fset: token.NewFileSet(),
 	}
 }
 
@@ -203,33 +199,50 @@ func (p *parserWorker) start(ctx context.Context, fileChan <-chan fileInfo, resu
 				errChan <- fmt.Errorf("failed to parse file %q: %w", file.path, err)
 			}
 
+			// TODO: use ast.FilterDecl here?
 			for node := range ast.Preorder(parsed) {
 				decl, ok := node.(ast.Decl)
 				if !ok {
 					continue
 				}
 
-				genDecl, ok := decl.(*ast.GenDecl)
-				if !ok || genDecl.Tok != token.TYPE {
-					continue
-				}
-
-				for _, spec := range genDecl.Specs {
-					if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-						result := parseResult{
-							path:   file.path,
-							file:   file,
-							parsed: parsed,
-							typeInfo: typeInfo{
-								Package:  parsed.Name.Name,
-								Name:     typeSpec.Name.Name,
-								StartPos: p.fset.Position(typeSpec.Pos()),
-								EndPos:   p.fset.Position(typeSpec.End()),
-							},
-						}
-
-						resultChan <- result
+				switch decl := decl.(type) {
+				case *ast.GenDecl:
+					if decl.Tok != token.TYPE {
+						continue
 					}
+
+					for _, spec := range decl.Specs {
+						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+							result := parseResult{
+								path:   file.path,
+								file:   file,
+								parsed: parsed,
+								declInfo: declInfo{
+									Package:  parsed.Name.Name,
+									Name:     typeSpec.Name.Name,
+									StartPos: p.fset.Position(typeSpec.Pos()),
+									EndPos:   p.fset.Position(typeSpec.End()),
+								},
+							}
+
+							resultChan <- result
+						}
+					}
+				case *ast.FuncDecl:
+					result := parseResult{
+						path:   file.path,
+						file:   file,
+						parsed: parsed,
+						declInfo: declInfo{
+							Package:  parsed.Name.Name,
+							Name:     decl.Name.Name,
+							StartPos: p.fset.Position(decl.Pos()),
+							EndPos:   p.fset.Position(decl.End()),
+						},
+					}
+
+					resultChan <- result
 				}
 			}
 
