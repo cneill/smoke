@@ -52,8 +52,10 @@ func (g *GoASTTool) Name() string { return ToolGoAST }
 
 func (g *GoASTTool) Description() string {
 	return fmt.Sprintf(
-		"Performs AST analysis of Go code to perform various actions." +
-			GoFumptPath,
+		"Retrieve the definition of a type. Provide %q if you know what file/directory the definition is in, "+
+			"though this parameter is optional. The parameter %q should contain the name of the type you want the "+
+			"definition for. The tool will return the full definition with file path and line numbers.",
+		GoASTPath, GoASTSearch,
 	)
 }
 
@@ -122,13 +124,13 @@ func (g *GoASTTool) Run(args Args) (string, error) {
 				continue
 			}
 
-			slog.Debug("got result",
-				"path", result.path,
-				"package", result.typeInfo.Package,
-				"name", result.typeInfo.Name,
-				"start", result.typeInfo.StartPos,
-				"end", result.typeInfo.EndPos,
-			)
+			// slog.Debug("got result",
+			// 	"path", result.path,
+			// 	"package", result.typeInfo.Package,
+			// 	"name", result.typeInfo.Name,
+			// 	"start", result.typeInfo.StartPos,
+			// 	"end", result.typeInfo.EndPos,
+			// )
 
 			matches = append(matches, result)
 		}
@@ -151,6 +153,10 @@ func (g *GoASTTool) Run(args Args) (string, error) {
 	close(resultChan)
 
 	resultWG.Wait()
+
+	if len(matches) == 0 {
+		return "No results", nil
+	}
 
 	buf := &bytes.Buffer{}
 	for _, result := range matches {
@@ -191,8 +197,6 @@ func (p *parserWorker) start(ctx context.Context, fileChan <-chan fileInfo, resu
 			if !ok {
 				return
 			}
-
-			// slog.Debug("parsing file", "path", file.path)
 
 			parsed, err := parser.ParseFile(p.fset, file.path, file.contents, parser.SkipObjectResolution)
 			if err != nil {
