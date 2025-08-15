@@ -5,6 +5,7 @@ import (
 	"log/slog"
 )
 
+// Manager holds the [Tools] that are available for use by the LLM. It makes tool calls and logs results.
 type Manager struct {
 	logger      *slog.Logger
 	ProjectPath string

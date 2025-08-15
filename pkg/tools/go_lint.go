@@ -41,21 +41,21 @@ func (g *GoLintTool) Params() Params {
 	}
 }
 
-type Output struct {
-	Issues []Issue `json:"Issues"`
+type output struct {
+	Issues []issue `json:"Issues"`
 }
 
-type Issue struct {
+type issue struct {
 	FromLinter           string   `json:"FromLinter"`
 	Text                 string   `json:"Text"`
 	Severity             string   `json:"Severity"`
 	SourceLines          []string `json:"SourceLines"`
-	Pos                  *Pos     `json:"Pos"`
+	Pos                  *pos     `json:"Pos"`
 	ExpectNoLint         bool     `json:"ExpectNoLint"`
 	ExpectedNoLintLinter string   `json:"ExpectedNoLintLinter"`
 }
 
-type Pos struct {
+type pos struct {
 	Filename string `json:"Filename"`
 	Offset   int64  `json:"Offset"`
 	Line     int64  `json:"Line"`
@@ -115,14 +115,14 @@ func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 		return "", fmt.Errorf("%w: golangci-lint: %s", ErrCommandExecution, stderr)
 	}
 
-	results := Output{}
+	results := output{}
 	if err := json.Unmarshal(buf.Bytes(), &results); err != nil {
 		slog.Error("error parsing golangci-lint output", "error", err)
 		// TODO: Maybe revisit this..?
 		return buf.String(), nil
 	}
 
-	targetIssues := []Issue{}
+	targetIssues := []issue{}
 
 	if targetFile == "" {
 		targetIssues = results.Issues

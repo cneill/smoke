@@ -11,8 +11,14 @@ import (
 	"strings"
 )
 
+// Args is used as a generic container for accepting tool call information from the LLM. Its GetX methods allow for
+// retrieving these values by name based on the type they are expected to have. Args of the wrong type, or that were
+// not provided at all, return nil.
 type Args map[string]any
 
+// GetArgs takes the raw JSON bytes provided in the [llms.LLM] tool call, decodes them into an [Args] map, and validates
+// that 1) all required keys are present, 2) unknown keys are not present, 3) value types match those expected for the
+// corresponding [Param].
 func GetArgs(input []byte, params Params) (Args, error) {
 	result := Args{}
 
@@ -58,6 +64,7 @@ func GetArgs(input []byte, params Params) (Args, error) {
 	return result, nil
 }
 
+// String gives a string representation of [Args] for use in the history viewport.
 func (a Args) String() string {
 	resultBuilder := &strings.Builder{}
 	for key, val := range a {
@@ -69,60 +76,8 @@ func (a Args) String() string {
 	return result
 }
 
-// TODO: allow for e.g. "1" for number, "f" for bool?
-func (a Args) checkTypes(params Params) error {
-	wrongTypeKeys := []string{}
-
-	for key, value := range a {
-		param := params.ByKey(key)
-		if !a.rightType(param, value) {
-			wrongTypeKeys = append(wrongTypeKeys, fmt.Sprintf("%s (expecting %s)", key, param.Type))
-		}
-	}
-
-	if len(wrongTypeKeys) > 0 {
-		return fmt.Errorf("%w: %s", ErrWrongTypeKeys, strings.Join(wrongTypeKeys, ", "))
-	}
-
-	return nil
-}
-
-func (a Args) rightType(param *Param, value any) bool { //nolint:cyclop
-	rightType := true
-	typ := reflect.TypeOf(value)
-
-	switch param.Type {
-	case ParamTypeBoolean:
-		_, rightType = value.(bool)
-	case ParamTypeNumber:
-		_, isNumber := value.(json.Number)
-		_, isInt := value.(int)
-		_, isInt64 := value.(int64)
-		_, isFloat := value.(float64)
-		rightType = isNumber || isInt || isInt64 || isFloat
-	case ParamTypeString:
-		_, rightType = value.(string)
-	case ParamTypeArray:
-		rightType = (typ.Kind() == reflect.Array) || (typ.Kind() == reflect.Slice)
-
-		if rightType && param.ItemType != "" {
-			reflectVal := reflect.ValueOf(value)
-			for i := range reflectVal.Len() {
-				if !a.rightType(&Param{Type: param.ItemType}, reflectVal.Index(i).Interface()) {
-					rightType = false
-					break
-				}
-			}
-		}
-	case ParamTypeObject:
-		rightType = typ.Kind() == reflect.Map
-	case ParamTypeNull:
-		rightType = value == nil
-	}
-
-	return rightType
-}
-
+// GetString checks whether the argument matching 'key' is either a string or a [fmt.Stringer] and returns the string
+// value if applicable, or nil if it is undefined or of another tpye.
 func (a Args) GetString(key string) *string {
 	val, hasKey := a[key]
 	if !hasKey {
@@ -143,6 +98,8 @@ func (a Args) GetString(key string) *string {
 	return nil
 }
 
+// GetInt64 checks whether the argument matching 'key' is either a [json.Number], an int64, an int, or a string, and
+// handles it appropriately to return an int64. If none of the above, it returns nil.
 func (a Args) GetInt64(key string) *int64 {
 	val, hasKey := a[key]
 	if !hasKey {
@@ -183,6 +140,8 @@ func (a Args) GetInt64(key string) *int64 {
 	return nil
 }
 
+// GetFloat64 checks whether the argument matching 'key' is a [json.Number], a float64, or a string, and if not, it
+// tries to treat it as an int64 by calling [Args.GetInt64]. If none of the above, it returns nil.
 func (a Args) GetFloat64(key string) *float64 {
 	val, hasKey := a[key]
 	if !hasKey {
@@ -222,6 +181,8 @@ func (a Args) GetFloat64(key string) *float64 {
 	return nil
 }
 
+// GetBool checks whether the argument matching 'key' is a bool or a string, handling the conversion if necessary, or
+// returns nil.
 func (a Args) GetBool(key string) *bool {
 	val, hasKey := a[key]
 	if !hasKey {
@@ -246,6 +207,8 @@ func (a Args) GetBool(key string) *bool {
 	return nil
 }
 
+// GetStringSlice first checks that we have a slice of []any, then converts this into a []string slice. If any elements
+// are not strings, it returns nil.
 func (a Args) GetStringSlice(key string) []string {
 	val, hasKey := a[key]
 	if !hasKey {
@@ -277,6 +240,7 @@ func (a Args) GetStringSlice(key string) []string {
 	return stringSlice
 }
 
+// LogValue helps with rendering [Args] in a slog message.
 func (a Args) LogValue() slog.Value {
 	attrs := []slog.Attr{}
 
@@ -295,4 +259,62 @@ func (a Args) LogValue() slog.Value {
 	}
 
 	return slog.GroupValue(attrs...)
+}
+
+// checkTypes walks all the keys in the slice and ensures that they match the types expected by the corresponding
+// [Param], returning an error if any types are mismatched.
+// TODO: allow for e.g. "1" for number, "f" for bool?
+func (a Args) checkTypes(params Params) error {
+	wrongTypeKeys := []string{}
+
+	for key, value := range a {
+		param := params.ByKey(key)
+		if !a.rightType(param, value) {
+			wrongTypeKeys = append(wrongTypeKeys, fmt.Sprintf("%s (expecting %s)", key, param.Type))
+		}
+	}
+
+	if len(wrongTypeKeys) > 0 {
+		return fmt.Errorf("%w: %s", ErrWrongTypeKeys, strings.Join(wrongTypeKeys, ", "))
+	}
+
+	return nil
+}
+
+// rightType checks an individual arg 'value' against the expected [Param] type. It also calls itself to check
+// [Param.ItemType] if the [Param.Type] is [ParamTypeArray].
+func (a Args) rightType(param *Param, value any) bool { //nolint:cyclop
+	rightType := true
+	typ := reflect.TypeOf(value)
+
+	switch param.Type {
+	case ParamTypeBoolean:
+		_, rightType = value.(bool)
+	case ParamTypeNumber:
+		_, isNumber := value.(json.Number)
+		_, isInt := value.(int)
+		_, isInt64 := value.(int64)
+		_, isFloat := value.(float64)
+		rightType = isNumber || isInt || isInt64 || isFloat
+	case ParamTypeString:
+		_, rightType = value.(string)
+	case ParamTypeArray:
+		rightType = (typ.Kind() == reflect.Array) || (typ.Kind() == reflect.Slice)
+
+		if rightType && param.ItemType != "" {
+			reflectVal := reflect.ValueOf(value)
+			for i := range reflectVal.Len() {
+				if !a.rightType(&Param{Type: param.ItemType}, reflectVal.Index(i).Interface()) {
+					rightType = false
+					break
+				}
+			}
+		}
+	case ParamTypeObject:
+		rightType = typ.Kind() == reflect.Map
+	case ParamTypeNull:
+		rightType = value == nil
+	}
+
+	return rightType
 }
