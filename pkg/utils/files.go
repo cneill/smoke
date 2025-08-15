@@ -1,19 +1,20 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 // WithLineNumbers takes multiple lines of text and returns a string that prefixes them with their line numbers. If
 // 'start' is supplied, the count starts there.
-func WithLineNumbers(contents string, start ...int) string {
-	if contents == "" {
-		return ""
+// func WithLineNumbers(contents string, start ...int) string {
+func WithLineNumbers(lines [][]byte, start ...int) []byte {
+	if len(lines) == 0 {
+		return nil
 	}
 
-	lines := strings.Split(contents, "\n")
+	// lines := .Split(contents, "\n")
 
 	maxLine := len(lines)
 	if len(start) > 0 {
@@ -21,7 +22,8 @@ func WithLineNumbers(contents string, start ...int) string {
 	}
 
 	width := len(strconv.Itoa(maxLine))
-	builder := &strings.Builder{}
+	// builder := &strings.Builder{}
+	buf := &bytes.Buffer{}
 
 	correction := 1
 	if len(start) > 0 {
@@ -29,12 +31,12 @@ func WithLineNumbers(contents string, start ...int) string {
 	}
 
 	for i, line := range lines {
-		if i == len(lines)-1 && line == "" {
+		if i == len(lines)-1 && len(line) == 0 {
 			break
 		}
 
-		fmt.Fprintf(builder, "%*d: %s\n", width, i+correction, line)
+		fmt.Fprintf(buf, "%*d: %s\n", width, i+correction, line)
 	}
 
-	return builder.String()
+	return buf.Bytes()
 }

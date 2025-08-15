@@ -19,6 +19,7 @@ func NewManager(projectPath string) *Manager {
 		Tools: Tools{
 			&CreateDirectoryTool{ProjectPath: projectPath},
 			&GitDiffTool{ProjectPath: projectPath},
+			&GoASTTool{ProjectPath: projectPath},
 			&GoFumptTool{ProjectPath: projectPath},
 			&GoImportsTool{ProjectPath: projectPath},
 			&GoLintTool{ProjectPath: projectPath},

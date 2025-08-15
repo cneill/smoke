@@ -106,7 +106,9 @@ func (r *ReplaceLinesTool) Run(args Args) (string, error) {
 		return "", fmt.Errorf("%w: failed to write contents to %q: %w", ErrFileSystem, fullPath, err)
 	}
 
-	return fmt.Sprintf("Replaced requested lines in %q.\n%s\nNew content:\n%s", *path, LineSep, utils.WithLineNumbers(string(data))), nil
+	lines := bytes.Split(data, []byte("\n"))
+
+	return fmt.Sprintf("Replaced requested lines in %q.\n%s\nNew content:\n%s", *path, LineSep, utils.WithLineNumbers(lines)), nil
 }
 
 // getSearchesReplaces returns 2 slices - one of "search" and one of "replace" - or an error.

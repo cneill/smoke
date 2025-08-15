@@ -7,6 +7,7 @@ const (
 const (
 	ToolCreateDirectory = "create_directory"
 	ToolGitDiff         = "git_diff"
+	ToolGoAST           = "go_ast"
 	ToolGoFumpt         = "go_fumpt"
 	ToolGoImports       = "go_imports"
 	ToolGoLint          = "go_lint"

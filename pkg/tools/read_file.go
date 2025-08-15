@@ -1,9 +1,9 @@
 package tools
 
 import (
+	"bytes"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/cneill/smoke/pkg/utils"
 )
@@ -119,7 +119,8 @@ func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop
 		return "[binary content]", nil
 	}
 
-	lines := strings.Split(string(contents), "\n")
+	lines := bytes.Split(contents, []byte("\n"))
+	// lines := strings.Split(string(contents), "\n")
 
 	if end == -1 {
 		end = int64(len(lines))
@@ -131,5 +132,7 @@ func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop
 		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileEnd)
 	}
 
-	return utils.WithLineNumbers(strings.Join(lines[start-1:end], "\n"), int(start)), nil
+	// return utils.WithLineNumbers(strings.Join(lines[start-1:end], "\n"), int(start)), nil
+	output := utils.WithLineNumbers(lines[start-1:end], int(start))
+	return string(output), nil
 }

@@ -1,6 +1,7 @@
 package utils_test
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -50,12 +51,18 @@ func TestWithLineNumbers(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := utils.WithLineNumbers(test.content)
+			lines := bytes.Split([]byte(test.content), []byte("\n"))
+
+			result := utils.WithLineNumbers(lines)
 			if test.start > 0 {
-				result = utils.WithLineNumbers(test.content, test.start)
+				result = utils.WithLineNumbers(lines, test.start)
 			}
 
-			assert.Equal(t, test.expected, result)
+			if len(test.expected) > 0 {
+				assert.Equal(t, []byte(test.expected), result)
+			} else {
+				assert.Nil(t, result)
+			}
 		})
 	}
 }
