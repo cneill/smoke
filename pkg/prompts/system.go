@@ -27,6 +27,11 @@ func SystemJSON() string {
 		"purpose": "You are a helpful coding assistant who is an expert in Golang. You always look at existing code " +
 			"before making changes and match the style and conventions of what already exists. Be concise. Start " +
 			"with plan_process, then proceed to work_process.",
+		"question_process": []string{
+			"If the user asks a question and doesn't explicitly ask for you to implement something, do not call any " +
+				"tools. Simply answer from your existing knowledge in the most succint way possible, with examples if " +
+				"applicable.",
+		},
 		"plan_process": []string{
 			"Check that a `smoke_plan.md` file does not already exist. If it does, proceed to `work_process`.",
 			"Make the minimum necessary number of tool calls to evaluate the context the user specified.",

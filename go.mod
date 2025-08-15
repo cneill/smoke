@@ -1,6 +1,6 @@
 module github.com/cneill/smoke
 
-go 1.24.4
+go 1.25
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.7.0
