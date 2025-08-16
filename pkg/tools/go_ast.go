@@ -66,10 +66,11 @@ func (g *GoASTTool) Params() Params {
 			Required:    false,
 		},
 		{
-			Key:         GoASTSearch,
-			Description: "The global type, function, or var/const definition to search for",
-			Type:        ParamTypeString,
-			Required:    true,
+			Key: GoASTSearch,
+			Description: "The global type, function, or var/const definition to search for. Do not include 'type', " +
+				"'func', etc, just provide the name of the identifier you want to find.",
+			Type:     ParamTypeString,
+			Required: true,
 		},
 	}
 }
