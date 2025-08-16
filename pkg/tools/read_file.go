@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	ReadFilePath  = "path"
-	ReadFileStart = "start"
-	ReadFileEnd   = "end"
+	ReadFilePath      = "path"
+	ReadFileStartLine = "start_line"
+	ReadFileEndLine   = "end_line"
 )
 
 type ReadFileTool struct {
@@ -47,8 +47,8 @@ func (r *ReadFileTool) Name() string { return ToolReadFile }
 func (r *ReadFileTool) Description() string {
 	return fmt.Sprintf(
 		"Read the contents of a file. If you just want to read the whole file, don't include %q/%q",
-		ReadFileStart,
-		ReadFileEnd,
+		ReadFileStartLine,
+		ReadFileEndLine,
 	)
 }
 
@@ -60,16 +60,17 @@ func (r *ReadFileTool) Params() Params {
 			Required: true,
 		},
 		{
-			Key:         ReadFileStart,
+			Key:         ReadFileStartLine,
 			Description: "The starting line number to read (1 by default)",
 			Type:        ParamTypeNumber,
 			Required:    false,
 		},
 		{
-			Key:         ReadFileEnd,
-			Description: "The last line number to read (end of file by default)",
-			Type:        ParamTypeNumber,
-			Required:    false,
+			Key: ReadFileEndLine,
+			Description: "The last line number to read (end of file by default). Do not provide a huge value here, " +
+				"just leave empty if you want to read the whole file.",
+			Type:     ParamTypeNumber,
+			Required: false,
 		},
 	}
 }
@@ -90,24 +91,24 @@ func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop
 		end   int64 = -1
 	)
 
-	if startArg := args.GetInt64(ReadFileStart); startArg != nil {
+	if startArg := args.GetInt64(ReadFileStartLine); startArg != nil {
 		if *startArg < 1 {
-			return "", fmt.Errorf("%w: %q must be >= 1", ErrArguments, ReadFileStart)
+			return "", fmt.Errorf("%w: %q must be >= 1", ErrArguments, ReadFileStartLine)
 		}
 
 		start = *startArg
 	}
 
-	if endArg := args.GetInt64(ReadFileEnd); endArg != nil {
+	if endArg := args.GetInt64(ReadFileEndLine); endArg != nil {
 		if *endArg < 1 {
-			return "", fmt.Errorf("%w: %q must be >= 1", ErrArguments, ReadFileEnd)
+			return "", fmt.Errorf("%w: %q must be >= 1", ErrArguments, ReadFileEndLine)
 		}
 
 		end = *endArg
 	}
 
 	if end != -1 && start > end {
-		return "", fmt.Errorf("%w: %q must be <= %q", ErrArguments, ReadFileStart, ReadFileEnd)
+		return "", fmt.Errorf("%w: %q must be <= %q", ErrArguments, ReadFileStartLine, ReadFileEndLine)
 	}
 
 	contents, err := os.ReadFile(fullPath)
@@ -120,19 +121,17 @@ func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop
 	}
 
 	lines := bytes.Split(contents, []byte("\n"))
-	// lines := strings.Split(string(contents), "\n")
 
 	if end == -1 {
 		end = int64(len(lines))
 	}
 
 	if start > int64(len(lines)) {
-		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileStart)
+		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileStartLine)
 	} else if end > int64(len(lines)) {
-		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileEnd)
+		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileEndLine)
 	}
 
-	// return utils.WithLineNumbers(strings.Join(lines[start-1:end], "\n"), int(start)), nil
 	output := utils.WithLineNumbers(lines[start-1:end], int(start))
 	return string(output), nil
 }
