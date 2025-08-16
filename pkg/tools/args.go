@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"reflect"
 	"slices"
 	"strconv"
@@ -98,6 +99,48 @@ func (a Args) GetString(key string) *string {
 	return nil
 }
 
+// GetInt checks whether the argument matching 'key' is either a [json.Number], an int64, an int, or a string, and
+// handles it appropriately to return an int. If the int64 value can't be safely converted to an int, or if the type is
+// not a reasonable one for an int, it returns nil.
+func (a Args) GetInt(key string) *int {
+	val, hasKey := a[key]
+	if !hasKey {
+		return nil
+	}
+
+	var (
+		int64Val int64
+		err      error
+	)
+
+	switch val := val.(type) {
+	case json.Number:
+		int64Val, err = val.Int64()
+		if err != nil {
+			return nil
+		}
+	case int64:
+		int64Val = val
+	case string:
+		int64Val, err = strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return nil
+		}
+	case int:
+		return &val
+	default:
+		return nil
+	}
+
+	if int64Val < math.MinInt || int64Val > math.MaxInt {
+		return nil
+	}
+
+	intVal := int(int64Val)
+
+	return &intVal
+}
+
 // GetInt64 checks whether the argument matching 'key' is either a [json.Number], an int64, an int, or a string, and
 // handles it appropriately to return an int64. If none of the above, it returns nil.
 func (a Args) GetInt64(key string) *int64 {
@@ -106,38 +149,31 @@ func (a Args) GetInt64(key string) *int64 {
 		return nil
 	}
 
-	numVal, isNumber := val.(json.Number)
-	if isNumber {
-		intVal, err := numVal.Int64()
+	var (
+		int64Val int64
+		err      error
+	)
+
+	switch val := val.(type) {
+	case json.Number:
+		int64Val, err = val.Int64()
 		if err != nil {
 			return nil
 		}
-
-		return &intVal
-	}
-
-	int64Val, isInt64 := val.(int64)
-	if isInt64 {
-		return &int64Val
-	}
-
-	intVal, isInt := val.(int)
-	if isInt {
-		convertedVal := int64(intVal)
-		return &convertedVal
-	}
-
-	strVal, isStr := val.(string)
-	if isStr {
-		parsedVal, err := strconv.ParseInt(strVal, 10, 64)
+	case int:
+		int64Val = int64(val)
+	case string:
+		int64Val, err = strconv.ParseInt(val, 10, 64)
 		if err != nil {
 			return nil
 		}
-
-		return &parsedVal
+	case int64:
+		int64Val = val
+	default:
+		return nil
 	}
 
-	return nil
+	return &int64Val
 }
 
 // GetFloat64 checks whether the argument matching 'key' is a [json.Number], a float64, or a string, and if not, it
@@ -148,37 +184,33 @@ func (a Args) GetFloat64(key string) *float64 {
 		return nil
 	}
 
-	numVal, isNumber := val.(json.Number)
-	if isNumber {
-		floatVal, err := numVal.Float64()
+	var (
+		float64Val float64
+		err        error
+	)
+
+	switch val := val.(type) {
+	case json.Number:
+		float64Val, err = val.Float64()
 		if err != nil {
 			return nil
 		}
-
-		return &floatVal
-	}
-
-	floatVal, isFloat := val.(float64)
-	if isFloat {
-		return &floatVal
-	}
-
-	stringVal, isStr := val.(string)
-	if isStr {
-		parsedVal, err := strconv.ParseFloat(stringVal, 64)
+	case string:
+		float64Val, err = strconv.ParseFloat(val, 64)
 		if err != nil {
 			return nil
 		}
-
-		return &parsedVal
+	case float64:
+		float64Val = val
+	case int, int64:
+		if intVal := a.GetInt64(key); intVal != nil {
+			float64Val = float64(*intVal)
+		}
+	default:
+		return nil
 	}
 
-	if intVal := a.GetInt64(key); intVal != nil {
-		floatVal := float64(*intVal)
-		return &floatVal
-	}
-
-	return nil
+	return &float64Val
 }
 
 // GetBool checks whether the argument matching 'key' is a bool or a string, handling the conversion if necessary, or
@@ -189,22 +221,24 @@ func (a Args) GetBool(key string) *bool {
 		return nil
 	}
 
-	boolVal, isBool := val.(bool)
-	if isBool {
-		return &boolVal
-	}
+	var (
+		boolVal bool
+		err     error
+	)
 
-	strVal, isStr := val.(string)
-	if isStr {
-		parsed, err := strconv.ParseBool(strVal)
+	switch val := val.(type) {
+	case string:
+		boolVal, err = strconv.ParseBool(val)
 		if err != nil {
 			return nil
 		}
-
-		return &parsed
+	case bool:
+		boolVal = val
+	default:
+		return nil
 	}
 
-	return nil
+	return &boolVal
 }
 
 // GetStringSlice first checks that we have a slice of []any, then converts this into a []string slice. If any elements
