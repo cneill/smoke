@@ -261,7 +261,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok {
-		newTextarea, cmd := m.textarea.Update(keyMsg)
+		newTextarea, cmd := m.textarea.Update(msg)
 		m.textarea = newTextarea
 
 		return cmd
@@ -470,6 +470,8 @@ func (m *Model) handleNormalModeRunes(key string) tea.Cmd {
 		m.setMode(modeInsert)
 
 		return textarea.Blink
+	case "p":
+		return textarea.Paste
 	}
 
 	// Unrecognized in normal mode: do nothing
