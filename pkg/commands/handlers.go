@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -15,7 +16,40 @@ type BaseHandler struct {
 	promptCommand PromptCommandMessage
 }
 
-// CommandExit closes the program
+// CommandClear clears the current session contents.
+const CommandClear = "clear"
+
+type ClearHandler struct {
+	*BaseHandler
+}
+
+func NewClearHandler(msg PromptCommandMessage) (Command, error) {
+	handler := &ClearHandler{
+		BaseHandler: &BaseHandler{promptCommand: msg},
+	}
+
+	return handler, nil
+}
+
+func (c *ClearHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	newSession, err := llms.NewSession(&llms.SessionOpts{
+		Name:          session.Name,
+		SystemMessage: session.SystemMessage,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to clear session and create new one: %w", err)
+	}
+
+	update := SessionUpdateMessage{
+		PromptCommand: c.promptCommand,
+		Session:       newSession,
+		Message:       "Cleared session.",
+	}
+
+	return update.Cmd(), nil
+}
+
+// CommandExit closes the program.
 const CommandExit = "exit"
 
 type ExitHandler struct {
@@ -36,30 +70,31 @@ func (e *ExitHandler) Run(_ *llms.Session) (tea.Cmd, error) {
 	return tea.Quit, nil
 }
 
-// CommandSave saves the current session to a file
-const CommandSave = "save"
+// CommandExport saves the current session to a file in JSON format that can be used with the 'load' command.
+const CommandExport = "export"
 
-type SaveHandler struct {
+type ExportHandler struct {
 	*BaseHandler
+
 	Path string
 }
 
-func NewSaveHandler(msg PromptCommandMessage) (Command, error) {
-	save := &SaveHandler{
+func NewExportHandler(msg PromptCommandMessage) (Command, error) {
+	export := &ExportHandler{
 		BaseHandler: &BaseHandler{
 			promptCommand: msg,
 		},
 	}
 	if len(msg.Args) > 0 {
-		save.Path = msg.Args[0]
+		export.Path = msg.Args[0]
 	}
 
-	return save, nil
+	return export, nil
 }
 
-func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	if s.Path == "" {
-		s.Path = fmt.Sprintf("%s_saved_%s.json", session.Name, time.Now().Format(time.DateTime))
+func (e *ExportHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	if e.Path == "" {
+		e.Path = fmt.Sprintf("%s_%s.json", session.Name, time.Now().Format(time.DateTime))
 	}
 
 	sessionBytes, err := json.MarshalIndent(session, "", "  ")
@@ -67,25 +102,26 @@ func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		return nil, fmt.Errorf("failed to marshal session JSON: %w", err)
 	}
 
-	slog.Debug("saving session to file", "path", s.Path, "num_messages", len(session.Messages))
+	slog.Debug("exporting session to file", "path", e.Path, "num_messages", len(session.Messages))
 
-	if err := os.WriteFile(s.Path, sessionBytes, 0o644); err != nil {
-		return nil, fmt.Errorf("failed to write session to file %q: %w", s.Path, err)
+	if err := os.WriteFile(e.Path, sessionBytes, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to export session to file %q: %w", e.Path, err)
 	}
 
 	update := HistoryUpdateMessage{
-		PromptCommand: s.promptCommand,
-		Message:       "Saved session to file " + s.Path + ".",
+		PromptCommand: e.promptCommand,
+		Message:       "Exported session to file " + e.Path + " in JSON format.",
 	}
 
 	return update.Cmd(), nil
 }
 
-// CommandLoad loads a session from a JSON file and replaces the current session with it
+// CommandLoad loads a session from a JSON file and replaces the current session with it.
 const CommandLoad = "load"
 
 type LoadHandler struct {
 	*BaseHandler
+
 	Path string
 }
 
@@ -129,34 +165,47 @@ func (l *LoadHandler) Run(_ *llms.Session) (tea.Cmd, error) {
 	return update.Cmd(), nil
 }
 
-// CommandClear clears the current session contents
-const CommandClear = "clear"
+// CommandSave saves the current session to a Markdown file
+const CommandSave = "save"
 
-type ClearHandler struct {
+type SaveHandler struct {
 	*BaseHandler
+
+	Path string
 }
 
-func NewClearHandler(msg PromptCommandMessage) (Command, error) {
-	handler := &ClearHandler{
-		BaseHandler: &BaseHandler{promptCommand: msg},
+func NewSaveHandler(msg PromptCommandMessage) (Command, error) {
+	save := &SaveHandler{
+		BaseHandler: &BaseHandler{
+			promptCommand: msg,
+		},
+	}
+	if len(msg.Args) > 0 {
+		save.Path = msg.Args[0]
 	}
 
-	return handler, nil
+	return save, nil
 }
 
-func (c *ClearHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	newSession, err := llms.NewSession(&llms.SessionOpts{
-		Name:          session.Name,
-		SystemMessage: session.SystemMessage,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to clear session and create new one: %w", err)
+func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	if s.Path == "" {
+		s.Path = fmt.Sprintf("%s_%s.md", session.Name, time.Now().Format(time.DateTime))
 	}
 
-	update := SessionUpdateMessage{
-		PromptCommand: c.promptCommand,
-		Session:       newSession,
-		Message:       "Cleared session.",
+	buf := &bytes.Buffer{}
+	for _, msg := range session.Messages {
+		buf.WriteString(msg.ToMarkdown())
+	}
+
+	slog.Debug("saving session to file as markdown", "path", s.Path, "num_messages", len(session.Messages))
+
+	if err := os.WriteFile(s.Path, buf.Bytes(), 0o644); err != nil {
+		return nil, fmt.Errorf("failed to save session to file %q: %w", s.Path, err)
+	}
+
+	update := HistoryUpdateMessage{
+		PromptCommand: s.promptCommand,
+		Message:       "Saved session to file " + s.Path + " in Markdown format.",
 	}
 
 	return update.Cmd(), nil

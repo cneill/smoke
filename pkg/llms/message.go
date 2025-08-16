@@ -1,6 +1,7 @@
 package llms
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -92,6 +93,28 @@ func (m *Message) LogValue() slog.Value {
 	attrs = append(attrs, slog.String("content", m.Content))
 
 	return slog.GroupValue(attrs...)
+}
+
+func (m *Message) ToMarkdown() string {
+	header := fmt.Sprintf("# %s\n*(%s)*\n\n", m.Role, m.Added.Format(time.RFC1123))
+	footer := "\n\n----\n"
+
+	var body string
+
+	if !m.HasToolCalls() {
+		body = m.Content
+	} else {
+		body = fmt.Sprintf("**Tools called:** `%s`\n", strings.Join(m.ToolsCalled, ", "))
+		if m.ToolCallArgs != nil {
+			body += fmt.Sprintf("**Tool call args:** `%s`\n", m.ToolCallArgs.String())
+		}
+
+		if m.Content != "" {
+			body += fmt.Sprintf("**Content:**\n\n%s\n", m.Content)
+		}
+	}
+
+	return header + body + footer
 }
 
 type MessageOpt func(message *Message) *Message
