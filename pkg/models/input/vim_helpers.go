@@ -2,6 +2,8 @@ package input
 
 import "unicode"
 
+// Thank you, Claude Opus4.1, for a very expensive set of VIM motions
+
 // Helper functions for word motions
 func isWordChar(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'

@@ -10,51 +10,32 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v2"
 	"github.com/openai/openai-go/v2/option"
-	"github.com/openai/openai-go/v2/shared"
 )
 
-type Opts struct {
-	APIKey       string
-	Model        shared.ChatModel
-	MaxTokens    int64
-	ToolsManager *tools.Manager
-}
-
-func (o *Opts) OK() error {
-	switch {
-	case o.APIKey == "":
-		return fmt.Errorf("missing api key")
-	case o.Model == "":
-		return fmt.Errorf("missing model")
-	case o.MaxTokens <= 0:
-		return fmt.Errorf("max tokens must be >0")
-	case o.ToolsManager == nil:
-		return fmt.Errorf("must supply a tools manager instance")
-	}
-
-	return nil
-}
-
 type ChatGPT struct {
-	opts   *Opts
+	config *llms.Config
 	logger *slog.Logger
 	tools  *tools.Manager
 	client openai.Client
 }
 
-func NewChatGPT(opts *Opts) (*ChatGPT, error) {
-	if err := opts.OK(); err != nil {
+func New(config *llms.Config, tools *tools.Manager) (llms.LLM, error) {
+	if err := config.OK(); err != nil {
 		return nil, fmt.Errorf("error with ChatGPT options: %w", err)
 	}
 
+	if tools == nil {
+		return nil, fmt.Errorf("must provide tools manager")
+	}
+
 	client := openai.NewClient(
-		option.WithAPIKey(opts.APIKey),
+		option.WithAPIKey(config.APIKey),
 	)
 
 	chatGPT := &ChatGPT{
-		opts:   opts,
-		logger: slog.Default().WithGroup("chatgpt"),
-		tools:  opts.ToolsManager,
+		config: config,
+		logger: slog.Default().WithGroup(llms.LLMTypeChatGPT),
+		tools:  tools,
 		client: client,
 	}
 
@@ -64,58 +45,10 @@ func NewChatGPT(opts *Opts) (*ChatGPT, error) {
 func (c *ChatGPT) LLMInfo() *llms.LLMInfo {
 	return &llms.LLMInfo{
 		Type:      llms.LLMTypeChatGPT,
-		ModelName: c.opts.Model,
+		ModelName: c.config.Model,
 	}
 }
 func (c *ChatGPT) RequiresSessionSystem() bool { return true }
-
-func (c *ChatGPT) newMessage(opts ...llms.MessageOpt) *llms.Message {
-	msg := llms.NewMessage(
-		llms.WithLLMInfo(c.LLMInfo()),
-	)
-
-	for _, opt := range opts {
-		msg = opt(msg)
-	}
-
-	return msg
-}
-
-// getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation
-// history.
-func (c *ChatGPT) getSessionMessages(session *llms.Session) []openai.ChatCompletionMessageParamUnion {
-	results := make([]openai.ChatCompletionMessageParamUnion, len(session.Messages))
-
-	for num, msg := range session.Messages {
-		switch msg.Role {
-		case llms.RoleAssistant:
-			assistantMsg := openai.AssistantMessage(msg.Content)
-
-			if msg.HasToolCalls() {
-				rawCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnion)
-				if ok {
-					for _, toolCall := range rawCalls {
-						assistantMsg.OfAssistant.ToolCalls = append(assistantMsg.OfAssistant.ToolCalls, toolCall.ToParam())
-					}
-				} else {
-					c.logger.Warn("got ToolCallInfo of unexpected type", "type", fmt.Sprintf("%T", msg.ToolCallInfo))
-				}
-			}
-
-			results[num] = assistantMsg
-		case llms.RoleSystem:
-			results[num] = openai.SystemMessage(msg.Content)
-		case llms.RoleUser:
-			results[num] = openai.UserMessage(msg.Content)
-		case llms.RoleTool:
-			results[num] = openai.ToolMessage(msg.Content, msg.ToolCallID)
-		case llms.RoleUnknown:
-			c.logger.Warn("got message with unknown role", "message", msg.Content)
-		}
-	}
-
-	return results
-}
 
 func (c *ChatGPT) CompletionTools() []openai.ChatCompletionToolUnionParam {
 	results := []openai.ChatCompletionToolUnionParam{}
@@ -161,10 +94,11 @@ func (c *ChatGPT) CompletionTools() []openai.ChatCompletionToolUnionParam {
 
 func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
 	options := openai.ChatCompletionNewParams{
-		Messages: c.getSessionMessages(session),
-		Model:    c.opts.Model,
-		N:        openai.Int(1),
-		Tools:    c.CompletionTools(),
+		MaxTokens: openai.Int(c.config.MaxTokens),
+		Messages:  c.getSessionMessages(session),
+		Model:     c.config.Model,
+		N:         openai.Int(1),
+		Tools:     c.CompletionTools(),
 	}
 
 	latest := session.Last()
@@ -257,6 +191,54 @@ func (c *ChatGPT) getToolCallNames(toolCalls []openai.ChatCompletionMessageToolC
 	results := []string{}
 	for _, toolCall := range toolCalls {
 		results = append(results, toolCall.Function.Name)
+	}
+
+	return results
+}
+
+func (c *ChatGPT) newMessage(opts ...llms.MessageOpt) *llms.Message {
+	msg := llms.NewMessage(
+		llms.WithLLMInfo(c.LLMInfo()),
+	)
+
+	for _, opt := range opts {
+		msg = opt(msg)
+	}
+
+	return msg
+}
+
+// getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation
+// history.
+func (c *ChatGPT) getSessionMessages(session *llms.Session) []openai.ChatCompletionMessageParamUnion {
+	results := make([]openai.ChatCompletionMessageParamUnion, len(session.Messages))
+
+	for num, msg := range session.Messages {
+		switch msg.Role {
+		case llms.RoleAssistant:
+			assistantMsg := openai.AssistantMessage(msg.Content)
+
+			if msg.HasToolCalls() {
+				rawCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnion)
+				if ok {
+					for _, toolCall := range rawCalls {
+						assistantMsg.OfAssistant.ToolCalls = append(assistantMsg.OfAssistant.ToolCalls, toolCall.ToParam())
+					}
+				} else {
+					c.logger.Warn("got ToolCallInfo of unexpected type", "type", fmt.Sprintf("%T", msg.ToolCallInfo))
+				}
+			}
+
+			results[num] = assistantMsg
+		case llms.RoleSystem:
+			results[num] = openai.SystemMessage(msg.Content)
+		case llms.RoleUser:
+			results[num] = openai.UserMessage(msg.Content)
+		case llms.RoleTool:
+			results[num] = openai.ToolMessage(msg.Content, msg.ToolCallID)
+		case llms.RoleUnknown:
+			c.logger.Warn("got message with unknown role", "message", msg.Content)
+		}
 	}
 
 	return results

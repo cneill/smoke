@@ -5,100 +5,56 @@ package smoke
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"github.com/anthropics/anthropic-sdk-go"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/llms/chatgpt"
-	"github.com/cneill/smoke/pkg/llms/claude"
-	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/tools"
 )
-
-// Opts tells us how to configure the LLM, what project directory we'll work within, etc.
-type Opts struct {
-	ProjectPath string
-
-	Debug       bool
-	MaxTokens   int64
-	Model       string
-	SessionName string
-	Provider    llms.LLMType
-	APIKey      string
-}
-
-// OK validates that we have valid values for all options.
-func (o *Opts) OK() error {
-	switch {
-	case o.ProjectPath == "":
-		return fmt.Errorf("missing project path")
-	case o.Model == "":
-		return fmt.Errorf("missing model")
-	case o.APIKey == "":
-		return fmt.Errorf("missing api key")
-	}
-
-	return nil
-}
 
 // Smoke manages the overall state of the application, including the project path we're working in, the [*llms.Session]
 // we're currently interacting with, the [*tools.Manager] which provides the LLM tool calling affordances, the
 // [*commands.Manager] that handles prompt commands from the user, and the actual [llms.LLM] that we're interacting
 // with.
 type Smoke struct {
-	opts *Opts
+	debug        bool
+	planningMode bool
 
-	ProjectPath string
+	projectPath string
 	session     *llms.Session
 	tools       *tools.Manager
 	commands    *commands.Manager
+	llmConfig   *llms.Config
 	llm         llms.LLM
 }
 
-// New validates that the provided ProjectPath exists and contains a .git subdirectory, storing the absolute path if the
-// location specified is valid. It creates a new [*llms.Session] with the provided name.
-func New(opts *Opts) (*Smoke, error) {
-	if err := opts.OK(); err != nil {
-		return nil, fmt.Errorf("options error: %w", err)
+func (s *Smoke) OK() error {
+	switch {
+	case s.tools == nil || s.commands == nil:
+		return fmt.Errorf("no project path provided")
+	case s.session == nil:
+		return fmt.Errorf("no session info provided")
+	case s.llmConfig == nil || s.llm == nil:
+		return fmt.Errorf("no LLM config provided")
 	}
 
-	absPath, err := filepath.Abs(opts.ProjectPath)
-	if err != nil {
-		return nil, fmt.Errorf("invalid project path %q: %w", absPath, err)
+	return nil
+}
+
+func New(opts ...OptFunc) (*Smoke, error) {
+	smoke := &Smoke{}
+
+	var optErr error
+	for _, opt := range opts {
+		smoke, optErr = opt(smoke)
+		if optErr != nil {
+			return nil, fmt.Errorf("%w: %w", ErrOptions, optErr)
+		}
 	}
 
-	if _, err := os.Stat(absPath); err != nil {
-		return nil, fmt.Errorf("failed to stat project path %q: %w", absPath, err)
-	}
-
-	gitPath := filepath.Join(absPath, ".git")
-	if _, err := os.Stat(gitPath); err != nil {
-		return nil, fmt.Errorf("failed to stat '.git' directory in project path %q: %w", gitPath, err)
-	}
-
-	session, err := llms.NewSession(&llms.SessionOpts{
-		Name: opts.SessionName,
-		// SystemMessage: prompts.System,
-		SystemMessage: prompts.SystemJSON(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize session: %w", err)
-	}
-
-	smoke := &Smoke{
-		opts: opts,
-
-		session:  session,
-		tools:    tools.NewManager(absPath),
-		commands: commands.NewManager(absPath),
-	}
-
-	if err := smoke.setupLLM(); err != nil {
-		return nil, fmt.Errorf("failed to set up LLM: %w", err)
+	if err := smoke.OK(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrOptions, err)
 	}
 
 	return smoke, nil
@@ -163,6 +119,13 @@ func (s *Smoke) SetSession(newSession *llms.Session) {
 	s.session = newSession
 }
 
+// SetPlanningMode enables or disables planning mode.
+func (s *Smoke) SetPlanningMode(enabled bool) {
+	s.planningMode = enabled
+	// TODO: update system prompt
+	// TODO: update LLM tools manager
+}
+
 // HandleCommand invokes a prompt command provided by the user.
 func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error) {
 	cmd, err := s.commands.HandleCommand(s.session, msg)
@@ -175,49 +138,4 @@ func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error
 
 func (s *Smoke) CommandCompleter() func(string) []string {
 	return s.commands.Completer()
-}
-
-// setupLLM provides the configuration details necessary to set up the [llms.LLM] based on the provider. It saves this
-// for later use.
-func (s *Smoke) setupLLM() error {
-	var llm llms.LLM
-
-	switch s.opts.Provider {
-	case llms.LLMTypeChatGPT:
-		chatGPT, err := chatgpt.NewChatGPT(&chatgpt.Opts{
-			APIKey:       s.opts.APIKey,
-			Model:        s.opts.Model,
-			MaxTokens:    s.opts.MaxTokens,
-			ToolsManager: s.tools,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to initialize ChatGPT client: %w", err)
-		}
-
-		llm = chatGPT
-
-	case llms.LLMTypeClaude:
-		claude, err := claude.NewClaude(&claude.Opts{
-			APIKey:       s.opts.APIKey,
-			Model:        anthropic.Model(s.opts.Model),
-			MaxTokens:    s.opts.MaxTokens,
-			ToolsManager: s.tools,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to initialize Claude client: %w", err)
-		}
-
-		llm = claude
-
-	default:
-		return fmt.Errorf("unknown LLM provider: %s", s.opts.Provider)
-	}
-
-	if llm.RequiresSessionSystem() {
-		s.session.AddMessage(llms.SimpleMessage(llms.RoleSystem, s.session.SystemMessage))
-	}
-
-	s.llm = llm
-
-	return nil
 }

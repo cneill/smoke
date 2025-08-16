@@ -12,6 +12,7 @@ import (
 	"github.com/cneill/smoke/pkg/llms/claude"
 	"github.com/cneill/smoke/pkg/log"
 	"github.com/cneill/smoke/pkg/models/ui"
+	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/smoke"
 	"github.com/openai/openai-go/v2"
 	"github.com/urfave/cli/v2"
@@ -165,27 +166,30 @@ func run() error {
 
 func action(ctx *cli.Context) error {
 	provider := llms.LLMType(ctx.String(FlagProvider))
-
-	smokeOpts := &smoke.Opts{
-		Debug:       ctx.Bool(FlagDebug),
-		ProjectPath: ctx.Path(FlagDir),
-		Provider:    provider,
-		MaxTokens:   ctx.Int64(FlagMaxTokens),
-		SessionName: ctx.String(FlagSessionName),
-	}
-
 	modelFlag := ctx.String(FlagModel)
+
+	llmConfig := &llms.Config{
+		MaxTokens: ctx.Int64(FlagMaxTokens),
+		Provider:  provider,
+	}
 
 	switch provider {
 	case llms.LLMTypeChatGPT:
-		smokeOpts.APIKey = ctx.String(FlagOpenAIKey)
-		smokeOpts.Model = chatgpt.GetModel(modelFlag, openai.ChatModelGPT5)
+		llmConfig.APIKey = ctx.String(FlagOpenAIKey)
+		llmConfig.Model = chatgpt.GetModel(modelFlag, openai.ChatModelGPT5)
 	case llms.LLMTypeClaude:
-		smokeOpts.APIKey = ctx.String(FlagAnthropicKey)
-		smokeOpts.Model = string(claude.GetModel(modelFlag, anthropic.ModelClaudeSonnet4_0))
+		llmConfig.APIKey = ctx.String(FlagAnthropicKey)
+		llmConfig.Model = string(claude.GetModel(modelFlag, anthropic.ModelClaudeSonnet4_0))
 	}
 
-	smokeInstance, err := smoke.New(smokeOpts)
+	opts := []smoke.OptFunc{
+		smoke.WithDebug(ctx.Bool(FlagDebug)),
+		smoke.WithProjectPath(ctx.Path(FlagDir)),
+		smoke.WithSessionInfo(ctx.String(FlagSessionName), prompts.SystemJSON()),
+		smoke.WithLLMConfig(llmConfig),
+	}
+
+	smokeInstance, err := smoke.New(opts...)
 	if err != nil {
 		return fmt.Errorf("failed to set up smoke: %w", err)
 	}

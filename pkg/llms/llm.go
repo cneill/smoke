@@ -5,6 +5,8 @@ package llms
 import (
 	"context"
 	"log/slog"
+
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 type LLMType string
@@ -20,6 +22,8 @@ type LLM interface {
 	RequiresSessionSystem() bool
 	HandleToolCalls(msg *Message) ([]*Message, error)
 }
+
+type Initializer func(config *Config, tools *tools.Manager) (LLM, error)
 
 type LLMInfo struct {
 	Type      LLMType

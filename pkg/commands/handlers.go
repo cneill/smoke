@@ -165,6 +165,37 @@ func (l *LoadHandler) Run(_ *llms.Session) (tea.Cmd, error) {
 	return update.Cmd(), nil
 }
 
+// CommandPlan prevents the model from making changes to files other than the plan file.
+const CommandPlan = "plan"
+
+type PlanHandler struct {
+	*BaseHandler
+}
+
+func NewPlanHandler(msg PromptCommandMessage) (Command, error) {
+	handler := &PlanHandler{
+		BaseHandler: &BaseHandler{
+			promptCommand: msg,
+		},
+	}
+
+	return handler, nil
+}
+
+func (p *PlanHandler) Run(_ *llms.Session) (tea.Cmd, error) {
+	// TODO: add a message to the session explaining planning mode?
+	// TODO: reflect this in history
+	// TODO: a way to toggle off
+	// TODO: a tool to specifically read/edit the plan, delete the plan
+	update := PlanningModeMessage{
+		PromptCommand: p.promptCommand,
+		Enabled:       true,
+		Message:       "Entering planning mode",
+	}
+
+	return update.Cmd(), nil
+}
+
 // CommandSave saves the current session to a Markdown file
 const CommandSave = "save"
 
