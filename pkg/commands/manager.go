@@ -24,6 +24,7 @@ func NewManager(projectPath string) *Manager {
 			CommandExit:   NewExitHandler,
 			CommandExport: NewExportHandler,
 			CommandLoad:   NewLoadHandler,
+			CommandPlan:   NewPlanHandler,
 			CommandSave:   NewSaveHandler,
 		},
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -131,7 +132,7 @@ func NewLoadHandler(msg PromptCommandMessage) (Command, error) {
 	}
 
 	if len(msg.Args) == 0 {
-		return nil, fmt.Errorf("missing path")
+		return nil, fmt.Errorf("%w: missing path", ErrArguments)
 	}
 
 	load.Path = msg.Args[0]
@@ -141,7 +142,7 @@ func NewLoadHandler(msg PromptCommandMessage) (Command, error) {
 
 func (l *LoadHandler) Run(_ *llms.Session) (tea.Cmd, error) {
 	if l.Path == "" {
-		return nil, fmt.Errorf("must provide a path to a session file")
+		return nil, fmt.Errorf("%w: must provide a path to a session file", ErrArguments)
 	}
 
 	data, err := os.ReadFile(l.Path)
@@ -170,6 +171,8 @@ const CommandPlan = "plan"
 
 type PlanHandler struct {
 	*BaseHandler
+
+	Enabled bool
 }
 
 func NewPlanHandler(msg PromptCommandMessage) (Command, error) {
@@ -178,19 +181,53 @@ func NewPlanHandler(msg PromptCommandMessage) (Command, error) {
 			promptCommand: msg,
 		},
 	}
+	if len(msg.Args) > 0 {
+		boolVal, err := strconv.ParseBool(msg.Args[0])
+		if err != nil {
+			if msg.Args[0] == "off" {
+				boolVal = false
+			} else if msg.Args[0] == "on" {
+				boolVal = true
+			} else {
+				return nil, fmt.Errorf("%w: %s", ErrArguments, msg.Args[0])
+			}
+		}
+
+		handler.Enabled = boolVal
+	} else {
+		handler.Enabled = true
+	}
 
 	return handler, nil
 }
 
-func (p *PlanHandler) Run(_ *llms.Session) (tea.Cmd, error) {
-	// TODO: add a message to the session explaining planning mode?
-	// TODO: reflect this in history
-	// TODO: a way to toggle off
+func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	// TODO: a tool to specifically read/edit the plan, delete the plan
+
+	var (
+		sessionMessage string
+		historyMessage string
+	)
+
+	if p.Enabled {
+		sessionMessage = "!!IMPORTANT!! You are now in planning mode. Refer to `plan_process` and do not proceed to " +
+			"`work_process` until you have exited planning mode."
+		historyMessage = "Entering planning mode."
+	} else {
+		sessionMessage = "!!IMPORTANT!! You have now exited planning mode. Refer to the plan file and proceed to " +
+			"`work_process` to begin your work."
+		historyMessage = "Exiting planning mode."
+	}
+
+	msg := llms.SimpleMessage(llms.RoleUser, sessionMessage)
+
+	session.AddMessage(msg)
+
 	update := PlanningModeMessage{
-		PromptCommand: p.promptCommand,
-		Enabled:       true,
-		Message:       "Entering planning mode",
+		PromptCommand:  p.promptCommand,
+		Enabled:        p.Enabled,
+		Message:        historyMessage,
+		SessionMessage: msg,
 	}
 
 	return update.Cmd(), nil

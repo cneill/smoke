@@ -122,8 +122,8 @@ func (s *Smoke) SetSession(newSession *llms.Session) {
 // SetPlanningMode enables or disables planning mode.
 func (s *Smoke) SetPlanningMode(enabled bool) {
 	s.planningMode = enabled
-	// TODO: update system prompt
-	// TODO: update LLM tools manager
+	// TODO: update system prompt?
+	// TODO: update LLM tools manager?
 }
 
 // HandleCommand invokes a prompt command provided by the user.

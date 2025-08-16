@@ -150,6 +150,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		cmds = append(cmds, tea.Batch(refresh, updateHistory(msg)))
+	case commands.PlanningModeMessage:
+		m.smoke.SetPlanningMode(msg.Enabled)
+		cmds = append(cmds, updateHistory(msg.SessionMessage))
+		cmds = append(cmds, updateHistory(msg))
 	case assistantError:
 		cmds = append(cmds, updateHistory(msg.err))
 	case assistantResponse:

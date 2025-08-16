@@ -242,6 +242,18 @@ func (m *Model) logContent() string {
 				Foreground(lipgloss.Color("#ffffff"))
 			info.content = item.Message
 
+		case commands.PlanningModeMessage:
+			if item.Enabled {
+				info.titleStyle = info.titleStyle.
+					Foreground(lipgloss.Color("#550011"))
+			} else {
+				info.titleStyle = info.titleStyle.
+					Foreground(lipgloss.Color("#005511"))
+			}
+
+			info.title = "Planning mode"
+			info.subtitle = item.Message
+
 		case error:
 			info.title = "⛔ Error"
 			info.titleStyle = info.titleStyle.
