@@ -37,7 +37,6 @@ func (o *Opts) OK() error {
 }
 
 // const prompt = "│"
-// const prompt = "▷ "
 const (
 	insertPrompt = "▶ "
 	normalPrompt = "▷ "
