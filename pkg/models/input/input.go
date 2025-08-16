@@ -137,9 +137,9 @@ func getTextArea(opts *Opts) textarea.Model {
 
 func getSpinner(width, height int) spinner.Model {
 	orange := lipgloss.Color("#cc4400")
+
 	model := spinner.New(
-		// spinner.WithSpinner(spinner.Ellipsis),
-		spinner.WithSpinner(spinner.Monkey),
+		spinner.WithSpinner(spinner.Points),
 		spinner.WithStyle(
 			lipgloss.NewStyle().
 				BorderStyle(lipgloss.OuterHalfBlockBorder()).
