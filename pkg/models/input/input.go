@@ -68,7 +68,7 @@ func New(opts *Opts) (*Model, error) {
 func getTextArea(opts *Opts) textarea.Model {
 	model := textarea.New()
 
-	// TODO: make this fill the whole width with padding so it doesn't look awkward
+	// TODO: make this fill the whole width with padding so it doesn't look awkward?
 	// model.Placeholder = "Enter your message."
 	// if opts.PlaceholderText != "" {
 	// 	model.Placeholder = opts.PlaceholderText
@@ -130,7 +130,6 @@ func getTextArea(opts *Opts) textarea.Model {
 		Bold(true)
 
 	model.ShowLineNumbers = false
-	// model.KeyMap.InsertNewline.SetEnabled(false)
 
 	return model
 }
@@ -181,13 +180,73 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, tea.Batch(commands...)
 }
 
+func (m *Model) View() string {
+	if m.waiting {
+		return m.spinner.View()
+	}
+
+	// if m.userCompletionText != "" {
+	// 	return m.userCompletionText + m.suggestedCompletionText
+	// }
+
+	return m.textarea.View()
+}
+
+func (m *Model) Resize(width, height int) {
+	m.textarea.SetWidth(width)
+	m.textarea.SetHeight(height)
+}
+
+// LineHeight calculates the number of effective lines - both those ended with \n and those that are necessitated by
+// text running off the screen - and returns the minimum of this or the maxlines of the textarea.
+func (m *Model) LineHeight() int {
+	content := m.textarea.Value()
+	explicitLines := strings.Split(content, "\n")
+	numLines := len(explicitLines)
+	inputWidth := m.textarea.Width()
+
+	for _, line := range explicitLines {
+		lineWidth := runewidth.StringWidth(line)
+		if lineWidth > inputWidth {
+			extraLines := (lineWidth - 1) / inputWidth
+			numLines += extraLines
+		}
+	}
+
+	result := min(m.textarea.MaxHeight, numLines+1) // padding
+
+	return result
+}
+
+func (m *Model) GetWidth() int {
+	return m.textarea.Width()
+}
+
+func (m *Model) GetHeight() int {
+	return m.textarea.Height()
+}
+
+func (m *Model) Focused() bool {
+	return m.textarea.Focused()
+}
+
+func (m *Model) Waiting() bool { return m.waiting }
+
+func (m *Model) SetWaiting(value bool) tea.Cmd {
+	m.waiting = value
+	if value {
+		return m.spinner.Tick
+	}
+
+	return nil
+}
+
 func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	if m.waiting {
 		return nil
 	}
 
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	if msg, ok := msg.(tea.KeyMsg); ok {
 		switch msg.Type { //nolint:exhaustive
 		case tea.KeyEnter:
 			if m.Focused() {
@@ -288,67 +347,6 @@ func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 	m.spinner = newSpinner
 
 	return cmd
-}
-
-func (m *Model) View() string {
-	if m.waiting {
-		return m.spinner.View()
-	}
-
-	// if m.userCompletionText != "" {
-	// 	return m.userCompletionText + m.suggestedCompletionText
-	// }
-
-	return m.textarea.View()
-}
-
-func (m *Model) Resize(width, height int) {
-	m.textarea.SetWidth(width)
-	m.textarea.SetHeight(height)
-}
-
-// LineHeight calculates the number of effective lines - both those ended with \n and those that are necessitated by
-// text running off the screen - and returns the minimum of this or the maxlines of the textarea.
-func (m *Model) LineHeight() int {
-	content := m.textarea.Value()
-	explicitLines := strings.Split(content, "\n")
-	numLines := len(explicitLines)
-	inputWidth := m.textarea.Width()
-
-	for _, line := range explicitLines {
-		lineWidth := runewidth.StringWidth(line)
-		if lineWidth > inputWidth {
-			extraLines := (lineWidth - 1) / inputWidth
-			numLines += extraLines
-		}
-	}
-
-	result := min(m.textarea.MaxHeight, numLines+1) // padding
-
-	return result
-}
-
-func (m *Model) GetWidth() int {
-	return m.textarea.Width()
-}
-
-func (m *Model) GetHeight() int {
-	return m.textarea.Height()
-}
-
-func (m *Model) Focused() bool {
-	return m.textarea.Focused()
-}
-
-func (m *Model) Waiting() bool { return m.waiting }
-
-func (m *Model) SetWaiting(value bool) tea.Cmd {
-	m.waiting = value
-	if value {
-		return m.spinner.Tick
-	}
-
-	return nil
 }
 
 // handleContentSubmit interprets the content the user has entered in the textarea and returns an appropriate tea.Cmd.
