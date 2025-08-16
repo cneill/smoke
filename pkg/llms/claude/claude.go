@@ -16,17 +16,12 @@ import (
 type Claude struct {
 	config *llms.Config
 	logger *slog.Logger
-	tools  *tools.Manager
 	client anthropic.Client
 }
 
-func New(config *llms.Config, tools *tools.Manager) (llms.LLM, error) {
+func New(config *llms.Config) (llms.LLM, error) {
 	if err := config.OK(); err != nil {
 		return nil, fmt.Errorf("error with Claude options: %w", err)
-	}
-
-	if tools == nil {
-		return nil, fmt.Errorf("must provide tools manager")
 	}
 
 	client := anthropic.NewClient(
@@ -36,7 +31,6 @@ func New(config *llms.Config, tools *tools.Manager) (llms.LLM, error) {
 	claude := &Claude{
 		config: config,
 		logger: slog.Default().WithGroup(llms.LLMTypeClaude),
-		tools:  tools,
 		client: client,
 	}
 
@@ -52,50 +46,6 @@ func (c *Claude) LLMInfo() *llms.LLMInfo {
 
 func (c *Claude) RequiresSessionSystem() bool { return false }
 
-func (c *Claude) NewMessageTools() []anthropic.ToolUnionParam {
-	results := make([]anthropic.ToolUnionParam, len(c.tools.Tools))
-
-	for toolNum, tool := range c.tools.Tools {
-		properties := map[string]any{}
-		requiredKeys := []string{}
-
-		for _, param := range tool.Params() {
-			keyParams := map[string]any{
-				"type":        param.Type,
-				"description": param.Description,
-			}
-
-			if param.Type == tools.ParamTypeArray {
-				keyParams["items"] = map[string]any{
-					"type": param.ItemType,
-				}
-			}
-
-			properties[param.Key] = keyParams
-
-			if param.Required {
-				requiredKeys = append(requiredKeys, param.Key)
-			}
-		}
-
-		schema := anthropic.ToolInputSchemaParam{
-			Properties: properties,
-			Required:   requiredKeys,
-			Type:       "object",
-		}
-
-		toolParam := anthropic.ToolParam{
-			Name:        tool.Name(),
-			Description: anthropic.String(tool.Description()),
-			InputSchema: schema,
-		}
-
-		results[toolNum] = anthropic.ToolUnionParam{OfTool: &toolParam}
-	}
-
-	return results
-}
-
 func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
 	messageParams := anthropic.MessageNewParams{
 		Messages:  c.getSessionMessages(session),
@@ -104,7 +54,7 @@ func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.
 		System: []anthropic.TextBlockParam{
 			{Text: session.SystemMessage},
 		},
-		Tools: c.NewMessageTools(),
+		Tools: c.newMessageTools(session),
 	}
 
 	latest := session.Last()
@@ -154,7 +104,7 @@ func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.
 	return msg, nil
 }
 
-func (c *Claude) HandleToolCalls(msg *llms.Message) ([]*llms.Message, error) {
+func (c *Claude) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*llms.Message, error) {
 	if !msg.HasToolCalls() {
 		return nil, llms.ErrNoToolCalls
 	}
@@ -174,7 +124,7 @@ func (c *Claude) HandleToolCalls(msg *llms.Message) ([]*llms.Message, error) {
 			toolCallErr error
 		)
 
-		params, err := c.tools.Tools.Params(name)
+		params, err := session.Tools.Params(name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get params for tool %q: %w", name, err)
 		}
@@ -184,7 +134,7 @@ func (c *Claude) HandleToolCalls(msg *llms.Message) ([]*llms.Message, error) {
 			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}
 
-		output, err := c.tools.CallTool(name, args)
+		output, err := session.Tools.CallTool(name, args)
 		if err != nil {
 			c.logger.Error("failed to call tool", "tool_name", name, "error", err)
 			toolCallErr = fmt.Errorf("failed to call tool %q: %w", name, err)
@@ -206,6 +156,50 @@ func (c *Claude) HandleToolCalls(msg *llms.Message) ([]*llms.Message, error) {
 	}
 
 	return results, nil
+}
+
+func (c *Claude) newMessageTools(session *llms.Session) []anthropic.ToolUnionParam {
+	results := make([]anthropic.ToolUnionParam, len(session.Tools.Tools))
+
+	for toolNum, tool := range session.Tools.Tools {
+		properties := map[string]any{}
+		requiredKeys := []string{}
+
+		for _, param := range tool.Params() {
+			keyParams := map[string]any{
+				"type":        param.Type,
+				"description": param.Description,
+			}
+
+			if param.Type == tools.ParamTypeArray {
+				keyParams["items"] = map[string]any{
+					"type": param.ItemType,
+				}
+			}
+
+			properties[param.Key] = keyParams
+
+			if param.Required {
+				requiredKeys = append(requiredKeys, param.Key)
+			}
+		}
+
+		schema := anthropic.ToolInputSchemaParam{
+			Properties: properties,
+			Required:   requiredKeys,
+			Type:       "object",
+		}
+
+		toolParam := anthropic.ToolParam{
+			Name:        tool.Name(),
+			Description: anthropic.String(tool.Description()),
+			InputSchema: schema,
+		}
+
+		results[toolNum] = anthropic.ToolUnionParam{OfTool: &toolParam}
+	}
+
+	return results
 }
 
 func (c *Claude) newMessage(opts ...llms.MessageOpt) *llms.Message {

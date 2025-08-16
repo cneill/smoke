@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 type Session struct {
-	Name          string     `json:"name"`
-	SystemMessage string     `json:"system_message"`
-	Messages      []*Message `json:"messages"`
+	Name          string         `json:"name"`
+	SystemMessage string         `json:"system_message"`
+	Messages      []*Message     `json:"messages"`
+	Tools         *tools.Manager `json:"-"`
 
 	messageMutex sync.RWMutex `json:"-"`
 }
@@ -17,11 +20,17 @@ type Session struct {
 type SessionOpts struct {
 	Name          string
 	SystemMessage string
+	Tools         *tools.Manager
 }
 
 func (s *SessionOpts) OK() error {
-	if s.Name == "" {
-		return fmt.Errorf("must give sessions names")
+	switch {
+	case s.Name == "":
+		return fmt.Errorf("missing session name")
+	case s.SystemMessage == "":
+		return fmt.Errorf("missing system message")
+	case s.Tools == nil:
+		return fmt.Errorf("missing tools manager")
 	}
 
 	return nil
@@ -37,6 +46,7 @@ func NewSession(opts *SessionOpts) (*Session, error) {
 		Name:          opts.Name,
 		SystemMessage: opts.SystemMessage,
 		Messages:      []*Message{},
+		Tools:         opts.Tools,
 
 		messageMutex: sync.RWMutex{},
 	}

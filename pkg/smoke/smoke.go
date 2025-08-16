@@ -10,7 +10,6 @@ import (
 
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/tools"
 )
 
 // Smoke manages the overall state of the application, including the project path we're working in, the [*llms.Session]
@@ -23,7 +22,6 @@ type Smoke struct {
 
 	projectPath string
 	session     *llms.Session
-	tools       *tools.Manager
 	commands    *commands.Manager
 	llmConfig   *llms.Config
 	llm         llms.LLM
@@ -31,12 +29,12 @@ type Smoke struct {
 
 func (s *Smoke) OK() error {
 	switch {
-	case s.tools == nil || s.commands == nil:
-		return fmt.Errorf("no project path provided")
+	case s.projectPath == "":
+		return fmt.Errorf("no project path set")
 	case s.session == nil:
-		return fmt.Errorf("no session info provided")
+		return fmt.Errorf("no session info set")
 	case s.llmConfig == nil || s.llm == nil:
-		return fmt.Errorf("no LLM config provided")
+		return fmt.Errorf("no LLM config set")
 	}
 
 	return nil
@@ -82,7 +80,8 @@ func (s *Smoke) HandleAssistantToolCalls(msg *llms.Message) ([]*llms.Message, er
 		return nil, llms.ErrNoToolCalls
 	}
 
-	results, err := s.llm.HandleToolCalls(msg)
+	// TODO: accept session in the function params instead of using the one bolted onto the struct?
+	results, err := s.llm.HandleToolCalls(msg, s.session)
 	if err != nil {
 		return nil, fmt.Errorf("error handling tool calls: %w", err)
 	}

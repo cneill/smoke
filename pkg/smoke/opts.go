@@ -15,30 +15,9 @@ import (
 // OptFunc is used to configure aspects of Smoke.
 type OptFunc func(smoke *Smoke) (*Smoke, error)
 
-// WithSessionInfo configures the details of the session we'll work with.
-func WithSessionInfo(name, systemPrompt string) OptFunc {
-	return func(smoke *Smoke) (*Smoke, error) {
-		session, err := llms.NewSession(&llms.SessionOpts{
-			Name:          name,
-			SystemMessage: systemPrompt,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize session: %w", err)
-		}
-
-		smoke.session = session
-
-		return smoke, nil
-	}
-}
-
 // WithProjectPath sets the directory we'll work from, and configures the tools and commands managers.
 func WithProjectPath(path string) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
-		if smoke.session == nil {
-			return nil, fmt.Errorf("must set session info before project path")
-		}
-
 		absPath, err := filepath.Abs(path)
 		if err != nil {
 			return nil, fmt.Errorf("invalid project path %q: %w", absPath, err)
@@ -54,8 +33,29 @@ func WithProjectPath(path string) OptFunc {
 		}
 
 		smoke.projectPath = absPath
-		smoke.tools = tools.NewManager(absPath, smoke.session.Name)
 		smoke.commands = commands.NewManager(absPath)
+
+		return smoke, nil
+	}
+}
+
+// WithSessionInfo configures the details of the session we'll work with.
+func WithSessionInfo(name, systemPrompt string) OptFunc {
+	return func(smoke *Smoke) (*Smoke, error) {
+		if smoke.projectPath == "" {
+			return nil, fmt.Errorf("must supply project path before session info")
+		}
+
+		session, err := llms.NewSession(&llms.SessionOpts{
+			Name:          name,
+			SystemMessage: systemPrompt,
+			Tools:         tools.NewManager(smoke.projectPath, name),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize session: %w", err)
+		}
+
+		smoke.session = session
 
 		return smoke, nil
 	}
@@ -77,10 +77,6 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 			return nil, fmt.Errorf("LLM config: %w", err)
 		}
 
-		if smoke.tools == nil {
-			return nil, fmt.Errorf("must set project path before LLM config")
-		}
-
 		if smoke.session == nil {
 			return nil, fmt.Errorf("must set session info before LLM config")
 		}
@@ -94,9 +90,9 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 
 		switch config.Provider {
 		case llms.LLMTypeChatGPT:
-			llm, err = chatgpt.New(config, smoke.tools)
+			llm, err = chatgpt.New(config)
 		case llms.LLMTypeClaude:
-			llm, err = claude.New(config, smoke.tools)
+			llm, err = claude.New(config)
 		default:
 			err = fmt.Errorf("unknown provider: %s", config.Provider)
 		}

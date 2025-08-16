@@ -140,7 +140,7 @@ func NewLoadHandler(msg PromptCommandMessage) (Command, error) {
 	return load, nil
 }
 
-func (l *LoadHandler) Run(_ *llms.Session) (tea.Cmd, error) {
+func (l *LoadHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	if l.Path == "" {
 		return nil, fmt.Errorf("%w: must provide a path to a session file", ErrArguments)
 	}
@@ -154,6 +154,8 @@ func (l *LoadHandler) Run(_ *llms.Session) (tea.Cmd, error) {
 	if err := json.Unmarshal(data, loaded); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal session JSON from %q: %w", l.Path, err)
 	}
+
+	loaded.Tools = session.Tools
 
 	slog.Debug("loaded session from file", "path", l.Path, "num_messages", len(loaded.Messages))
 
@@ -181,29 +183,30 @@ func NewPlanHandler(msg PromptCommandMessage) (Command, error) {
 			promptCommand: msg,
 		},
 	}
-	if len(msg.Args) > 0 {
-		boolVal, err := strconv.ParseBool(msg.Args[0])
-		if err != nil {
-			if msg.Args[0] == "off" {
-				boolVal = false
-			} else if msg.Args[0] == "on" {
-				boolVal = true
-			} else {
-				return nil, fmt.Errorf("%w: %s", ErrArguments, msg.Args[0])
-			}
-		}
 
-		handler.Enabled = boolVal
-	} else {
+	if len(msg.Args) == 0 {
 		handler.Enabled = true
+		return handler, nil
 	}
+
+	boolVal, err := strconv.ParseBool(msg.Args[0])
+	if err != nil {
+		switch msg.Args[0] {
+		case "off":
+			boolVal = false
+		case "on":
+			boolVal = true
+		default:
+			return nil, fmt.Errorf("%w: %s", ErrArguments, msg.Args[0])
+		}
+	}
+
+	handler.Enabled = boolVal
 
 	return handler, nil
 }
 
 func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	// TODO: a tool to specifically read/edit the plan, delete the plan
-
 	var (
 		sessionMessage string
 		historyMessage string

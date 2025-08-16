@@ -26,7 +26,7 @@ func run() error {
 	toolName := os.Args[2]
 	rawArgs := os.Args[3]
 
-	params, err := toolManager.Tools.Params(toolName)
+	params, err := toolManager.Params(toolName)
 	if err != nil {
 		return fmt.Errorf("failed to get params: %w", err)
 	}

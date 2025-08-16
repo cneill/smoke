@@ -10,14 +10,14 @@ type Manager struct {
 	logger      *slog.Logger
 	ProjectPath string
 
-	Tools Tools
+	Tools []Tool
 }
 
 func NewManager(projectPath, sessionName string) *Manager {
 	return &Manager{
 		logger:      slog.Default().WithGroup("tools_manager"),
 		ProjectPath: projectPath,
-		Tools: Tools{
+		Tools: []Tool{
 			&CreateDirectoryTool{ProjectPath: projectPath},
 			&GitDiffTool{ProjectPath: projectPath},
 			&GoASTTool{ProjectPath: projectPath},
@@ -36,16 +36,36 @@ func NewManager(projectPath, sessionName string) *Manager {
 	}
 }
 
+func (m *Manager) Params(toolName string) (Params, error) {
+	for _, tool := range m.Tools {
+		if tool.Name() == toolName {
+			return tool.Params(), nil
+		}
+	}
+
+	return Params{}, ErrUnknownTool
+}
+
+// CallTool finds the [Tool] with the name 'toolName' (if known, otherwise returns ErrUnknownTool), and calls it with
+// the provided 'args'. After running, it returns the output or the error returned by Run wrapped with ErrCallFailed.
 func (m *Manager) CallTool(toolName string, args Args) (string, error) {
 	m.logger.Debug("calling tool", "tool_name", toolName, "args", args)
 
-	output, err := m.Tools.Call(toolName, args)
-	if err != nil {
-		m.logger.Debug("tool call unsuccessful", "tool_name", toolName, "args", args, "output", output, "error", err)
-		return output, fmt.Errorf("%s: %w", toolName, err)
+	for _, tool := range m.Tools {
+		if tool.Name() == toolName {
+			output, err := tool.Run(args)
+			if err != nil {
+				m.logger.Error("tool call unsuccessful", "tool_name", toolName, "args", args, "output", output, "error", err)
+				return "", fmt.Errorf("%w: %w", ErrCallFailed, err)
+			}
+
+			m.logger.Debug("tool call successful", "tool_name", toolName, "args", args, "output", output)
+
+			return output, nil
+		}
 	}
 
-	m.logger.Debug("tool call successful", "tool_name", toolName, "args", args, "output", output)
+	m.logger.Error("unknown tool", "tool_name", toolName)
 
-	return output, nil
+	return "", ErrUnknownTool
 }
