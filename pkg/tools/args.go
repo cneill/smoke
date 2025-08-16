@@ -20,6 +20,7 @@ type Args map[string]any
 // GetArgs takes the raw JSON bytes provided in the [llms.LLM] tool call, decodes them into an [Args] map, and validates
 // that 1) all required keys are present, 2) unknown keys are not present, 3) value types match those expected for the
 // corresponding [Param].
+// TODO: merge this into manager?
 func GetArgs(input []byte, params Params) (Args, error) {
 	result := Args{}
 

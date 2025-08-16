@@ -36,6 +36,7 @@ func (c *ClearHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	newSession, err := llms.NewSession(&llms.SessionOpts{
 		Name:          session.Name,
 		SystemMessage: session.SystemMessage,
+		Tools:         session.Tools,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to clear session and create new one: %w", err)
