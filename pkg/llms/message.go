@@ -65,16 +65,28 @@ func (m *Message) LogValue() slog.Value {
 	}
 
 	if m.HasToolCalls() {
-		attrs = append(attrs, slog.String("tools_called", strings.Join(m.ToolsCalled, ",")))
-		attrs = append(attrs, slog.String("tool_call_id", m.ToolCallID))
+		toolCallAttrs := []slog.Attr{
+			slog.String("tools_called", strings.Join(m.ToolsCalled, ",")),
+			slog.String("tool_call_id", m.ToolCallID),
+		}
 
 		if m.ToolCallInfo != nil {
-			attrs = append(attrs, slog.Any("tool_call_info", m.ToolCallInfo))
+			toolCallAttrs = append(toolCallAttrs, slog.Any("call_info", m.ToolCallInfo))
 		}
+
+		if m.ToolCallArgs != nil {
+			toolCallAttrs = append(toolCallAttrs, slog.Any("args", m.ToolCallArgs))
+		}
+
+		attrs = append(attrs, slog.GroupAttrs("tool_calls", toolCallAttrs...))
 	}
 
 	if m.Error != nil {
 		attrs = append(attrs, slog.String("error", m.Error.Error()))
+	}
+
+	if m.LLMInfo != nil {
+		attrs = append(attrs, slog.Any("llm_info", m.LLMInfo))
 	}
 
 	attrs = append(attrs, slog.String("content", m.Content))

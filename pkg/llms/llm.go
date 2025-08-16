@@ -2,7 +2,10 @@
 // is implemented by each provider to work with Sessions and Messages.
 package llms
 
-import "context"
+import (
+	"context"
+	"log/slog"
+)
 
 type LLMType string
 
@@ -21,4 +24,11 @@ type LLM interface {
 type LLMInfo struct {
 	Type      LLMType
 	ModelName string
+}
+
+func (l *LLMInfo) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("type", string(l.Type)),
+		slog.String("model_name", l.ModelName),
+	)
 }
