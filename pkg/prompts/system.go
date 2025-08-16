@@ -62,9 +62,10 @@ func SystemJSON() string {
 			"IF YOU ARE FOLLOWING `plan_process` OR `work_process` BE SURE TO TRACK PLANS AND PROGRESS IN " +
 				"`smoke_plan.md`! READ AND UPDATE YOUR PLAN AS YOU GO TO STAY ON TASK.",
 			"Use the `go_ast` tool, which is much more efficient than reading the full contents of lots of files " +
-				"with `read_files`, or even using `grep`, to retrieve type or function definitions for " +
+				"with `read_files`, or even using `grep`, to retrieve type, function, var, or const definitions for " +
 				"`plan_process` or `work_process`.",
-			"ALWAYS use ```[language]\n...\n``` Markdown code blocks for code snippets.",
+			"ALWAYS use ```[language]\n...\n``` Markdown code blocks for code snippets. NEVER RETURN CODE EXAMPLES, " +
+				"CODE FROM A FILE, OR ANY OTHER CODE SNIPPETS WITHOUT A MARKDOWN CODE BLOCK AROUND IT.",
 		},
 	}
 
