@@ -28,8 +28,8 @@ type GrepTool struct {
 func (g *GrepTool) Name() string { return ToolGrep }
 func (g *GrepTool) Description() string {
 	return fmt.Sprintf(
-		"Search a file or directory for a regular expression. Does not recurse into sub-directories. Lines matching "+
-			"%q are prefixed with '*', while context lines that do not include matches only include line numbers.",
+		"Search a file or directory for a regular expression. Lines matching %q are prefixed with '*', while "+
+			"context lines that do not include matches only include line numbers. Does not match multi-line regexes.",
 		GrepRegex,
 	)
 }
@@ -44,7 +44,7 @@ func (g *GrepTool) Params() Params {
 		},
 		{
 			Key:         GrepRegex,
-			Description: "The regular expression (in Golang regexp syntax) to search for. Can only search on 1 line",
+			Description: "The regular expression (in Golang regexp syntax) to search for. No multi-line regexes.",
 			Type:        ParamTypeString,
 			Required:    true,
 		},
@@ -197,10 +197,6 @@ func (g *GrepTool) getDirResults(fullPath string, pattern *regexp.Regexp, contex
 	walkErr := filepath.WalkDir(fullPath, func(path string, dirEntry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
-		}
-
-		if dirEntry.IsDir() && path != fullPath {
-			return fs.SkipDir
 		}
 
 		info, err := dirEntry.Info()

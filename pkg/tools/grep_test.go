@@ -215,18 +215,9 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 			errors:         nil,
 		},
 		{
-			name: "no_match_subdir",
-			args: tools.Args{
-				tools.GrepPath:  ".",
-				tools.GrepRegex: "unique",
-			},
-			expectedOutput: "",
-			errors:         nil,
-		},
-		{
 			name: "single_match",
 			args: tools.Args{
-				tools.GrepPath:  ".",
+				tools.GrepPath:  "file_2.txt",
 				tools.GrepRegex: "test2",
 			},
 			expectedOutput: fmt.Sprintf("file_2.txt\n%s\n*2: test2\n\n", tools.LineSep),
@@ -238,8 +229,11 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 				tools.GrepPath:  ".",
 				tools.GrepRegex: "123",
 			},
-			expectedOutput: fmt.Sprintf("file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\n", tools.LineSep, tools.LineSep),
-			errors:         nil,
+			expectedOutput: fmt.Sprintf(
+				"file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\nsubdir/file_4.txt\n%s\n*1: 123 123\n\n",
+				tools.LineSep, tools.LineSep, tools.LineSep,
+			),
+			errors: nil,
 		},
 		{
 			name: "single_match_subdir",
@@ -260,13 +254,16 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 			errors:         nil,
 		},
 		{
-			name: "multi_match_single_file",
+			name: "multi_match_with_subdir",
 			args: tools.Args{
 				tools.GrepPath:  ".",
 				tools.GrepRegex: `test(\d)?`,
 			},
-			expectedOutput: fmt.Sprintf("file_2.txt\n%s\n*1: test\n\n*2: test2\n\n*3: test3\n\n", tools.LineSep),
-			errors:         nil,
+			expectedOutput: fmt.Sprintf(
+				"file_2.txt\n%s\n*1: test\n\n*2: test2\n\n*3: test3\n\nsubdir/file_4.txt\n%s\n*2: test2\n\n",
+				tools.LineSep, tools.LineSep,
+			),
+			errors: nil,
 		},
 		{
 			name: "multi_match_multi_file",
@@ -274,8 +271,11 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 				tools.GrepPath:  ".",
 				tools.GrepRegex: `1(\d)3`,
 			},
-			expectedOutput: fmt.Sprintf("file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\n*4: 193\n\n", tools.LineSep, tools.LineSep),
-			errors:         nil,
+			expectedOutput: fmt.Sprintf(
+				"file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\n*4: 193\n\nsubdir/file_4.txt\n%s\n*1: 123 123\n\n",
+				tools.LineSep, tools.LineSep, tools.LineSep,
+			),
+			errors: nil,
 		},
 		{
 			name: "no_multiline",
@@ -294,9 +294,9 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 				tools.GrepContextLines: 2,
 			},
 			expectedOutput: fmt.Sprintf(
-				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\nfile_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n\n2: 456\n3: 789\n*4: 193\n\n",
-				tools.LineSep,
-				tools.LineSep,
+				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\nfile_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n\n2: 456\n3: 789\n*4: 193\n\n"+
+					"subdir/file_4.txt\n%s\n*1: 123 123\n2: test2\n3: xyz\n\n",
+				tools.LineSep, tools.LineSep, tools.LineSep,
 			),
 			errors: nil,
 		},
@@ -308,9 +308,10 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 				tools.GrepContextLines: 10,
 			},
 			expectedOutput: fmt.Sprintf(
-				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\nfile_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n4: 193\n\n1: 123\n2: 456\n3: 789\n*4: 193\n\n",
-				tools.LineSep,
-				tools.LineSep,
+				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\n"+
+					"file_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n4: 193\n\n1: 123\n2: 456\n3: 789\n*4: 193\n\n"+
+					"subdir/file_4.txt\n%s\n*1: 123 123\n2: test2\n3: xyz\n4: unique\n\n",
+				tools.LineSep, tools.LineSep, tools.LineSep,
 			),
 			errors: nil,
 		},
