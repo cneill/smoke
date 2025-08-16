@@ -127,24 +127,20 @@ func getTextArea(opts *Opts) textarea.Model {
 		Bold(true)
 
 	model.BlurredStyle.Base = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderTopForeground(lipgloss.Color("#333333")).
-		BorderTopBackground(lipgloss.Color("#000000")).
-		BorderTop(true).
-		Background(lipgloss.Color("#000000"))
+		Inherit(model.FocusedStyle.Base).
+		BorderTopForeground(lipgloss.Color("#333333"))
 	model.BlurredStyle.CursorLine = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
+		Inherit(model.FocusedStyle.CursorLine).
 		Foreground(lipgloss.Color("#888888"))
 	model.BlurredStyle.Placeholder = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
-		Foreground(lipgloss.Color("#666666"))
+		Inherit(model.FocusedStyle.Placeholder).
+		Foreground(lipgloss.Color("#444444"))
 	model.BlurredStyle.Text = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
-		Foreground(lipgloss.Color("#888888"))
+		Inherit(model.FocusedStyle.Text).
+		Foreground(lipgloss.Color("#8888888"))
 	model.BlurredStyle.Prompt = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
-		Foreground(orange).
-		Bold(true)
+		Inherit(model.FocusedStyle.Prompt).
+		Foreground(lipgloss.Color("#888888"))
 
 	model.ShowLineNumbers = false
 
@@ -263,54 +259,66 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 
-	if msg, ok := msg.(tea.KeyMsg); ok {
-		switch msg.Type { //nolint:exhaustive
-		case tea.KeyEnter:
-			if m.Focused() && m.mode == modeInsert {
-				return m.handleContentSubmit()
-			}
-		case tea.KeyEsc:
-			if !m.Focused() {
-				return nil
-			}
-			if m.mode == modeInsert {
-				m.setMode(modeNormal)
-				return nil
-			}
-			// modeNormal -> history (blur)
-			m.textarea.Blur()
-			return nil
-		case tea.KeyRunes:
-			// History mode: allow i/A/I/o/O to re-enter insert mode
-			if !m.Focused() {
-				return m.handleVimKeybindings(msg.String())
-			}
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		newTextarea, cmd := m.textarea.Update(keyMsg)
+		m.textarea = newTextarea
 
-			if m.mode == modeNormal {
-				return m.handleNormalModeRunes(msg.String())
-			}
-
-			// if (msg.String() == "/" && m.textarea.Value() == "") || m.userCompletionText != "" {
-			//      return m.handleCommandCompletion(msg)
-			// }
-
-			// modeInsert will fall through to textarea for insertion
-		}
+		return cmd
 	}
 
-	newTextarea, cmd := m.textarea.Update(msg)
+	switch keyMsg.Type { //nolint:exhaustive
+	case tea.KeyEnter:
+		if m.Focused() && m.mode == modeInsert {
+			return m.handleContentSubmit()
+		}
+	case tea.KeyEsc:
+		if !m.Focused() {
+			return nil
+		}
+
+		if m.mode == modeInsert {
+			m.setMode(modeNormal)
+			return nil
+		}
+		// modeNormal -> history (blur)
+		m.textarea.Blur()
+
+		return nil
+	case tea.KeyRunes:
+		// History mode: allow i/A/I/o/O to re-enter insert mode
+		if !m.Focused() {
+			return m.handleVimKeyBindingsHistory(keyMsg.String())
+		}
+
+		if m.mode == modeNormal {
+			return m.handleNormalModeRunes(keyMsg.String())
+		}
+
+		// if (msg.String() == "/" && m.textarea.Value() == "") || m.userCompletionText != "" {
+		//      return m.handleCommandCompletion(msg)
+		// }
+
+		// modeInsert will fall through to textarea for insertion
+	}
+
+	newTextarea, cmd := m.textarea.Update(keyMsg)
 	m.textarea = newTextarea
 
 	return cmd
 }
 
-// TODO: have a "mode" rather than using blurred
-// TODO: handle movement, not just insertion
-func (m *Model) handleVimKeybindings(key string) tea.Cmd {
+func (m *Model) handleVimKeyBindingsHistory(key string) tea.Cmd {
 	switch key {
 	case "i":
 		m.setMode(modeInsert)
 		m.textarea.Focus()
+
+		return textarea.Blink
+	case "a":
+		m.setMode(modeInsert)
+		m.textarea.Focus()
+		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
 
 		return textarea.Blink
 	case "A":
@@ -364,6 +372,54 @@ func (m *Model) handleNormalModeRunes(key string) tea.Cmd {
 		return nil
 	case "$":
 		m.textarea.CursorEnd()
+		return nil
+	case "w":
+		// Move to beginning of next word
+		content := m.textarea.Value()
+		pos := m.textarea.LineInfo().ColumnOffset
+		newPos := findNextWord(content, pos)
+		m.textarea.SetCursor(newPos)
+
+		return nil
+	case "W":
+		// Move to beginning of next WORD
+		content := m.textarea.Value()
+		pos := m.textarea.LineInfo().ColumnOffset
+		newPos := findNextWORD(content, pos)
+		m.textarea.SetCursor(newPos)
+
+		return nil
+	case "e":
+		// Move to end of current/next word
+		content := m.textarea.Value()
+		pos := m.textarea.LineInfo().ColumnOffset
+		newPos := findEndOfWord(content, pos)
+		m.textarea.SetCursor(newPos)
+
+		return nil
+	case "E":
+		// Move to end of current/next WORD
+		content := m.textarea.Value()
+		pos := m.textarea.LineInfo().ColumnOffset
+		newPos := findEndOfWORD(content, pos)
+		m.textarea.SetCursor(newPos)
+
+		return nil
+	case "b":
+		// Move backward to beginning of word
+		content := m.textarea.Value()
+		pos := m.textarea.LineInfo().ColumnOffset
+		newPos := findPrevWord(content, pos)
+		m.textarea.SetCursor(newPos)
+
+		return nil
+	case "B":
+		// Move backward to beginning of WORD
+		content := m.textarea.Value()
+		pos := m.textarea.LineInfo().ColumnOffset
+		newPos := findPrevWORD(content, pos)
+		m.textarea.SetCursor(newPos)
+
 		return nil
 	case "g":
 		if m.pendingG && time.Since(m.lastG) <= time.Second {
