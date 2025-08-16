@@ -15,9 +15,30 @@ import (
 // OptFunc is used to configure aspects of Smoke.
 type OptFunc func(smoke *Smoke) (*Smoke, error)
 
+// WithSessionInfo configures the details of the session we'll work with.
+func WithSessionInfo(name, systemPrompt string) OptFunc {
+	return func(smoke *Smoke) (*Smoke, error) {
+		session, err := llms.NewSession(&llms.SessionOpts{
+			Name:          name,
+			SystemMessage: systemPrompt,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize session: %w", err)
+		}
+
+		smoke.session = session
+
+		return smoke, nil
+	}
+}
+
 // WithProjectPath sets the directory we'll work from, and configures the tools and commands managers.
 func WithProjectPath(path string) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
+		if smoke.session == nil {
+			return nil, fmt.Errorf("must set session info before project path")
+		}
+
 		absPath, err := filepath.Abs(path)
 		if err != nil {
 			return nil, fmt.Errorf("invalid project path %q: %w", absPath, err)
@@ -33,7 +54,7 @@ func WithProjectPath(path string) OptFunc {
 		}
 
 		smoke.projectPath = absPath
-		smoke.tools = tools.NewManager(absPath)
+		smoke.tools = tools.NewManager(absPath, smoke.session.Name)
 		smoke.commands = commands.NewManager(absPath)
 
 		return smoke, nil
@@ -44,23 +65,6 @@ func WithProjectPath(path string) OptFunc {
 func WithDebug(value bool) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		smoke.debug = value
-		return smoke, nil
-	}
-}
-
-// WithSessionInfo configures the details of the session we'll work with.
-func WithSessionInfo(name, systemPrompt string) OptFunc {
-	return func(smoke *Smoke) (*Smoke, error) {
-		session, err := llms.NewSession(&llms.SessionOpts{
-			Name:          name,
-			SystemMessage: systemPrompt,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize session: %w", err)
-		}
-
-		smoke.session = session
-
 		return smoke, nil
 	}
 }

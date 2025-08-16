@@ -2,4 +2,4 @@ cmd/smoke/smoke
 cmd/tooltest/tooltest
 logs/
 *.log
-smoke_plan.md
+*_plan.md

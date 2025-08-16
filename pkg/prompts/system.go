@@ -4,27 +4,12 @@ package prompts
 
 import (
 	"encoding/json"
-	"log/slog"
+	"fmt"
 )
 
-const System = `You are a helpful assistant who is returning responses in a terminal. Be concise.
+func SystemJSON(sessionName string) string {
+	planFileName := sessionName + "_plan.md"
 
-	* Use the "grep" tool with context lines to find your way around when explicit function names, variable names, etc
-	  are referenced in the user's prompt. Use "read_file" with "start" and "end" to look at specific sections instead
-	  of looking at the entire file every time.
-	* When you are able, you should use "replace_lines" over "write_file" to be more efficient. You can read the
-	  modified lines and the lines around them with "read_file" after each tool call if you need to.
-	* When you use the "replace_lines" command, make sure to account for the lines you've changed in previous tool
-	  calls.
-	* Whenever you write any code, run the "lint" at the end and fix any lint errors you introduced before ending the
-	  tool call chain.
-
-	<IMPORTANT>
-	Keep a mental model for what you are doing when you go to make changes. Write this to a file called smack_model.md
-	whenever you add new items that you need to do, and cross off the items as you complete them.
-	</IMPORTANT>`
-
-func SystemJSON() string {
 	systemJSON := map[string]any{
 		"purpose": "You are a helpful coding assistant who is an expert in Golang. If you have not been asked " +
 			"explicitly to make changes to the codebase, follow `question_process`. If you have been asked to make " +
@@ -36,16 +21,18 @@ func SystemJSON() string {
 				"only if the user asks a question specifically about the current codebase, not a general question.",
 		},
 		"plan_process": []string{
-			"Check that a `smoke_plan.md` file does not already exist. If it does, proceed to `work_process`.",
+			fmt.Sprintf(
+				"Check that a `%s` file does not already exist. If it does, proceed to `work_process`.", planFileName),
 			"Make the minimum necessary number of tool calls to evaluate the context the user specified.",
-			"Use this to develop a plan and write it to the file `smoke_plan.md` in the root directory. The plan " +
-				"should include a summary of all the context you discovered, including conventions, interface " +
-				"definitions, 3rd party libraries, etc necessary to carry out the actual work. You should only need " +
-				"a small number of tool calls to actually implement the plan during `work_process`.",
+			fmt.Sprintf("Use this to develop a plan and write it to the file `%s` in the root directory. The plan "+
+				"should include a summary of all the context you discovered, including conventions, interface "+
+				"definitions, 3rd party libraries, etc necessary to carry out the actual work. You should only need "+
+				"a small number of tool calls to actually implement the plan during `work_process`.", planFileName),
 			"!! STOP AT THIS POINT AND TELL THE USER ABOUT YOUR PLAN BEFORE CONTINUING TO `work_process` !!",
 		},
 		"work_process": []string{
-			"If there is a `smoke_plan.md` document in the root directory, proceed with implementing the plan.",
+			fmt.Sprintf(
+				"If there is a `%s` document in the root directory, proceed with implementing the plan.", planFileName),
 			"If you need to retrieve any context from the project after reading the plan, store those details in " +
 				"the plan file before continuing so that you can pick up where you left off if you get interrupted.",
 			"Complete the work using the various tools available to you. Be as efficient as you can with tool calls.",
@@ -59,8 +46,8 @@ func SystemJSON() string {
 			"If you need to modify the packages imported in a file, use the `go_imports` tool after writing your code.",
 		},
 		"important": []string{
-			"IF YOU ARE FOLLOWING `plan_process` OR `work_process` BE SURE TO TRACK PLANS AND PROGRESS IN " +
-				"`smoke_plan.md`! READ AND UPDATE YOUR PLAN AS YOU GO TO STAY ON TASK.",
+			fmt.Sprintf("IF YOU ARE FOLLOWING `plan_process` OR `work_process` BE SURE TO TRACK PLANS AND PROGRESS IN "+
+				"`%s`! READ AND UPDATE YOUR PLAN AS YOU GO TO STAY ON TASK.", planFileName),
 			"Use the `go_ast` tool, which is much more efficient than reading the full contents of lots of files " +
 				"with `read_files`, or even using `grep`, to retrieve type, function, var, or const definitions for " +
 				"`plan_process` or `work_process`.",
@@ -71,8 +58,7 @@ func SystemJSON() string {
 
 	bytes, err := json.Marshal(systemJSON)
 	if err != nil {
-		slog.Error("failed to marshal systemJSON", "err", err)
-		return System
+		panic(fmt.Errorf("failed to marshal systemJSON: %w", err))
 	}
 
 	return string(bytes)

@@ -3,31 +3,39 @@ package tools
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 type RemovePlanTool struct {
 	ProjectPath string
+	SessionName string
 }
 
 var _ = Tool(&RemovePlanTool{})
 
 func (r *RemovePlanTool) Name() string { return ToolRemovePlan }
 func (r *RemovePlanTool) Description() string {
-	return "Remove the plan file when the plan has been completed"
+	return "Remove the plan file when the plan has been completed."
 }
 
 func (r *RemovePlanTool) Params() Params { return Params{} }
 
 func (r *RemovePlanTool) Run(_ Args) (string, error) {
-	path := filepath.Join(r.ProjectPath, "smoke_plan.md")
+	planFileName := r.SessionName + "_plan.md"
+
+	path, err := utils.GetRelativePath(r.ProjectPath, planFileName)
+	if err != nil {
+		return "", fmt.Errorf("invalid session name / plan path: %w", err)
+	}
+
 	if _, err := os.Stat(path); err != nil {
-		return "", fmt.Errorf("%w: could not stat smoke_plan.md in root directory: %w", ErrFileSystem, err)
+		return "", fmt.Errorf("%w: could not stat %s in root directory: %w", ErrFileSystem, planFileName, err)
 	}
 
 	if err := os.Remove(path); err != nil {
-		return "", fmt.Errorf("%w: failed to remove plan file smoke_plan.md: %w", ErrFileSystem, err)
+		return "", fmt.Errorf("%w: failed to remove plan file %s: %w", ErrFileSystem, planFileName, err)
 	}
 
-	return "Removed plan file smoke_model.md", nil
+	return "Removed plan file " + planFileName, nil
 }

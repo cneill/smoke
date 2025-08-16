@@ -13,7 +13,7 @@ type Manager struct {
 	Tools Tools
 }
 
-func NewManager(projectPath string) *Manager {
+func NewManager(projectPath, sessionName string) *Manager {
 	return &Manager{
 		logger:      slog.Default().WithGroup("tools_manager"),
 		ProjectPath: projectPath,
@@ -28,7 +28,7 @@ func NewManager(projectPath string) *Manager {
 			&GrepTool{ProjectPath: projectPath},
 			&ListFilesTool{ProjectPath: projectPath},
 			&ReadFileTool{ProjectPath: projectPath},
-			&RemovePlanTool{ProjectPath: projectPath},
+			&RemovePlanTool{ProjectPath: projectPath, SessionName: sessionName},
 			// &ReplaceLinesTool{ProjectPath: projectPath},
 			&ReplaceLinesV2Tool{ProjectPath: projectPath},
 			&WriteFileTool{ProjectPath: projectPath},

@@ -167,6 +167,7 @@ func run() error {
 func action(ctx *cli.Context) error {
 	provider := llms.LLMType(ctx.String(FlagProvider))
 	modelFlag := ctx.String(FlagModel)
+	sessionName := ctx.String(FlagSessionName)
 
 	llmConfig := &llms.Config{
 		MaxTokens: ctx.Int64(FlagMaxTokens),
@@ -184,8 +185,8 @@ func action(ctx *cli.Context) error {
 
 	opts := []smoke.OptFunc{
 		smoke.WithDebug(ctx.Bool(FlagDebug)),
+		smoke.WithSessionInfo(sessionName, prompts.SystemJSON(sessionName)),
 		smoke.WithProjectPath(ctx.Path(FlagDir)),
-		smoke.WithSessionInfo(ctx.String(FlagSessionName), prompts.SystemJSON()),
 		smoke.WithLLMConfig(llmConfig),
 	}
 

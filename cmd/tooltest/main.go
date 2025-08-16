@@ -22,7 +22,7 @@ func run() error {
 		return fmt.Errorf("path error: %w", err)
 	}
 
-	toolManager := tools.NewManager(absPath)
+	toolManager := tools.NewManager(absPath, "test_session")
 	toolName := os.Args[2]
 	rawArgs := os.Args[3]
 
