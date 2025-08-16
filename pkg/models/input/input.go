@@ -5,6 +5,7 @@ package input
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
@@ -36,7 +37,18 @@ func (o *Opts) OK() error {
 }
 
 // const prompt = "│"
-const prompt = "▶ "
+// const prompt = "▷ "
+const (
+	insertPrompt = "▶ "
+	normalPrompt = "▷ "
+)
+
+type mode int
+
+const (
+	modeInsert mode = iota
+	modeNormal
+)
 
 type Model struct {
 	textarea textarea.Model
@@ -45,6 +57,10 @@ type Model struct {
 	commandCompleter func(string) []string
 
 	waiting bool
+
+	mode     mode
+	pendingG bool
+	lastG    time.Time
 	// inCommandCompletion     bool
 	// userCompletionText      string
 	// suggestedCompletionText string
@@ -60,6 +76,8 @@ func New(opts *Opts) (*Model, error) {
 		spinner:  getSpinner(opts.Width, opts.Height),
 
 		commandCompleter: opts.CommandCompleter,
+
+		mode: modeInsert,
 	}
 
 	return model, nil
@@ -76,7 +94,7 @@ func getTextArea(opts *Opts) textarea.Model {
 
 	model.Focus()
 
-	model.Prompt = prompt
+	model.Prompt = insertPrompt
 	model.CharLimit = 0
 
 	model.SetWidth(opts.Width)
@@ -249,19 +267,35 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		switch msg.Type { //nolint:exhaustive
 		case tea.KeyEnter:
-			if m.Focused() {
+			if m.Focused() && m.mode == modeInsert {
 				return m.handleContentSubmit()
 			}
 		case tea.KeyEsc:
+			if !m.Focused() {
+				return nil
+			}
+			if m.mode == modeInsert {
+				m.setMode(modeNormal)
+				return nil
+			}
+			// modeNormal -> history (blur)
 			m.textarea.Blur()
+			return nil
 		case tea.KeyRunes:
+			// History mode: allow i/A/I/o/O to re-enter insert mode
 			if !m.Focused() {
 				return m.handleVimKeybindings(msg.String())
 			}
 
+			if m.mode == modeNormal {
+				return m.handleNormalModeRunes(msg.String())
+			}
+
 			// if (msg.String() == "/" && m.textarea.Value() == "") || m.userCompletionText != "" {
-			// 	return m.handleCommandCompletion(msg)
+			//      return m.handleCommandCompletion(msg)
 			// }
+
+			// modeInsert will fall through to textarea for insertion
 		}
 	}
 
@@ -276,30 +310,31 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 func (m *Model) handleVimKeybindings(key string) tea.Cmd {
 	switch key {
 	case "i":
-		// Insert at current cursor position
+		m.setMode(modeInsert)
 		m.textarea.Focus()
+
 		return textarea.Blink
 	case "A":
-		// Insert at end of current line
+		m.setMode(modeInsert)
 		m.textarea.Focus()
 		m.textarea.CursorEnd()
 
 		return textarea.Blink
 	case "I":
-		// Insert at beginning of current line
+		m.setMode(modeInsert)
 		m.textarea.Focus()
 		m.textarea.CursorStart()
 
 		return textarea.Blink
 	case "o":
-		// Open new line below current line and enter insert mode
+		m.setMode(modeInsert)
 		m.textarea.Focus()
 		m.textarea.CursorEnd()
 		m.textarea.InsertString("\n")
 
 		return textarea.Blink
 	case "O":
-		// Open new line above current line and enter insert mode
+		m.setMode(modeInsert)
 		m.textarea.Focus()
 		m.textarea.CursorStart()
 		m.textarea.InsertString("\n")
@@ -309,6 +344,92 @@ func (m *Model) handleVimKeybindings(key string) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *Model) handleNormalModeRunes(key string) tea.Cmd {
+	switch key {
+	case "h":
+		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyLeft})
+		return nil
+	case "l":
+		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
+		return nil
+	case "j":
+		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyDown})
+		return nil
+	case "k":
+		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyUp})
+		return nil
+	case "0":
+		m.textarea.CursorStart()
+		return nil
+	case "$":
+		m.textarea.CursorEnd()
+		return nil
+	case "g":
+		if m.pendingG && time.Since(m.lastG) <= time.Second {
+			m.textarea.CursorStart()
+			m.pendingG = false
+
+			return nil
+		}
+
+		m.pendingG = true
+		m.lastG = time.Now()
+
+		return nil
+	case "G":
+		m.textarea.CursorEnd()
+		m.pendingG = false
+
+		return nil
+	case "i":
+		m.setMode(modeInsert)
+
+		return textarea.Blink
+	case "a":
+		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
+		m.setMode(modeInsert)
+
+		return textarea.Blink
+	case "A":
+		m.textarea.CursorEnd()
+		m.setMode(modeInsert)
+
+		return textarea.Blink
+	case "I":
+		m.textarea.CursorStart()
+		m.setMode(modeInsert)
+
+		return textarea.Blink
+	case "o":
+		m.textarea.CursorEnd()
+		m.textarea.InsertString("\n")
+		m.setMode(modeInsert)
+
+		return textarea.Blink
+	case "O":
+		m.textarea.CursorStart()
+		m.textarea.InsertString("\n")
+		m.textarea.CursorUp()
+		m.setMode(modeInsert)
+
+		return textarea.Blink
+	}
+
+	// Unrecognized in normal mode: do nothing
+	m.pendingG = false
+
+	return nil
+}
+
+func (m *Model) setMode(newMode mode) {
+	m.mode = newMode
+	if m.mode == modeInsert {
+		m.textarea.Prompt = insertPrompt
+	} else {
+		m.textarea.Prompt = normalPrompt
+	}
 }
 
 // func (m *Model) handleCommandCompletion(msg tea.KeyMsg) tea.Cmd {
