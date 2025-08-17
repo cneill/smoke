@@ -247,7 +247,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 
 			rlt := &tools.ReplaceLinesTool{ProjectPath: tempDir}
 
-			_, runErr := rlt.Run(test.args)
+			_, runErr := rlt.Run(t.Context(), test.args)
 			if test.errors == nil && runErr != nil {
 				t.Errorf("expected no error, got %v", runErr)
 			} else if test.errors != nil {

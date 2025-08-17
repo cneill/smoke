@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -36,7 +37,7 @@ func run() error {
 		return fmt.Errorf("failed to get args from input %q: %w", rawArgs, err)
 	}
 
-	output, err := toolManager.CallTool(toolName, args)
+	output, err := toolManager.CallTool(context.TODO(), toolName, args)
 	if err != nil {
 		return fmt.Errorf("failed to call tool: %w", err)
 	}

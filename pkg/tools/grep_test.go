@@ -152,7 +152,7 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			_, writeErr := tempFile.WriteString(test.initContent)
 			require.NoError(t, writeErr, "failed to write initial content to file %q: %v", tempPath, writeErr)
 
-			output, runErr := grepTool.Run(test.args)
+			output, runErr := grepTool.Run(t.Context(), test.args)
 			if test.errors == nil {
 				require.NoError(t, runErr, "unexpected error: %v", runErr)
 			} else {
@@ -321,7 +321,7 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			output, runErr := grepTool.Run(test.args)
+			output, runErr := grepTool.Run(t.Context(), test.args)
 			if test.errors == nil {
 				require.NoError(t, runErr)
 			} else {

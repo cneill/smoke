@@ -170,7 +170,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			_, writeErr := tempFile.WriteString(test.initContent)
 			require.NoError(t, writeErr, "failed to write initial content to file %q: %v", tempPath, writeErr)
 
-			output, runErr := readFileTool.Run(test.args)
+			output, runErr := readFileTool.Run(t.Context(), test.args)
 			if test.err == nil {
 				require.NoError(t, runErr, "unexpected error: %v", runErr)
 			} else {

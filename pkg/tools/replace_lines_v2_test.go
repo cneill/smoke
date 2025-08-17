@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: check the output as well
 func TestReplaceLinesV2Tool_Run(t *testing.T) { //nolint:funlen
 	t.Parallel()
-
 	tempDir := t.TempDir()
 
 	tests := []struct {
@@ -223,7 +223,7 @@ func TestReplaceLinesV2Tool_Run(t *testing.T) { //nolint:funlen
 
 			rlt := &tools.ReplaceLinesV2Tool{ProjectPath: tempDir}
 
-			_, runErr := rlt.Run(test.args)
+			_, runErr := rlt.Run(t.Context(), test.args)
 			if test.errors == nil {
 				require.NoError(t, runErr, "got unexpected run error")
 			} else {
