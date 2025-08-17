@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/cneill/smoke/pkg/utils"
 )
@@ -70,7 +71,7 @@ func (r *ReplaceLinesV2Tool) Params() Params {
 }
 
 func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
-	path := args.GetString(ReplaceLinesPath)
+	path := args.GetString(ReplaceLinesV2Path)
 	if path == nil {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
@@ -134,5 +135,101 @@ func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 
 	newLines := bytes.Split(data, []byte("\n"))
 
-	return fmt.Sprintf("Replaced requested lines in %q.\n%s\nNew content:\n%s", *path, LineSep, utils.WithLineNumbers(newLines)), nil
+	// Generate contextual output instead of returning entire file
+	contextOutput := r.generateContextOutput(*path, *startLine, *endLine, *replace, newLines)
+
+	return contextOutput, nil
+}
+
+// calculateContextWindow determines how many lines of context to show before/after the replacement
+func (r *ReplaceLinesV2Tool) calculateContextWindow(originalLinesReplaced, newLinesAdded int) int {
+	totalChange := max(originalLinesReplaced, newLinesAdded)
+
+	switch {
+	case totalChange <= 3:
+		return 5
+	case totalChange <= 10:
+		return 3
+	default:
+		return 2
+	}
+}
+
+// generateContextOutput creates a focused context view around the replacement area
+func (r *ReplaceLinesV2Tool) generateContextOutput(filePath string, startLine, endLine int, replacement string, newLines [][]byte) string {
+	originalLinesReplaced := endLine - startLine + 1
+	newLinesAdded := len(bytes.Split([]byte(replacement), []byte("\n")))
+
+	if replacement != "" && !strings.HasSuffix(replacement, "\n") {
+		newLinesAdded = len(strings.Split(replacement+"\n", "\n")) - 1
+	}
+
+	if replacement == "" {
+		newLinesAdded = 0
+	}
+
+	contextLines := r.calculateContextWindow(originalLinesReplaced, newLinesAdded)
+
+	// Calculate the new position where replacement content starts
+	replacementStartLine := startLine
+	replacementEndLine := startLine + newLinesAdded - 1
+
+	if newLinesAdded == 0 {
+		replacementEndLine = startLine - 1 // For deletions
+	}
+
+	// Calculate context window boundaries
+	contextStart := max(1, replacementStartLine-contextLines)
+	contextEnd := min(len(newLines), replacementEndLine+contextLines)
+
+	if replacementEndLine < startLine {
+		// For deletions, show context around where the deletion occurred
+		contextEnd = min(len(newLines), startLine-1+contextLines)
+	}
+
+	// Handle edge case where entire file was replaced
+	if startLine == 1 && endLine >= len(newLines) {
+		// If we replaced the entire file and it's not too large, show it all
+		if len(newLines) <= 50 {
+			contextStart = 1
+			contextEnd = len(newLines)
+		} else {
+			// For very large files, show first and last parts
+			contextStart = 1
+			contextEnd = min(25, len(newLines))
+		}
+	}
+
+	// Extract context lines
+	contextStartIdx := contextStart - 1
+	contextEndIdx := contextEnd
+	contextEndIdx = min(contextEndIdx, len(newLines))
+
+	var contextLinesSlice [][]byte
+	if contextStartIdx < contextEndIdx {
+		contextLinesSlice = newLines[contextStartIdx:contextEndIdx]
+	}
+
+	contextOutput := utils.WithLineNumbers(contextLinesSlice, contextStart)
+
+	// Create summary message
+	var summary string
+
+	switch {
+	case originalLinesReplaced == 1 && newLinesAdded == 1:
+		summary = fmt.Sprintf("Replaced line %d in %q.", startLine, filePath)
+	case originalLinesReplaced == 1 && newLinesAdded == 0:
+		summary = fmt.Sprintf("Deleted line %d in %q.", startLine, filePath)
+	case newLinesAdded == 0:
+		summary = fmt.Sprintf("Deleted lines %d-%d in %q.", startLine, endLine, filePath)
+	default:
+		summary = fmt.Sprintf("Replaced lines %d-%d in %q.", startLine, endLine, filePath)
+	}
+
+	if len(contextLinesSlice) == 0 {
+		return summary + "\n" + LineSep + "\n(File is now empty)"
+	}
+
+	return fmt.Sprintf("%s\n%s\nContext (lines %d-%d):\n%s",
+		summary, LineSep, contextStart, contextEnd-1, string(contextOutput))
 }
