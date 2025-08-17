@@ -2,12 +2,14 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/cneill/smoke/pkg/utils"
 )
@@ -46,13 +48,15 @@ type output struct {
 }
 
 type issue struct {
-	FromLinter           string   `json:"FromLinter"`
-	Text                 string   `json:"Text"`
-	Severity             string   `json:"Severity"`
-	SourceLines          []string `json:"SourceLines"`
-	Pos                  *pos     `json:"Pos"`
-	ExpectNoLint         bool     `json:"ExpectNoLint"`
-	ExpectedNoLintLinter string   `json:"ExpectedNoLintLinter"`
+	FromLinter           string          `json:"FromLinter"`
+	Text                 string          `json:"Text"`
+	Severity             string          `json:"Severity"`
+	SourceLines          []string        `json:"SourceLines"`
+	Pos                  *pos            `json:"Pos"`
+	ExpectNoLint         bool            `json:"ExpectNoLint"`
+	ExpectedNoLintLinter string          `json:"ExpectedNoLintLinter"`
+	SuggestedFixes       []*suggestedFix `json:"SuggestedFixes"`
+	LineRange            *lineRange      `json:"LineRange"`
 }
 
 type pos struct {
@@ -62,6 +66,22 @@ type pos struct {
 	Column   int64  `json:"Column"`
 }
 
+type suggestedFix struct {
+	Message   string      `json:"Message"`
+	TextEdits []*textEdit `json:"TextEdits"`
+}
+
+type textEdit struct {
+	Pos     int64  `json:"Pos"`
+	End     int64  `json:"End"`
+	NewText string `json:"NewText"`
+}
+
+type lineRange struct {
+	From int64 `json:"From"`
+	To   int64 `json:"To"`
+}
+
 func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	targetPath := g.ProjectPath
 	originalPath := g.ProjectPath
@@ -69,6 +89,18 @@ func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	if _, err := exec.LookPath("golangci-lint"); err != nil {
 		slog.Error("golangci-lint not found on the system", "error", err)
 		return "", fmt.Errorf("%w: golangci-lint not found on the system", ErrFileSystem)
+	}
+
+	versionCtx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
+	defer cancel()
+
+	versionOutput, err := exec.CommandContext(versionCtx, "golangci-lint", "version").CombinedOutput()
+	if err != nil {
+		slog.Error("failed to get golangci-lint version", "error", err)
+		return "", fmt.Errorf("%w: failed to get golangci-lint version: %w", ErrCommandExecution, err)
+	} else if !bytes.Contains(versionOutput, []byte("has version 2")) {
+		slog.Error("golangci-lint version <2", "output", string(versionOutput))
+		return "", fmt.Errorf("%w: golangci-lint version <2", ErrCommandExecution)
 	}
 
 	// path is optional
@@ -96,14 +128,34 @@ func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	targetPath = filepath.Join(targetPath, "...")
 	cmdArgs := []string{
 		"run",
-		"--out-format=json",
+		"--output.json.path=stdout",
+		"--output.text.path=",
+		"--output.tab.path=",
+		"--output.html.path=",
+		"--output.checkstyle.path=",
+		"--output.code-climate.path=",
+		"--output.junit-xml.path=",
+		"--output.teamcity.path=",
+		"--output.sarif.path=",
 		"--issues-exit-code=0",
 		"--show-stats=false",
 		targetPath,
 	}
+	// v1 args
+	// cmdArgs := []string{
+	// 	"run",
+	// 	"--out-format=json",
+	// 	"--issues-exit-code=0",
+	// 	"--show-stats=false",
+	// 	targetPath,
+	// }
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	cmd := exec.Command("golangci-lint", cmdArgs...)
+
+	lintCtx, lintCancel := context.WithTimeout(context.TODO(), time.Second*60)
+	defer lintCancel()
+
+	cmd := exec.CommandContext(lintCtx, "golangci-lint", cmdArgs...)
 	cmd.Dir = g.ProjectPath
 	cmd.Stdout = buf
 	cmd.Stderr = errBuf

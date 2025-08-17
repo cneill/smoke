@@ -2,10 +2,12 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/cneill/smoke/pkg/utils"
 )
@@ -63,7 +65,11 @@ func (g *GoFumptTool) Run(args Args) (string, error) {
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	cmd := exec.Command("gofumpt", "-l", "-w", targetPath)
+
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "gofumpt", "-l", "-w", targetPath)
 	cmd.Dir = g.ProjectPath
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr

@@ -1,11 +1,13 @@
 package tools
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -63,9 +65,10 @@ func (g *GitDiffTool) Run(args Args) (string, error) {
 		params = append(params, *file)
 	}
 
-	cmd := exec.Command("git", params...)
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
+	defer cancel()
 
-	output, err := cmd.CombinedOutput()
+	output, err := exec.CommandContext(ctx, "git", params...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("error executing git diff: %w", err)
 	}
