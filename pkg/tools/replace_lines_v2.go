@@ -121,6 +121,10 @@ func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 		return "", fmt.Errorf("failed to write replace to buffer: %w", err)
 	}
 
+	if *replace != "" && !strings.HasSuffix(*replace, "\n") {
+		buf.WriteRune('\n')
+	}
+
 	if *endLine < len(lines) {
 		if _, err := buf.Write(bytes.Join(lines[*endLine:], []byte("\n"))); err != nil {
 			return "", fmt.Errorf("failed to write trailing lines to buffer: %w", err)
@@ -133,7 +137,11 @@ func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 		return "", fmt.Errorf("%w: failed to write contents to %q: %w", ErrFileSystem, fullPath, err)
 	}
 
+	// Make sure we don't get a fake "line" when the file is now empty
 	newLines := bytes.Split(data, []byte("\n"))
+	if len(newLines) == 1 && len(newLines[0]) == 0 {
+		newLines = [][]byte{}
+	}
 
 	// Generate contextual output instead of returning entire file
 	contextOutput := r.generateContextOutput(*path, *startLine, *endLine, *replace, newLines)
@@ -216,10 +224,12 @@ func (r *ReplaceLinesV2Tool) generateContextOutput(filePath string, startLine, e
 	var summary string
 
 	switch {
-	case originalLinesReplaced == 1 && newLinesAdded == 1:
-		summary = fmt.Sprintf("Replaced line %d in %q.", startLine, filePath)
-	case originalLinesReplaced == 1 && newLinesAdded == 0:
-		summary = fmt.Sprintf("Deleted line %d in %q.", startLine, filePath)
+	case originalLinesReplaced == 1:
+		if newLinesAdded == 0 {
+			summary = fmt.Sprintf("Deleted line %d in %q.", startLine, filePath)
+		} else {
+			summary = fmt.Sprintf("Replaced line %d in %q.", startLine, filePath)
+		}
 	case newLinesAdded == 0:
 		summary = fmt.Sprintf("Deleted lines %d-%d in %q.", startLine, endLine, filePath)
 	default:
@@ -230,6 +240,11 @@ func (r *ReplaceLinesV2Tool) generateContextOutput(filePath string, startLine, e
 		return summary + "\n" + LineSep + "\n(File is now empty)"
 	}
 
-	return fmt.Sprintf("%s\n%s\nContext (lines %d-%d):\n%s",
-		summary, LineSep, contextStart, contextEnd-1, string(contextOutput))
+	contextLineNumbers := fmt.Sprintf("Context (lines %d-%d)", contextStart, contextEnd-1)
+	if contextStart == contextEnd-1 {
+		contextLineNumbers = fmt.Sprintf("Context (line %d)", contextStart)
+	}
+
+	return fmt.Sprintf("%s\n%s\n%s:\n%s",
+		summary, LineSep, contextLineNumbers, string(contextOutput))
 }
