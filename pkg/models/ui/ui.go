@@ -169,6 +169,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *Model) View() string {
+	return fmt.Sprintf("%s%s%s", m.history.View(), gap, m.input.View())
+}
+
+type assistantResponse struct {
+	message *llms.Message
+}
+
+type assistantError struct {
+	err error
+}
+
 func (m *Model) resize(msg tea.Msg) {
 	lineHeight := m.input.LineHeight()
 
@@ -182,18 +194,6 @@ func (m *Model) resize(msg tea.Msg) {
 		m.history.Resize(width, m.history.GetHeight()-delta)
 		m.input.Resize(width, lineHeight)
 	}
-}
-
-func (m *Model) View() string {
-	return fmt.Sprintf("%s%s%s", m.history.View(), gap, m.input.View())
-}
-
-type assistantResponse struct {
-	message *llms.Message
-}
-
-type assistantError struct {
-	err error
 }
 
 func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {

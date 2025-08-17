@@ -14,15 +14,12 @@ func WithLineNumbers(lines [][]byte, start ...int) []byte {
 		return nil
 	}
 
-	// lines := .Split(contents, "\n")
-
 	maxLine := len(lines)
 	if len(start) > 0 {
 		maxLine = start[0] + len(lines)
 	}
 
 	width := len(strconv.Itoa(maxLine))
-	// builder := &strings.Builder{}
 	buf := &bytes.Buffer{}
 
 	correction := 1

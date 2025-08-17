@@ -149,6 +149,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.pendingG = false
 
 			var cmd tea.Cmd
+
 			m.viewport, cmd = m.viewport.Update(msg)
 
 			return m, cmd
@@ -156,6 +157,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	default:
 		var cmd tea.Cmd
+
 		m.viewport, cmd = m.viewport.Update(msg)
 
 		return m, cmd
@@ -278,6 +280,26 @@ type bubbleInfo struct {
 	useMarkdown   bool
 }
 
+func (m *Model) Resize(width, height int) {
+	m.viewport.Width = width
+	m.viewport.Height = height
+
+	// TODO: figure out how to make this reasonably performant....
+	// newRenderer, err := getGlamourRenderer(width)
+	// if err == nil {
+	// 	m.mdRenderer.Close()
+	// 	m.mdRenderer = newRenderer
+	// }
+}
+
+func (m *Model) GetWidth() int {
+	return m.viewport.Width
+}
+
+func (m *Model) GetHeight() int {
+	return m.viewport.Height
+}
+
 // renderBubble displays messages and errors with a nice title/subtitle bubble before the item's content. It word-wraps
 // the content of the actual message to ensure it doesn't run off the screen.
 func (m *Model) renderBubble(info bubbleInfo) string {
@@ -324,26 +346,6 @@ func (m *Model) renderBubble(info bubbleInfo) string {
 	fmt.Fprintln(builder, content)
 
 	return builder.String()
-}
-
-func (m *Model) Resize(width, height int) {
-	m.viewport.Width = width
-	m.viewport.Height = height
-
-	// TODO: figure out how to make this reasonably performant....
-	// newRenderer, err := getGlamourRenderer(width)
-	// if err == nil {
-	// 	m.mdRenderer.Close()
-	// 	m.mdRenderer = newRenderer
-	// }
-}
-
-func (m *Model) GetWidth() int {
-	return m.viewport.Width
-}
-
-func (m *Model) GetHeight() int {
-	return m.viewport.Height
 }
 
 // ContentUpdate adds a new message to the log.

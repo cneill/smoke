@@ -217,7 +217,6 @@ func (g *GrepTool) getDirResults(fullPath string, pattern *regexp.Regexp, contex
 
 		return nil
 	})
-
 	if walkErr != nil {
 		return nil, fmt.Errorf("failed to grep directory %q: %w", fullPath, walkErr)
 	}

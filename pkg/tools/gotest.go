@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -87,8 +88,11 @@ func (g *GoTestTool) Run(args Args) (string, error) {
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	// cmd := exec.Command("go", "test", "-json", targetDir)
-	cmd := exec.Command("go", "test", "-p=1", "-parallel=1", "-cover", targetDir)
+
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", "test", "-p=1", "-parallel=1", "-cover", targetDir)
 	cmd.Dir = g.ProjectPath
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -99,6 +103,7 @@ func (g *GoTestTool) Run(args Args) (string, error) {
 	}
 
 	// TODO: revisit JSON and stitching together its results - forces the -v flag and produces tons of junk
+	// cmd := exec.Command("go", "test", "-json", targetDir)
 	// results := []GoTestResult{}
 	//
 	// scanner := bufio.NewScanner(stdout)

@@ -128,6 +128,7 @@ func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	targetPath = filepath.Join(targetPath, "...")
 	cmdArgs := []string{
 		"run",
+		"--issues-exit-code=0",
 		"--output.json.path=stdout",
 		"--output.text.path=",
 		"--output.tab.path=",
@@ -137,7 +138,8 @@ func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 		"--output.junit-xml.path=",
 		"--output.teamcity.path=",
 		"--output.sarif.path=",
-		"--issues-exit-code=0",
+		"--max-same-issues=0",
+		"--max-issues-per-linter=0",
 		"--show-stats=false",
 		targetPath,
 	}
