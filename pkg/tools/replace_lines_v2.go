@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 
@@ -68,7 +69,7 @@ func (r *ReplaceLinesV2Tool) Params() Params {
 	}
 }
 
-func (r *ReplaceLinesV2Tool) Run(args Args) (string, error) {
+func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 	path := args.GetString(ReplaceLinesPath)
 	if path == nil {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)

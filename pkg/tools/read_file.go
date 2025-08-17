@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 
@@ -16,29 +17,6 @@ const (
 
 type ReadFileTool struct {
 	ProjectPath string
-}
-
-var _ = Tool(&ReadFileTool{})
-
-// isBinary checks if the given byte slice contains binary data by looking for null bytes and other non-printable
-// characters.
-func isBinary(data []byte) bool {
-	checkSize := min(len(data), 8192)
-	nullBytes := 0
-
-	for idx := range checkSize {
-		b := data[idx]
-		// Count null bytes
-		if b == 0 {
-			nullBytes++
-		}
-
-		if nullBytes > 0 && idx > 0 && float64(nullBytes)/float64(idx) > 0.01 {
-			return true
-		}
-	}
-
-	return false
 }
 
 var _ = Tool(&ReadFileTool{})
@@ -75,7 +53,7 @@ func (r *ReadFileTool) Params() Params {
 	}
 }
 
-func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop
+func (r *ReadFileTool) Run(_ context.Context, args Args) (string, error) { //nolint:cyclop
 	path := args.GetString(ReadFilePath)
 	if path == nil {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
@@ -135,4 +113,25 @@ func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop
 	output := utils.WithLineNumbers(lines[start-1:end], int(start))
 
 	return string(output), nil
+}
+
+// isBinary checks if the given byte slice contains binary data by looking for null bytes and other non-printable
+// characters.
+func isBinary(data []byte) bool {
+	checkSize := min(len(data), 8192)
+	nullBytes := 0
+
+	for idx := range checkSize {
+		b := data[idx]
+		// Count null bytes
+		if b == 0 {
+			nullBytes++
+		}
+
+		if nullBytes > 0 && idx > 0 && float64(nullBytes)/float64(idx) > 0.01 {
+			return true
+		}
+	}
+
+	return false
 }

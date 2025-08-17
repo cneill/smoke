@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -46,7 +47,7 @@ func (w *WriteFileTool) Params() Params {
 	}
 }
 
-func (w *WriteFileTool) Run(args Args) (string, error) {
+func (w *WriteFileTool) Run(_ context.Context, args Args) (string, error) {
 	path := args.GetString(WriteFilePath)
 	if path == nil {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)

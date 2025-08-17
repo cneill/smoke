@@ -41,7 +41,7 @@ func (g *GoFumptTool) Params() Params {
 	}
 }
 
-func (g *GoFumptTool) Run(args Args) (string, error) {
+func (g *GoFumptTool) Run(ctx context.Context, args Args) (string, error) {
 	targetPath := g.ProjectPath
 
 	if _, err := exec.LookPath("gofumpt"); err != nil {
@@ -66,7 +66,7 @@ func (g *GoFumptTool) Run(args Args) (string, error) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "gofumpt", "-l", "-w", targetPath)

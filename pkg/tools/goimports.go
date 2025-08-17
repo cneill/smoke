@@ -42,7 +42,7 @@ func (g *GoImportsTool) Params() Params {
 	}
 }
 
-func (g *GoImportsTool) Run(args Args) (string, error) {
+func (g *GoImportsTool) Run(ctx context.Context, args Args) (string, error) {
 	targetPath := g.ProjectPath
 
 	if _, err := exec.LookPath("goimports"); err != nil {
@@ -67,7 +67,7 @@ func (g *GoImportsTool) Run(args Args) (string, error) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "goimports", "-l", "-w", targetPath)

@@ -42,7 +42,7 @@ func (g *GitDiffTool) Params() Params {
 	}
 }
 
-func (g *GitDiffTool) Run(args Args) (string, error) {
+func (g *GitDiffTool) Run(ctx context.Context, args Args) (string, error) {
 	path, err := filepath.Abs(g.ProjectPath)
 	if err != nil {
 		return "", fmt.Errorf("invalid path: %w", err)
@@ -65,7 +65,7 @@ func (g *GitDiffTool) Run(args Args) (string, error) {
 		params = append(params, *file)
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*3)
 	defer cancel()
 
 	output, err := exec.CommandContext(ctx, "git", params...).CombinedOutput()

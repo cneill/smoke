@@ -54,7 +54,7 @@ type GoTestResult struct {
 	Time        time.Time `json:"Time"`
 }
 
-func (g *GoTestTool) Run(args Args) (string, error) {
+func (g *GoTestTool) Run(ctx context.Context, args Args) (string, error) {
 	targetPath := g.ProjectPath
 
 	if _, err := exec.LookPath("go"); err != nil {
@@ -89,7 +89,7 @@ func (g *GoTestTool) Run(args Args) (string, error) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "go", "test", "-p=1", "-parallel=1", "-cover", targetDir)

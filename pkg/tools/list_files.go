@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -44,7 +45,7 @@ func (l *ListFilesTool) Params() Params {
 
 // ListFiles expects a directory 'dir' that exists within ProjectPath.
 // TODO: .gitignore?
-func (l *ListFilesTool) Run(args Args) (string, error) {
+func (l *ListFilesTool) Run(_ context.Context, args Args) (string, error) {
 	path := args.GetString(ListFilesPath)
 	if path == nil {
 		return "", fmt.Errorf("no path supplied")

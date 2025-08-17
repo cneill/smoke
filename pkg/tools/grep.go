@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -58,7 +59,7 @@ func (g *GrepTool) Params() Params {
 	}
 }
 
-func (g *GrepTool) Run(args Args) (string, error) {
+func (g *GrepTool) Run(_ context.Context, args Args) (string, error) {
 	path := args.GetString(GrepPath)
 	if path == nil {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -21,7 +22,7 @@ func (r *RemovePlanTool) Description() string {
 
 func (r *RemovePlanTool) Params() Params { return Params{} }
 
-func (r *RemovePlanTool) Run(_ Args) (string, error) {
+func (r *RemovePlanTool) Run(_ context.Context, _ Args) (string, error) {
 	planFileName := r.SessionName + "_plan.md"
 
 	path, err := utils.GetRelativePath(r.ProjectPath, planFileName)

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -33,7 +34,7 @@ func (c *CreateDirectoryTool) Params() Params {
 	}
 }
 
-func (c *CreateDirectoryTool) Run(args Args) (string, error) {
+func (c *CreateDirectoryTool) Run(_ context.Context, args Args) (string, error) {
 	path := args.GetString(CreateDirectoryPath)
 	if path == nil {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)

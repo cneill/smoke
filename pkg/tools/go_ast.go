@@ -75,8 +75,7 @@ func (g *GoASTTool) Params() Params {
 	}
 }
 
-// TODO: pass in a context to Run()
-func (g *GoASTTool) Run(args Args) (string, error) {
+func (g *GoASTTool) Run(ctx context.Context, args Args) (string, error) {
 	targetPath := g.ProjectPath
 
 	// path is optional
@@ -102,7 +101,7 @@ func (g *GoASTTool) Run(args Args) (string, error) {
 	resultChan := make(chan parseResult)
 	errChan := make(chan error)
 
-	parserCtx, cancel := context.WithCancel(context.Background())
+	parserCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	pw := newParserWorker()
@@ -141,9 +140,9 @@ func (g *GoASTTool) Run(args Args) (string, error) {
 		}
 	})
 
-	ctx, walkCancel := context.WithTimeout(context.Background(), time.Second*60)
+	walkCtx, walkCancel := context.WithTimeout(ctx, time.Second*60)
 
-	walkErr := filepath.WalkDir(targetPath, g.walker(ctx, fileChan))
+	walkErr := filepath.WalkDir(targetPath, g.walker(walkCtx, fileChan))
 	if walkErr != nil {
 		walkCancel()
 		return "", fmt.Errorf("walk error: %w", walkErr)

@@ -82,7 +82,7 @@ type lineRange struct {
 	To   int64 `json:"To"`
 }
 
-func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
+func (g *GoLintTool) Run(ctx context.Context, args Args) (string, error) { //nolint:cyclop,funlen
 	targetPath := g.ProjectPath
 	originalPath := g.ProjectPath
 
@@ -91,7 +91,7 @@ func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 		return "", fmt.Errorf("%w: golangci-lint not found on the system", ErrFileSystem)
 	}
 
-	versionCtx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
+	versionCtx, cancel := context.WithTimeout(ctx, time.Second*3)
 	defer cancel()
 
 	versionOutput, err := exec.CommandContext(versionCtx, "golangci-lint", "version").CombinedOutput()
@@ -154,7 +154,7 @@ func (g *GoLintTool) Run(args Args) (string, error) { //nolint:cyclop,funlen
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
 
-	lintCtx, lintCancel := context.WithTimeout(context.TODO(), time.Second*60)
+	lintCtx, lintCancel := context.WithTimeout(ctx, time.Second*60)
 	defer lintCancel()
 
 	cmd := exec.CommandContext(lintCtx, "golangci-lint", cmdArgs...)
