@@ -116,12 +116,12 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 		},
 		{
 			name:        "multiple_matches",
-			initContent: "a\na\na",
+			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex: `a`,
+				tools.GrepRegex: `[abc]`,
 				tools.GrepPath:  "multiple_matches_test.txt",
 			},
-			expectedOutput: "multiple_matches_test.txt\n" + tools.LineSep + "\n*1: a\n\n*2: a\n\n*3: a\n\n",
+			expectedOutput: "multiple_matches_test.txt\n" + tools.LineSep + "\n*1: a\n\n*2: b\n\n*3: c\n\n",
 			errors:         nil,
 		},
 		{

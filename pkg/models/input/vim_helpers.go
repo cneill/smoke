@@ -13,6 +13,24 @@ func isWhitespace(r rune) bool {
 	return unicode.IsSpace(r)
 }
 
+func nextNonWhitespace(pos int, runes []rune) int {
+	length := len(runes)
+
+	for pos < length && isWhitespace(runes[pos]) {
+		pos++
+	}
+
+	return pos
+}
+
+func prevNonWhitespace(pos int, runes []rune) int {
+	for pos > 0 && isWhitespace(runes[pos]) {
+		pos--
+	}
+
+	return pos
+}
+
 // findNextWord finds the start of the next word (lowercase w motion)
 func findNextWord(content string, pos int) int {
 	runes := []rune(content)
@@ -28,12 +46,7 @@ func findNextWord(content string, pos int) int {
 		pos++
 	}
 
-	// Skip whitespace
-	for pos < length && isWhitespace(runes[pos]) {
-		pos++
-	}
-
-	return pos
+	return nextNonWhitespace(pos, runes)
 }
 
 // findNextWORD finds the start of the next WORD (uppercase W motion)
@@ -50,12 +63,7 @@ func findNextWORD(content string, pos int) int {
 		pos++
 	}
 
-	// Skip whitespace
-	for pos < length && isWhitespace(runes[pos]) {
-		pos++
-	}
-
-	return pos
+	return nextNonWhitespace(pos, runes)
 }
 
 // findEndOfWord finds the end of current/next word (lowercase e motion)
@@ -69,10 +77,7 @@ func findEndOfWord(content string, pos int) int {
 
 	pos++ // Move at least one character
 
-	// Skip whitespace
-	for pos < length && isWhitespace(runes[pos]) {
-		pos++
-	}
+	pos = nextNonWhitespace(pos, runes)
 
 	if pos >= length {
 		return length - 1
@@ -98,10 +103,7 @@ func findEndOfWORD(content string, pos int) int {
 
 	pos++ // Move at least one character
 
-	// Skip whitespace
-	for pos < length && isWhitespace(runes[pos]) {
-		pos++
-	}
+	pos = nextNonWhitespace(pos, runes)
 
 	// Move to end of WORD
 	for pos < length-1 && !isWhitespace(runes[pos+1]) {
@@ -121,10 +123,7 @@ func findPrevWord(content string, pos int) int {
 
 	pos-- // Move at least one character back
 
-	// Skip whitespace
-	for pos > 0 && isWhitespace(runes[pos]) {
-		pos--
-	}
+	pos = prevNonWhitespace(pos, runes)
 
 	if pos <= 0 {
 		return 0
@@ -149,10 +148,7 @@ func findPrevWORD(content string, pos int) int {
 
 	pos-- // Move at least one character back
 
-	// Skip whitespace
-	for pos > 0 && isWhitespace(runes[pos]) {
-		pos--
-	}
+	pos = prevNonWhitespace(pos, runes)
 
 	// Move to start of WORD
 	for pos > 0 && !isWhitespace(runes[pos-1]) {

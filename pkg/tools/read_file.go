@@ -133,5 +133,6 @@ func (r *ReadFileTool) Run(args Args) (string, error) { //nolint:cyclop
 	}
 
 	output := utils.WithLineNumbers(lines[start-1:end], int(start))
+
 	return string(output), nil
 }

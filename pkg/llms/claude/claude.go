@@ -220,28 +220,7 @@ func (c *Claude) getSessionMessages(session *llms.Session) []anthropic.MessagePa
 	for num, msg := range session.Messages {
 		switch msg.Role {
 		case llms.RoleAssistant:
-			contentBlocks := []anthropic.ContentBlockParamUnion{}
-
-			if strings.TrimSpace(msg.Content) != "" {
-				contentBlocks = append(contentBlocks, anthropic.NewTextBlock(msg.Content))
-			}
-
-			if msg.HasToolCalls() {
-				rawCalls, ok := msg.ToolCallInfo.([]anthropic.ToolUseBlock)
-				if ok {
-					for _, toolCall := range rawCalls {
-						toolUseParam := toolCall.ToParam()
-						toolUseContentBlock := anthropic.ContentBlockParamUnion{
-							OfToolUse: &toolUseParam,
-						}
-						contentBlocks = append(contentBlocks, toolUseContentBlock)
-					}
-				} else {
-					c.logger.Warn("got ToolCallInfo of unexpected type", "type", fmt.Sprintf("%T", msg.ToolCallInfo))
-				}
-			}
-
-			results[num] = anthropic.NewAssistantMessage(contentBlocks...)
+			results[num] = c.getAssistantMessage(msg)
 		case llms.RoleSystem:
 			// Anthropic defines the system prompt outside of messages
 		case llms.RoleUser:
@@ -259,4 +238,29 @@ func (c *Claude) getSessionMessages(session *llms.Session) []anthropic.MessagePa
 	}
 
 	return results
+}
+
+func (c *Claude) getAssistantMessage(msg *llms.Message) anthropic.MessageParam {
+	contentBlocks := []anthropic.ContentBlockParamUnion{}
+
+	if strings.TrimSpace(msg.Content) != "" {
+		contentBlocks = append(contentBlocks, anthropic.NewTextBlock(msg.Content))
+	}
+
+	if msg.HasToolCalls() {
+		rawCalls, ok := msg.ToolCallInfo.([]anthropic.ToolUseBlock)
+		if ok {
+			for _, toolCall := range rawCalls {
+				toolUseParam := toolCall.ToParam()
+				toolUseContentBlock := anthropic.ContentBlockParamUnion{
+					OfToolUse: &toolUseParam,
+				}
+				contentBlocks = append(contentBlocks, toolUseContentBlock)
+			}
+		} else {
+			c.logger.Warn("got ToolCallInfo of unexpected type", "type", fmt.Sprintf("%T", msg.ToolCallInfo))
+		}
+	}
+
+	return anthropic.NewAssistantMessage(contentBlocks...)
 }
