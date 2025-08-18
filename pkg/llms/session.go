@@ -117,7 +117,7 @@ func (s *Session) UpdateUsage(inputTokens, outputTokens int64) {
 	s.usageMutex.Lock()
 	defer s.usageMutex.Unlock()
 
-	s.InputTokens = inputTokens
+	s.InputTokens += inputTokens
 	s.OutputTokens += outputTokens
 }
 
