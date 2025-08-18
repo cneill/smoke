@@ -70,10 +70,12 @@ type Model struct {
 	// userCompletionText      string
 	// suggestedCompletionText string
 
-	topLineFocused lipgloss.Style
-	topLineBlurred lipgloss.Style
-	inputTokens    int64
-	outputTokens   int64
+	topLineBorderFocused lipgloss.Style
+	topLineBorderBlurred lipgloss.Style
+	topLineUsageFocused  lipgloss.Style
+	topLineUsageBlurred  lipgloss.Style
+	inputTokens          int64
+	outputTokens         int64
 }
 
 func New(opts *Opts) (*Model, error) {
@@ -89,8 +91,23 @@ func New(opts *Opts) (*Model, error) {
 
 		mode: modeInsert,
 
-		topLineFocused: lipgloss.NewStyle().Foreground(orange).Background(black).Align(lipgloss.Right),
-		topLineBlurred: lipgloss.NewStyle().Foreground(darkgray).Background(black).Align(lipgloss.Right),
+		topLineBorderFocused: lipgloss.NewStyle().
+			Foreground(orange).
+			Background(black).
+			Align(lipgloss.Left),
+		topLineBorderBlurred: lipgloss.NewStyle().
+			Foreground(darkgray).
+			Background(black).
+			Align(lipgloss.Left),
+		topLineUsageFocused: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#ffffff")).
+			Background(darkgray).
+			Bold(true).
+			Align(lipgloss.Left),
+		topLineUsageBlurred: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#cccccc")).
+			Background(black).
+			Align(lipgloss.Left),
 	}
 
 	return model, nil
@@ -263,14 +280,17 @@ func (m *Model) UpdateUsage(inputTokens, outputTokens int64) {
 func (m *Model) topLineView() string {
 	totalWidth := m.textarea.Width()
 	usageText := fmt.Sprintf("in: %d, out: %d", m.inputTokens, m.outputTokens)
-	border := strings.Repeat("▀", totalWidth-lipgloss.Width(usageText))
-	topLine := border + "  " + usageText
+	border := strings.Repeat("▀", totalWidth-lipgloss.Width(usageText)+1) + "▌"
+	// border := strings.Repeat("═", totalWidth-lipgloss.Width(usageText)+1) + "╣"
 
+	var topLine string
 	if m.Focused() {
-		return m.topLineFocused.Render(topLine)
+		topLine = m.topLineBorderFocused.Render(border) + m.topLineUsageFocused.Render(usageText)
+	} else {
+		topLine = m.topLineBorderBlurred.Render(border) + m.topLineUsageBlurred.Render(usageText)
 	}
 
-	return m.topLineBlurred.Render(topLine)
+	return topLine
 }
 
 func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
