@@ -42,10 +42,9 @@ func (o *Opts) OK() error {
 	return nil
 }
 
-// const prompt = "│"
 const (
 	insertPrompt = "▶ "
-	normalPrompt = "▷ "
+	normalPrompt = "█ "
 )
 
 type mode int
@@ -100,8 +99,8 @@ func New(opts *Opts) (*Model, error) {
 			Background(black).
 			Align(lipgloss.Left),
 		topLineUsageFocused: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(darkgray).
+			Foreground(lipgloss.Color("#00ff00")).
+			Background(lipgloss.Color("#111111")).
 			Bold(true).
 			Align(lipgloss.Left),
 		topLineUsageBlurred: lipgloss.NewStyle().
@@ -278,19 +277,22 @@ func (m *Model) UpdateUsage(inputTokens, outputTokens int64) {
 }
 
 func (m *Model) topLineView() string {
-	totalWidth := m.textarea.Width()
-	usageText := fmt.Sprintf("in: %d, out: %d", m.inputTokens, m.outputTokens)
-	border := strings.Repeat("▀", totalWidth-lipgloss.Width(usageText)+1) + "▌"
-	// border := strings.Repeat("═", totalWidth-lipgloss.Width(usageText)+1) + "╣"
-
-	var topLine string
-	if m.Focused() {
-		topLine = m.topLineBorderFocused.Render(border) + m.topLineUsageFocused.Render(usageText)
-	} else {
-		topLine = m.topLineBorderBlurred.Render(border) + m.topLineUsageBlurred.Render(usageText)
+	var (
+		borderStyle = m.topLineBorderFocused
+		usageStyle  = m.topLineUsageFocused
+	)
+	if !m.Focused() {
+		borderStyle = m.topLineBorderBlurred
+		usageStyle = m.topLineUsageBlurred
 	}
 
-	return topLine
+	totalWidth := m.textarea.Width()
+	usageText := usageStyle.Render(fmt.Sprintf("in: %d, out: %d", m.inputTokens, m.outputTokens))
+	usagePadding := borderStyle.Render("█")
+	usageWidth := lipgloss.Width(usageText)
+	border := borderStyle.Render(strings.Repeat("▄", totalWidth-usageWidth) + "█")
+
+	return border + usageText + usagePadding
 }
 
 func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
