@@ -163,3 +163,8 @@ func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error
 func (s *Smoke) CommandCompleter() func(string) []string {
 	return s.commands.Completer()
 }
+
+// TODO: this feels wrong...
+func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedreturns
+	return s.session.Usage()
+}

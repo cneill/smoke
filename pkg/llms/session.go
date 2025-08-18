@@ -15,6 +15,10 @@ type Session struct {
 	Tools         *tools.Manager `json:"-"`
 
 	messageMutex sync.RWMutex `json:"-"`
+
+	usageMutex   sync.RWMutex `json:"-"`
+	InputTokens  int64
+	OutputTokens int64
 }
 
 type SessionOpts struct {
@@ -105,4 +109,21 @@ func (s *Session) Last() *Message {
 	defer s.messageMutex.RUnlock()
 
 	return s.Messages[len(s.Messages)-1]
+}
+
+// UpdateUsage should be called with the total number of input tokens and the number of output tokens from the latest
+// response.
+func (s *Session) UpdateUsage(inputTokens, outputTokens int64) {
+	s.usageMutex.Lock()
+	defer s.usageMutex.Unlock()
+
+	s.InputTokens = inputTokens
+	s.OutputTokens += outputTokens
+}
+
+func (s *Session) Usage() (inputTokens, outputTokens int64) { //nolint:nonamedreturns
+	s.usageMutex.RLock()
+	defer s.usageMutex.RUnlock()
+
+	return s.InputTokens, s.OutputTokens
 }

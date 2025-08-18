@@ -67,6 +67,8 @@ func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.
 		return nil, fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
+	session.UpdateUsage(response.Usage.InputTokens, response.Usage.OutputTokens)
+
 	c.logger.Debug("token usage", "input", response.Usage.InputTokens, "output", response.Usage.OutputTokens)
 
 	if len(response.Content) == 0 {

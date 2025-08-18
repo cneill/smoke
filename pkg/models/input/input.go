@@ -15,6 +15,12 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
+const (
+	black    = lipgloss.Color("#000000")
+	orange   = lipgloss.Color("#cc4400")
+	darkgray = lipgloss.Color("#333333")
+)
+
 type Opts struct {
 	Width            int
 	Height           int
@@ -63,6 +69,11 @@ type Model struct {
 	// inCommandCompletion     bool
 	// userCompletionText      string
 	// suggestedCompletionText string
+
+	topLineFocused lipgloss.Style
+	topLineBlurred lipgloss.Style
+	inputTokens    int64
+	outputTokens   int64
 }
 
 func New(opts *Opts) (*Model, error) {
@@ -77,6 +88,9 @@ func New(opts *Opts) (*Model, error) {
 		commandCompleter: opts.CommandCompleter,
 
 		mode: modeInsert,
+
+		topLineFocused: lipgloss.NewStyle().Foreground(orange).Background(black).Align(lipgloss.Right),
+		topLineBlurred: lipgloss.NewStyle().Foreground(darkgray).Background(black).Align(lipgloss.Right),
 	}
 
 	return model, nil
@@ -104,13 +118,7 @@ func getTextArea(opts *Opts) textarea.Model {
 		model.MaxHeight = opts.MaxHeight
 	}
 
-	orange := lipgloss.Color("#cc4400")
-
 	model.FocusedStyle.Base = lipgloss.NewStyle().
-		BorderStyle(lipgloss.OuterHalfBlockBorder()).
-		BorderTopForeground(orange).
-		BorderTopBackground(lipgloss.Color("#000000")).
-		BorderTop(true).
 		Background(lipgloss.Color("#000000"))
 	model.FocusedStyle.CursorLine = lipgloss.NewStyle().
 		Background(lipgloss.Color("#000000")).
@@ -127,8 +135,7 @@ func getTextArea(opts *Opts) textarea.Model {
 		Bold(true)
 
 	model.BlurredStyle.Base = lipgloss.NewStyle().
-		Inherit(model.FocusedStyle.Base).
-		BorderTopForeground(lipgloss.Color("#333333"))
+		Inherit(model.FocusedStyle.Base)
 	model.BlurredStyle.CursorLine = lipgloss.NewStyle().
 		Inherit(model.FocusedStyle.CursorLine).
 		Foreground(lipgloss.Color("#888888"))
@@ -147,17 +154,12 @@ func getTextArea(opts *Opts) textarea.Model {
 	return model
 }
 
+// TODO: clean up the duplication between textarea and spinner styling...
 func getSpinner(width, height int) spinner.Model {
-	orange := lipgloss.Color("#cc4400")
-
 	model := spinner.New(
 		spinner.WithSpinner(spinner.Points),
 		spinner.WithStyle(
 			lipgloss.NewStyle().
-				BorderStyle(lipgloss.OuterHalfBlockBorder()).
-				BorderTopForeground(orange).
-				BorderTopBackground(lipgloss.Color("#000000")).
-				BorderTop(true).
 				Background(lipgloss.Color("#000000")).
 				Foreground(lipgloss.Color("#ff0000")).
 				Width(width).
@@ -194,20 +196,19 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
+	mainContent := m.textarea.View()
 	if m.waiting {
-		return m.spinner.View()
+		mainContent = m.spinner.View()
 	}
 
-	// if m.userCompletionText != "" {
-	// 	return m.userCompletionText + m.suggestedCompletionText
-	// }
-
-	return m.textarea.View()
+	return m.topLineView() + "\n" + mainContent
 }
 
 func (m *Model) Resize(width, height int) {
 	m.textarea.SetWidth(width)
 	m.textarea.SetHeight(height)
+	m.spinner.Style.Width(width)
+	m.spinner.Style.Height(height)
 }
 
 // LineHeight calculates the number of effective lines - both those ended with \n and those that are necessitated by
@@ -252,6 +253,24 @@ func (m *Model) SetWaiting(value bool) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *Model) UpdateUsage(inputTokens, outputTokens int64) {
+	m.inputTokens = inputTokens
+	m.outputTokens = outputTokens
+}
+
+func (m *Model) topLineView() string {
+	totalWidth := m.textarea.Width()
+	usageText := fmt.Sprintf("in: %d, out: %d", m.inputTokens, m.outputTokens)
+	border := strings.Repeat("▀", totalWidth-lipgloss.Width(usageText))
+	topLine := border + "  " + usageText
+
+	if m.Focused() {
+		return m.topLineFocused.Render(topLine)
+	}
+
+	return m.topLineBlurred.Render(topLine)
 }
 
 func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {

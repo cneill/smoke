@@ -65,6 +65,8 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 		return nil, fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
+	session.UpdateUsage(result.Usage.PromptTokens, result.Usage.CompletionTokens)
+
 	c.logger.Debug("token usage", "prompt", result.Usage.PromptTokens, "completion", result.Usage.CompletionTokens)
 
 	if len(result.Choices) == 0 {

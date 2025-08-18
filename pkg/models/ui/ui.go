@@ -225,6 +225,9 @@ func (m *Model) handleAssistantResponse(response assistantResponse) tea.Cmd {
 		updateHistory(response.message),
 	}
 
+	// update the usage based on the latest response
+	m.input.UpdateUsage(m.smoke.GetUsage())
+
 	if response.message.HasToolCalls() {
 		commands = append(commands, func() tea.Msg {
 			slog.Debug("got assistant message", "msg", response.message)
