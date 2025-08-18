@@ -255,16 +255,24 @@ func (m *Model) SetWaiting(value bool) tea.Cmd {
 }
 
 func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
-	if m.waiting {
-		return nil
-	}
-
 	keyMsg, ok := msg.(tea.KeyMsg)
-	if !ok {
+	if !ok && !m.waiting {
 		newTextarea, cmd := m.textarea.Update(msg)
 		m.textarea = newTextarea
 
 		return cmd
+	}
+
+	if m.waiting {
+		if keyMsg.Type == tea.KeyEsc {
+			m.waiting = false
+
+			return wrapMsg(CancelUserMessage{
+				Err: fmt.Errorf("user aborted request"),
+			})
+		}
+
+		return nil
 	}
 
 	switch keyMsg.Type { //nolint:exhaustive

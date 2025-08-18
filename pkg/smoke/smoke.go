@@ -4,6 +4,7 @@ package smoke
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,11 +21,12 @@ type Smoke struct {
 	debug        bool
 	planningMode bool
 
-	projectPath string
-	session     *llms.Session
-	commands    *commands.Manager
-	llmConfig   *llms.Config
-	llm         llms.LLM
+	projectPath       string
+	session           *llms.Session
+	commands          *commands.Manager
+	llmConfig         *llms.Config
+	llm               llms.LLM
+	userMessageCancel context.CancelCauseFunc
 }
 
 func (s *Smoke) OK() error {
@@ -60,17 +62,40 @@ func New(opts ...OptFunc) (*Smoke, error) {
 
 // SendUserMessage appends 'msg' to the current [*llms.Session], invokes the [llms.LLM] to send that session to the
 // provider, then adds the response to the session as well.
-func (s *Smoke) SendUserMessage(ctx context.Context, msg *llms.Message) (*llms.Message, error) {
+func (s *Smoke) SendUserMessage(msg *llms.Message) (*llms.Message, error) {
 	s.session.AddMessage(msg)
+
+	// TODO: WithTimeout?
+	ctx, cancel := context.WithCancelCause(context.Background())
+
+	defer func() {
+		cancel(fmt.Errorf("request complete"))
+
+		s.userMessageCancel = nil
+	}()
+	// TODO: handle multiple requests in-flight
+	s.userMessageCancel = cancel
 
 	response, err := s.llm.SendSession(ctx, s.session)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, fmt.Errorf("%w: %w", err, context.Cause(ctx))
+		}
+
 		return nil, fmt.Errorf("failed to send session with user message: %w", err)
 	}
 
 	s.session.AddMessage(response)
 
 	return response, nil
+}
+
+// CancelUserMessage can be triggered by the user pressing the escape key while waiting for an assistant response.
+func (s *Smoke) CancelUserMessage(err error) {
+	if s.userMessageCancel != nil {
+		s.userMessageCancel(err)
+		s.userMessageCancel = nil
+	}
 }
 
 // HandleAssistantToolCalls involes the [llms.LLM] to execute any tools called within the last assistant message and

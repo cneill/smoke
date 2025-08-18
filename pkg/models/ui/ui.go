@@ -125,6 +125,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if cmd := m.handleUserMessage(msg); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
+	case input.CancelUserMessage:
+		m.smoke.CancelUserMessage(msg.Err)
 	case commands.PromptCommandMessage:
 		cmd, err := m.smoke.HandleCommand(msg)
 		if err != nil {
@@ -202,11 +204,7 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 	sendMessage := func() tea.Msg {
 		slog.Debug("got user message", "msg", llmMessage)
 
-		// TODO: reasonable, adjustable context timeouts
-		// ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-		// defer cancel()
-
-		response, err := m.smoke.SendUserMessage(context.TODO(), llmMessage)
+		response, err := m.smoke.SendUserMessage(llmMessage)
 		if err != nil {
 			return assistantError{err}
 		}

@@ -6,13 +6,6 @@ type UserMessage struct {
 	Content string
 }
 
-type ExitCommand struct{}
-
-type SaveCommand struct {
-	Path string
-}
-
-type UnknownCommand struct {
-	Command string
-	Args    []string
+type CancelUserMessage struct {
+	Err error
 }

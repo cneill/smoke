@@ -46,11 +46,13 @@ func (c *ChatGPT) RequiresSessionSystem() bool { return true }
 
 func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
 	options := openai.ChatCompletionNewParams{
-		MaxTokens: openai.Int(c.config.MaxTokens),
-		Messages:  c.getSessionMessages(session),
-		Model:     c.config.Model,
-		N:         openai.Int(1),
-		Tools:     c.completionTools(session),
+		// THIS DOES NOT WORK WITH GPT-5
+		// MaxTokens: openai.Int(c.config.MaxTokens),
+		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
+		Messages:            c.getSessionMessages(session),
+		Model:               c.config.Model,
+		N:                   openai.Int(1),
+		Tools:               c.completionTools(session),
 	}
 
 	latest := session.Last()
