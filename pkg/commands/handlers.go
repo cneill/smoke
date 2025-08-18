@@ -2,15 +2,18 @@ package commands
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 type BaseHandler struct {
@@ -82,16 +85,16 @@ type ExportHandler struct {
 }
 
 func NewExportHandler(msg PromptCommandMessage) (Command, error) {
-	export := &ExportHandler{
+	handler := &ExportHandler{
 		BaseHandler: &BaseHandler{
 			promptCommand: msg,
 		},
 	}
 	if len(msg.Args) > 0 {
-		export.Path = msg.Args[0]
+		handler.Path = msg.Args[0]
 	}
 
-	return export, nil
+	return handler, nil
 }
 
 func (e *ExportHandler) Run(session *llms.Session) (tea.Cmd, error) {
@@ -128,7 +131,7 @@ type LoadHandler struct {
 }
 
 func NewLoadHandler(msg PromptCommandMessage) (Command, error) {
-	load := &LoadHandler{
+	handler := &LoadHandler{
 		BaseHandler: &BaseHandler{promptCommand: msg},
 	}
 
@@ -136,9 +139,9 @@ func NewLoadHandler(msg PromptCommandMessage) (Command, error) {
 		return nil, fmt.Errorf("%w: missing path", ErrArguments)
 	}
 
-	load.Path = msg.Args[0]
+	handler.Path = msg.Args[0]
 
-	return load, nil
+	return handler, nil
 }
 
 func (l *LoadHandler) Run(session *llms.Session) (tea.Cmd, error) {
@@ -238,6 +241,62 @@ func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
 }
 
 // CommandSave saves the current session to a Markdown file
+const CommandRun = "run"
+
+type RunHandler struct {
+	*BaseHandler
+
+	ToolName string
+	RawArgs  string
+}
+
+func NewRunHandler(msg PromptCommandMessage) (Command, error) {
+	handler := &RunHandler{
+		BaseHandler: &BaseHandler{
+			promptCommand: msg,
+		},
+	}
+
+	if len(msg.Args) < 2 {
+		return nil, fmt.Errorf("must supply tool name and arguments as JSON string")
+	}
+
+	handler.ToolName = msg.Args[0]
+	handler.RawArgs = strings.Join(msg.Args[1:], " ")
+
+	return handler, nil
+}
+
+func (r *RunHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	params, err := session.Tools.Params(r.ToolName)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrArguments, err)
+	}
+
+	args, err := tools.GetArgs([]byte(r.RawArgs), params)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrArguments, err)
+	}
+
+	output, err := session.Tools.CallTool(context.TODO(), r.ToolName, args)
+	if err != nil {
+		return nil, fmt.Errorf("error running tool from prompt: %w", err)
+	}
+
+	msg := llms.SimpleMessage(llms.RoleUser, output)
+	session.AddMessage(msg)
+
+	updateMsg := fmt.Sprintf("User called tool %q with args %q:\n\n%s\n", r.ToolName, r.RawArgs, output)
+
+	update := HistoryUpdateMessage{
+		PromptCommand: r.promptCommand,
+		Message:       updateMsg,
+	}
+
+	return update.Cmd(), nil
+}
+
+// CommandSave saves the current session to a Markdown file
 const CommandSave = "save"
 
 type SaveHandler struct {
@@ -247,16 +306,16 @@ type SaveHandler struct {
 }
 
 func NewSaveHandler(msg PromptCommandMessage) (Command, error) {
-	save := &SaveHandler{
+	handler := &SaveHandler{
 		BaseHandler: &BaseHandler{
 			promptCommand: msg,
 		},
 	}
 	if len(msg.Args) > 0 {
-		save.Path = msg.Args[0]
+		handler.Path = msg.Args[0]
 	}
 
-	return save, nil
+	return handler, nil
 }
 
 func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
