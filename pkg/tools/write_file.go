@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/cneill/smoke/pkg/utils"
+	smokefs "github.com/cneill/smoke/pkg/fs"
 )
 
 const (
@@ -53,7 +53,7 @@ func (w *WriteFileTool) Run(_ context.Context, args Args) (string, error) {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
 
-	fullPath, err := utils.GetRelativePath(w.ProjectPath, *path)
+	fullPath, err := smokefs.GetRelativePath(w.ProjectPath, *path)
 	if err != nil {
 		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 	}

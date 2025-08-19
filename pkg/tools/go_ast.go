@@ -7,13 +7,13 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/utils"
 )
 
@@ -80,7 +80,7 @@ func (g *GoASTTool) Run(ctx context.Context, args Args) (string, error) {
 
 	// path is optional
 	if path := args.GetString(GoFumptPath); path != nil {
-		relPath, err := utils.GetRelativePath(g.ProjectPath, *path)
+		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 		}
@@ -122,14 +122,6 @@ func (g *GoASTTool) Run(ctx context.Context, args Args) (string, error) {
 				continue
 			}
 
-			// slog.Debug("got result",
-			// 	"path", result.path,
-			// 	"package", result.typeInfo.Package,
-			// 	"name", result.typeInfo.Name,
-			// 	"start", result.typeInfo.StartPos,
-			// 	"end", result.typeInfo.EndPos,
-			// )
-
 			matches = append(matches, result)
 		}
 	})
@@ -141,11 +133,40 @@ func (g *GoASTTool) Run(ctx context.Context, args Args) (string, error) {
 	})
 
 	walkCtx, walkCancel := context.WithTimeout(ctx, time.Second*60)
+	defer walkCancel()
 
-	walkErr := filepath.WalkDir(targetPath, g.walker(walkCtx, fileChan))
-	if walkErr != nil {
-		walkCancel()
-		return "", fmt.Errorf("walk error: %w", walkErr)
+	iter, err := fs.ExcludesWalker(targetPath)
+	if err != nil {
+		return "", fmt.Errorf("go_ast failed to walk files: %w", err)
+	}
+
+iterloop:
+	for entry, err := range iter {
+		select {
+		case <-walkCtx.Done():
+			break iterloop
+		default:
+		}
+
+		if err != nil {
+			slog.Error("error with entry while walking", "target_path", targetPath, "error", err)
+			continue
+		}
+
+		if filepath.Ext(entry.Path) != ".go" {
+			continue
+		}
+
+		contents, err := os.ReadFile(entry.Path)
+		if err != nil {
+			slog.Error("failed to read file", "path", entry.Path, "error", err)
+			continue
+		}
+
+		fileChan <- fileInfo{
+			path:     entry.Path,
+			contents: contents,
+		}
 	}
 
 	slog.Debug("done walking")
@@ -284,37 +305,5 @@ func (p *parserWorker) start(ctx context.Context, fileChan <-chan fileInfo, resu
 			errChan <- ctx.Err()
 			return
 		}
-	}
-}
-
-func (g *GoASTTool) walker(ctx context.Context, fileChan chan<- fileInfo) fs.WalkDirFunc {
-	return func(path string, dirEntry fs.DirEntry, err error) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		if err != nil {
-			return err
-		}
-
-		if filepath.Ext(dirEntry.Name()) != ".go" {
-			return nil
-		}
-
-		contents, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, path, err)
-		}
-
-		f := fileInfo{
-			path:     path,
-			contents: contents,
-		}
-
-		fileChan <- f
-
-		return nil
 	}
 }

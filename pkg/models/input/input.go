@@ -125,6 +125,7 @@ func getTextArea(opts *Opts) textarea.Model {
 
 	model.Prompt = insertPrompt
 	model.CharLimit = 0
+	model.Cursor.BlinkSpeed = time.Millisecond * 200
 
 	model.SetWidth(opts.Width)
 	model.SetHeight(opts.Height)

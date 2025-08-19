@@ -1,4 +1,4 @@
-package utils
+package fs
 
 import (
 	"errors"
@@ -13,6 +13,8 @@ var (
 	ErrOutsideBounds          = errors.New("final path is not inside project directory")
 )
 
+// GetRelativePath ensures that 'targetPath' does not attempt to escape 'projectPath', and returns the combined path if
+// it can be done safely.
 func GetRelativePath(projectPath, targetPath string) (string, error) {
 	if projectPath == "" || projectPath == "/" {
 		return "", ErrInsecureProjectPath

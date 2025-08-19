@@ -1,0 +1,174 @@
+package fs
+
+import (
+	"bufio"
+	"errors"
+	"fmt"
+	"io/fs"
+	"iter"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
+)
+
+const smokeIgnore = ".smokeignore"
+
+type ExcludeMatcher struct {
+	matcher gitignore.Matcher
+}
+
+func (m ExcludeMatcher) Match(path string, isDir bool) bool {
+	return m.matcher.Match(getParts(path), isDir)
+}
+
+var excludesFilePaths = map[string][]string{} //nolint:gochecknoglobals // used for caching
+
+type WalkerEntry struct {
+	Path     string
+	DirEntry fs.DirEntry
+}
+
+func ExcludesWalker(targetPath string) (iter.Seq2[WalkerEntry, error], error) {
+	if !filepath.IsAbs(targetPath) {
+		abs, err := filepath.Abs(targetPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get absolute path from %q: %w", targetPath, err)
+		}
+
+		targetPath = abs
+	}
+
+	excludes := GetExcludeMatcher(targetPath)
+
+	iter := func(yield func(WalkerEntry, error) bool) {
+		errStop := errors.New("stop walk")
+
+		_ = filepath.WalkDir(targetPath, func(path string, dirEntry fs.DirEntry, err error) error {
+			if err != nil {
+				if !yield(WalkerEntry{}, fmt.Errorf("walk error on %q: %w", path, err)) {
+					return errStop
+				}
+
+				return nil
+			}
+
+			isDir := dirEntry.IsDir()
+			if exclude := excludes.Match(path, isDir); exclude {
+				if isDir {
+					return fs.SkipDir
+				}
+
+				return nil
+			}
+
+			entry := WalkerEntry{
+				Path:     path,
+				DirEntry: dirEntry,
+			}
+
+			if !yield(entry, nil) {
+				return errStop
+			}
+
+			return nil
+		})
+	}
+
+	return iter, nil
+}
+
+func GetExcludeMatcher(projectPath string) ExcludeMatcher {
+	paths, ok := excludesFilePaths[projectPath]
+	if !ok {
+		paths = getExcludesFilePaths(projectPath)
+		excludesFilePaths[projectPath] = paths
+	}
+
+	patterns := []gitignore.Pattern{}
+
+	for _, path := range paths {
+		stat, err := os.Stat(path)
+		if err != nil {
+			// TODO: error if something other than "not exist"?
+			continue
+		}
+
+		if stat.IsDir() {
+			continue
+		}
+
+		pathPatterns := readFilePatterns(path)
+		if pathPatterns != nil {
+			patterns = append(patterns, pathPatterns...)
+		}
+	}
+
+	return ExcludeMatcher{gitignore.NewMatcher(patterns)}
+}
+
+func getParts(path string) []string {
+	results := []string{}
+
+	for part := range strings.SplitSeq(filepath.ToSlash(path), "/") {
+		if part == "" {
+			continue
+		}
+
+		results = append(results, part)
+	}
+
+	return results
+}
+
+func readFilePatterns(path string) []gitignore.Pattern {
+	results := []gitignore.Pattern{}
+
+	dir, _ := filepath.Split(path)
+	dirParts := getParts(dir)
+
+	slog.Debug("reading smoke ignore patterns", "file", path, "dir", dirParts)
+
+	file, err := os.Open(path)
+	if err != nil {
+		// TODO: error if something other than "not exist"?
+		return nil
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		pattern := gitignore.ParsePattern(line, dirParts)
+		results = append(results, pattern)
+	}
+
+	return results
+}
+
+func getExcludesFilePaths(projectPath string) []string {
+	results := []string{}
+
+	// [project_path]/.smokeignore
+	repoPath, err := GetRelativePath(projectPath, smokeIgnore)
+	if err == nil {
+		results = append(results, repoPath)
+	}
+
+	// $HOME/.smokeignore
+	home, _ := os.UserHomeDir()
+	if home != "" {
+		results = append(results, filepath.Join(home, smokeIgnore))
+	}
+
+	// $XDG_CONFIG_HOME/.config/smoke/ignore OR $HOME/.config/smoke/ignore
+	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+		results = append(results, filepath.Join(xdgConfig, "smoke", "ignore"))
+	} else if home != "" {
+		results = append(results, filepath.Join(home, ".config", "smoke", "ignore"))
+	}
+
+	return results
+}

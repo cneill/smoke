@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/utils"
 )
 
@@ -76,7 +77,7 @@ func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
 
-	fullPath, err := utils.GetRelativePath(r.ProjectPath, *path)
+	fullPath, err := fs.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
 		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 	}

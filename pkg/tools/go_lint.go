@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cneill/smoke/pkg/utils"
+	"github.com/cneill/smoke/pkg/fs"
 )
 
 const (
@@ -105,7 +105,7 @@ func (g *GoLintTool) Run(ctx context.Context, args Args) (string, error) { //nol
 
 	// path is optional
 	if path := args.GetString(GoLintPath); path != nil {
-		relPath, err := utils.GetRelativePath(g.ProjectPath, *path)
+		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 		}
@@ -182,7 +182,7 @@ func (g *GoLintTool) Run(ctx context.Context, args Args) (string, error) { //nol
 		targetIssues = results.Issues
 	} else {
 		for _, issue := range results.Issues {
-			issuePath, err := utils.GetRelativePath(g.ProjectPath, issue.Pos.Filename)
+			issuePath, err := fs.GetRelativePath(g.ProjectPath, issue.Pos.Filename)
 			if err != nil {
 				continue
 			}

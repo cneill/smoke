@@ -6,14 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/cneill/smoke/pkg/utils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: check the output as well
 func TestReplaceLinesV2Tool_Run(t *testing.T) { //nolint:funlen
 	t.Parallel()
 	tempDir := t.TempDir()
@@ -50,7 +49,7 @@ func TestReplaceLinesV2Tool_Run(t *testing.T) { //nolint:funlen
 				tools.ReplaceLinesV2Replace:   "1",
 			},
 			expectedContent: "a\nb\nc",
-			errors:          []error{tools.ErrArguments, utils.ErrInsecureTargetPath},
+			errors:          []error{tools.ErrArguments, fs.ErrInsecureTargetPath},
 		},
 		{
 			name:        "all_args_nonexistent_file",
@@ -254,7 +253,7 @@ func TestReplaceLinesV2Tool_Run(t *testing.T) { //nolint:funlen
 	}
 }
 
-func TestReplaceLinesV2Tool_ContextOutput(t *testing.T) {
+func TestReplaceLinesV2Tool_ContextOutput(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tempDir := t.TempDir()

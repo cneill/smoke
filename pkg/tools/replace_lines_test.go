@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/cneill/smoke/pkg/utils"
 )
 
 func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
@@ -46,7 +46,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
 				tools.ReplaceLinesReplace: "1",
 			},
 			expectedContent: "a\nb\nc",
-			errors:          []error{tools.ErrArguments, utils.ErrInsecureTargetPath},
+			errors:          []error{tools.ErrArguments, fs.ErrInsecureTargetPath},
 		},
 		{
 			name:        "path_no_search_replace",

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"maps"
 	"os"
@@ -13,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/cneill/smoke/pkg/utils"
+	"github.com/cneill/smoke/pkg/fs"
 )
 
 const (
@@ -65,7 +64,7 @@ func (g *GrepTool) Run(_ context.Context, args Args) (string, error) {
 		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
 	}
 
-	fullPath, err := utils.GetRelativePath(g.ProjectPath, *path)
+	fullPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 	if err != nil {
 		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
 	}
@@ -195,31 +194,36 @@ func (g *GrepTool) getFileResults(fullPath string, pattern *regexp.Regexp, conte
 func (g *GrepTool) getDirResults(fullPath string, pattern *regexp.Regexp, contextLines int64) (map[string][][]string, error) {
 	results := map[string][][]string{}
 
-	walkErr := filepath.WalkDir(fullPath, func(path string, dirEntry fs.DirEntry, err error) error {
+	iter, err := fs.ExcludesWalker(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to grep directory %q: %w", fullPath, err)
+	}
+
+	for entry, err := range iter {
 		if err != nil {
-			return err
+			slog.Error("walk error in grep", "target_path", fullPath, "error", err)
+			continue
 		}
 
-		info, err := dirEntry.Info()
+		info, err := entry.DirEntry.Info()
 		if err != nil {
-			return fmt.Errorf("%w: failed to stat %q: %w", ErrFileSystem, path, err)
+			slog.Error("error getting info for path", "path", entry.Path, "error", err)
+			continue
 		}
 
-		if info.Mode().IsRegular() {
-			fileResults, err := g.getFileResults(path, pattern, contextLines)
-			if err != nil {
-				slog.Error("failed to grep file", "path", path, "error", err)
-			}
-
-			if len(fileResults) > 0 {
-				results[path] = fileResults
-			}
+		if !info.Mode().IsRegular() {
+			continue
 		}
 
-		return nil
-	})
-	if walkErr != nil {
-		return nil, fmt.Errorf("failed to grep directory %q: %w", fullPath, walkErr)
+		fileResults, err := g.getFileResults(entry.Path, pattern, contextLines)
+		if err != nil {
+			slog.Error("failed to grep file", "path", entry.Path, "error", err)
+			continue
+		}
+
+		if len(fileResults) > 0 {
+			results[entry.Path] = fileResults
+		}
 	}
 
 	return results, nil

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cneill/smoke/pkg/utils"
+	"github.com/cneill/smoke/pkg/fs"
 )
 
 type RemovePlanTool struct {
@@ -25,7 +25,7 @@ func (r *RemovePlanTool) Params() Params { return Params{} }
 func (r *RemovePlanTool) Run(_ context.Context, _ Args) (string, error) {
 	planFileName := r.SessionName + "_plan.md"
 
-	path, err := utils.GetRelativePath(r.ProjectPath, planFileName)
+	path, err := fs.GetRelativePath(r.ProjectPath, planFileName)
 	if err != nil {
 		return "", fmt.Errorf("invalid session name / plan path: %w", err)
 	}
