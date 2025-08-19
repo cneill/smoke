@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -56,7 +55,7 @@ func (l *ListFilesTool) Run(_ context.Context, args Args) (string, error) {
 
 	builder := strings.Builder{}
 
-	iter, err := fs.ExcludesWalker(fullPath)
+	iter, err := fs.ExcludesWalker(l.ProjectPath, fullPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to walk files: %w", err)
 	}
@@ -69,7 +68,7 @@ func (l *ListFilesTool) Run(_ context.Context, args Args) (string, error) {
 
 		info, err := entry.DirEntry.Info()
 		if err != nil {
-			return "", fmt.Errorf("failed to get info about path %q: %w", entry.Path, err)
+			return "", fmt.Errorf("failed to get info about path %q: %w", entry.RelPath, err)
 		}
 
 		if _, err := builder.WriteString("[" + info.Mode().String() + "] "); err != nil {
@@ -80,12 +79,7 @@ func (l *ListFilesTool) Run(_ context.Context, args Args) (string, error) {
 			return "", fmt.Errorf("failed to add file size: %w", err)
 		}
 
-		relPath, err := filepath.Rel(l.ProjectPath, entry.Path)
-		if err != nil {
-			return "", fmt.Errorf("invalid file path %q: %w", entry.Path, err)
-		}
-
-		if _, err := builder.WriteString("/" + relPath + "\n"); err != nil {
+		if _, err := builder.WriteString("/" + entry.RelPath + "\n"); err != nil {
 			return "", fmt.Errorf("failed to add path: %w", err)
 		}
 	}

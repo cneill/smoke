@@ -16,6 +16,7 @@ import (
 
 const smokeIgnore = ".smokeignore"
 
+// ExcludeMatcher wraps the gitignore Matcher from go-git and handles the path-splitting it requires automatically.
 type ExcludeMatcher struct {
 	matcher gitignore.Matcher
 }
@@ -26,12 +27,21 @@ func (m ExcludeMatcher) Match(path string, isDir bool) bool {
 
 var excludesFilePaths = map[string][]string{} //nolint:gochecknoglobals // used for caching
 
+// WalkerEntry has the details returned by a single iteration of an fs.WalkDirFunc call during filepath.WalkDir.
 type WalkerEntry struct {
 	Path     string
+	RelPath  string
 	DirEntry fs.DirEntry
 }
 
-func ExcludesWalker(targetPath string) (iter.Seq2[WalkerEntry, error], error) {
+// ExcludesWalker returns an iterator that returns the entries from a filepath.WalkDir call, filtered by the
+// ExcludesMatcher for this directory.
+func ExcludesWalker(projectPath, targetPath string) (iter.Seq2[WalkerEntry, error], error) {
+	_, err := filepath.Rel(projectPath, targetPath)
+	if err != nil {
+		return nil, fmt.Errorf("target path is not a subpath of project path: %w", err)
+	}
+
 	if !filepath.IsAbs(targetPath) {
 		abs, err := filepath.Abs(targetPath)
 		if err != nil {
@@ -41,7 +51,7 @@ func ExcludesWalker(targetPath string) (iter.Seq2[WalkerEntry, error], error) {
 		targetPath = abs
 	}
 
-	excludes := GetExcludeMatcher(targetPath)
+	excludes := GetExcludeMatcher(projectPath)
 
 	iter := func(yield func(WalkerEntry, error) bool) {
 		errStop := errors.New("stop walk")
@@ -55,6 +65,10 @@ func ExcludesWalker(targetPath string) (iter.Seq2[WalkerEntry, error], error) {
 				return nil
 			}
 
+			if path == targetPath {
+				return nil
+			}
+
 			isDir := dirEntry.IsDir()
 			if exclude := excludes.Match(path, isDir); exclude {
 				if isDir {
@@ -64,8 +78,16 @@ func ExcludesWalker(targetPath string) (iter.Seq2[WalkerEntry, error], error) {
 				return nil
 			}
 
+			relPath, err := filepath.Rel(projectPath, path)
+			if err != nil {
+				if !yield(WalkerEntry{}, fmt.Errorf("failed to get relative path for %q: %w", path, err)) {
+					return errStop
+				}
+			}
+
 			entry := WalkerEntry{
 				Path:     path,
+				RelPath:  relPath,
 				DirEntry: dirEntry,
 			}
 
@@ -80,6 +102,13 @@ func ExcludesWalker(targetPath string) (iter.Seq2[WalkerEntry, error], error) {
 	return iter, nil
 }
 
+// GetExcludeMatcher looks at a few locations to get exclusion files, then returns an ExcludeMatcher that will exclude
+// files referenced within them. Those files are:
+//
+// -  [projectPath]/.smokeignore
+// - $HOME/.smokeignore
+// - $XDG_CONFIG_HOME/smoke/ignore
+// - $HOME/config/smoke/ignore (if no $XDG_CONFIG_HOME defined)
 func GetExcludeMatcher(projectPath string) ExcludeMatcher {
 	paths, ok := excludesFilePaths[projectPath]
 	if !ok {

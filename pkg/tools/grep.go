@@ -194,7 +194,7 @@ func (g *GrepTool) getFileResults(fullPath string, pattern *regexp.Regexp, conte
 func (g *GrepTool) getDirResults(fullPath string, pattern *regexp.Regexp, contextLines int64) (map[string][][]string, error) {
 	results := map[string][][]string{}
 
-	iter, err := fs.ExcludesWalker(fullPath)
+	iter, err := fs.ExcludesWalker(g.ProjectPath, fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to grep directory %q: %w", fullPath, err)
 	}

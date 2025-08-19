@@ -1,6 +1,4 @@
-.git
 cmd/smoke/smoke
 cmd/tooltest/tooltest
 logs/
 *.log
-*_plan.md

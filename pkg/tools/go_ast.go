@@ -135,7 +135,7 @@ func (g *GoASTTool) Run(ctx context.Context, args Args) (string, error) {
 	walkCtx, walkCancel := context.WithTimeout(ctx, time.Second*60)
 	defer walkCancel()
 
-	iter, err := fs.ExcludesWalker(targetPath)
+	iter, err := fs.ExcludesWalker(g.ProjectPath, targetPath)
 	if err != nil {
 		return "", fmt.Errorf("go_ast failed to walk files: %w", err)
 	}
