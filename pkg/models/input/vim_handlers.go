@@ -13,11 +13,17 @@ const (
 	simpleMoveKeys = "hjkl0$"
 	insertKeys     = "iIaAoO"
 	wordMoveKeys   = "wWeEbB"
+	deleteKeys     = "d0$"
 )
 
 func (m *Model) handleNormalModeVimKey(key string) tea.Cmd {
+	if time.Since(m.lastD) > time.Second {
+		m.pendingD = false
+		m.lastD = time.Time{}
+	}
+
 	switch {
-	case key == "d" || m.pendingD:
+	case key == "d" || (m.pendingD && strings.Contains(deleteKeys, key)):
 		return m.handleVimDelete(key)
 	case strings.Contains(simpleMoveKeys, key):
 		return m.handleVimSimpleMove(key)
@@ -128,6 +134,10 @@ func (m *Model) handleVimWordMove(key string) tea.Cmd {
 }
 
 func (m *Model) handleVimDelete(key string) tea.Cmd {
+	if !strings.Contains(deleteKeys, key) {
+		return nil
+	}
+
 	var (
 		content = m.textarea.Value()
 		lines   = strings.Split(content, "\n")
@@ -135,29 +145,26 @@ func (m *Model) handleVimDelete(key string) tea.Cmd {
 		info    = m.textarea.LineInfo()
 	)
 
-	if key == "d" {
-		slog.Debug("got d")
-
+	switch key {
+	case "d":
 		if !m.pendingD {
 			m.pendingD = true
 			m.lastD = time.Now()
-		} else {
-			if time.Since(m.lastD) <= time.Second {
-				// delete line
-			}
 
-			m.pendingD = false
-			m.lastD = time.Time{}
+			return nil
 		}
 
-		return nil
-	}
+		newLines := []string{}
+		if lineNum > 0 {
+			newLines = append(newLines, lines[0:lineNum]...)
+		}
 
-	if !m.pendingD {
-		return nil
-	}
+		if len(lines) > lineNum {
+			newLines = append(newLines, lines[lineNum+1:]...)
+		}
 
-	switch key {
+		m.textarea.SetValue(strings.Join(newLines, "\n"))
+		// TODO: position cursor
 	case "0":
 		slog.Debug("got delete to beginning of line")
 
@@ -173,10 +180,7 @@ func (m *Model) handleVimDelete(key string) tea.Cmd {
 		}
 
 		m.textarea.SetValue(strings.Join(newLines, "\n"))
-
-		m.pendingD = false
-		m.lastD = time.Time{}
-		// TODO: set cursor position
+		m.textarea.CursorStart()
 	case "$":
 		slog.Debug("got delete to end of line")
 
@@ -192,11 +196,11 @@ func (m *Model) handleVimDelete(key string) tea.Cmd {
 		}
 
 		m.textarea.SetValue(strings.Join(newLines, "\n"))
-
-		m.pendingD = false
-		m.lastD = time.Time{}
-		// TODO: set cursor position
+		m.textarea.CursorEnd()
 	}
+
+	m.pendingD = false
+	m.lastD = time.Time{}
 
 	return nil
 }
