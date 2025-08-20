@@ -62,9 +62,8 @@ type Model struct {
 
 	waiting bool
 
-	mode     mode
-	pendingG bool
-	lastG    time.Time
+	mode  mode
+	lastG time.Time
 	// inCommandCompletion     bool
 	// userCompletionText      string
 	// suggestedCompletionText string
@@ -345,11 +344,11 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	case tea.KeyRunes:
 		// History mode: allow i/A/I/o/O to re-enter insert mode
 		if !m.Focused() {
-			return m.handleVimKeyBindingsHistory(keyMsg.String())
+			return m.handleVimInsertKey(keyMsg.String())
 		}
 
 		if m.mode == modeNormal {
-			return m.handleNormalModeRunes(keyMsg.String())
+			return m.handleNormalModeVimKey(keyMsg.String())
 		}
 
 		// if (msg.String() == "/" && m.textarea.Value() == "") || m.userCompletionText != "" {
@@ -363,163 +362,6 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	m.textarea = newTextarea
 
 	return cmd
-}
-
-func (m *Model) handleVimKeyBindingsHistory(key string) tea.Cmd {
-	insertKeys := "iIaAoO"
-	if !strings.Contains(insertKeys, key) {
-		return nil
-	}
-
-	m.setMode(modeInsert)
-	m.textarea.Focus()
-
-	switch key {
-	case "i":
-		// just enter insert mode where the cursor is
-	case "I":
-		m.textarea.CursorStart()
-	case "a":
-		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
-	case "A":
-		m.textarea.CursorEnd()
-	case "o":
-		m.textarea.CursorEnd()
-		m.textarea.InsertString("\n")
-	case "O":
-		m.textarea.CursorStart()
-		m.textarea.InsertString("\n")
-		m.textarea.CursorUp()
-	}
-
-	return textarea.Blink
-}
-
-func (m *Model) handleNormalModeRunes(key string) tea.Cmd {
-	switch key {
-	case "h":
-		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyLeft})
-		return nil
-	case "l":
-		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
-		return nil
-	case "j":
-		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyDown})
-		return nil
-	case "k":
-		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyUp})
-		return nil
-	case "0":
-		m.textarea.CursorStart()
-		return nil
-	case "$":
-		m.textarea.CursorEnd()
-		return nil
-	case "w":
-		// Move to beginning of next word
-		content := m.textarea.Value()
-		pos := m.textarea.LineInfo().ColumnOffset
-		newPos := findNextWord(content, pos)
-		m.textarea.SetCursor(newPos)
-
-		return nil
-	case "W":
-		// Move to beginning of next WORD
-		content := m.textarea.Value()
-		pos := m.textarea.LineInfo().ColumnOffset
-		newPos := findNextWORD(content, pos)
-		m.textarea.SetCursor(newPos)
-
-		return nil
-	case "e":
-		// Move to end of current/next word
-		content := m.textarea.Value()
-		pos := m.textarea.LineInfo().ColumnOffset
-		newPos := findEndOfWord(content, pos)
-		m.textarea.SetCursor(newPos)
-
-		return nil
-	case "E":
-		// Move to end of current/next WORD
-		content := m.textarea.Value()
-		pos := m.textarea.LineInfo().ColumnOffset
-		newPos := findEndOfWORD(content, pos)
-		m.textarea.SetCursor(newPos)
-
-		return nil
-	case "b":
-		// Move backward to beginning of word
-		content := m.textarea.Value()
-		pos := m.textarea.LineInfo().ColumnOffset
-		newPos := findPrevWord(content, pos)
-		m.textarea.SetCursor(newPos)
-
-		return nil
-	case "B":
-		// Move backward to beginning of WORD
-		content := m.textarea.Value()
-		pos := m.textarea.LineInfo().ColumnOffset
-		newPos := findPrevWORD(content, pos)
-		m.textarea.SetCursor(newPos)
-
-		return nil
-	case "g":
-		if m.pendingG && time.Since(m.lastG) <= time.Second {
-			m.textarea.CursorStart()
-			m.pendingG = false
-
-			return nil
-		}
-
-		m.pendingG = true
-		m.lastG = time.Now()
-
-		return nil
-	case "G":
-		m.textarea.CursorEnd()
-		m.pendingG = false
-
-		return nil
-	case "i":
-		m.setMode(modeInsert)
-
-		return textarea.Blink
-	case "a":
-		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
-		m.setMode(modeInsert)
-
-		return textarea.Blink
-	case "A":
-		m.textarea.CursorEnd()
-		m.setMode(modeInsert)
-
-		return textarea.Blink
-	case "I":
-		m.textarea.CursorStart()
-		m.setMode(modeInsert)
-
-		return textarea.Blink
-	case "o":
-		m.textarea.CursorEnd()
-		m.textarea.InsertString("\n")
-		m.setMode(modeInsert)
-
-		return textarea.Blink
-	case "O":
-		m.textarea.CursorStart()
-		m.textarea.InsertString("\n")
-		m.textarea.CursorUp()
-		m.setMode(modeInsert)
-
-		return textarea.Blink
-	case "p":
-		return textarea.Paste
-	}
-
-	// Unrecognized in normal mode: do nothing
-	m.pendingG = false
-
-	return nil
 }
 
 func (m *Model) setMode(newMode mode) {
