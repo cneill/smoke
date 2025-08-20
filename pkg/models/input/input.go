@@ -309,15 +309,9 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	}
 
 	if m.waiting {
-		if keyMsg.Type == tea.KeyEsc {
-			m.waiting = false
-
-			return wrapMsg(CancelUserMessage{
-				Err: fmt.Errorf("user aborted request"),
-			})
+		if cmd := m.handleWaitingKey(keyMsg); cmd != nil {
+			return cmd
 		}
-
-		return nil
 	}
 
 	switch keyMsg.Type { //nolint:exhaustive
@@ -587,7 +581,19 @@ func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) handleHistoryTraversal(msg tea.KeyMsg) tea.Cmd {
+func (m *Model) handleWaitingKey(msg tea.KeyMsg) tea.Cmd {
+	if msg.Type == tea.KeyEsc {
+		m.waiting = false
+
+		return wrapMsg(CancelUserMessage{
+			Err: fmt.Errorf("user aborted request"),
+		})
+	}
+
+	return nil
+}
+
+func (m *Model) handleHistoryTraversal(msg tea.KeyMsg) tea.Cmd { //nolint:cyclop // This used to be much worse...
 	// We only want to scroll history if we're focused, in insert mode, and not waiting
 	if !m.Focused() || m.mode != modeInsert || m.waiting {
 		return nil
