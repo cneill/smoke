@@ -339,36 +339,10 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 
 		return nil
 
-	// Handle user history here and in KeyDown.
-	// TODO: refactor this to be less complex
-	case tea.KeyUp:
-		// TODO: do a partial match on what the user has already entered to filter history messages?
-		if m.Focused() && m.mode == modeInsert && !m.waiting && (m.textarea.Value() == "" || m.userHistoryIndex != nil) {
-			if m.userHistoryIndex != nil && *m.userHistoryIndex > 0 {
-				*m.userHistoryIndex--
-			} else if m.userHistoryIndex == nil {
-				idx := len(m.userHistory) - 1
-				m.userHistoryIndex = &idx
-			}
-
-			if m.userHistoryIndex != nil {
-				m.textarea.SetValue(m.userHistory[*m.userHistoryIndex])
-			}
-		}
-	case tea.KeyDown:
-		if m.Focused() && m.mode == modeInsert && !m.waiting && (m.textarea.Value() == "" || m.userHistoryIndex != nil) {
-			if m.userHistoryIndex != nil {
-				if *m.userHistoryIndex < len(m.userHistory)-1 {
-					*m.userHistoryIndex++
-				} else {
-					m.userHistoryIndex = nil
-					m.textarea.SetValue("")
-				}
-			}
-
-			if m.userHistoryIndex != nil {
-				m.textarea.SetValue(m.userHistory[*m.userHistoryIndex])
-			}
+	case tea.KeyUp, tea.KeyDown:
+		// scroll up and down through previous user messages
+		if cmd := m.handleHistoryTraversal(keyMsg); cmd != nil {
+			return cmd
 		}
 
 	case tea.KeyRunes:
@@ -611,6 +585,44 @@ func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 	m.spinner = newSpinner
 
 	return cmd
+}
+
+func (m *Model) handleHistoryTraversal(msg tea.KeyMsg) tea.Cmd {
+	// We only want to scroll history if we're focused, in insert mode, and not waiting
+	if !m.Focused() || m.mode != modeInsert || m.waiting {
+		return nil
+	}
+
+	// We only want to traverse history if 1) there is no text in the textarea, or 2) we're already traversing it
+	// TODO: do a partial match on what the user has already entered to filter history messages?
+	if m.textarea.Value() != "" && m.userHistoryIndex == nil {
+		return nil
+	}
+
+	switch msg.Type { //nolint:exhaustive
+	case tea.KeyUp:
+		if m.userHistoryIndex != nil && *m.userHistoryIndex > 0 {
+			*m.userHistoryIndex--
+		} else if m.userHistoryIndex == nil {
+			idx := len(m.userHistory) - 1
+			m.userHistoryIndex = &idx
+		}
+	case tea.KeyDown:
+		if m.userHistoryIndex != nil {
+			if *m.userHistoryIndex < len(m.userHistory)-1 {
+				*m.userHistoryIndex++
+			} else {
+				m.userHistoryIndex = nil
+				m.textarea.SetValue("")
+			}
+		}
+	}
+
+	if m.userHistoryIndex != nil {
+		m.textarea.SetValue(m.userHistory[*m.userHistoryIndex])
+	}
+
+	return nil
 }
 
 // handleContentSubmit interprets the content the user has entered in the textarea and returns an appropriate tea.Cmd.
