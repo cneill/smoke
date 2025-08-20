@@ -338,6 +338,9 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		m.textarea.Blur()
 
 		return nil
+
+	// Handle user history here and in KeyDown.
+	// TODO: refactor this to be less complex
 	case tea.KeyUp:
 		// TODO: do a partial match on what the user has already entered to filter history messages?
 		if m.Focused() && m.mode == modeInsert && !m.waiting && (m.textarea.Value() == "" || m.userHistoryIndex != nil) {
