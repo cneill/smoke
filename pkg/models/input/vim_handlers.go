@@ -164,7 +164,10 @@ func (m *Model) handleVimDelete(key string) tea.Cmd {
 		}
 
 		m.textarea.SetValue(strings.Join(newLines, "\n"))
-		// TODO: position cursor
+
+		for range m.textarea.LineCount() - lineNum - 1 {
+			m.textarea.CursorUp()
+		}
 	case "0":
 		slog.Debug("got delete to beginning of line")
 
