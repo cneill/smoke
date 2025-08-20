@@ -75,6 +75,9 @@ type Model struct {
 	topLineUsageBlurred  lipgloss.Style
 	inputTokens          int64
 	outputTokens         int64
+
+	userHistory      []string
+	userHistoryIndex *int
 }
 
 func New(opts *Opts) (*Model, error) {
@@ -335,6 +338,36 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		m.textarea.Blur()
 
 		return nil
+	case tea.KeyUp:
+		// TODO: do a partial match on what the user has already entered to filter history messages?
+		if m.Focused() && m.mode == modeInsert && !m.waiting && (m.textarea.Value() == "" || m.userHistoryIndex != nil) {
+			if m.userHistoryIndex != nil && *m.userHistoryIndex > 0 {
+				*m.userHistoryIndex--
+			} else if m.userHistoryIndex == nil {
+				idx := len(m.userHistory) - 1
+				m.userHistoryIndex = &idx
+			}
+
+			if m.userHistoryIndex != nil {
+				m.textarea.SetValue(m.userHistory[*m.userHistoryIndex])
+			}
+		}
+	case tea.KeyDown:
+		if m.Focused() && m.mode == modeInsert && !m.waiting && (m.textarea.Value() == "" || m.userHistoryIndex != nil) {
+			if m.userHistoryIndex != nil {
+				if *m.userHistoryIndex < len(m.userHistory)-1 {
+					*m.userHistoryIndex++
+				} else {
+					m.userHistoryIndex = nil
+					m.textarea.SetValue("")
+				}
+			}
+
+			if m.userHistoryIndex != nil {
+				m.textarea.SetValue(m.userHistory[*m.userHistoryIndex])
+			}
+		}
+
 	case tea.KeyRunes:
 		// History mode: allow i/A/I/o/O to re-enter insert mode
 		if !m.Focused() {
@@ -581,6 +614,8 @@ func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 func (m *Model) handleContentSubmit() tea.Cmd {
 	content := m.textarea.Value()
 	m.textarea.Reset()
+	m.userHistory = append(m.userHistory, content)
+	m.userHistoryIndex = nil
 
 	if strings.HasPrefix(content, "/") {
 		return m.handlePromptCommand(content)
