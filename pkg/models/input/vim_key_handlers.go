@@ -1,7 +1,6 @@
 package input
 
 import (
-	"log/slog"
 	"strings"
 	"time"
 
@@ -139,10 +138,14 @@ func (m *Model) handleVimDelete(key string) tea.Cmd {
 	}
 
 	var (
-		content = m.textarea.Value()
-		lines   = strings.Split(content, "\n")
-		lineNum = m.textarea.Line()
-		info    = m.textarea.LineInfo()
+		content        = m.textarea.Value()
+		lines          = strings.Split(content, "\n")
+		lineNum        = m.textarea.Line()
+		info           = m.textarea.LineInfo()
+		newLines       = []string{}
+		keepLine       = false
+		currentLine    string
+		cursorPosition func()
 	)
 
 	switch key {
@@ -154,56 +157,43 @@ func (m *Model) handleVimDelete(key string) tea.Cmd {
 			return nil
 		}
 
-		newLines := []string{}
-		if lineNum > 0 {
-			newLines = append(newLines, lines[0:lineNum]...)
-		}
-
-		if len(lines) > lineNum {
-			newLines = append(newLines, lines[lineNum+1:]...)
-		}
-
-		m.textarea.SetValue(strings.Join(newLines, "\n"))
-
-		for range m.textarea.LineCount() - lineNum - 1 {
-			m.textarea.CursorUp()
+		cursorPosition = func() {
+			for range m.textarea.LineCount() - lineNum - 1 {
+				m.textarea.CursorUp()
+			}
 		}
 	case "0":
-		slog.Debug("got delete to beginning of line")
-
-		newLines := []string{}
-		if lineNum > 0 {
-			newLines = append(newLines, lines[0:lineNum]...)
-		}
-
-		newLines = append(newLines, lines[lineNum][info.ColumnOffset:info.Width-1])
-
-		if len(lines) > lineNum {
-			newLines = append(newLines, lines[lineNum+1:]...)
-		}
-
-		m.textarea.SetValue(strings.Join(newLines, "\n"))
-		m.textarea.CursorStart()
+		keepLine = true
+		currentLine = lines[lineNum][info.ColumnOffset : info.Width-1]
+		cursorPosition = m.textarea.CursorStart
 	case "$":
-		slog.Debug("got delete to end of line")
-
-		newLines := []string{}
-		if lineNum > 0 {
-			newLines = append(newLines, lines[0:lineNum]...)
-		}
-
-		newLines = append(newLines, lines[lineNum][0:info.ColumnOffset])
-
-		if len(lines) > lineNum {
-			newLines = append(newLines, lines[lineNum+1:]...)
-		}
-
-		m.textarea.SetValue(strings.Join(newLines, "\n"))
-		m.textarea.CursorEnd()
+		keepLine = true
+		currentLine = lines[lineNum][0:info.ColumnOffset]
+		// TODO: fix deleting when multiple rows in the line - account for RowOffset
+		// TODO: fix this - moves to end of INPUT, not end of LINE
+		cursorPosition = m.textarea.CursorEnd
 	}
 
 	m.pendingD = false
 	m.lastD = time.Time{}
+
+	if lineNum > 0 {
+		newLines = append(newLines, lines[0:lineNum]...)
+	}
+
+	if keepLine {
+		newLines = append(newLines, currentLine)
+	}
+
+	if len(lines) > lineNum {
+		newLines = append(newLines, lines[lineNum+1:]...)
+	}
+
+	m.textarea.SetValue(strings.Join(newLines, "\n"))
+
+	if cursorPosition != nil {
+		cursorPosition()
+	}
 
 	return nil
 }
