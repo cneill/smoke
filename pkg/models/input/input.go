@@ -316,6 +316,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 
 	switch keyMsg.Type { //nolint:exhaustive
 	case tea.KeyEnter:
+		// handle a user message to the assistant or a prompt command
 		if m.Focused() && m.mode == modeInsert {
 			return m.handleContentSubmit()
 		}
@@ -324,10 +325,12 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 
+		// insert -> normal mode
 		if m.mode == modeInsert {
 			m.setMode(modeNormal)
 			return nil
 		}
+
 		// modeNormal -> history (blur)
 		m.textarea.Blur()
 
@@ -363,48 +366,33 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) handleVimKeyBindingsHistory(key string) tea.Cmd {
+	insertKeys := "iIaAoO"
+	if !strings.Contains(insertKeys, key) {
+		return nil
+	}
+
+	m.setMode(modeInsert)
+	m.textarea.Focus()
+
 	switch key {
 	case "i":
-		m.setMode(modeInsert)
-		m.textarea.Focus()
-
-		return textarea.Blink
-	case "a":
-		m.setMode(modeInsert)
-		m.textarea.Focus()
-		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
-
-		return textarea.Blink
-	case "A":
-		m.setMode(modeInsert)
-		m.textarea.Focus()
-		m.textarea.CursorEnd()
-
-		return textarea.Blink
+		// just enter insert mode where the cursor is
 	case "I":
-		m.setMode(modeInsert)
-		m.textarea.Focus()
 		m.textarea.CursorStart()
-
-		return textarea.Blink
+	case "a":
+		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
+	case "A":
+		m.textarea.CursorEnd()
 	case "o":
-		m.setMode(modeInsert)
-		m.textarea.Focus()
 		m.textarea.CursorEnd()
 		m.textarea.InsertString("\n")
-
-		return textarea.Blink
 	case "O":
-		m.setMode(modeInsert)
-		m.textarea.Focus()
 		m.textarea.CursorStart()
 		m.textarea.InsertString("\n")
 		m.textarea.CursorUp()
-
-		return textarea.Blink
 	}
 
-	return nil
+	return textarea.Blink
 }
 
 func (m *Model) handleNormalModeRunes(key string) tea.Cmd {
