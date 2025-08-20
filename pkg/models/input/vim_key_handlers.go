@@ -165,13 +165,26 @@ func (m *Model) handleVimDelete(key string) tea.Cmd {
 	case "0":
 		keepLine = true
 		currentLine = lines[lineNum][info.ColumnOffset : info.Width-1]
-		cursorPosition = m.textarea.CursorStart
+		cursorPosition = func() {
+			for range m.textarea.LineCount() - lineNum - 1 {
+				m.textarea.CursorUp()
+			}
+
+			m.textarea.SetCursor(0)
+		}
+
 	case "$":
 		keepLine = true
-		currentLine = lines[lineNum][0:info.ColumnOffset]
-		// TODO: fix deleting when multiple rows in the line - account for RowOffset
-		// TODO: fix this - moves to end of INPUT, not end of LINE
-		cursorPosition = m.textarea.CursorEnd
+		end := info.StartColumn + info.ColumnOffset
+		currentLine = lines[lineNum][0:end]
+		cursorPosition = func() {
+			for range m.textarea.LineCount() - lineNum - 1 {
+				m.textarea.CursorUp()
+			}
+
+			m.textarea.SetCursor(end)
+		}
+		// TODO: wWeEbB
 	}
 
 	m.pendingD = false
