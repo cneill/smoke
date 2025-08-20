@@ -62,8 +62,9 @@ type Model struct {
 
 	waiting bool
 
-	mode  mode
-	lastG time.Time
+	mode     mode
+	pendingD bool
+	lastD    time.Time
 	// inCommandCompletion     bool
 	// userCompletionText      string
 	// suggestedCompletionText string

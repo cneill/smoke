@@ -1,7 +1,9 @@
 package input
 
 import (
+	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +17,8 @@ const (
 
 func (m *Model) handleNormalModeVimKey(key string) tea.Cmd {
 	switch {
+	case key == "d" || m.pendingD:
+		return m.handleVimDelete(key)
 	case strings.Contains(simpleMoveKeys, key):
 		return m.handleVimSimpleMove(key)
 	case strings.Contains(insertKeys, key):
@@ -38,12 +42,12 @@ func (m *Model) handleVimSimpleMove(key string) tea.Cmd {
 	switch key {
 	case "h":
 		sendKey = tea.KeyLeft
-	case "l":
-		sendKey = tea.KeyRight
 	case "j":
 		sendKey = tea.KeyDown
 	case "k":
 		sendKey = tea.KeyUp
+	case "l":
+		sendKey = tea.KeyRight
 	case "0":
 		m.textarea.CursorStart()
 		return nil
@@ -119,6 +123,80 @@ func (m *Model) handleVimWordMove(key string) tea.Cmd {
 	}
 
 	m.textarea.SetCursor(newPos)
+
+	return nil
+}
+
+func (m *Model) handleVimDelete(key string) tea.Cmd {
+	var (
+		content = m.textarea.Value()
+		lines   = strings.Split(content, "\n")
+		lineNum = m.textarea.Line()
+		info    = m.textarea.LineInfo()
+	)
+
+	if key == "d" {
+		slog.Debug("got d")
+
+		if !m.pendingD {
+			m.pendingD = true
+			m.lastD = time.Now()
+		} else {
+			if time.Since(m.lastD) <= time.Second {
+				// delete line
+			}
+
+			m.pendingD = false
+			m.lastD = time.Time{}
+		}
+
+		return nil
+	}
+
+	if !m.pendingD {
+		return nil
+	}
+
+	switch key {
+	case "0":
+		slog.Debug("got delete to beginning of line")
+
+		newLines := []string{}
+		if lineNum > 0 {
+			newLines = append(newLines, lines[0:lineNum]...)
+		}
+
+		newLines = append(newLines, lines[lineNum][info.ColumnOffset:info.Width-1])
+
+		if len(lines) > lineNum {
+			newLines = append(newLines, lines[lineNum+1:]...)
+		}
+
+		m.textarea.SetValue(strings.Join(newLines, "\n"))
+
+		m.pendingD = false
+		m.lastD = time.Time{}
+		// TODO: set cursor position
+	case "$":
+		slog.Debug("got delete to end of line")
+
+		newLines := []string{}
+		if lineNum > 0 {
+			newLines = append(newLines, lines[0:lineNum]...)
+		}
+
+		newLines = append(newLines, lines[lineNum][0:info.ColumnOffset])
+
+		if len(lines) > lineNum {
+			newLines = append(newLines, lines[lineNum+1:]...)
+		}
+
+		m.textarea.SetValue(strings.Join(newLines, "\n"))
+
+		m.pendingD = false
+		m.lastD = time.Time{}
+		// TODO: set cursor position
+	}
 
 	return nil
 }
