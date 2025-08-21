@@ -117,14 +117,28 @@ func (s *Smoke) HandleAssistantToolCalls(msg *llms.Message) ([]*llms.Message, er
 // HandleToolCallResults receives the slice of [*llms.Message] resulting from one or more tool calls by the [llms.LLM],
 // adds these to the current [*llms.Session], and sends the session to the provider. It then appends the response to the
 // current session.
-func (s *Smoke) HandleToolCallResults(ctx context.Context, messages []*llms.Message) (*llms.Message, error) {
+func (s *Smoke) HandleToolCallResults(messages []*llms.Message) (*llms.Message, error) {
 	for _, message := range messages {
 		s.session.AddMessage(message)
 	}
 
+	ctx, cancel := context.WithCancelCause(context.Background())
+
+	defer func() {
+		cancel(fmt.Errorf("tool call result request complete"))
+
+		s.userMessageCancel = nil
+	}()
+
+	s.userMessageCancel = cancel
+
 	// TODO: combine SendUserMessage + this in a more coherent way?
 	response, err := s.llm.SendSession(ctx, s.session)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, fmt.Errorf("%w: %w", err, context.Cause(ctx))
+		}
+
 		return nil, fmt.Errorf("failed to send session with tool call results: %w", err)
 	}
 

@@ -4,7 +4,6 @@
 package ui
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -287,7 +286,7 @@ func (m *Model) handleToolCallResponse(response toolCallResponse) tea.Cmd {
 			// TODO: fix the logging for a slice of these messages?
 			slog.Debug("got tool call results", "messages", response.messages)
 
-			response, err := m.smoke.HandleToolCallResults(context.TODO(), response.messages)
+			response, err := m.smoke.HandleToolCallResults(response.messages)
 			if err != nil {
 				commands = append(commands, m.input.SetWaiting(false))
 				return assistantError{err}
