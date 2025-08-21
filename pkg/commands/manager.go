@@ -27,6 +27,7 @@ func NewManager(projectPath string) *Manager {
 			CommandPlan:   NewPlanHandler,
 			CommandRun:    NewRunHandler,
 			CommandSave:   NewSaveHandler,
+			CommandEdit:   NewEditHandler,
 		},
 	}
 }

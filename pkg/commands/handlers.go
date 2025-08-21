@@ -341,3 +341,55 @@ func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 	return update.Cmd(), nil
 }
+
+// CommandEdit opens the last assistant message in $EDITOR
+const CommandEdit = "edit"
+
+type EditHandler struct {
+	*BaseHandler
+
+	// For now we only support "last"; future: indexes / code blocks
+}
+
+func NewEditHandler(msg PromptCommandMessage) (Command, error) {
+	// For the first iteration, either no args or "last" are accepted
+	if len(msg.Args) > 0 && msg.Args[0] != "last" {
+		return nil, fmt.Errorf("%w: only 'last' is supported for now", ErrArguments)
+	}
+
+	return &EditHandler{BaseHandler: &BaseHandler{promptCommand: msg}}, nil
+}
+
+func (e *EditHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	// Find last assistant message
+	last := session.LastByRole(llms.RoleAssistant)
+	if last == nil {
+		return nil, fmt.Errorf("no assistant message found to edit")
+	}
+
+	// Build markdown content using ToMarkdown for consistency with /save
+	content := []byte(last.ToMarkdown())
+
+	// Create temp file with .md extension
+	pattern := fmt.Sprintf("%s_%s_last.md", session.Name, time.Now().Format(time.DateTime))
+
+	tmpFile, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.Write(content); err != nil {
+		return nil, fmt.Errorf("failed to write temp file: %w", err)
+	}
+
+	path := tmpFile.Name()
+
+	// Ask UI to open editor for this path; UI will suspend/resume
+	req := EditRequestMessage{
+		Path:        path,
+		Description: "last assistant message",
+	}
+
+	return req.Cmd(), nil
+}

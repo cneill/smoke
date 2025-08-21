@@ -56,3 +56,26 @@ func (p PlanningModeMessage) Cmd() tea.Cmd {
 		return p
 	}
 }
+
+// EditRequestMessage asks the UI to open a given file path in an editor, suspending the TUI.
+type EditRequestMessage struct {
+	Path        string
+	Description string
+}
+
+// Cmd returns a tea.Cmd to send this message.
+func (e EditRequestMessage) Cmd() tea.Cmd {
+	return func() tea.Msg { return e }
+}
+
+// EditResultMessage reports the result of trying to open the editor for a given path.
+type EditResultMessage struct {
+	Path   string
+	Editor string
+	Err    error
+}
+
+// Cmd returns a tea.Cmd to send this message.
+func (e EditResultMessage) Cmd() tea.Cmd {
+	return func() tea.Msg { return e }
+}
