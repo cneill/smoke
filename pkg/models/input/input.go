@@ -4,6 +4,7 @@ package input
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -58,23 +59,25 @@ type Model struct {
 	textarea textarea.Model
 	spinner  spinner.Model
 
-	commandCompleter func(string) []string
-
 	waiting bool
 
 	mode     mode
 	pendingD bool
 	lastD    time.Time
-	// inCommandCompletion     bool
-	// userCompletionText      string
-	// suggestedCompletionText string
 
-	topLineBorderFocused lipgloss.Style
-	topLineBorderBlurred lipgloss.Style
-	topLineUsageFocused  lipgloss.Style
-	topLineUsageBlurred  lipgloss.Style
-	inputTokens          int64
-	outputTokens         int64
+	commandCompleter        func(string) []string
+	inCommandCompletion     bool
+	userCompletionText      string
+	suggestedCompletionText string
+
+	topLineBorderFocused     lipgloss.Style
+	topLineBorderBlurred     lipgloss.Style
+	topLineSuggestionFocused lipgloss.Style
+	topLineSuggestionBlurred lipgloss.Style
+	topLineUsageFocused      lipgloss.Style
+	topLineUsageBlurred      lipgloss.Style
+	inputTokens              int64
+	outputTokens             int64
 
 	userHistory      []string
 	userHistoryIndex *int
@@ -100,6 +103,16 @@ func New(opts *Opts) (*Model, error) {
 		topLineBorderBlurred: lipgloss.NewStyle().
 			Foreground(darkgray).
 			Background(black).
+			Bold(true).
+			Align(lipgloss.Left),
+		topLineSuggestionFocused: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#ffffff")).
+			Background(orange).
+			Bold(true).
+			Align(lipgloss.Left),
+		topLineSuggestionBlurred: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#ffffff")).
+			Background(lipgloss.Color("#aaaaaa")).
 			Align(lipgloss.Left),
 		topLineUsageFocused: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#00ff00")).
@@ -282,11 +295,13 @@ func (m *Model) UpdateUsage(inputTokens, outputTokens int64) {
 
 func (m *Model) topLineView() string {
 	var (
-		borderStyle = m.topLineBorderFocused
-		usageStyle  = m.topLineUsageFocused
+		borderStyle     = m.topLineBorderFocused
+		suggestionStyle = m.topLineSuggestionFocused
+		usageStyle      = m.topLineUsageFocused
 	)
 	if !m.Focused() {
 		borderStyle = m.topLineBorderBlurred
+		suggestionStyle = m.topLineSuggestionBlurred
 		usageStyle = m.topLineUsageBlurred
 	}
 
@@ -295,6 +310,15 @@ func (m *Model) topLineView() string {
 	usagePadding := borderStyle.Render("█")
 	usageWidth := lipgloss.Width(usageText)
 	border := borderStyle.Render(strings.Repeat("▄", totalWidth-usageWidth) + "█")
+
+	// add the prompt command completion suggestions above the "/" in the topline
+	if m.suggestedCompletionText != "" {
+		completionSuggestion := m.userCompletionText + m.suggestedCompletionText
+		suggestionWidth := lipgloss.Width(completionSuggestion)
+		border = borderStyle.Render(strings.Repeat("▄", 2)) +
+			suggestionStyle.Render(completionSuggestion) +
+			borderStyle.Render(strings.Repeat("▄", totalWidth-usageWidth-suggestionWidth-2)+"█")
+	}
 
 	return border + usageText + usagePadding
 }
@@ -351,12 +375,10 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		if m.mode == modeNormal {
 			return m.handleNormalModeVimKey(keyMsg.String())
 		}
+	}
 
-		// if (msg.String() == "/" && m.textarea.Value() == "") || m.userCompletionText != "" {
-		//      return m.handleCommandCompletion(msg)
-		// }
-
-		// modeInsert will fall through to textarea for insertion
+	if (keyMsg.String() == "/" && m.textarea.Value() == "") || m.userCompletionText != "" {
+		return m.handleCommandCompletion(keyMsg)
 	}
 
 	newTextarea, cmd := m.textarea.Update(keyMsg)
@@ -374,32 +396,36 @@ func (m *Model) setMode(newMode mode) {
 	}
 }
 
-// func (m *Model) handleCommandCompletion(msg tea.KeyMsg) tea.Cmd {
-// 	if msg.Type == tea.KeyBackspace {
-// 		m.userCompletionText = m.userCompletionText[:len(m.userCompletionText)-1]
-// 	} else {
-// 		m.userCompletionText += msg.String()
-// 	}
-//
-// 	cmdPart := strings.TrimPrefix(m.userCompletionText, "/")
-// 	options := m.commandCompleter(cmdPart)
-//
-// 	if len(options) == 0 {
-// 		return nil
-// 	}
-//
-// 	m.suggestedCompletionText = strings.TrimPrefix(options[0], cmdPart)
-//
-// 	var cmd tea.Cmd
-// 	m.textarea, cmd = m.textarea.Update(msg)
-//
-// 	m.textarea.SetValue(m.userCompletionText + m.suggestedCompletionText)
-// 	m.textarea.SetCursor(len(m.userCompletionText))
-//
-// 	slog.Debug("handling command completion", "user", m.userCompletionText, "suggested", m.suggestedCompletionText)
-//
-// 	return cmd
-// }
+func (m *Model) handleCommandCompletion(msg tea.KeyMsg) tea.Cmd {
+	var cmd tea.Cmd
+
+	m.textarea, cmd = m.textarea.Update(msg)
+
+	// TODO: handle tab/up(?) to fill in suggested text
+	if msg.Type == tea.KeyBackspace {
+		m.userCompletionText = m.userCompletionText[:len(m.userCompletionText)-1]
+	} else {
+		m.userCompletionText += msg.String()
+	}
+
+	if m.userCompletionText == "" {
+		m.suggestedCompletionText = ""
+		return cmd
+	}
+
+	cmdPart := strings.TrimPrefix(m.userCompletionText, "/")
+	options := m.commandCompleter(cmdPart)
+
+	if len(options) == 0 {
+		return nil
+	}
+
+	m.suggestedCompletionText = strings.TrimPrefix(options[0], cmdPart)
+
+	slog.Debug("handling command completion", "user", m.userCompletionText, "suggested", m.suggestedCompletionText)
+
+	return cmd
+}
 
 func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
 	if !m.waiting {
