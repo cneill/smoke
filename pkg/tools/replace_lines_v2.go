@@ -86,6 +86,7 @@ func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 	endLine := args.GetInt(ReplaceLinesV2EndLine)
 	replace := args.GetString(ReplaceLinesV2Replace)
 
+	// validate that our args are reasonable
 	switch {
 	case startLine == nil || endLine == nil || replace == nil:
 		return "", fmt.Errorf(
@@ -109,6 +110,7 @@ func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReplaceLinesV2EndLine)
 	}
 
+	// write the lines before the replace, the contents of the replace, and the untouched lines after it
 	buf := &bytes.Buffer{}
 	if *startLine > 1 {
 		if _, err := buf.Write(bytes.Join(lines[0:*startLine-1], []byte("\n"))); err != nil {
@@ -122,6 +124,7 @@ func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 		return "", fmt.Errorf("failed to write replace to buffer: %w", err)
 	}
 
+	// make sure we actually insert a LINE and not just text on another line
 	if *replace != "" && !strings.HasSuffix(*replace, "\n") {
 		buf.WriteRune('\n')
 	}
