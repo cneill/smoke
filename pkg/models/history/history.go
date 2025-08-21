@@ -261,6 +261,11 @@ func (m *Model) logContent() string {
 			info.titleStyle = info.titleStyle.
 				Foreground(lipgloss.Color("#af0000"))
 			info.content = item.Error()
+
+		case string:
+			info.title = "Unknown message"
+			info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#999999"))
+			info.content = item
 		}
 
 		fmt.Fprint(builder, m.renderBubble(info))

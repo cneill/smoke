@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -345,35 +346,59 @@ func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
 // CommandEdit opens the last assistant message in $EDITOR
 const CommandEdit = "edit"
 
+type EditTarget string
+
+const (
+	EditLast EditTarget = "last"
+	EditAll  EditTarget = "all"
+)
+
 type EditHandler struct {
 	*BaseHandler
 
-	// For now we only support "last"; future: indexes / code blocks
+	Target EditTarget
 }
 
 func NewEditHandler(msg PromptCommandMessage) (Command, error) {
-	// For the first iteration, either no args or "last" are accepted
-	if len(msg.Args) > 0 && msg.Args[0] != "last" {
-		return nil, fmt.Errorf("%w: only 'last' is supported for now", ErrArguments)
+	handler := &EditHandler{
+		BaseHandler: &BaseHandler{promptCommand: msg},
+		Target:      EditAll,
 	}
 
-	return &EditHandler{BaseHandler: &BaseHandler{promptCommand: msg}}, nil
+	if len(msg.Args) > 0 {
+		switch EditTarget(msg.Args[0]) {
+		case EditLast, EditAll:
+			handler.Target = EditTarget(msg.Args[0])
+		default:
+			return nil, fmt.Errorf("unknown edit target %q", msg.Args[0])
+		}
+	}
+
+	return handler, nil
 }
 
 func (e *EditHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	// Find last assistant message
-	last := session.LastByRole(llms.RoleAssistant)
-	if last == nil {
-		return nil, fmt.Errorf("no assistant message found to edit")
+	var content []byte
+
+	switch e.Target {
+	case EditLast:
+		last := session.LastByRole(llms.RoleAssistant)
+		if last == nil {
+			return nil, fmt.Errorf("no assistant message found to edit")
+		}
+
+		content = []byte(last.ToMarkdown())
+
+	case EditAll:
+		buf := &bytes.Buffer{}
+		for _, msg := range session.Messages {
+			buf.WriteString(msg.ToMarkdown())
+		}
+
+		content = buf.Bytes()
 	}
 
-	// Build markdown content using ToMarkdown for consistency with /save
-	content := []byte(last.ToMarkdown())
-
-	// Create temp file with .md extension
-	pattern := fmt.Sprintf("%s_%s_last.md", session.Name, time.Now().Format(time.DateTime))
-
-	tmpFile, err := os.CreateTemp("", pattern)
+	tmpFile, err := os.CreateTemp("", session.Name+"_*.md")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -385,10 +410,20 @@ func (e *EditHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 	path := tmpFile.Name()
 
-	// Ask UI to open editor for this path; UI will suspend/resume
+	editor := "nvim"
+	if envEditor := os.Getenv("EDITOR"); envEditor != "" {
+		editor = envEditor
+	}
+
+	if _, err := exec.LookPath(editor); err != nil {
+		return nil, fmt.Errorf("failed to find editor %q: %w", editor, err)
+	}
+
 	req := EditRequestMessage{
-		Path:        path,
-		Description: "last assistant message",
+		PromptCommand: e.promptCommand,
+		Path:          path,
+		Editor:        editor,
+		Description:   "last assistant message",
 	}
 
 	return req.Cmd(), nil

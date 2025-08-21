@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/commands"
@@ -156,6 +157,30 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.smoke.SetPlanningMode(msg.Enabled)
 		cmds = append(cmds, updateHistory(msg.SessionMessage))
 		cmds = append(cmds, updateHistory(msg))
+	case commands.EditRequestMessage:
+		slog.Debug("got request to open temp file in editor", "file_path", msg.Path, "description", msg.Description, "editor", msg.Editor)
+
+		execCmd := exec.Command(msg.Editor, msg.Path)
+		teaCmd := tea.ExecProcess(execCmd, func(err error) tea.Msg {
+			return commands.EditResultMessage{
+				EditRequestMessage: msg,
+				Err:                err,
+			}
+		})
+
+		cmds = append(cmds, teaCmd)
+
+	case commands.EditResultMessage:
+		if msg.Err != nil {
+			cmds = append(cmds, updateHistory(fmt.Errorf("edit failed: %w", msg.Err)))
+		} else {
+			msg := commands.HistoryUpdateMessage{
+				PromptCommand: msg.PromptCommand,
+				Message:       "Opened file " + msg.Path + " with " + msg.Editor,
+			}
+
+			cmds = append(cmds, updateHistory(msg))
+		}
 	case assistantError:
 		cmds = append(cmds, updateHistory(msg.err))
 	case assistantResponse:
