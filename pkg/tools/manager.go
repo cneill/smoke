@@ -21,6 +21,7 @@ func NewManager(projectPath, sessionName string) *Manager {
 		ProjectPath: projectPath,
 		Tools: []Tool{
 			&CreateDirectoryTool{ProjectPath: projectPath},
+			&EditPlanTool{ProjectPath: projectPath, SessionName: sessionName},
 			&GitDiffTool{ProjectPath: projectPath},
 			&GoASTTool{ProjectPath: projectPath},
 			&GoFumptTool{ProjectPath: projectPath},
