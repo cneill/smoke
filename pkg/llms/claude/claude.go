@@ -19,8 +19,20 @@ type Claude struct {
 	client anthropic.Client
 }
 
-func New(config *llms.Config) (llms.LLM, error) {
+func configOK(config *llms.Config) error {
 	if err := config.OK(); err != nil {
+		return fmt.Errorf("base LLM config error: %w", err)
+	}
+
+	if config.Temperature < 0 || config.Temperature > 1 {
+		return fmt.Errorf("Claude temperature must be between 0 and 1")
+	}
+
+	return nil
+}
+
+func New(config *llms.Config) (llms.LLM, error) {
+	if err := configOK(config); err != nil {
 		return nil, fmt.Errorf("error with Claude options: %w", err)
 	}
 
@@ -54,7 +66,8 @@ func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.
 		System: []anthropic.TextBlockParam{
 			{Text: session.SystemMessage},
 		},
-		Tools: c.newMessageTools(session),
+		Tools:       c.newMessageTools(session),
+		Temperature: anthropic.Float(c.config.Temperature),
 	}
 
 	latest := session.Last()

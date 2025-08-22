@@ -18,8 +18,20 @@ type ChatGPT struct {
 	client openai.Client
 }
 
-func New(config *llms.Config) (llms.LLM, error) {
+func configOK(config *llms.Config) error {
 	if err := config.OK(); err != nil {
+		return fmt.Errorf("base LLM config error: %w", err)
+	}
+
+	if config.Temperature < 0 || config.Temperature > 2 {
+		return fmt.Errorf("ChatGPT temperature must be between 0 and 2")
+	}
+
+	return nil
+}
+
+func New(config *llms.Config) (llms.LLM, error) {
+	if err := configOK(config); err != nil {
 		return nil, fmt.Errorf("error with ChatGPT options: %w", err)
 	}
 
@@ -46,13 +58,12 @@ func (c *ChatGPT) RequiresSessionSystem() bool { return true }
 
 func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
 	options := openai.ChatCompletionNewParams{
-		// THIS DOES NOT WORK WITH GPT-5
-		// MaxTokens: openai.Int(c.config.MaxTokens),
 		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
 		Messages:            c.getSessionMessages(session),
 		Model:               c.config.Model,
 		N:                   openai.Int(1),
 		Tools:               c.completionTools(session),
+		Temperature:         openai.Float(c.config.Temperature),
 	}
 
 	latest := session.Last()

@@ -25,6 +25,7 @@ const (
 	FlagModel        = "model"
 	FlagSessionName  = "session-name"
 	FlagProvider     = "provider"
+	FlagTemperature  = "temperature"
 	FlagOpenAIKey    = "openai-api-key"
 	FlagAnthropicKey = "anthropic-api-key"
 
@@ -34,6 +35,7 @@ const (
 	EnvModel        = "SMOKE_MODEL"
 	EnvSessionName  = "SMOKE_SESSION_NAME"
 	EnvProvider     = "SMOKE_PROVIDER"
+	EnvTemperature  = "SMOKE_TEMPERATURE"
 	EnvOpenAIKey    = "OPENAI_API_KEY"
 	EnvAnthropicKey = "ANTHROPIC_API_KEY"
 )
@@ -83,6 +85,14 @@ func flags() []cli.Flag {
 			Aliases:  []string{"p"},
 			EnvVars:  []string{EnvProvider},
 			Required: true,
+		},
+		&cli.Float64Flag{
+			Name:     FlagTemperature,
+			Usage:    "The temperature value to use with the model",
+			Category: "Models",
+			Aliases:  []string{"T"},
+			EnvVars:  []string{EnvTemperature},
+			Value:    1.0,
 		},
 		&cli.StringFlag{
 			Name:     FlagOpenAIKey,
@@ -170,8 +180,9 @@ func action(ctx *cli.Context) error {
 	sessionName := ctx.String(FlagSessionName)
 
 	llmConfig := &llms.Config{
-		MaxTokens: ctx.Int64(FlagMaxTokens),
-		Provider:  provider,
+		MaxTokens:   ctx.Int64(FlagMaxTokens),
+		Provider:    provider,
+		Temperature: ctx.Float64(FlagTemperature),
 	}
 
 	switch provider {
