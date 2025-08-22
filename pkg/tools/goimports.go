@@ -20,8 +20,11 @@ type GoImportsTool struct {
 	ProjectPath string
 }
 
-func (g *GoImportsTool) Name() string { return ToolGoImports }
+func NewGoImportsTool(projectPath, _ string) Tool {
+	return &GoImportsTool{ProjectPath: projectPath}
+}
 
+func (g *GoImportsTool) Name() string { return ToolGoImports }
 func (g *GoImportsTool) Description() string {
 	return fmt.Sprintf(
 		"Runs the goimports command to fix imports against the file/directory specified in %q, or the whole project "+

@@ -22,8 +22,11 @@ type ReplaceLinesV2Tool struct {
 	ProjectPath string
 }
 
-func (r *ReplaceLinesV2Tool) Name() string { return ToolReplaceLines }
+func NewReplaceLinesV2Tool(projectPath, _ string) Tool {
+	return &ReplaceLinesV2Tool{ProjectPath: projectPath}
+}
 
+func (r *ReplaceLinesV2Tool) Name() string { return ToolReplaceLines }
 func (r *ReplaceLinesV2Tool) Description() string {
 	return fmt.Sprintf(
 		"Replace the content between lines %q and %q in the file specified in %q with the contents in %q. Line "+

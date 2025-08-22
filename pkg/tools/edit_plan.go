@@ -19,6 +19,13 @@ type EditPlanTool struct {
 	SessionName string
 }
 
+func NewEditPlanTool(projectPath, sessionName string) Tool {
+	return &EditPlanTool{
+		ProjectPath: projectPath,
+		SessionName: sessionName,
+	}
+}
+
 var _ = Tool(&EditPlanTool{})
 
 func (e *EditPlanTool) Name() string { return ToolEditPlan }

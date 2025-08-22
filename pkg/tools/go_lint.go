@@ -22,8 +22,11 @@ type GoLintTool struct {
 	ProjectPath string
 }
 
-func (g *GoLintTool) Name() string { return ToolGoLint }
+func NewGoLintTool(projectPath, _ string) Tool {
+	return &GoLintTool{ProjectPath: projectPath}
+}
 
+func (g *GoLintTool) Name() string { return ToolGoLint }
 func (g *GoLintTool) Description() string {
 	return fmt.Sprintf(
 		"Runs the golangci-lint linter against the file/directory specified in %q, or the whole project directory if "+

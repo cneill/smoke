@@ -4,43 +4,88 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 )
 
-// Manager holds the [Tools] that are available for use by the LLM. It makes tool calls and logs results.
+// Manager holds the [Tool]s that are available for use by the LLM. It makes tool calls and logs results.
 // TODO: standard / per-tool timeout for Run() calls
 type Manager struct {
 	logger      *slog.Logger
 	ProjectPath string
+	SessionName string
 
-	Tools []Tool
+	tools     []Tool
+	toolMutex sync.RWMutex
 }
 
-func NewManager(projectPath, sessionName string) *Manager {
-	return &Manager{
-		logger:      slog.Default().WithGroup("tools_manager"),
-		ProjectPath: projectPath,
-		Tools: []Tool{
-			&CreateDirectoryTool{ProjectPath: projectPath},
-			&EditPlanTool{ProjectPath: projectPath, SessionName: sessionName},
-			&GitDiffTool{ProjectPath: projectPath},
-			&GoASTTool{ProjectPath: projectPath},
-			&GoFumptTool{ProjectPath: projectPath},
-			&GoImportsTool{ProjectPath: projectPath},
-			&GoLintTool{ProjectPath: projectPath},
-			&GoTestTool{ProjectPath: projectPath},
-			&GrepTool{ProjectPath: projectPath},
-			&ListFilesTool{ProjectPath: projectPath},
-			&ReadFileTool{ProjectPath: projectPath},
-			&RemovePlanTool{ProjectPath: projectPath, SessionName: sessionName},
-			// &ReplaceLinesTool{ProjectPath: projectPath},
-			&ReplaceLinesV2Tool{ProjectPath: projectPath},
-			&WriteFileTool{ProjectPath: projectPath},
-		},
+func AllTools() []Initializer {
+	return []Initializer{
+		NewCreateDirectoryTool,
+		NewEditPlanTool,
+		NewGitDiffTool,
+		NewGoASTTool,
+		NewGoFumptTool,
+		NewGoImportsTool,
+		NewGoLintTool,
+		NewGoTestTool,
+		NewGrepTool,
+		NewListFilesTool,
+		NewReadFileTool,
+		NewRemovePlanTool,
+		// NewReplaceLinesTool,
+		NewReplaceLinesV2Tool,
+		NewWriteFileTool,
 	}
 }
 
+func PlanningTools() []Initializer {
+	return []Initializer{
+		NewEditPlanTool,
+		NewGitDiffTool,
+		NewGoASTTool,
+		NewGoLintTool,
+		NewGoTestTool,
+		NewGrepTool,
+		NewListFilesTool,
+		NewReadFileTool,
+	}
+}
+
+func NewManager(projectPath, sessionName string) *Manager {
+	manager := &Manager{
+		logger:      slog.Default().WithGroup("tools_manager"),
+		ProjectPath: projectPath,
+		SessionName: sessionName,
+
+		toolMutex: sync.RWMutex{},
+	}
+
+	manager.SetTools(AllTools()...)
+
+	return manager
+}
+
+func (m *Manager) GetTools() []Tool {
+	m.toolMutex.RLock()
+	defer m.toolMutex.RUnlock()
+
+	return m.tools
+}
+
+func (m *Manager) SetTools(initializers ...Initializer) {
+	m.toolMutex.Lock()
+	defer m.toolMutex.Unlock()
+
+	tools := []Tool{}
+	for _, init := range initializers {
+		tools = append(tools, init(m.ProjectPath, m.SessionName))
+	}
+
+	m.tools = tools
+}
+
 func (m *Manager) Params(toolName string) (Params, error) {
-	for _, tool := range m.Tools {
+	for _, tool := range m.tools {
 		if tool.Name() == toolName {
 			return tool.Params(), nil
 		}
@@ -54,7 +99,7 @@ func (m *Manager) Params(toolName string) (Params, error) {
 func (m *Manager) CallTool(ctx context.Context, toolName string, args Args) (string, error) {
 	m.logger.Debug("calling tool", "tool_name", toolName, "args", args)
 
-	for _, tool := range m.Tools {
+	for _, tool := range m.tools {
 		if tool.Name() == toolName {
 			output, err := tool.Run(ctx, args)
 			if err != nil {

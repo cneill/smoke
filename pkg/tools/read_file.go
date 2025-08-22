@@ -22,6 +22,10 @@ type ReadFileTool struct {
 
 var _ = Tool(&ReadFileTool{})
 
+func NewReadFileTool(projectPath, _ string) Tool {
+	return &ReadFileTool{ProjectPath: projectPath}
+}
+
 func (r *ReadFileTool) Name() string { return ToolReadFile }
 func (r *ReadFileTool) Description() string {
 	return fmt.Sprintf(

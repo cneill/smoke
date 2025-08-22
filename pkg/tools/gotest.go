@@ -21,8 +21,11 @@ type GoTestTool struct {
 	ProjectPath string
 }
 
-func (g *GoTestTool) Name() string { return "go_test" }
+func NewGoTestTool(projectPath, _ string) Tool {
+	return &GoTestTool{ProjectPath: projectPath}
+}
 
+func (g *GoTestTool) Name() string { return "go_test" }
 func (g *GoTestTool) Description() string {
 	return fmt.Sprintf(
 		"Runs `go test` against the file/directory specified in %q, or the whole project if not specified. "+

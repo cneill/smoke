@@ -19,6 +19,10 @@ type WriteFileTool struct {
 	ProjectPath string
 }
 
+func NewWriteFileTool(projectPath, _ string) Tool {
+	return &WriteFileTool{ProjectPath: projectPath}
+}
+
 var _ = Tool(&WriteFileTool{})
 
 func (w *WriteFileTool) Name() string { return ToolWriteFile }

@@ -25,6 +25,10 @@ type GrepTool struct {
 	ProjectPath string
 }
 
+func NewGrepTool(projectPath, _ string) Tool {
+	return &GrepTool{ProjectPath: projectPath}
+}
+
 func (g *GrepTool) Name() string { return ToolGrep }
 func (g *GrepTool) Description() string {
 	return fmt.Sprintf(

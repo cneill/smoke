@@ -21,8 +21,11 @@ type ReplaceLinesTool struct {
 	ProjectPath string
 }
 
-func (r *ReplaceLinesTool) Name() string { return ToolReplaceLines }
+func NewReplaceLinesTool(projectPath, _ string) Tool {
+	return &ReplaceLinesTool{ProjectPath: projectPath}
+}
 
+func (r *ReplaceLinesTool) Name() string { return ToolReplaceLines }
 func (r *ReplaceLinesTool) Description() string {
 	return fmt.Sprintf(
 		`Replace strings in the given file with new contents. Must supply EITHER %q AND %q parameters OR %q.

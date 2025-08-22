@@ -161,9 +161,10 @@ func (c *Claude) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*l
 }
 
 func (c *Claude) newMessageTools(session *llms.Session) []anthropic.ToolUnionParam {
-	results := make([]anthropic.ToolUnionParam, len(session.Tools.Tools))
+	sessionTools := session.Tools.GetTools()
+	results := make([]anthropic.ToolUnionParam, len(sessionTools))
 
-	for toolNum, tool := range session.Tools.Tools {
+	for toolNum, tool := range sessionTools {
 		properties := map[string]any{}
 		requiredKeys := []string{}
 

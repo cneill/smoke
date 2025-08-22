@@ -26,6 +26,10 @@ type GoASTTool struct {
 	ProjectPath string
 }
 
+func NewGoASTTool(projectPath, _ string) Tool {
+	return &GoASTTool{ProjectPath: projectPath}
+}
+
 type fileInfo struct {
 	path     string
 	contents []byte

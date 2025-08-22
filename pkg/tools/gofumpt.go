@@ -20,8 +20,11 @@ type GoFumptTool struct {
 	ProjectPath string
 }
 
-func (g *GoFumptTool) Name() string { return ToolGoFumpt }
+func NewGoFumptTool(projectPath, _ string) Tool {
+	return &GoFumptTool{ProjectPath: projectPath}
+}
 
+func (g *GoFumptTool) Name() string { return ToolGoFumpt }
 func (g *GoFumptTool) Description() string {
 	return fmt.Sprintf(
 		"Runs the gofumpt formatter against the file/directory specified in %q, or the whole project directory if "+

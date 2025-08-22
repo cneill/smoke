@@ -25,6 +25,10 @@ type ListFilesTool struct {
 
 var _ = Tool(&ListFilesTool{})
 
+func NewListFilesTool(projectPath, _ string) Tool {
+	return &ListFilesTool{ProjectPath: projectPath}
+}
+
 func (l *ListFilesTool) Name() string { return ToolListFiles }
 func (l *ListFilesTool) Description() string {
 	return "List files in the given directory, recursively."

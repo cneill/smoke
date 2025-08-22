@@ -15,3 +15,6 @@ type Tool interface {
 	// Run executes the tool and returns a string that gets returned to the LLM, or an error.
 	Run(ctx context.Context, args Args) (string, error)
 }
+
+// TODO: make initializer more general; this isn't really ideal
+type Initializer func(projectPath, sessionName string) Tool

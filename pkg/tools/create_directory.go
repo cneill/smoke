@@ -16,6 +16,12 @@ type CreateDirectoryTool struct {
 	ProjectPath string
 }
 
+func NewCreateDirectoryTool(projectPath, _ string) Tool {
+	return &CreateDirectoryTool{
+		ProjectPath: projectPath,
+	}
+}
+
 var _ = Tool(&CreateDirectoryTool{})
 
 func (c *CreateDirectoryTool) Name() string { return ToolCreateDirectory }

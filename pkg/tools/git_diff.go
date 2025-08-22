@@ -19,8 +19,11 @@ type GitDiffTool struct {
 	ProjectPath string
 }
 
-func (g *GitDiffTool) Name() string { return ToolGitDiff }
+func NewGitDiffTool(projectPath, _ string) Tool {
+	return &GitDiffTool{ProjectPath: projectPath}
+}
 
+func (g *GitDiffTool) Name() string { return ToolGitDiff }
 func (g *GitDiffTool) Description() string {
 	return "Check the git diff in the ProjectPath."
 }

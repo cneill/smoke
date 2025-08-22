@@ -146,7 +146,7 @@ func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*
 func (c *ChatGPT) completionTools(session *llms.Session) []openai.ChatCompletionToolUnionParam {
 	results := []openai.ChatCompletionToolUnionParam{}
 
-	for _, tool := range session.Tools.Tools {
+	for _, tool := range session.Tools.GetTools() {
 		properties := map[string]any{}
 		required := []string{}
 

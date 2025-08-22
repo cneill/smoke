@@ -11,6 +11,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 // Smoke manages the overall state of the application, including the project path we're working in, the [*llms.Session]
@@ -160,8 +161,13 @@ func (s *Smoke) SetSession(newSession *llms.Session) {
 // SetPlanningMode enables or disables planning mode.
 func (s *Smoke) SetPlanningMode(enabled bool) {
 	s.planningMode = enabled
+	if enabled {
+		s.session.Tools.SetTools(tools.PlanningTools()...)
+	} else {
+		s.session.Tools.SetTools(tools.AllTools()...)
+	}
+
 	// TODO: update system prompt?
-	// TODO: update LLM tools manager?
 }
 
 // HandleCommand invokes a prompt command provided by the user.

@@ -13,6 +13,10 @@ type RemovePlanTool struct {
 	SessionName string
 }
 
+func NewRemovePlanTool(projectPath, sessionName string) Tool {
+	return &RemovePlanTool{ProjectPath: projectPath, SessionName: sessionName}
+}
+
 var _ = Tool(&RemovePlanTool{})
 
 func (r *RemovePlanTool) Name() string { return ToolRemovePlan }
