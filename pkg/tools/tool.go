@@ -16,5 +16,17 @@ type Tool interface {
 	Run(ctx context.Context, args Args) (string, error)
 }
 
+type Tools []Tool
+
+func (t Tools) Names() []string {
+	results := []string{}
+
+	for _, tool := range t {
+		results = append(results, tool.Name())
+	}
+
+	return results
+}
+
 // TODO: make initializer more general; this isn't really ideal
 type Initializer func(projectPath, sessionName string) Tool

@@ -7,14 +7,14 @@ import (
 	"sync"
 )
 
-// Manager holds the [Tool]s that are available for use by the LLM. It makes tool calls and logs results.
+// Manager holds the [Tools] that are available for use by the LLM. It makes tool calls and logs results.
 // TODO: standard / per-tool timeout for Run() calls
 type Manager struct {
 	logger      *slog.Logger
 	ProjectPath string
 	SessionName string
 
-	tools     []Tool
+	tools     Tools
 	toolMutex sync.RWMutex
 }
 
@@ -65,7 +65,7 @@ func NewManager(projectPath, sessionName string) *Manager {
 	return manager
 }
 
-func (m *Manager) GetTools() []Tool {
+func (m *Manager) GetTools() Tools {
 	m.toolMutex.RLock()
 	defer m.toolMutex.RUnlock()
 
@@ -76,12 +76,14 @@ func (m *Manager) SetTools(initializers ...Initializer) {
 	m.toolMutex.Lock()
 	defer m.toolMutex.Unlock()
 
-	tools := []Tool{}
+	tools := Tools{}
 	for _, init := range initializers {
 		tools = append(tools, init(m.ProjectPath, m.SessionName))
 	}
 
 	m.tools = tools
+
+	slog.Debug("setting tools", "tools", m.tools.Names())
 }
 
 func (m *Manager) Params(toolName string) (Params, error) {
