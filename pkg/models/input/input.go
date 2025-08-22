@@ -66,7 +66,6 @@ type Model struct {
 	lastD    time.Time
 
 	commandCompleter        func(string) []string
-	inCommandCompletion     bool
 	userCompletionText      string
 	suggestedCompletionText string
 
@@ -510,8 +509,8 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 	fields := strings.Fields(content)
 	cmdName := strings.TrimPrefix(fields[0], "/")
 
-	// m.userCompletionText = ""
-	// m.suggestedCompletionText = ""
+	m.userCompletionText = ""
+	m.suggestedCompletionText = ""
 
 	args := []string{}
 	if len(fields) > 1 {
