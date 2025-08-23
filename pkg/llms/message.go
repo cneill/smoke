@@ -11,8 +11,9 @@ import (
 )
 
 type Message struct {
-	ID    string    `json:"id"`
-	Added time.Time `json:"added"`
+	ID      string    `json:"id"`
+	Added   time.Time `json:"added"`
+	Updated time.Time `json:"updated"`
 
 	Role    Role   `json:"role"`
 	Content string `json:"content,omitempty"`
@@ -31,12 +32,24 @@ type Message struct {
 
 	// LLMInfo contains details about the LLM that generated the assistant message
 	LLMInfo *LLMInfo `json:"llm_info,omitempty"`
+
+	// IsStreamed tells us whether this response was streamed from the LLM provider. Defaults to false.
+	IsStreamed bool
+	// IsInitial signals that this is the FIRST streamed message which will be updated subsequently.
+	IsInitial bool
+	// IsChunk tells us whether this message is a full one or just a chunk that has been streamed from the provider.
+	IsChunk bool
+	// IsFinalized tells us whether this streamed message has all its chunks.
+	IsFinalized bool
 }
 
 func NewMessage(opts ...MessageOpt) *Message {
+	now := time.Now()
+
 	msg := &Message{
-		ID:    utils.RandID(),
-		Added: time.Now(),
+		ID:      utils.RandID(),
+		Added:   now,
+		Updated: now,
 	}
 
 	for _, opt := range opts {
@@ -51,6 +64,27 @@ func SimpleMessage(role Role, content string) *Message {
 		WithRole(role),
 		WithContent(content),
 	)
+}
+
+func ChunkMessage(role Role, id, content string) *Message {
+	return NewMessage(
+		WithID(id),
+		WithRole(role),
+		WithContent(content),
+		WithIsStreamed(true),
+		WithIsInitial(true),
+		WithIsChunk(true),
+	)
+}
+
+func (m *Message) Update(opts ...MessageOpt) *Message {
+	for _, opt := range opts {
+		m = opt(m)
+	}
+
+	m.Updated = time.Now()
+
+	return m
 }
 
 // TODO: add OK() method
@@ -119,6 +153,13 @@ func (m *Message) ToMarkdown() string {
 
 type MessageOpt func(message *Message) *Message
 
+func WithID(id string) MessageOpt {
+	return func(message *Message) *Message {
+		message.ID = id
+		return message
+	}
+}
+
 func WithContent(content string) MessageOpt {
 	return func(message *Message) *Message {
 		message.Content = content
@@ -171,6 +212,42 @@ func WithError(err error) MessageOpt {
 func WithLLMInfo(info *LLMInfo) MessageOpt {
 	return func(message *Message) *Message {
 		message.LLMInfo = info
+		return message
+	}
+}
+
+func WithIsStreamed(isStreamed bool) MessageOpt {
+	return func(message *Message) *Message {
+		message.IsStreamed = isStreamed
+		return message
+	}
+}
+
+func WithIsInitial(isInitial bool) MessageOpt {
+	return func(message *Message) *Message {
+		message.IsInitial = isInitial
+		return message
+	}
+}
+
+func WithIsChunk(isChunk bool) MessageOpt {
+	return func(message *Message) *Message {
+		message.IsChunk = isChunk
+		return message
+	}
+}
+
+func WithChunkContent(content string) MessageOpt {
+	return func(message *Message) *Message {
+		// TODO: mutex?
+		message.Content += content
+		return message
+	}
+}
+
+func WithIsFinalized(isFinalized bool) MessageOpt {
+	return func(message *Message) *Message {
+		message.IsFinalized = isFinalized
 		return message
 	}
 }

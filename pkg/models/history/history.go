@@ -40,7 +40,8 @@ type Model struct {
 	mdRenderer *glamour.TermRenderer
 
 	initContent string
-	log         []any
+	// log         []any
+	log *Log
 
 	pendingG  bool
 	lastGTime time.Time
@@ -61,7 +62,7 @@ func New(opts *Opts) (*Model, error) {
 		mdRenderer: mdRenderer,
 
 		initContent: opts.InitContent,
-		log:         []any{},
+		log:         NewLog(),
 	}
 
 	return model, nil
@@ -108,14 +109,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case ContentUpdate:
-		m.log = append(m.log, msg.Message)
+		m.log.AddMessage(msg.Message)
 		m.viewport.SetContent(m.logContent())
 		// only scroll down if we were already at the bottom before updating the history
 		if wasAtBottom {
 			m.viewport.GotoBottom()
 		}
 	case ContentRefresh:
-		m.log = msg.Log
+		m.log.RefreshLog(msg.Log)
+
 		if logContent := m.logContent(); strings.TrimSpace(logContent) != "" {
 			m.viewport.SetContent(logContent)
 		} else {
@@ -173,7 +175,7 @@ func (m *Model) View() string {
 func (m *Model) logContent() string {
 	builder := &strings.Builder{}
 
-	for _, item := range m.log {
+	for _, item := range m.log.Messages() {
 		info := bubbleInfo{
 			titleStyle: lipgloss.NewStyle().
 				Background(lipgloss.Color("#000000")),
@@ -351,14 +353,4 @@ func (m *Model) renderBubble(info bubbleInfo) string {
 	fmt.Fprintln(builder, content)
 
 	return builder.String()
-}
-
-// ContentUpdate adds a new message to the log.
-type ContentUpdate struct {
-	Message any
-}
-
-// ContentRefresh replaces the current log with its own log.
-type ContentRefresh struct {
-	Log []any
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -70,7 +71,7 @@ func (s *Smoke) SendUserMessage(msg *llms.Message) (*llms.Message, error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 
 	defer func() {
-		cancel(fmt.Errorf("request complete"))
+		cancel(nil)
 
 		s.userMessageCancel = nil
 	}()
@@ -89,6 +90,44 @@ func (s *Smoke) SendUserMessage(msg *llms.Message) (*llms.Message, error) {
 	s.session.AddMessage(response)
 
 	return response, nil
+}
+
+func (s *Smoke) SendUserMessageStreaming(msg *llms.Message, chunkChan chan *llms.Message) (tea.Cmd, error) {
+	llm, ok := s.llm.(llms.StreamingLLM)
+	if !ok {
+		return nil, fmt.Errorf("streaming is not supported by this LLM (%s, %s)", s.llmConfig.Provider, s.llmConfig.Model)
+	}
+
+	s.session.AddMessage(msg)
+
+	send := func() tea.Msg {
+		slog.Debug("sending session, starting streaming")
+
+		// TODO: WithTimeout?
+		ctx, cancel := context.WithCancelCause(context.Background())
+		s.userMessageCancel = cancel
+
+		defer func() {
+			cancel(nil)
+
+			s.userMessageCancel = nil
+		}()
+
+		response, err := llm.SendSessionStreaming(ctx, s.session, chunkChan)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return AssistantErrorMessage{fmt.Errorf("%w: %w", err, context.Cause(ctx))}
+			}
+
+			return AssistantErrorMessage{fmt.Errorf("failed to send session with user message: %w", err)}
+		}
+
+		s.session.AddMessage(response)
+
+		return AssistantResponseMessage{response}
+	}
+
+	return send, nil
 }
 
 // CancelUserMessage can be triggered by the user pressing the escape key while waiting for an assistant response.
@@ -187,4 +226,10 @@ func (s *Smoke) CommandCompleter() func(string) []string {
 // TODO: this feels wrong...
 func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedreturns
 	return s.session.Usage()
+}
+
+func (s *Smoke) ShouldStream() bool {
+	// TODO: additional toggle switch for this behavior from CLI
+	_, ok := s.llm.(llms.StreamingLLM)
+	return ok
 }

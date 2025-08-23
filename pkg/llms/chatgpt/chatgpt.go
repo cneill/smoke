@@ -100,6 +100,88 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 	return msg, nil
 }
 
+func (c *ChatGPT) SendSessionStreaming(ctx context.Context, session *llms.Session, chunkChan chan<- *llms.Message) (*llms.Message, error) {
+	defer close(chunkChan)
+
+	options := openai.ChatCompletionNewParams{
+		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
+		Messages:            c.getSessionMessages(session),
+		Model:               c.config.Model,
+		N:                   openai.Int(1),
+		Tools:               c.completionTools(session),
+		Temperature:         openai.Float(c.config.Temperature),
+	}
+
+	latest := session.Last()
+	if latest != nil {
+		c.logger.Debug("sending session", "msg", latest)
+	}
+
+	msg := c.newMessage(
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithIsStreamed(true),
+		llms.WithIsInitial(true),
+		llms.WithIsChunk(true),
+	)
+
+	stream := c.client.Chat.Completions.NewStreaming(ctx, options, option.WithMaxRetries(5))
+	defer stream.Close()
+
+	accumulator := openai.ChatCompletionAccumulator{}
+	first := true
+
+	for stream.Next() {
+		if !first && msg.IsInitial {
+			msg = msg.Update(llms.WithIsInitial(false))
+		}
+
+		chunk := stream.Current()
+		accumulator.AddChunk(chunk)
+
+		if _, ok := accumulator.JustFinishedContent(); ok {
+			break
+		}
+
+		if _, ok := accumulator.JustFinishedToolCall(); ok {
+			break
+		}
+
+		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
+			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+		}
+
+		session.UpdateUsage(accumulator.Usage.PromptTokens, accumulator.Usage.CompletionTokens)
+
+		msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
+
+		chunkChan <- msg
+
+		first = false
+	}
+
+	if err := stream.Err(); err != nil {
+		return nil, fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
+	}
+
+	c.logger.Debug("token usage", "prompt", accumulator.Usage.PromptTokens, "completion", accumulator.Usage.CompletionTokens)
+
+	if len(accumulator.Choices) == 0 {
+		return nil, fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
+	}
+
+	response := accumulator.Choices[0].Message
+
+	msg = msg.Update(
+		llms.WithContent(response.Content),
+		llms.WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
+		llms.WithToolCallInfo(response.ToolCalls),
+		llms.WithIsChunk(false),
+		llms.WithIsFinalized(true),
+	)
+
+	return msg, nil
+}
+
 func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*llms.Message, error) {
 	if !msg.HasToolCalls() {
 		return nil, llms.ErrNoToolCalls
@@ -154,6 +236,18 @@ func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*
 	return results, nil
 }
 
+func (c *ChatGPT) newMessage(opts ...llms.MessageOpt) *llms.Message {
+	msg := llms.NewMessage(
+		llms.WithLLMInfo(c.LLMInfo()),
+	)
+
+	for _, opt := range opts {
+		msg = opt(msg)
+	}
+
+	return msg
+}
+
 func (c *ChatGPT) completionTools(session *llms.Session) []openai.ChatCompletionToolUnionParam {
 	results := []openai.ChatCompletionToolUnionParam{}
 
@@ -203,18 +297,6 @@ func (c *ChatGPT) getToolCallNames(toolCalls []openai.ChatCompletionMessageToolC
 	}
 
 	return results
-}
-
-func (c *ChatGPT) newMessage(opts ...llms.MessageOpt) *llms.Message {
-	msg := llms.NewMessage(
-		llms.WithLLMInfo(c.LLMInfo()),
-	)
-
-	for _, opt := range opts {
-		msg = opt(msg)
-	}
-
-	return msg
 }
 
 // getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation

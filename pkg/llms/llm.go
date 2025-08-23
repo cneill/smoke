@@ -21,6 +21,11 @@ type LLM interface {
 	HandleToolCalls(msg *Message, s *Session) ([]*Message, error)
 }
 
+type StreamingLLM interface {
+	LLM
+	SendSessionStreaming(ctx context.Context, s *Session, chunkChan chan<- *Message) (*Message, error)
+}
+
 type Initializer func(config *Config) (LLM, error)
 
 type LLMInfo struct {
