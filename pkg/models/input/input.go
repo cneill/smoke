@@ -465,7 +465,7 @@ func (m *Model) handleHistoryTraversal(msg tea.KeyMsg) tea.Cmd { //nolint:cyclop
 	case tea.KeyUp:
 		if m.userHistoryIndex != nil && *m.userHistoryIndex > 0 {
 			*m.userHistoryIndex--
-		} else if m.userHistoryIndex == nil {
+		} else if m.userHistoryIndex == nil && len(m.userHistory) > 0 {
 			idx := len(m.userHistory) - 1
 			m.userHistoryIndex = &idx
 		}
