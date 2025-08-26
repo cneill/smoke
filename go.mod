@@ -11,7 +11,7 @@ require (
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/mattn/go-runewidth v0.0.16
 	github.com/muesli/reflow v0.3.0
-	github.com/openai/openai-go/v2 v2.0.1
+	github.com/openai/openai-go/v2 v2.1.1
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/term v0.34.0
