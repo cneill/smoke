@@ -68,11 +68,16 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 
 	latest := session.Last()
 	if latest != nil {
-		c.logger.Debug("sending session", "msg", latest)
+		c.logger.Debug("sending session", "message", latest)
 	}
 
 	result, err := c.client.Chat.Completions.New(ctx, options, option.WithMaxRetries(5))
 	if err != nil {
+		// TODO: remove this
+		for i, msg := range options.Messages {
+			slog.Error("completion failed", "message_num", i, "message", msg)
+		}
+
 		return nil, fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
@@ -94,7 +99,8 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 		llms.WithRole(llms.RoleAssistant),
 		llms.WithContent(response.Content),
 		llms.WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
-		llms.WithToolCallInfo(response.ToolCalls),
+		// We convert this ToParam() because it's the only way to get streaming responses below to work...
+		llms.WithToolCallInfo(response.ToParam().OfAssistant.ToolCalls),
 	)
 
 	return msg, nil
@@ -114,7 +120,7 @@ func (c *ChatGPT) SendSessionStreaming(ctx context.Context, session *llms.Sessio
 
 	latest := session.Last()
 	if latest != nil {
-		c.logger.Debug("sending session", "msg", latest)
+		c.logger.Debug("sending session streaming", "message", latest)
 	}
 
 	msg := c.newMessage(
@@ -139,18 +145,18 @@ func (c *ChatGPT) SendSessionStreaming(ctx context.Context, session *llms.Sessio
 		accumulator.AddChunk(chunk)
 
 		if _, ok := accumulator.JustFinishedContent(); ok {
-			break
+			slog.Debug("got end of content", "current_delta", chunk.Choices[0].Delta.Content, "finish_reason", chunk.Choices[0].FinishReason)
+			// break
 		}
 
 		if _, ok := accumulator.JustFinishedToolCall(); ok {
-			break
+			slog.Debug("got end of tool call info", "current_delta", chunk.Choices[0].Delta.Content, "tool_calls", accumulator.Choices[0].Message.ToolCalls)
+			// break
 		}
 
 		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
 			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
 		}
-
-		session.UpdateUsage(accumulator.Usage.PromptTokens, accumulator.Usage.CompletionTokens)
 
 		msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
 
@@ -171,13 +177,17 @@ func (c *ChatGPT) SendSessionStreaming(ctx context.Context, session *llms.Sessio
 
 	response := accumulator.Choices[0].Message
 
+	session.UpdateUsage(accumulator.Usage.PromptTokens, accumulator.Usage.CompletionTokens)
+
 	msg = msg.Update(
 		llms.WithContent(response.Content),
 		llms.WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
-		llms.WithToolCallInfo(response.ToolCalls),
+		llms.WithToolCallInfo(response.ToParam().OfAssistant.ToolCalls),
 		llms.WithIsChunk(false),
 		llms.WithIsFinalized(true),
 	)
+
+	slog.Debug("FINAL MESSAGE", "message", msg)
 
 	return msg, nil
 }
@@ -187,15 +197,19 @@ func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*
 		return nil, llms.ErrNoToolCalls
 	}
 
-	toolCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnion)
+	toolCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnionParam)
 	if !ok {
-		return nil, fmt.Errorf("tool call info was of unexpected type: %T", msg.ToolCallInfo)
+		return nil, fmt.Errorf(
+			"got unexpected type for ToolCallInfo (expecting []openai.ChatCompletionMessageToolCallUnionParam): %T",
+			msg.ToolCallInfo)
 	}
 
 	results := make([]*llms.Message, len(toolCalls))
 
+	slog.Debug("GOT TOOL CALLS FROM CHATGPT", "tool_calls", toolCalls, "num_tool_calls", len(results))
+
 	for toolCallNum, toolCall := range toolCalls {
-		name := toolCall.Function.Name
+		name := toolCall.OfFunction.Function.Name
 
 		var (
 			content     string
@@ -207,7 +221,7 @@ func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*
 			return nil, fmt.Errorf("failed to get params for tool %q: %w", name, err)
 		}
 
-		args, err := tools.GetArgs([]byte(toolCall.Function.Arguments), params)
+		args, err := tools.GetArgs([]byte(toolCall.OfFunction.Function.Arguments), params)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}
@@ -223,15 +237,19 @@ func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*
 
 		toolCallResultMsg := c.newMessage(
 			llms.WithRole(llms.RoleTool),
-			llms.WithToolCallID(toolCall.ID),
+			llms.WithIsChunk(false),
+			llms.WithIsStreamed(false),
+			llms.WithToolCallID(toolCall.OfFunction.ID),
 			llms.WithToolCallArgs(args),
-			llms.WithToolsCalled(toolCall.Function.Name),
+			llms.WithToolsCalled(toolCall.OfFunction.Function.Name),
 			llms.WithContent(content),
 			llms.WithError(err),
 		)
 
 		results[toolCallNum] = toolCallResultMsg
 	}
+
+	c.logger.Debug("returning tool call results", "results", results, "num", len(results))
 
 	return results, nil
 }
@@ -310,14 +328,12 @@ func (c *ChatGPT) getSessionMessages(session *llms.Session) []openai.ChatComplet
 			assistantMsg := openai.AssistantMessage(msg.Content)
 
 			if msg.HasToolCalls() {
-				rawCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnion)
-				if ok {
-					for _, toolCall := range rawCalls {
-						assistantMsg.OfAssistant.ToolCalls = append(assistantMsg.OfAssistant.ToolCalls, toolCall.ToParam())
-					}
-				} else {
+				toolCalls, ok := msg.ToolCallInfo.([]openai.ChatCompletionMessageToolCallUnionParam)
+				if !ok {
 					c.logger.Warn("got ToolCallInfo of unexpected type", "type", fmt.Sprintf("%T", msg.ToolCallInfo))
 				}
+
+				assistantMsg.OfAssistant.ToolCalls = toolCalls
 			}
 
 			results[num] = assistantMsg

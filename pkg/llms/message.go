@@ -1,6 +1,7 @@
 package llms
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -106,6 +107,12 @@ func (m *Message) LogValue() slog.Value {
 		}
 
 		if m.ToolCallInfo != nil {
+			if tcBytes, err := json.Marshal(m.ToolCallInfo); err != nil {
+				panic(err)
+			} else {
+				slog.Debug("we marshalled the call info for logging...", "output", string(tcBytes))
+			}
+
 			toolCallAttrs = append(toolCallAttrs, slog.Any("call_info", m.ToolCallInfo))
 		}
 
@@ -122,6 +129,16 @@ func (m *Message) LogValue() slog.Value {
 
 	if m.LLMInfo != nil {
 		attrs = append(attrs, slog.Any("llm_info", m.LLMInfo))
+	}
+
+	if m.IsStreamed {
+		streamAttrs := []slog.Attr{
+			slog.Bool("is_initial", m.IsInitial),
+			slog.Bool("is_chunk", m.IsChunk),
+			slog.Bool("is_finalized", m.IsFinalized),
+		}
+
+		attrs = append(attrs, slog.GroupAttrs("streaming", streamAttrs...))
 	}
 
 	attrs = append(attrs, slog.String("content", m.Content))

@@ -45,7 +45,7 @@ func (l *Log) AddMessage(message any) {
 				if llmMessage.IsFinalized {
 					l.log[i] = message
 				} else {
-					item = item.Update(llms.WithChunkContent(llmMessage.Content))
+					item = item.Update(llms.WithContent(llmMessage.Content))
 					l.log[i] = item
 				}
 
