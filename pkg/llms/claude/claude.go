@@ -119,6 +119,112 @@ func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.
 	return msg, nil
 }
 
+func (c *Claude) SendSessionStreaming(ctx context.Context, session *llms.Session, chunkChan chan<- *llms.Message) (*llms.Message, error) {
+	defer close(chunkChan)
+
+	messageParams := anthropic.MessageNewParams{
+		Messages:  c.getSessionMessages(session),
+		MaxTokens: c.config.MaxTokens,
+		Model:     anthropic.Model(c.config.Model),
+		System: []anthropic.TextBlockParam{
+			{Text: session.SystemMessage},
+		},
+		Tools:       c.newMessageTools(session),
+		Temperature: anthropic.Float(c.config.Temperature),
+	}
+
+	latest := session.Last()
+	if latest != nil {
+		c.logger.Debug("sending session", "msg", latest)
+	}
+
+	msg := c.newMessage(
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithIsStreamed(true),
+		llms.WithIsInitial(true),
+		llms.WithIsChunk(true),
+	)
+
+	stream := c.client.Messages.NewStreaming(ctx, messageParams, option.WithMaxRetries(5))
+	defer stream.Close()
+
+	accumulator := anthropic.Message{}
+	first := true
+
+	for stream.Next() {
+		if !first && msg.IsInitial {
+			msg = msg.Update(llms.WithIsInitial(false))
+		}
+
+		chunk := stream.Current()
+		if err := accumulator.Accumulate(chunk); err != nil {
+			return nil, fmt.Errorf("failed to handle message chunk: %w", err)
+		}
+
+		chunkType, ok := chunk.AsAny().(anthropic.ContentBlockDeltaEvent)
+		if !ok {
+			slog.Warn("unknown chunk type", "type", fmt.Sprintf("%T", chunk.AsAny()))
+			continue
+		}
+
+		switch deltaType := chunkType.Delta.AsAny().(type) {
+		case anthropic.TextDelta:
+			msg = msg.Update(llms.WithChunkContent(deltaType.Text))
+			slog.Debug("updating chunk with text", "text", deltaType.Text, "current_text", msg.Content)
+			// TODO: other delta types?
+		default:
+			continue
+		}
+
+		chunkChan <- msg
+
+		first = false
+	}
+
+	if err := stream.Err(); err != nil {
+		return nil, fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
+	}
+
+	if len(accumulator.Content) == 0 {
+		return nil, fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
+	}
+
+	if accumulator.StopReason == anthropic.StopReasonRefusal {
+		return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, accumulator.Content[0].Text)
+	}
+
+	session.UpdateUsage(accumulator.Usage.InputTokens, accumulator.Usage.OutputTokens)
+
+	c.logger.Debug("token usage", "prompt", accumulator.Usage.InputTokens, "completion", accumulator.Usage.OutputTokens)
+
+	textBuilder := strings.Builder{}
+	toolCalls := []anthropic.ToolUseBlock{}
+	toolCallNames := []string{}
+
+	for _, block := range accumulator.Content {
+		switch block := block.AsAny().(type) {
+		case anthropic.TextBlock:
+			// TODO: citations?
+			if strings.TrimSpace(block.Text) != "" {
+				textBuilder.WriteString(block.Text + "\n")
+			}
+		case anthropic.ToolUseBlock:
+			toolCalls = append(toolCalls, block)
+			toolCallNames = append(toolCallNames, block.Name)
+		}
+	}
+
+	msg = msg.Update(
+		llms.WithContent(textBuilder.String()),
+		llms.WithToolsCalled(toolCallNames...),
+		llms.WithToolCallInfo(toolCalls),
+		llms.WithIsChunk(false),
+		llms.WithIsFinalized(true),
+	)
+
+	return msg, nil
+}
+
 func (c *Claude) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*llms.Message, error) {
 	if !msg.HasToolCalls() {
 		return nil, llms.ErrNoToolCalls
