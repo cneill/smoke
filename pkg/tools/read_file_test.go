@@ -83,7 +83,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 		},
 		{
 			name:        "start_beyond_eof",
-			initContent: "test1\ntest2",
+			initContent: "test1\ntest2\n",
 			args: tools.Args{
 				tools.ReadFilePath:      "start_beyond_eof_test.txt",
 				tools.ReadFileStartLine: 4,
@@ -93,6 +93,17 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			err:            tools.ErrArguments,
 		},
 		{
+			name:        "end_at_eof",
+			initContent: "test1\ntest2",
+			args: tools.Args{
+				tools.ReadFilePath:      "end_at_eof_test.txt",
+				tools.ReadFileStartLine: 1,
+				tools.ReadFileEndLine:   2,
+			},
+			expectedOutput: "1: test1\n2: test2\n",
+			err:            nil,
+		},
+		{
 			name:        "end_beyond_eof",
 			initContent: "test1\ntest2",
 			args: tools.Args{
@@ -100,8 +111,8 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 				tools.ReadFileStartLine: 1,
 				tools.ReadFileEndLine:   4,
 			},
-			expectedOutput: "",
-			err:            tools.ErrArguments,
+			expectedOutput: "1: test1\n2: test2\n",
+			err:            nil,
 		},
 		{
 			name:        "binary_content",

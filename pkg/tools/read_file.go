@@ -104,15 +104,14 @@ func (r *ReadFileTool) Run(_ context.Context, args Args) (string, error) { //nol
 	}
 
 	lines := bytes.Split(contents, []byte("\n"))
+	numLines := int64(len(lines))
 
-	if end == -1 {
-		end = int64(len(lines))
+	if end == -1 || end > numLines {
+		end = numLines
 	}
 
-	if start > int64(len(lines)) {
+	if start > numLines {
 		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileStartLine)
-	} else if end > int64(len(lines)) {
-		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileEndLine)
 	}
 
 	output := utils.WithLineNumbers(lines[start-1:end], int(start))
