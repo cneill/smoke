@@ -13,6 +13,10 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 )
 
+const (
+	API_URL = "https://api.x.ai" //nolint:revive
+)
+
 type Grok struct {
 	config *llms.Config
 	logger *slog.Logger
@@ -39,16 +43,18 @@ func New(config *llms.Config) (llms.LLM, error) {
 	httpClient := hc.DefaultClient()
 	httpClient.Timeout = time.Minute * 5
 
-	transport := httpClient.Transport.(*http.Transport)
-	transport.IdleConnTimeout = time.Minute * 2
-	transport.ResponseHeaderTimeout = time.Minute * 2
+	transport, ok := httpClient.Transport.(*http.Transport)
+	if ok {
+		transport.IdleConnTimeout = time.Minute * 2
+		transport.ResponseHeaderTimeout = time.Minute * 2
+	}
 
 	headers := http.Header{}
 	headers.Set("Content-Type", "application/json") // TODO: fix this when moving to SSE
 	headers.Set("Authorization", "Bearer "+config.APIKey)
 
 	client, err := hc.New(httpClient,
-		hc.ClientBaseURL("https://api.x.ai"),
+		hc.ClientBaseURL(API_URL),
 		hc.GlobalHeaders(headers),
 	)
 	if err != nil {
@@ -75,9 +81,6 @@ func (g *Grok) RequiresSessionSystem() bool { return true }
 
 // TODO: handle retries/rate limits
 func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
-	reqTools := g.completionTools(session)
-	slog.Debug("structured tools...?", "tools", reqTools)
-
 	req := &ChatCompletionRequest{
 		Model:               g.config.Model,
 		Messages:            g.getSessionMessages(session),
@@ -86,7 +89,7 @@ func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Me
 		Temperature:         g.config.Temperature,
 		MaxCompletionTokens: g.config.MaxTokens,
 		Stream:              false, // for now
-		Tools:               reqTools,
+		Tools:               g.completionTools(session),
 		// TODO? ReasoningEffort:
 	}
 
