@@ -1,6 +1,7 @@
 package grok
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/cneill/hc/v2"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 type Grok struct {
@@ -71,93 +73,11 @@ func (g *Grok) LLMInfo() *llms.LLMInfo {
 
 func (g *Grok) RequiresSessionSystem() bool { return true }
 
-type ChatCompletionRequest struct {
-	Messages            []*ChatCompletionMessage `json:"messages"`
-	MaxCompletionTokens int64                    `json:"max_completion_tokens,omitempty"`
-	Model               string                   `json:"model"`
-	N                   int64                    `json:"n,omitempty"`                   // number of chat completion choices
-	ParallelToolCalls   bool                     `json:"parallel_tool_calls,omitempty"` // set to "false" to only do 1 tool call at a time
-	ReasoningEffort     string                   `json:"reasoning_effort,omitempty"`    // "low" or "high"; not supported by Grok-4
-	Stream              bool                     `json:"stream,omitempty"`              // stream responses with SSE
-	Temperature         float64                  `json:"temperature,omitempty"`
-	// ToolChoice - can be used to force the model to use a tool, or never use one
-	Tools []*ChatCompletionTool `json:"tools"`
-}
-
-type ChatCompletionMessage struct {
-	Role       llms.Role                 `json:"role"`
-	Content    string                    `json:"content"`
-	ToolCalls  []*ChatCompletionToolCall `json:"tool_calls,omitempty"`
-	ToolCallID string                    `json:"tool_call_id,omitempty"`
-
-	// only in responses?
-	ReasoningContent string `json:"reasoning_content,omitempty"`
-	Refusal          string `json:"refusal,omitempty"`
-}
-
-type ChatCompletionToolCall struct {
-	ID       string                          `json:"id"`
-	Index    int64                           `json:"index"`
-	Function *ChatCompletionToolCallFunction `json:"function"`
-	Type     string                          `json:"type"` // always "function"
-}
-
-type ChatCompletionToolCallFunction struct {
-	Arguments string `json:"arguments"`
-	Name      string `json:"name"`
-}
-
-type ChatCompletionTool struct {
-	Function *ChatCompletionToolFunction `json:"function"`
-}
-
-type ChatCompletionToolFunction struct {
-	Description string         `json:"description"`
-	Name        string         `json:"name"`
-	Parameters  map[string]any `json:"parameters"` // TODO: make this just "any" ?
-}
-
-type ChatCompletionResponse struct {
-	Choices   []*ChatCompletionChoice
-	Created   int64                `json:"created"` // UNIX timestamp
-	ID        string               `json:"id"`
-	Model     string               `json:"model"`
-	Object    string               `json:"object"` // always "chat.completion"
-	Citations []string             `json:"citations"`
-	Usage     *ChatCompletionUsage `json:"usage"`
-}
-
-type ChatCompletionChoice struct {
-	FinishReason string `json:"finish_reason"` // "stop" = stop sequence, "length" = tokens, "end_turn"
-	Index        int64  `json:"index"`
-	// Logprobs
-	Message *ChatCompletionMessage `json:"message"` // TODO: make this a separate type?
-}
-
-type ChatCompletionUsage struct {
-	CompletionTokens        int64                              `json:"completion_tokens"`
-	CompletionTokensDetails *ChatCompletionTokensDetails       `json:"completion_tokens_details"`
-	NumSourcesUsed          int64                              `json:"num_sources_used"`
-	PromptTokens            int64                              `json:"prompt_tokens"`
-	PromptTokensDetails     *ChatCompletionPromptTokensDetails `json:"prompt_tokens_details"`
-	TotalTokens             int64                              `json:"total_tokens"`
-}
-
-type ChatCompletionTokensDetails struct {
-	AcceptedPredictionTokens int64 `json:"accepted_prediction_tokens"`
-	AudioTokens              int64 `json:"audio_tokens"`
-	ReasoningTokens          int64 `json:"reasoning_tokens"`
-	RejectedPredictionTokens int64 `json:"rejected_prediction_tokens"`
-}
-
-type ChatCompletionPromptTokensDetails struct {
-	AudioTokens  int64 `json:"audio_tokens"`
-	CachedTokens int64 `json:"cached_tokens"`
-	ImageTokens  int64 `json:"image_tokens"`
-	TextTokens   int64 `json:"text_tokens"`
-}
-
+// TODO: handle retries/rate limits
 func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
+	reqTools := g.completionTools(session)
+	slog.Debug("structured tools...?", "tools", reqTools)
+
 	req := &ChatCompletionRequest{
 		Model:               g.config.Model,
 		Messages:            g.getSessionMessages(session),
@@ -166,8 +86,8 @@ func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Me
 		Temperature:         g.config.Temperature,
 		MaxCompletionTokens: g.config.MaxTokens,
 		Stream:              false, // for now
+		Tools:               reqTools,
 		// TODO? ReasoningEffort:
-		// TODO: Tools:
 	}
 
 	httpResp, err := g.client.Do(
@@ -180,19 +100,22 @@ func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Me
 		return nil, fmt.Errorf("failed to perform chat completion request: %w", err)
 	}
 
-	slog.Debug("got API response", "resp", httpResp)
+	g.logger.Debug("got API response", "status_code", httpResp.StatusCode, "status", httpResp.Status)
 
 	resp := &ChatCompletionResponse{}
+	buf := &bytes.Buffer{}
 
 	_, err = hc.HandleResponse(httpResp,
+		hc.CopyRaw(buf),
 		hc.JSONResponse(resp),
 		hc.AllowedStatusCodes(hc.Status2XX...),
 	)
 	if err != nil {
+		slog.Debug("full response", "body", buf.String())
 		return nil, fmt.Errorf("response handling error: %w", err)
 	}
 
-	slog.Debug("got API response body", "resp", resp)
+	g.logger.Debug("got API response body", "resp", resp)
 
 	if len(resp.Choices) == 0 {
 		return nil, fmt.Errorf("%w: no choices returned", llms.ErrEmptyResponse)
@@ -208,6 +131,9 @@ func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Me
 		llms.WithContent(resp.Choices[0].Message.Content),
 		llms.WithLLMInfo(g.LLMInfo()),
 		llms.WithIsStreamed(false), // TODO: Fix
+		// llms.WithToolCallID(resp.Choices[0].Message.ToolCallID),
+		llms.WithToolsCalled(g.getToolCallNames(resp.Choices[0].Message.ToolCalls)...),
+		llms.WithToolCallInfo(resp.Choices[0].Message.ToolCalls),
 		// TODO: handle tool calls
 	)
 
@@ -215,12 +141,128 @@ func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Me
 }
 
 func (g *Grok) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*llms.Message, error) {
-	return nil, nil
+	if !msg.HasToolCalls() {
+		return nil, llms.ErrNoToolCalls
+	}
+
+	toolCalls, ok := msg.ToolCallInfo.([]*ChatCompletionToolCall)
+	if !ok {
+		return nil, fmt.Errorf(
+			"got unexpected type for ToolCallInfo (expecting []*grok.ChatCompletionToolCall): %T",
+			msg.ToolCallInfo)
+	}
+
+	results := make([]*llms.Message, len(toolCalls))
+
+	for toolCallNum, toolCall := range toolCalls {
+		name := toolCall.Function.Name
+
+		var (
+			content     string
+			toolCallErr error
+		)
+
+		params, err := session.Tools.Params(name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get params for tool %q: %w", name, err)
+		}
+
+		args, err := tools.GetArgs([]byte(toolCall.Function.Arguments), params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
+		}
+
+		output, err := session.Tools.CallTool(context.TODO(), name, args)
+		if err != nil {
+			g.logger.Error("failed to call tool", "tool_name", name, "error", err)
+			toolCallErr = fmt.Errorf("failed to call tool %q: %w", name, err)
+			content = toolCallErr.Error()
+		} else {
+			content = output
+		}
+
+		toolCallResultMsg := g.newMessage(
+			llms.WithRole(llms.RoleTool),
+			llms.WithIsChunk(false),
+			llms.WithIsStreamed(false),
+			llms.WithToolCallID(toolCall.ID),
+			llms.WithToolCallArgs(args),
+			llms.WithToolsCalled(toolCall.Function.Name),
+			llms.WithContent(content),
+			llms.WithError(err),
+		)
+
+		results[toolCallNum] = toolCallResultMsg
+	}
+
+	g.logger.Debug("returning tool call results", "results", results, "num", len(results))
+
+	return results, nil
 }
 
 // func (g *Grok) SendSessionStreaming(ctx context.Context, s *llms.Session, chunkChan chan<- *llms.Message) (*llms.Message, error) {
 // 	return nil, nil
 // }
+
+func (g *Grok) newMessage(opts ...llms.MessageOpt) *llms.Message {
+	opts = append([]llms.MessageOpt{llms.WithLLMInfo(g.LLMInfo())}, opts...)
+	return llms.NewMessage(opts...)
+}
+
+func (g *Grok) completionTools(session *llms.Session) []*ChatCompletionTool {
+	sessionTools := session.Tools.GetTools()
+	results := make([]*ChatCompletionTool, len(sessionTools))
+
+	for toolNum, tool := range sessionTools {
+		properties := map[string]any{}
+		requiredKeys := []string{}
+
+		for _, param := range tool.Params() {
+			keyParams := map[string]any{
+				"type":        param.Type,
+				"description": param.Description,
+			}
+
+			if param.Type == tools.ParamTypeArray {
+				keyParams["items"] = map[string]any{
+					"type": param.ItemType,
+				}
+			}
+
+			properties[param.Key] = keyParams
+
+			if param.Required {
+				requiredKeys = append(requiredKeys, param.Key)
+			}
+		}
+
+		toolDef := &ChatCompletionTool{
+			Function: &ChatCompletionToolFunction{
+				Description: tool.Description(),
+				Name:        tool.Name(),
+				Parameters: map[string]any{
+					"type":       "object",
+					"required":   requiredKeys,
+					"properties": properties,
+				},
+			},
+			Type: "function",
+		}
+
+		results[toolNum] = toolDef
+	}
+
+	return results
+}
+
+func (g *Grok) getToolCallNames(toolCalls []*ChatCompletionToolCall) []string {
+	results := []string{}
+	for _, toolCall := range toolCalls {
+		results = append(results, toolCall.Function.Name)
+	}
+
+	return results
+}
 
 func (g *Grok) getSessionMessages(session *llms.Session) []*ChatCompletionMessage {
 	results := make([]*ChatCompletionMessage, len(session.Messages))

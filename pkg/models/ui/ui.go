@@ -293,7 +293,7 @@ func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage)
 		m.input.SetWaiting(false)
 	}
 
-	if response.Message.HasToolCalls() && response.Message.IsFinalized {
+	if response.Message.HasToolCalls() && (!response.Message.IsStreamed || response.Message.IsFinalized) {
 		cmd, err := m.smoke.HandleAssistantToolCalls(response.Message)
 		if err != nil {
 			m.input.SetWaiting(false)

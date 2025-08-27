@@ -206,8 +206,6 @@ func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*
 
 	results := make([]*llms.Message, len(toolCalls))
 
-	slog.Debug("GOT TOOL CALLS FROM CHATGPT", "tool_calls", toolCalls, "num_tool_calls", len(results))
-
 	for toolCallNum, toolCall := range toolCalls {
 		name := toolCall.OfFunction.Function.Name
 
@@ -255,6 +253,7 @@ func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*
 }
 
 func (c *ChatGPT) newMessage(opts ...llms.MessageOpt) *llms.Message {
+	// TODO: Refactor
 	msg := llms.NewMessage(
 		llms.WithLLMInfo(c.LLMInfo()),
 	)
