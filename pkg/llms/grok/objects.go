@@ -75,6 +75,28 @@ type ChatCompletionUsage struct {
 	TotalTokens             int64                              `json:"total_tokens"`
 }
 
+type ChatCompletionChunk struct {
+	ID      string                       `json:"id"`
+	Object  string                       `json:"object"` // "chat.completion.chunk"
+	Created int64                        `json:"created"`
+	Model   string                       `json:"model"`
+	Choices []*ChatCompletionChunkChoice `json:"choices"`
+	Usage   *ChatCompletionUsage         `json:"usage,omitempty"`
+}
+
+type ChatCompletionChunkChoice struct {
+	Index        int64                  `json:"index"`
+	Delta        *ChatCompletionDelta   `json:"delta"`
+	FinishReason string                 `json:"finish_reason,omitempty"`
+}
+
+type ChatCompletionDelta struct {
+	Role      llms.Role                     `json:"role,omitempty"`
+	Content   string                        `json:"content,omitempty"`
+	ToolCalls []*ChatCompletionToolCall     `json:"tool_calls,omitempty"`
+	Refusal   string                        `json:"refusal,omitempty"`
+}
+
 type ChatCompletionTokensDetails struct {
 	AcceptedPredictionTokens int64 `json:"accepted_prediction_tokens"`
 	AudioTokens              int64 `json:"audio_tokens"`

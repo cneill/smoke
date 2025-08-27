@@ -1,11 +1,14 @@
 package grok
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cneill/hc/v2"
@@ -88,7 +91,7 @@ func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Me
 		ParallelToolCalls:   false,
 		Temperature:         g.config.Temperature,
 		MaxCompletionTokens: g.config.MaxTokens,
-		Stream:              false, // for now
+		Stream:              false,
 		Tools:               g.completionTools(session),
 		// TODO? ReasoningEffort:
 	}
@@ -205,13 +208,109 @@ func (g *Grok) HandleToolCalls(ctx context.Context, msg *llms.Message, session *
 	return results, nil
 }
 
-// func (g *Grok) SendSessionStreaming(ctx context.Context, s *llms.Session, chunkChan chan<- *llms.Message) (*llms.Message, error) {
-// 	return nil, nil
-// }
+func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, chunkChan chan<- *llms.Message) (*llms.Message, error) {
+	defer close(chunkChan)
 
-func (g *Grok) newMessage(opts ...llms.MessageOpt) *llms.Message {
-	opts = append([]llms.MessageOpt{llms.WithLLMInfo(g.LLMInfo())}, opts...)
-	return llms.NewMessage(opts...)
+	req := &ChatCompletionRequest{
+		Model:               g.config.Model,
+		Messages:            g.getSessionMessages(session),
+		N:                   1,
+		ParallelToolCalls:   false,
+		Temperature:         g.config.Temperature,
+		MaxCompletionTokens: g.config.MaxTokens,
+		Stream:              true,
+		Tools:               g.completionTools(session),
+		// TODO? ReasoningEffort:
+	}
+
+	httpResp, err := g.client.Do(
+		hc.Context(ctx),
+		hc.Post,
+		hc.JSONRequest(req),
+		hc.Path("/v1/chat/completions"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform streaming chat completion request: %w", err)
+	}
+
+	defer httpResp.Body.Close()
+
+	g.logger.Debug("got streaming API response", "status_code", httpResp.StatusCode, "status", httpResp.Status)
+
+	if httpResp.StatusCode != http.StatusOK {
+		buf := &bytes.Buffer{}
+		_, _ = buf.ReadFrom(httpResp.Body)
+
+		return nil, fmt.Errorf("streaming response error: %d %s, body: %s", httpResp.StatusCode, httpResp.Status, buf.String())
+	}
+
+	msg := g.newMessage(
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithIsStreamed(true),
+		llms.WithIsInitial(true),
+		llms.WithIsChunk(true),
+	)
+
+	accumulator := NewStreamingAccumulator()
+	first := true
+
+	scanner := bufio.NewScanner(httpResp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+
+		chunk := &ChatCompletionChunk{}
+		if err := json.Unmarshal([]byte(data), chunk); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal streaming chunk: %w", err)
+		}
+
+		if !first && msg.IsInitial {
+			msg = msg.Update(llms.WithIsInitial(false))
+		}
+
+		accumulator.Accumulate(chunk)
+
+		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
+			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+		}
+
+		if chunk.Choices[0].Delta != nil && chunk.Choices[0].Delta.Content != "" {
+			msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
+		}
+
+		if msg.Content == "" {
+			continue
+		}
+
+		chunkChan <- msg
+
+		first = false
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading streaming response: %w", err)
+	}
+
+	accumulator.Finalize()
+
+	session.UpdateUsage(accumulator.Usage.PromptTokens, accumulator.Usage.CompletionTokens)
+
+	msg = msg.Update(
+		llms.WithContent(accumulator.Message.Content),
+		llms.WithToolsCalled(g.getToolCallNames(accumulator.Message.ToolCalls)...),
+		llms.WithToolCallInfo(accumulator.Message.ToolCalls),
+		llms.WithIsChunk(false),
+		llms.WithIsFinalized(true),
+	)
+
+	return msg, nil
 }
 
 func (g *Grok) completionTools(session *llms.Session) []*ChatCompletionTool {
@@ -267,6 +366,11 @@ func (g *Grok) getToolCallNames(toolCalls []*ChatCompletionToolCall) []string {
 	}
 
 	return results
+}
+
+func (g *Grok) newMessage(opts ...llms.MessageOpt) *llms.Message {
+	opts = append([]llms.MessageOpt{llms.WithLLMInfo(g.LLMInfo())}, opts...)
+	return llms.NewMessage(opts...)
 }
 
 func (g *Grok) getSessionMessages(session *llms.Session) []*ChatCompletionMessage {
