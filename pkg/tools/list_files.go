@@ -14,11 +14,6 @@ const (
 	ListFilesPath = "path"
 )
 
-//nolint:gochecknoglobals
-var ignoredDirectories = []string{
-	".git",
-}
-
 type ListFilesTool struct {
 	ProjectPath string
 }
@@ -31,15 +26,16 @@ func NewListFilesTool(projectPath, _ string) Tool {
 
 func (l *ListFilesTool) Name() string { return ToolListFiles }
 func (l *ListFilesTool) Description() string {
-	return "List files in the given directory, recursively."
+	return fmt.Sprintf("List files in the directory %q recursively, with file mode + size info.", ListFilesPath)
 }
 
 func (l *ListFilesTool) Params() Params {
 	return Params{
 		{
-			Key:      ListFilesPath,
-			Type:     "string",
-			Required: true,
+			Key:         ListFilesPath,
+			Description: "The path to the directory where you want to list files",
+			Type:        "string",
+			Required:    true,
 		},
 	}
 }
