@@ -12,12 +12,13 @@ type LLMType string
 const (
 	LLMTypeChatGPT = "chatgpt"
 	LLMTypeClaude  = "claude"
+	LLMTypeGrok    = "grok"
 )
 
 type LLM interface {
 	LLMInfo() *LLMInfo
-	SendSession(ctx context.Context, s *Session) (*Message, error)
 	RequiresSessionSystem() bool
+	SendSession(ctx context.Context, s *Session) (*Message, error)
 	HandleToolCalls(msg *Message, s *Session) ([]*Message, error)
 }
 

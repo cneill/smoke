@@ -36,6 +36,8 @@ github.com/charmbracelet/x/exp/slice v0.0.0-20250806222409-83e3a29d542f h1:/8CqJ
 github.com/charmbracelet/x/exp/slice v0.0.0-20250806222409-83e3a29d542f/go.mod h1:vI5nDVMWi6veaYH+0Fmvpbe/+cv/iJfMntdh+N0+Tms=
 github.com/charmbracelet/x/term v0.2.1 h1:AQeHeLZ1OqSXhrAWpYUtZyX1T3zVxfpZuEQMIQaGIAQ=
 github.com/charmbracelet/x/term v0.2.1/go.mod h1:oQ4enTYFV7QN4m0i9mzHrViD7TQKvNEEkHUMCmsxdUg=
+github.com/cneill/hc/v2 v2.0.2 h1:e6Wwg2xbDdrCGWykOwA2AStm3tskYwYn+u0JsJJ4Egw=
+github.com/cneill/hc/v2 v2.0.2/go.mod h1:FKUnfJDZypJzwGYc/0dtDx/KkphvX64bg23IA4gjdMc=
 github.com/cpuguy83/go-md2man/v2 v2.0.7 h1:zbFlGlXEAKlwXpmvle3d8Oe3YnkKIK4xSRTd3sHPnBo=
 github.com/cpuguy83/go-md2man/v2 v2.0.7/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

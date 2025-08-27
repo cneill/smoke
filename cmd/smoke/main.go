@@ -10,6 +10,7 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/llms/chatgpt"
 	"github.com/cneill/smoke/pkg/llms/claude"
+	"github.com/cneill/smoke/pkg/llms/grok"
 	"github.com/cneill/smoke/pkg/log"
 	"github.com/cneill/smoke/pkg/models/ui"
 	"github.com/cneill/smoke/pkg/prompts"
@@ -28,6 +29,7 @@ const (
 	FlagTemperature  = "temperature"
 	FlagOpenAIKey    = "openai-api-key"
 	FlagAnthropicKey = "anthropic-api-key"
+	FlagXAIKey       = "xai-api-key"
 
 	EnvDir          = "SMOKE_DIRECTORY"
 	EnvDebug        = "SMOKE_DEBUG"
@@ -38,6 +40,7 @@ const (
 	EnvTemperature  = "SMOKE_TEMPERATURE"
 	EnvOpenAIKey    = "OPENAI_API_KEY"
 	EnvAnthropicKey = "ANTHROPIC_API_KEY"
+	EnvXAIKey       = "XAI_API_KEY"
 )
 
 func flags() []cli.Flag {
@@ -80,7 +83,7 @@ func flags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:     FlagProvider,
-			Usage:    fmt.Sprintf("Either '%s' or '%s'", llms.LLMTypeChatGPT, llms.LLMTypeClaude),
+			Usage:    fmt.Sprintf("Either '%s', '%s', or '%s'", llms.LLMTypeChatGPT, llms.LLMTypeClaude, llms.LLMTypeGrok),
 			Category: "Models",
 			Aliases:  []string{"p"},
 			EnvVars:  []string{EnvProvider},
@@ -106,6 +109,12 @@ func flags() []cli.Flag {
 			Usage:    "The API key for Anthropic",
 			EnvVars:  []string{EnvAnthropicKey},
 		},
+		&cli.StringFlag{
+			Name:     FlagXAIKey,
+			Category: "Models",
+			Usage:    "The API key for xAI",
+			EnvVars:  []string{EnvXAIKey},
+		},
 	}
 }
 
@@ -118,6 +127,10 @@ func validate(ctx *cli.Context) error {
 	case llms.LLMTypeClaude:
 		if ctx.String(FlagAnthropicKey) == "" {
 			return fmt.Errorf("must supply %s flag or %s environment variable", FlagAnthropicKey, EnvAnthropicKey)
+		}
+	case llms.LLMTypeGrok:
+		if ctx.String(FlagXAIKey) == "" {
+			return fmt.Errorf("must supply %s flag or %s environment variable", FlagXAIKey, EnvXAIKey)
 		}
 	default:
 		return fmt.Errorf("unknown model provider: %s", ctx.String(FlagProvider))
@@ -192,6 +205,9 @@ func action(ctx *cli.Context) error {
 	case llms.LLMTypeClaude:
 		llmConfig.APIKey = ctx.String(FlagAnthropicKey)
 		llmConfig.Model = string(claude.GetModel(modelFlag, anthropic.ModelClaudeSonnet4_0))
+	case llms.LLMTypeGrok:
+		llmConfig.APIKey = ctx.String(FlagXAIKey)
+		llmConfig.Model = grok.GetModel(modelFlag, "grok-3")
 	}
 
 	opts := []smoke.OptFunc{
