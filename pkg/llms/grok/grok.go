@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -107,6 +108,14 @@ func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Me
 	}
 
 	g.logger.Debug("got API response", "status_code", httpResp.StatusCode, "status", httpResp.Status)
+
+	if httpResp.StatusCode != http.StatusOK {
+		buf := &bytes.Buffer{}
+		limitedReader := io.LimitReader(httpResp.Body, 1024*2014)
+		_, _ = buf.ReadFrom(limitedReader)
+
+		return nil, fmt.Errorf("response error: %d %s, body: %s", httpResp.StatusCode, httpResp.Status, buf.String())
+	}
 
 	resp := &ChatCompletionResponse{}
 	buf := &bytes.Buffer{}
@@ -239,7 +248,8 @@ func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, 
 
 	if httpResp.StatusCode != http.StatusOK {
 		buf := &bytes.Buffer{}
-		_, _ = buf.ReadFrom(httpResp.Body)
+		limitedReader := io.LimitReader(httpResp.Body, 1024*2014)
+		_, _ = buf.ReadFrom(limitedReader)
 
 		return nil, fmt.Errorf("streaming response error: %d %s, body: %s", httpResp.StatusCode, httpResp.Status, buf.String())
 	}
@@ -279,6 +289,10 @@ func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, 
 
 		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
 			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+		}
+
+		if len(chunk.Choices) == 0 {
+			continue
 		}
 
 		if chunk.Choices[0].Delta != nil && chunk.Choices[0].Delta.Content != "" {

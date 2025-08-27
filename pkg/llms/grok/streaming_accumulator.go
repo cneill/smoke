@@ -41,12 +41,15 @@ func (acc *StreamingAccumulator) Accumulate(chunk *ChatCompletionChunk) {
 			if toolCall.Function.Name != "" {
 				existing.Function.Name += toolCall.Function.Name
 			}
+
 			if toolCall.Function.Arguments != "" {
 				existing.Function.Arguments += toolCall.Function.Arguments
 			}
+
 			if toolCall.Type != "" {
 				existing.Type = toolCall.Type
 			}
+
 			if toolCall.ID != "" {
 				existing.ID = toolCall.ID
 			}
@@ -86,5 +89,6 @@ func (acc *StreamingAccumulator) JustFinishedRefusal() (string, bool) {
 	if acc.Refusal != "" {
 		return acc.Refusal, true
 	}
+
 	return "", false
 }
