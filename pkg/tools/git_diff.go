@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// TODO: un-LLM this code
+
 const (
 	GitDiffStat = "stat"
 	GitDiffFile = "file"

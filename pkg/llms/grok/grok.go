@@ -125,22 +125,24 @@ func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Me
 		return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
 	}
 
+	if resp.Usage != nil {
+		session.UpdateUsage(resp.Usage.PromptTokens, resp.Usage.CompletionTokens)
+	}
+
 	msg := llms.NewMessage(
 		llms.WithID(resp.ID),
 		llms.WithRole(llms.RoleAssistant),
 		llms.WithContent(resp.Choices[0].Message.Content),
 		llms.WithLLMInfo(g.LLMInfo()),
-		llms.WithIsStreamed(false), // TODO: Fix
-		// llms.WithToolCallID(resp.Choices[0].Message.ToolCallID),
+		llms.WithIsStreamed(false),
 		llms.WithToolsCalled(g.getToolCallNames(resp.Choices[0].Message.ToolCalls)...),
 		llms.WithToolCallInfo(resp.Choices[0].Message.ToolCalls),
-		// TODO: handle tool calls
 	)
 
 	return msg, nil
 }
 
-func (g *Grok) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*llms.Message, error) {
+func (g *Grok) HandleToolCalls(ctx context.Context, msg *llms.Message, session *llms.Session) ([]*llms.Message, error) {
 	if !msg.HasToolCalls() {
 		return nil, llms.ErrNoToolCalls
 	}
@@ -172,7 +174,7 @@ func (g *Grok) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*llm
 			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}
 
-		output, err := session.Tools.CallTool(context.TODO(), name, args)
+		output, err := session.Tools.CallTool(ctx, name, args)
 		if err != nil {
 			g.logger.Error("failed to call tool", "tool_name", name, "error", err)
 			toolCallErr = fmt.Errorf("failed to call tool %q: %w", name, err)
@@ -275,14 +277,16 @@ func (g *Grok) getSessionMessages(session *llms.Session) []*ChatCompletionMessag
 		}
 		switch msg.Role {
 		case llms.RoleAssistant:
-			// TODO: ToolCalls
+			if msg.HasToolCalls() {
+				if toolCalls, ok := msg.ToolCallInfo.([]*ChatCompletionToolCall); ok {
+					results[num].ToolCalls = toolCalls
+				} else {
+					g.logger.Warn("got ToolCallInfo of unexpected type", "type", fmt.Sprintf("%T", msg.ToolCallInfo))
+				}
+			}
 		case llms.RoleSystem:
-			// results[num] =
-			// results[num] = openai.SystemMessage(msg.Content)
 		case llms.RoleUser:
-			// results[num] = openai.UserMessage(msg.Content)
 		case llms.RoleTool:
-			// results[num] = openai.ToolMessage(msg.Content, msg.ToolCallID)
 		case llms.RoleUnknown:
 			g.logger.Warn("got message with unknown role", "message", msg.Content)
 		}

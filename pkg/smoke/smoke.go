@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -149,9 +150,8 @@ func (s *Smoke) HandleAssistantToolCalls(msg *llms.Message) (tea.Cmd, error) {
 		return nil, llms.ErrNoToolCalls
 	}
 
-	// TODO: accept session in the function params instead of using the one bolted onto the struct?
 	handle := func() tea.Msg {
-		results, err := s.llm.HandleToolCalls(msg, s.session)
+		results, err := s.llm.HandleToolCalls(context.Background(), msg, s.session)
 		if err != nil {
 			return ToolCallResponseMessage{Err: fmt.Errorf("error handling tool calls: %w", err)}
 		}
@@ -242,8 +242,15 @@ func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedr
 
 func (s *Smoke) ShouldStream() bool {
 	// TODO: additional toggle switch for this behavior from CLI
+
+	// GPT-5 requires org verification with a photo ID
+	if s.llm.LLMInfo().Type == llms.LLMTypeChatGPT {
+		if strings.Contains(s.llm.LLMInfo().ModelName, "gpt-5") {
+			return false
+		}
+	}
+
 	_, ok := s.llm.(llms.StreamingLLM)
+
 	return ok
-	// TODO: undo this
-	// return false
 }

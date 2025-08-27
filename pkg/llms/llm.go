@@ -19,7 +19,7 @@ type LLM interface {
 	LLMInfo() *LLMInfo
 	RequiresSessionSystem() bool
 	SendSession(ctx context.Context, s *Session) (*Message, error)
-	HandleToolCalls(msg *Message, s *Session) ([]*Message, error)
+	HandleToolCalls(ctx context.Context, msg *Message, s *Session) ([]*Message, error)
 }
 
 type StreamingLLM interface {

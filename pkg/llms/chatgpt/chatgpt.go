@@ -192,7 +192,7 @@ func (c *ChatGPT) SendSessionStreaming(ctx context.Context, session *llms.Sessio
 	return msg, nil
 }
 
-func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*llms.Message, error) {
+func (c *ChatGPT) HandleToolCalls(ctx context.Context, msg *llms.Message, session *llms.Session) ([]*llms.Message, error) {
 	if !msg.HasToolCalls() {
 		return nil, llms.ErrNoToolCalls
 	}
@@ -224,7 +224,7 @@ func (c *ChatGPT) HandleToolCalls(msg *llms.Message, session *llms.Session) ([]*
 			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}
 
-		output, err := session.Tools.CallTool(context.TODO(), name, args)
+		output, err := session.Tools.CallTool(ctx, name, args)
 		if err != nil {
 			c.logger.Error("failed to call tool", "tool_name", name, "error", err)
 			toolCallErr = fmt.Errorf("failed to call tool %q: %w", name, err)
