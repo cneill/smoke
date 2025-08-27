@@ -38,9 +38,10 @@ func (r *ReadFileTool) Description() string {
 func (r *ReadFileTool) Params() Params {
 	return Params{
 		{
-			Key:      ReadFilePath,
-			Type:     ParamTypeString,
-			Required: true,
+			Key:         ReadFilePath,
+			Description: "The path of the file to read",
+			Type:        ParamTypeString,
+			Required:    true,
 		},
 		{
 			Key:         ReadFileStartLine,

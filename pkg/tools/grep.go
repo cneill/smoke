@@ -42,7 +42,7 @@ func (g *GrepTool) Params() Params {
 	return Params{
 		{
 			Key:         GrepPath,
-			Description: "The path (either a directory or file) to search for the regex",
+			Description: "The path of the file/directory to search for the regex",
 			Type:        ParamTypeString,
 			Required:    true,
 		},

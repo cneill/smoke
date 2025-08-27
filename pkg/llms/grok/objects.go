@@ -85,16 +85,16 @@ type ChatCompletionChunk struct {
 }
 
 type ChatCompletionChunkChoice struct {
-	Index        int64                  `json:"index"`
-	Delta        *ChatCompletionDelta   `json:"delta"`
-	FinishReason string                 `json:"finish_reason,omitempty"`
+	Index        int64                `json:"index"`
+	Delta        *ChatCompletionDelta `json:"delta"`
+	FinishReason string               `json:"finish_reason,omitempty"`
 }
 
 type ChatCompletionDelta struct {
-	Role      llms.Role                     `json:"role,omitempty"`
-	Content   string                        `json:"content,omitempty"`
-	ToolCalls []*ChatCompletionToolCall     `json:"tool_calls,omitempty"`
-	Refusal   string                        `json:"refusal,omitempty"`
+	Role      llms.Role                 `json:"role,omitempty"`
+	Content   string                    `json:"content,omitempty"`
+	ToolCalls []*ChatCompletionToolCall `json:"tool_calls,omitempty"`
+	Refusal   string                    `json:"refusal,omitempty"`
 }
 
 type ChatCompletionTokensDetails struct {
