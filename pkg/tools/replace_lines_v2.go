@@ -31,12 +31,16 @@ func (r *ReplaceLinesV2Tool) Description() string {
 	return fmt.Sprintf(
 		"Replace the content between lines %q and %q in the file specified in %q with the contents in %q. Line "+
 			"numbers are 1-indexed, as they are in the output values of `read_file`, `grep`, etc. and should match "+
-			"those values.\n\n"+
+			"those values. If you want to edit an empty file, use %q=0 and %q=0\n\n"+
 			`Examples:
 			
-%s=1, %s=1, %s="", text="a\nb\nc\n" => "b\nc\n"
-%s=1, %s=2, %s="x\ny\n", text="a\nb\nc\n" => "x\ny\nc\n"`,
+%s=1, %s=1, %s="", file_contents="a\nb\nc\n" => "b\nc\n"
+%s=1, %s=2, %s="x\ny\n", file_contents="a\nb\nc\n" => "x\ny\nc\n"
+%s=0, %s=0, %s="hello", file_contents="" => "hello\n"
+`,
 		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Path, ReplaceLinesV2Replace,
+		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine,
+		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Replace,
 		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Replace,
 		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Replace,
 	)
@@ -96,8 +100,8 @@ func (r *ReplaceLinesV2Tool) Run(_ context.Context, args Args) (string, error) {
 			"%w: missing %q, %q, or %q",
 			ErrArguments, ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Replace,
 		)
-	case *startLine < 1 || *endLine < 1:
-		return "", fmt.Errorf("%w: %q or %q is less than 1", ErrArguments, ReplaceLinesV2StartLine, ReplaceLinesV2EndLine)
+	case *startLine < 0 || *endLine < 0:
+		return "", fmt.Errorf("%w: %q or %q is less than 0", ErrArguments, ReplaceLinesV2StartLine, ReplaceLinesV2EndLine)
 	case *startLine > *endLine:
 		return "", fmt.Errorf("%w: %q is greater than %q", ErrArguments, ReplaceLinesV2StartLine, ReplaceLinesV2EndLine)
 	}
@@ -231,6 +235,8 @@ func (r *ReplaceLinesV2Tool) generateContextOutput(filePath string, startLine, e
 	var summary string
 
 	switch {
+	case startLine == 0 && endLine == 0:
+		summary = fmt.Sprintf("Added to top of file in %q.", filePath)
 	case originalLinesReplaced == 1:
 		if newLinesAdded == 0 {
 			summary = fmt.Sprintf("Deleted line %d in %q.", startLine, filePath)

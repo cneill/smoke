@@ -97,11 +97,11 @@ func TestReplaceLinesV2Tool_Run(t *testing.T) { //nolint:funlen
 			errors:          []error{tools.ErrArguments},
 		},
 		{
-			name:        "zero_start",
+			name:        "negative_start",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesV2Path:      "zero_start_test.txt",
-				tools.ReplaceLinesV2StartLine: 0,
+				tools.ReplaceLinesV2Path:      "negative_start_test.txt",
+				tools.ReplaceLinesV2StartLine: -1,
 				tools.ReplaceLinesV2EndLine:   1,
 				tools.ReplaceLinesV2Replace:   "a",
 			},
@@ -109,12 +109,12 @@ func TestReplaceLinesV2Tool_Run(t *testing.T) { //nolint:funlen
 			errors:          []error{tools.ErrArguments},
 		},
 		{
-			name:        "zero_start_end",
+			name:        "negative_start_end",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesV2Path:      "zero_start_end_test.txt",
-				tools.ReplaceLinesV2StartLine: 0,
-				tools.ReplaceLinesV2EndLine:   0,
+				tools.ReplaceLinesV2Path:      "negative_start_end_test.txt",
+				tools.ReplaceLinesV2StartLine: -2,
+				tools.ReplaceLinesV2EndLine:   -1,
 				tools.ReplaceLinesV2Replace:   "a",
 			},
 			expectedContent: "a\nb\nc",
@@ -180,6 +180,31 @@ func TestReplaceLinesV2Tool_Run(t *testing.T) { //nolint:funlen
 			expectedContent: "x\ny\nz\n",
 			errors:          []error{},
 		},
+		{
+			name:        "empty_file_init",
+			initContent: "",
+			args: tools.Args{
+				tools.ReplaceLinesV2Path:      "empty_file_init_test.txt",
+				tools.ReplaceLinesV2StartLine: 0,
+				tools.ReplaceLinesV2EndLine:   0,
+				tools.ReplaceLinesV2Replace:   "a\nb\nc\n",
+			},
+			expectedContent: "a\nb\nc\n",
+			errors:          []error{},
+		},
+		{
+			name:        "nonempty_file_init",
+			initContent: "1\n2\n3\n",
+			args: tools.Args{
+				tools.ReplaceLinesV2Path:      "nonempty_file_init_test.txt",
+				tools.ReplaceLinesV2StartLine: 0,
+				tools.ReplaceLinesV2EndLine:   0,
+				tools.ReplaceLinesV2Replace:   "a\nb\nc\n",
+			},
+			expectedContent: "a\nb\nc\n1\n2\n3\n",
+			errors:          []error{},
+		},
+
 		{
 			name:        "delete_line",
 			initContent: "a\nb\nc\n",
@@ -259,10 +284,11 @@ func TestReplaceLinesV2Tool_ContextOutput(t *testing.T) { //nolint:funlen
 	tempDir := t.TempDir()
 	rlt := &tools.ReplaceLinesV2Tool{ProjectPath: tempDir}
 	initContent := "line1\nline2\nline3\nline4\n"
+	emptyStr := ""
 
 	tests := []struct {
 		name             string
-		filePath         string
+		initContent      *string
 		startLine        int
 		endLine          int
 		replacement      string
@@ -327,6 +353,21 @@ func TestReplaceLinesV2Tool_ContextOutput(t *testing.T) { //nolint:funlen
 			},
 		},
 		{
+			name:        "empty_file_initialization",
+			initContent: &emptyStr,
+			startLine:   0,
+			endLine:     0,
+			replacement: "a\nb\nc\n",
+			newLines:    [][]byte{},
+			expectedContains: []string{
+				"Added to top of file in \"empty_file_initialization_test.txt\"",
+				"Context (lines 1-3):",
+				"1: a",
+				"2: b",
+				"3: c",
+			},
+		},
+		{
 			name:        "empty_file_after_deletion",
 			startLine:   1,
 			endLine:     4,
@@ -366,8 +407,13 @@ func TestReplaceLinesV2Tool_ContextOutput(t *testing.T) { //nolint:funlen
 
 			defer tempFile.Close()
 
-			_, initContentErr := tempFile.WriteString(initContent)
-			require.NoError(t, initContentErr, "failed to write initial content to file %q: %v", tempPath, initContentErr)
+			init := initContent
+			if test.initContent != nil {
+				init = *test.initContent
+			}
+
+			_, initContentErr := tempFile.WriteString(init)
+			require.NoError(t, initContentErr, "failed to write initial content %q to file %q: %v", tempPath, initContent, initContentErr)
 
 			args := tools.Args{
 				tools.ReplaceLinesV2Path:      fileName,
