@@ -2,10 +2,13 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"log/slog"
 	"os"
 
-	"github.com/cneill/smoke/pkg/fs"
+	smokefs "github.com/cneill/smoke/pkg/fs"
 )
 
 const (
@@ -65,13 +68,22 @@ func (e *EditPlanTool) Params() Params {
 func (e *EditPlanTool) Run(ctx context.Context, args Args) (string, error) {
 	planFileName := e.SessionName + "_plan.md"
 
-	fullPath, err := fs.GetRelativePath(e.ProjectPath, planFileName)
+	fullPath, err := smokefs.GetRelativePath(e.ProjectPath, planFileName)
 	if err != nil {
 		return "", fmt.Errorf("%w: invalid session name / plan path: %w", ErrArguments, err)
 	}
 
-	if _, err := os.Stat(fullPath); err != nil {
-		return "", fmt.Errorf("%w: could not stat %s in root directory: %w; may need to be created with write_file", ErrFileSystem, planFileName, err)
+	_, statErr := os.Stat(fullPath)
+	if statErr != nil && errors.Is(statErr, fs.ErrNotExist) {
+		file, err := os.Create(fullPath)
+		if err != nil {
+			slog.Error("unable to create session plan file", "error", err)
+			return "", fmt.Errorf("%w: failed to create new session file %s: %w", ErrFileSystem, planFileName, err)
+		}
+
+		slog.Debug("created session plan file", "path", fullPath)
+
+		file.Close()
 	}
 
 	startLine := args.GetInt(EditPlanStartLine)
