@@ -303,6 +303,8 @@ func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, 
 			continue
 		}
 
+		slog.Debug("got a real chunk", "content", chunk.Choices[0].Delta.Content)
+
 		chunkChan <- msg
 
 		first = false
