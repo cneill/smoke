@@ -46,6 +46,13 @@ func (r *ReadFileTool) Examples() Examples {
 				ReadFileEndLine:   20,
 			},
 		},
+		{
+			Description: `Read from line 200 to the end of "data.log"`,
+			Args: Args{
+				ReadFilePath:      "data.log",
+				ReadFileStartLine: 200,
+			},
+		},
 	}
 }
 
@@ -64,11 +71,10 @@ func (r *ReadFileTool) Params() Params {
 			Required:    false,
 		},
 		{
-			Key: ReadFileEndLine,
-			Description: "The last line number to read (end of file by default). Do not provide a huge value here, " +
-				"just leave empty if you want to read the whole file.",
-			Type:     ParamTypeNumber,
-			Required: false,
+			Key:         ReadFileEndLine,
+			Description: "The last line number to read (end of file by default).",
+			Type:        ParamTypeNumber,
+			Required:    false,
 		},
 	}
 }

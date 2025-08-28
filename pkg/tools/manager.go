@@ -31,6 +31,7 @@ func AllTools() []Initializer {
 		NewGrepTool,
 		NewListFilesTool,
 		NewReadFileTool,
+		NewReadPlanTool,
 		NewRemovePlanTool,
 		NewReplaceLinesTool,
 		NewWriteFileTool,
@@ -47,6 +48,7 @@ func PlanningTools() []Initializer {
 		NewGrepTool,
 		NewListFilesTool,
 		NewReadFileTool,
+		NewReadPlanTool,
 	}
 }
 
