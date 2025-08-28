@@ -184,6 +184,7 @@ func (c *ChatGPT) SendSessionStreaming(ctx context.Context, session *llms.Sessio
 		llms.WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
 		llms.WithToolCallInfo(response.ToParam().OfAssistant.ToolCalls),
 		llms.WithIsChunk(false),
+		llms.WithIsInitial(false),
 		llms.WithIsFinalized(true),
 	)
 

@@ -322,6 +322,7 @@ func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, 
 		llms.WithContent(accumulator.Message.Content),
 		llms.WithToolsCalled(g.getToolCallNames(accumulator.Message.ToolCalls)...),
 		llms.WithToolCallInfo(accumulator.Message.ToolCalls),
+		llms.WithIsInitial(false),
 		llms.WithIsChunk(false),
 		llms.WithIsFinalized(true),
 	)

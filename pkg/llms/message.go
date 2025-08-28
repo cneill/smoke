@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"strings"
 	"time"
 
@@ -35,13 +36,13 @@ type Message struct {
 	LLMInfo *LLMInfo `json:"llm_info,omitempty"`
 
 	// IsStreamed tells us whether this response was streamed from the LLM provider. Defaults to false.
-	IsStreamed bool
+	IsStreamed bool `json:"is_streamed"`
 	// IsInitial signals that this is the FIRST streamed message which will be updated subsequently.
-	IsInitial bool
+	IsInitial bool `json:"is_initial"`
 	// IsChunk tells us whether this message is a full one or just a chunk that has been streamed from the provider.
-	IsChunk bool
+	IsChunk bool `json:"is_chunk"`
 	// IsFinalized tells us whether this streamed message has all its chunks.
-	IsFinalized bool
+	IsFinalized bool `json:"is_finalized"`
 }
 
 func NewMessage(opts ...MessageOpt) *Message {
@@ -78,17 +79,47 @@ func ChunkMessage(role Role, id, content string) *Message {
 	)
 }
 
-func (m *Message) Update(opts ...MessageOpt) *Message {
-	for _, opt := range opts {
-		m = opt(m)
+// TODO: add OK() method
+
+func (m *Message) Clone() *Message {
+	newMessage := Message{
+		ID:           m.ID,
+		Added:        m.Added,
+		Updated:      m.Updated,
+		Role:         m.Role,
+		Content:      m.Content,
+		Error:        m.Error,
+		ToolsCalled:  append([]string{}, m.ToolsCalled...),
+		ToolCallInfo: m.ToolCallInfo, // TODO: need to clone this?
+		ToolCallID:   m.ToolCallID,
+		ToolCallArgs: maps.Clone(m.ToolCallArgs),
+		IsStreamed:   m.IsStreamed,
+		IsInitial:    m.IsInitial,
+		IsChunk:      m.IsChunk,
+		IsFinalized:  m.IsFinalized,
 	}
 
-	m.Updated = time.Now()
+	if m.LLMInfo != nil {
+		newMessage.LLMInfo = &LLMInfo{
+			Type:      m.LLMInfo.Type,
+			ModelName: m.LLMInfo.ModelName,
+		}
+	}
 
-	return m
+	return &newMessage
 }
 
-// TODO: add OK() method
+func (m *Message) Update(opts ...MessageOpt) *Message {
+	clone := m.Clone()
+
+	for _, opt := range opts {
+		clone = opt(clone)
+	}
+
+	clone.Updated = time.Now()
+
+	return clone
+}
 
 func (m *Message) HasToolCalls() bool { return len(m.ToolsCalled) > 0 }
 

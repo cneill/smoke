@@ -219,6 +219,7 @@ func (c *Claude) SendSessionStreaming(ctx context.Context, session *llms.Session
 		llms.WithToolsCalled(toolCallNames...),
 		llms.WithToolCallInfo(toolCalls),
 		llms.WithIsChunk(false),
+		llms.WithIsInitial(false),
 		llms.WithIsFinalized(true),
 	)
 
