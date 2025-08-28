@@ -32,8 +32,7 @@ func AllTools() []Initializer {
 		NewListFilesTool,
 		NewReadFileTool,
 		NewRemovePlanTool,
-		// NewReplaceLinesTool,
-		NewReplaceLinesV2Tool,
+		NewReplaceLinesTool,
 		NewWriteFileTool,
 	}
 }

@@ -121,14 +121,14 @@ func (e *EditPlanTool) Run(ctx context.Context, args Args) (string, error) {
 		return "", fmt.Errorf("%w: %q is greater than %q", ErrArguments, EditPlanStartLine, EditPlanEndLine)
 	}
 
-	// Delegate the edit to ReplaceLinesV2Tool for consistent, tested behavior
-	replaceTool := &ReplaceLinesV2Tool{ProjectPath: e.ProjectPath}
+	// Delegate the edit to ReplaceLinesTool for consistent, tested behavior
+	replaceTool := &ReplaceLinesTool{ProjectPath: e.ProjectPath}
 
 	childArgs := Args{
-		ReplaceLinesV2Path:      planFileName,
-		ReplaceLinesV2StartLine: *startLine,
-		ReplaceLinesV2EndLine:   *endLine,
-		ReplaceLinesV2Replace:   *replace,
+		ReplaceLinesPath:      planFileName,
+		ReplaceLinesStartLine: *startLine,
+		ReplaceLinesEndLine:   *endLine,
+		ReplaceLinesReplace:   *replace,
 	}
 
 	return replaceTool.Run(ctx, childArgs)

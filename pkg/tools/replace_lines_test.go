@@ -1,276 +1,433 @@
 package tools_test
 
-//
-// import (
-// 	"errors"
-// 	"io"
-// 	"os"
-// 	"path/filepath"
-// 	"testing"
-//
-// 	"github.com/cneill/smoke/pkg/fs"
-// 	"github.com/cneill/smoke/pkg/tools"
-// )
-//
-// func TestReplaceLinesTool_Run(t *testing.T) { //nolint:cyclop,funlen
-// 	t.Parallel()
-//
-// 	tempDir := t.TempDir()
-//
-// 	tests := []struct {
-// 		name            string
-// 		initContent     string
-// 		args            tools.Args
-// 		expectedContent string
-// 		errors          []error
-// 	}{
-// 		{
-// 			name:            "nil",
-// 			initContent:     "a\nb\nc",
-// 			args:            nil,
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:            "empty",
-// 			initContent:     "a\nb\nc",
-// 			args:            tools.Args{},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "relative_path",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "../../../../relative_path_test.txt",
-// 				tools.ReplaceLinesSearch:  "a",
-// 				tools.ReplaceLinesReplace: "1",
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments, fs.ErrInsecureTargetPath},
-// 		},
-// 		{
-// 			name:        "path_no_search_replace",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath: "path_no_search_replace_test.txt",
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "path_no_replace",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:   "path_no_search_replace_test.txt",
-// 				tools.ReplaceLinesSearch: "a",
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "path_no_search",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "path_no_search_replace_test.txt",
-// 				tools.ReplaceLinesReplace: "a",
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "mutually_exclusive",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "mutually_exclusive_test.txt",
-// 				tools.ReplaceLinesSearch:  "test",
-// 				tools.ReplaceLinesReplace: "test2",
-// 				tools.ReplaceLinesBatch:   []any{"test", "Test"},
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "empty_search_replace",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "empty_search_replace_test.txt",
-// 				tools.ReplaceLinesSearch:  "",
-// 				tools.ReplaceLinesReplace: "",
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "empty_batch_search_replace",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:  "mutually_exclusive_test.txt",
-// 				tools.ReplaceLinesBatch: []string{"", "abc"},
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "int_batch",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:  "mutually_exclusive_test.txt",
-// 				tools.ReplaceLinesBatch: []int{1, 2, 3},
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "mismatched_types_any_batch",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:  "mismatched_types_any_batch.txt",
-// 				tools.ReplaceLinesBatch: []any{"a", "b", 1},
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "invalid_batch_size",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:  "invalid_batch_size_test.txt",
-// 				tools.ReplaceLinesBatch: []any{"a", "b", "c"},
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrArguments},
-// 		},
-// 		{
-// 			name:        "all_args_bad_file",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "garbage.txt",
-// 				tools.ReplaceLinesSearch:  "test",
-// 				tools.ReplaceLinesReplace: "test2",
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          []error{tools.ErrFileSystem},
-// 		},
-// 		{
-// 			name:        "no_replace",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "no_replace_test.txt",
-// 				tools.ReplaceLinesSearch:  "test",
-// 				tools.ReplaceLinesReplace: "test2",
-// 			},
-// 			expectedContent: "a\nb\nc",
-// 			errors:          nil,
-// 		},
-// 		{
-// 			name:        "with_replace",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "with_replace_test.txt",
-// 				tools.ReplaceLinesSearch:  "a",
-// 				tools.ReplaceLinesReplace: "1",
-// 			},
-// 			expectedContent: "1\nb\nc",
-// 			errors:          nil,
-// 		},
-// 		{
-// 			name:        "multiline_replace",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "multiline_replace_test.txt",
-// 				tools.ReplaceLinesSearch:  "a\nb",
-// 				tools.ReplaceLinesReplace: "1\n2",
-// 			},
-// 			expectedContent: "1\n2\nc",
-// 			errors:          nil,
-// 		},
-// 		{
-// 			name:        "batch_string",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:  "batch_string_test.txt",
-// 				tools.ReplaceLinesBatch: []string{"a", "1", "b\nc", "2"},
-// 			},
-// 			expectedContent: "1\n2",
-// 			errors:          nil,
-// 		},
-// 		{
-// 			name:        "batch_any",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:  "batch_any_test.txt",
-// 				tools.ReplaceLinesBatch: []any{"a", "1", "b\nc", "2"},
-// 			},
-// 			expectedContent: "1\n2",
-// 			errors:          nil,
-// 		},
-// 		{
-// 			name:        "sequential_replace",
-// 			initContent: "a\nb\nc",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:  "sequential_replace_test.txt",
-// 				tools.ReplaceLinesBatch: []any{"a", "1", "1", "z"},
-// 			},
-// 			expectedContent: "z\nb\nc",
-// 			errors:          nil,
-// 		},
-// 		{
-// 			name:        "delete_lines",
-// 			initContent: "a\nb\nc\n",
-// 			args: tools.Args{
-// 				tools.ReplaceLinesPath:    "delete_lines_test.txt",
-// 				tools.ReplaceLinesSearch:  "a\nb\n",
-// 				tools.ReplaceLinesReplace: "",
-// 			},
-// 			expectedContent: "c\n",
-// 			errors:          nil,
-// 		},
-// 	}
-//
-// 	for _, test := range tests {
-// 		t.Run(test.name, func(t *testing.T) {
-// 			t.Parallel()
-//
-// 			fileName := test.name + "_test.txt"
-// 			tempPath := filepath.Join(tempDir, fileName)
-//
-// 			tempFile, err := os.Create(tempPath)
-// 			if err != nil {
-// 				t.Fatalf("failed to create temporary file %q: %v", tempPath, err)
-// 			}
-//
-// 			defer tempFile.Close()
-//
-// 			if _, err := tempFile.WriteString(test.initContent); err != nil {
-// 				t.Fatalf("failed to write initial content to file %q: %v", tempPath, err)
-// 			}
-//
-// 			rlt := &tools.ReplaceLinesTool{ProjectPath: tempDir}
-//
-// 			_, runErr := rlt.Run(t.Context(), test.args)
-// 			if test.errors == nil && runErr != nil {
-// 				t.Errorf("expected no error, got %v", runErr)
-// 			} else if test.errors != nil {
-// 				for _, testErr := range test.errors {
-// 					if !errors.Is(runErr, testErr) {
-// 						t.Errorf("expected error %v, got %v", testErr, runErr)
-// 					}
-// 				}
-// 			}
-//
-// 			if _, err := tempFile.Seek(0, 0); err != nil {
-// 				t.Errorf("failed to seek to start of temporary file %q: %v", tempPath, err)
-// 			}
-//
-// 			result, err := io.ReadAll(tempFile)
-// 			if err != nil {
-// 				t.Errorf("failed to read temporary file %q: %v", tempPath, err)
-// 			}
-//
-// 			if resultStr := string(result); resultStr != test.expectedContent {
-// 				t.Errorf("returned contents %q don't match %q", resultStr, test.expectedContent)
-// 			}
-// 		})
-// 	}
-// }
+import (
+	"io"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
+	t.Parallel()
+	tempDir := t.TempDir()
+	rlt := &tools.ReplaceLinesTool{ProjectPath: tempDir}
+
+	tests := []struct {
+		name            string
+		initContent     string
+		args            tools.Args
+		expectedContent string
+		errors          []error
+	}{
+		{
+			name:            "nil",
+			initContent:     "a\nb\nc",
+			args:            nil,
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:            "empty",
+			initContent:     "a\nb\nc",
+			args:            tools.Args{},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:        "all_args_insecure_path",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "../../../../relative_path_test.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   2,
+				tools.ReplaceLinesReplace:   "1",
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments, fs.ErrInsecureTargetPath},
+		},
+		{
+			name:        "all_args_nonexistent_file",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "garbage.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   2,
+				tools.ReplaceLinesReplace:   "test2",
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrFileSystem},
+		},
+		{
+			name:        "path_replace_no_start_end",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:    "path_replace_no_start_end_test.txt",
+				tools.ReplaceLinesReplace: "a",
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:        "all_but_replace",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "all_but_replace_test.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   2,
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:        "end_before_start",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "end_before_start_test.txt",
+				tools.ReplaceLinesStartLine: 2,
+				tools.ReplaceLinesEndLine:   1,
+				tools.ReplaceLinesReplace:   "a",
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:        "negative_start",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "negative_start_test.txt",
+				tools.ReplaceLinesStartLine: -1,
+				tools.ReplaceLinesEndLine:   1,
+				tools.ReplaceLinesReplace:   "a",
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:        "negative_start_end",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "negative_start_end_test.txt",
+				tools.ReplaceLinesStartLine: -2,
+				tools.ReplaceLinesEndLine:   -1,
+				tools.ReplaceLinesReplace:   "a",
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:        "end_beyond_file",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "end_beyond_file_test.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   7,
+				tools.ReplaceLinesReplace:   "a",
+			},
+			expectedContent: "a\nb\nc",
+			errors:          []error{tools.ErrArguments},
+		},
+		{
+			name:        "one_line",
+			initContent: "a\nb\nc",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "one_line_test.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   1,
+				tools.ReplaceLinesReplace:   "x\ny\n",
+			},
+			expectedContent: "x\ny\nb\nc",
+			errors:          []error{},
+		},
+		{
+			name:        "two_lines",
+			initContent: "a\nb\nc\n",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "two_lines_test.txt",
+				tools.ReplaceLinesStartLine: 2,
+				tools.ReplaceLinesEndLine:   3,
+				tools.ReplaceLinesReplace:   "x\ny\n",
+			},
+			expectedContent: "a\nx\ny\n",
+			errors:          []error{},
+		},
+		{
+			name:        "two_lines_with_trailing",
+			initContent: "a\nb\nc\nd\n",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "two_lines_with_trailing_test.txt",
+				tools.ReplaceLinesStartLine: 2,
+				tools.ReplaceLinesEndLine:   3,
+				tools.ReplaceLinesReplace:   "x\ny\n",
+			},
+			expectedContent: "a\nx\ny\nd\n",
+			errors:          []error{},
+		},
+		{
+			name:        "whole_text",
+			initContent: "a\nb\nc\n",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "whole_text_test.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   3,
+				tools.ReplaceLinesReplace:   "x\ny\nz\n",
+			},
+			expectedContent: "x\ny\nz\n",
+			errors:          []error{},
+		},
+		{
+			name:        "empty_file_init",
+			initContent: "",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "empty_file_init_test.txt",
+				tools.ReplaceLinesStartLine: 0,
+				tools.ReplaceLinesEndLine:   0,
+				tools.ReplaceLinesReplace:   "a\nb\nc\n",
+			},
+			expectedContent: "a\nb\nc\n",
+			errors:          []error{},
+		},
+		{
+			name:        "nonempty_file_init",
+			initContent: "1\n2\n3\n",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "nonempty_file_init_test.txt",
+				tools.ReplaceLinesStartLine: 0,
+				tools.ReplaceLinesEndLine:   0,
+				tools.ReplaceLinesReplace:   "a\nb\nc\n",
+			},
+			expectedContent: "a\nb\nc\n1\n2\n3\n",
+			errors:          []error{},
+		},
+
+		{
+			name:        "delete_line",
+			initContent: "a\nb\nc\n",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "delete_line_test.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   1,
+				tools.ReplaceLinesReplace:   "",
+			},
+			expectedContent: "b\nc\n",
+			errors:          []error{},
+		},
+		{
+			name:        "delete_lines",
+			initContent: "a\nb\nc\n",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "delete_lines_test.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   2,
+				tools.ReplaceLinesReplace:   "",
+			},
+			expectedContent: "c\n",
+			errors:          []error{},
+		},
+		{
+			name:        "delete_file",
+			initContent: "a\nb\nc\n",
+			args: tools.Args{
+				tools.ReplaceLinesPath:      "delete_file_test.txt",
+				tools.ReplaceLinesStartLine: 1,
+				tools.ReplaceLinesEndLine:   3,
+				tools.ReplaceLinesReplace:   "",
+			},
+			expectedContent: "",
+			errors:          []error{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			fileName := test.name + "_test.txt"
+			tempPath := filepath.Join(tempDir, fileName)
+
+			tempFile, tempFileErr := os.Create(tempPath)
+			require.NoError(t, tempFileErr, "failed to create temporary file %q: %v", tempPath, tempFileErr)
+
+			defer tempFile.Close()
+
+			_, initContentErr := tempFile.WriteString(test.initContent)
+			require.NoError(t, initContentErr, "failed to write initial content to file %q: %v", tempPath, initContentErr)
+
+			_, runErr := rlt.Run(t.Context(), test.args)
+			if test.errors == nil {
+				require.NoError(t, runErr, "got unexpected run error")
+			} else {
+				for _, testErr := range test.errors {
+					require.ErrorIs(t, runErr, testErr, "expected run error(s)")
+				}
+			}
+
+			_, seekErr := tempFile.Seek(0, 0)
+			require.NoError(t, seekErr, "failed to seek to start of temporary file %q: %v", tempPath, seekErr)
+
+			result, readErr := io.ReadAll(tempFile)
+			require.NoError(t, readErr, "failed to read temporary file %q: %v", tempPath, readErr)
+
+			assert.Equal(t, []byte(test.expectedContent), result)
+		})
+	}
+}
+
+func TestReplaceLinesTool_ContextOutput(t *testing.T) { //nolint:funlen
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	rlt := &tools.ReplaceLinesTool{ProjectPath: tempDir}
+	initContent := "line1\nline2\nline3\nline4\n"
+	emptyStr := ""
+
+	tests := []struct {
+		name             string
+		initContent      *string
+		startLine        int
+		endLine          int
+		replacement      string
+		newLines         [][]byte
+		expectedContains []string // Strings that should be in the output
+		expectedSummary  string   // Expected summary line
+	}{
+		{
+			name:        "single_line_replacement",
+			startLine:   2,
+			endLine:     2,
+			replacement: "new line\n",
+			newLines:    [][]byte{[]byte("line1"), []byte("new line"), []byte("line3"), []byte("line4")},
+			expectedContains: []string{
+				"Replaced line 2 in \"single_line_replacement_test.txt\".",
+				"Context (lines 1-4):",
+				"1: line1",
+				"2: new line",
+				"3: line3",
+				"4: line4",
+			},
+		},
+		{
+			name:        "single_line_deletion",
+			startLine:   2,
+			endLine:     2,
+			replacement: "",
+			newLines:    [][]byte{[]byte("line1"), []byte("line3"), []byte("line4")},
+			expectedContains: []string{
+				"Deleted line 2 in \"single_line_deletion_test.txt\".",
+				"Context (lines 1-3):",
+				"1: line1",
+				"2: line3",
+				"3: line4",
+			},
+		},
+		{
+			name:        "multiple_line_replacement",
+			startLine:   2,
+			endLine:     3,
+			replacement: "new line 1\nnew line 2\n",
+			newLines:    [][]byte{[]byte("line1"), []byte("new line 1"), []byte("new line 2"), []byte("line4")},
+			expectedContains: []string{
+				"Replaced lines 2-3 in \"multiple_line_replacement_test.txt\".",
+				"Context (lines 1-4):",
+				"1: line1",
+				"2: new line 1",
+				"3: new line 2",
+				"4: line4",
+			},
+		},
+		{
+			name:        "multiple_line_deletion",
+			startLine:   2,
+			endLine:     4,
+			replacement: "",
+			newLines:    [][]byte{[]byte("line1")},
+			expectedContains: []string{
+				"Deleted lines 2-4 in \"multiple_line_deletion_test.txt\".",
+				"Context (line 1):",
+				"1: line1",
+			},
+		},
+		{
+			name:        "empty_file_initialization",
+			initContent: &emptyStr,
+			startLine:   0,
+			endLine:     0,
+			replacement: "a\nb\nc\n",
+			newLines:    [][]byte{},
+			expectedContains: []string{
+				"Added to top of file in \"empty_file_initialization_test.txt\"",
+				"Context (lines 1-3):",
+				"1: a",
+				"2: b",
+				"3: c",
+			},
+		},
+		{
+			name:        "empty_file_after_deletion",
+			startLine:   1,
+			endLine:     4,
+			replacement: "",
+			newLines:    [][]byte{},
+			expectedContains: []string{
+				"Deleted lines 1-4 in \"empty_file_after_deletion_test.txt\".",
+				"(File is now empty)",
+			},
+		},
+		{
+			name:        "replacement_without_trailing_newline",
+			startLine:   2,
+			endLine:     2,
+			replacement: "new line",
+			newLines:    [][]byte{[]byte("line1"), []byte("new line"), []byte("line3")},
+			expectedContains: []string{
+				"Replaced line 2 in \"replacement_without_trailing_newline_test.txt\".",
+				"Context (lines 1-4):",
+				"1: line1",
+				"2: new line",
+				"3: line3",
+				"4: line4",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			fileName := test.name + "_test.txt"
+			tempPath := filepath.Join(tempDir, fileName)
+
+			tempFile, tempFileErr := os.Create(tempPath)
+			require.NoError(t, tempFileErr, "failed to create temporary file %q: %v", tempPath, tempFileErr)
+
+			defer tempFile.Close()
+
+			init := initContent
+			if test.initContent != nil {
+				init = *test.initContent
+			}
+
+			_, initContentErr := tempFile.WriteString(init)
+			require.NoError(t, initContentErr, "failed to write initial content %q to file %q: %v", tempPath, initContent, initContentErr)
+
+			args := tools.Args{
+				tools.ReplaceLinesPath:      fileName,
+				tools.ReplaceLinesStartLine: test.startLine,
+				tools.ReplaceLinesEndLine:   test.endLine,
+				tools.ReplaceLinesReplace:   test.replacement,
+			}
+
+			output, err := rlt.Run(t.Context(), args)
+			require.NoError(t, err, "expected no error from Run()")
+
+			for _, expected := range test.expectedContains {
+				assert.Contains(t, output, expected, "expected output to contain %q", expected)
+			}
+		})
+	}
+}
