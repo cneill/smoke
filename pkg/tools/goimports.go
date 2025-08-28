@@ -26,12 +26,26 @@ func NewGoImportsTool(projectPath, _ string) Tool {
 
 func (g *GoImportsTool) Name() string { return ToolGoImports }
 func (g *GoImportsTool) Description() string {
-	return fmt.Sprintf(
-		"Runs the goimports command to fix imports against the file/directory specified in %q, or the whole project "+
-			"directory if not specified. Changes are written in place (-w) and the list of files formatted is "+
-			"returned (-l).",
-		GoImportsPath,
+	examples := CollectExamples(g.Examples()...)
+
+	return fmt.Sprintf("Runs the goimports command to fix imports against the file/directory specified in %q, or the "+
+		"whole project directory if not specified. Changes are written in place (-w) and the list of files formatted "+
+		"is returned (-l).%s",
+		GoImportsPath, examples,
 	)
+}
+
+func (g *GoImportsTool) Examples() Examples {
+	return Examples{
+		{
+			Description: "Run goimports on the entire repository",
+			Args:        Args{},
+		},
+		{
+			Description: `Run goimports on the "pkg/tools/file.go" file`,
+			Args:        Args{GoImportsPath: "pkg/tools/file.go"},
+		},
+	}
 }
 
 func (g *GoImportsTool) Params() Params {

@@ -28,22 +28,51 @@ func NewReplaceLinesV2Tool(projectPath, _ string) Tool {
 
 func (r *ReplaceLinesV2Tool) Name() string { return ToolReplaceLines }
 func (r *ReplaceLinesV2Tool) Description() string {
+	examples := CollectExamples(r.Examples()...)
+
 	return fmt.Sprintf(
 		"Replace the content between lines %q and %q in the file specified in %q with the contents in %q. Line "+
-			"numbers are 1-indexed, as they are in the output values of `read_file`, `grep`, etc. and should match "+
-			"those values. If you want to edit an empty file, use %q=0 and %q=0\n\n"+
-			`Examples:
-			
-%s=1, %s=1, %s="", file_contents="a\nb\nc\n" => "b\nc\n"
-%s=1, %s=2, %s="x\ny\n", file_contents="a\nb\nc\n" => "x\ny\nc\n"
-%s=0, %s=0, %s="hello", file_contents="" => "hello\n"
-`,
+			"numbers are 1-indexed, as they are in the output values of %q, %q, etc. and should match those values. "+
+			"If you want to edit an empty file, use %q=0 and %q=0. If you want to replace only some content in a "+
+			"series of lines, be sure to include the old lines' content in %q where necessary, preserving spacing, "+
+			"parentheses, curly braces, etc.%s",
 		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Path, ReplaceLinesV2Replace,
+		ToolGrep, ToolReadFile,
 		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine,
-		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Replace,
-		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Replace,
-		ReplaceLinesV2StartLine, ReplaceLinesV2EndLine, ReplaceLinesV2Replace,
+		ReplaceLinesV2Replace, examples,
 	)
+}
+
+func (r *ReplaceLinesV2Tool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Add "hello, world" to the top of the file "empty_file.txt" in the project directory`,
+			Args: Args{
+				ReplaceLinesV2Path:      "empty_file.txt",
+				ReplaceLinesV2StartLine: 0,
+				ReplaceLinesV2EndLine:   0,
+				ReplaceLinesV2Replace:   "hello, world",
+			},
+		},
+		{
+			Description: `Delete the first line of "existing_file.txt", turning e.g. "a\nb\nc\n" into "b\nc\n"`,
+			Args: Args{
+				ReplaceLinesV2Path:      "existing_file.txt",
+				ReplaceLinesV2StartLine: 1,
+				ReplaceLinesV2EndLine:   1,
+				ReplaceLinesV2Replace:   "",
+			},
+		},
+		{
+			Description: `Replace the first 2 lines of "letters.txt", turning e.g. "a\nb\nc\n" into "x\ny\nc\n"`,
+			Args: Args{
+				ReplaceLinesV2Path:      "letters.txt",
+				ReplaceLinesV2StartLine: 1,
+				ReplaceLinesV2EndLine:   2,
+				ReplaceLinesV2Replace:   "x\ny\n",
+			},
+		},
+	}
 }
 
 func (r *ReplaceLinesV2Tool) Params() Params {

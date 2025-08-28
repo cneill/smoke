@@ -22,11 +22,23 @@ func NewCreateDirectoryTool(projectPath, _ string) Tool {
 	}
 }
 
-var _ = Tool(&CreateDirectoryTool{})
-
 func (c *CreateDirectoryTool) Name() string { return ToolCreateDirectory }
 func (c *CreateDirectoryTool) Description() string {
-	return "Create a new directory at the given path"
+	examples := CollectExamples(c.Examples()...)
+
+	return fmt.Sprintf("Create a new directory at %q. Will create intermediate directories if necessary.%s",
+		CreateDirectoryPath, examples)
+}
+
+func (c *CreateDirectoryTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Create the new directory "pkg/new_pkg" inside the project directory`,
+			Args: Args{
+				CreateDirectoryPath: "pkg/new_pkg",
+			},
+		},
+	}
 }
 
 func (c *CreateDirectoryTool) Params() Params {

@@ -9,6 +9,8 @@ type Tool interface {
 	Name() string
 	// Description returns a string explaining how to use the tool.
 	Description() string
+	// Examples to be included in the description to explain how to use the tool.
+	Examples() Examples
 	// Params returns the set of parameters that a tool can accept, including type information and whether they are
 	// required for the tool to execute.
 	Params() Params

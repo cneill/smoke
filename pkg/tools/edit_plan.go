@@ -29,17 +29,39 @@ func NewEditPlanTool(projectPath, sessionName string) Tool {
 	}
 }
 
-var _ = Tool(&EditPlanTool{})
-
 func (e *EditPlanTool) Name() string { return ToolEditPlan }
-
 func (e *EditPlanTool) Description() string {
-	return fmt.Sprintf(
-		"Edit ONLY the session plan file %q. Replace the content between lines %q and %q with the contents in %q. Line "+
-			"numbers are 1-indexed, as they are in the output values of `read_file`, `grep`, etc. and should match "+
-			"those values. 0/0 can be used to initialize the file's contents.",
-		e.SessionName+"_plan.md", EditPlanStartLine, EditPlanEndLine, EditPlanReplace,
+	sessionFile := e.SessionName + "_plan.md"
+	examples := CollectExamples(e.Examples()...)
+
+	return fmt.Sprintf("Edit ONLY the session plan file %q. Replace the content between lines %q and %q with the "+
+		"contents in %q. Line numbers are 1-indexed, as they are in the output values of %q, %q, etc. "+
+		"and should match those values. This calls `replace_lines` under the hood, so expect similar results.%s",
+		sessionFile, EditPlanStartLine, EditPlanEndLine,
+		EditPlanReplace, ToolGrep, ToolReadFile,
+		examples,
 	)
+}
+
+func (e *EditPlanTool) Examples() Examples {
+	return Examples{
+		{
+			Description: "Populate the initial lines of the plan file. Will create if it doesn't exist",
+			Args: Args{
+				EditPlanStartLine: 0,
+				EditPlanEndLine:   0,
+				EditPlanReplace:   "## New plan\nTask 1: Do thing",
+			},
+		},
+		{
+			Description: "Replace the first 2 lines in the plan file",
+			Args: Args{
+				EditPlanStartLine: 1,
+				EditPlanEndLine:   2,
+				EditPlanReplace:   "# Plan to do Y\nFirst do A...",
+			},
+		},
+	}
 }
 
 func (e *EditPlanTool) Params() Params {

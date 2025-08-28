@@ -2,19 +2,17 @@ package tools
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
-)
 
-// TODO: un-LLM this code
+	"github.com/cneill/smoke/pkg/fs"
+)
 
 const (
 	GitDiffStat = "stat"
-	GitDiffFile = "file"
+	GitDiffPath = "path"
 )
 
 type GitDiffTool struct {
@@ -27,7 +25,24 @@ func NewGitDiffTool(projectPath, _ string) Tool {
 
 func (g *GitDiffTool) Name() string { return ToolGitDiff }
 func (g *GitDiffTool) Description() string {
-	return "Check the git diff in the ProjectPath."
+	examples := CollectExamples(g.Examples()...)
+
+	return fmt.Sprintf("Check the git diff in the ProjectPath. Optionally, provide %q as true to include basic "+
+		"statistics. Optionally, specify %q to diff a specific file/directory.%s",
+		GitDiffStat, GitDiffPath, examples)
+}
+
+func (g *GitDiffTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Get stats about the diff of the whole repository`,
+			Args:        Args{GitDiffStat: true},
+		},
+		{
+			Description: `Diff the "pkg/main.go" file specifically.`,
+			Args:        Args{GitDiffPath: "pkg/main.go"},
+		},
+	}
 }
 
 func (g *GitDiffTool) Params() Params {
@@ -39,8 +54,8 @@ func (g *GitDiffTool) Params() Params {
 			Required:    false,
 		},
 		{
-			Key:         GitDiffFile,
-			Description: "Diff a specific file",
+			Key:         GitDiffPath,
+			Description: "Diff a specific file/directory",
 			Type:        ParamTypeString,
 			Required:    false,
 		},
@@ -48,27 +63,31 @@ func (g *GitDiffTool) Params() Params {
 }
 
 func (g *GitDiffTool) Run(ctx context.Context, args Args) (string, error) {
-	path, err := filepath.Abs(g.ProjectPath)
-	if err != nil {
-		return "", fmt.Errorf("invalid path: %w", err)
-	}
+	fullPath := g.ProjectPath
 
-	if strings.ContainsAny(path, "`$%&;[](){}| ") {
-		return "", errors.New("path contained invalid characters that might allow command execution")
+	if path := args.GetString(GitDiffPath); path != nil && *path != "" {
+		if strings.ContainsAny(*path, "`$%&;[](){}| ") {
+			return "", fmt.Errorf("%w: path contained invalid characters that might allow command execution", ErrArguments)
+		}
+
+		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
+		if err != nil {
+			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+		}
+
+		fullPath = relPath
 	}
 
 	params := []string{
-		"-C", path,
 		"diff",
+		"--no-color",
 	}
 
 	if stat := args.GetBool(GitDiffStat); stat != nil && *stat {
 		params = append(params, "--stat")
 	}
 
-	if file := args.GetString(GitDiffFile); file != nil && *file != "" {
-		params = append(params, *file)
-	}
+	params = append(params, fullPath)
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*3)
 	defer cancel()

@@ -31,11 +31,33 @@ func NewGrepTool(projectPath, _ string) Tool {
 
 func (g *GrepTool) Name() string { return ToolGrep }
 func (g *GrepTool) Description() string {
-	return fmt.Sprintf(
-		"Search a file or directory for a regular expression. Lines matching %q are prefixed with '*', while "+
-			"context lines that do not include matches only include line numbers. Does not match multi-line regexes.",
-		GrepRegex,
+	examples := CollectExamples(g.Examples()...)
+
+	return fmt.Sprintf(`Search a file or directory for a regular expression. Lines matching %q are prefixed with "*", `+
+		"while context lines that do not include matches only include line numbers. Optionally, provide %q for "+
+		"the number of lines of context (default 0, only matched lines). Does not match multi-line regexes.%s",
+		GrepRegex, GrepContextLines, examples,
 	)
+}
+
+func (g *GrepTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Search for the regex "type.*Tool" in the "pkg/tools" directory with no extra context lines.`,
+			Args: Args{
+				GrepPath:  "pkg/tools",
+				GrepRegex: "type.*Tool",
+			},
+		},
+		{
+			Description: `Search for the regex "type.*Client" in the whole repository with 3 lines of context on either side of each match.`,
+			Args: Args{
+				GrepPath:         ".",
+				GrepRegex:        "type.*Client",
+				GrepContextLines: 3,
+			},
+		},
+	}
 }
 
 func (g *GrepTool) Params() Params {

@@ -51,14 +51,27 @@ type declInfo struct {
 }
 
 func (g *GoASTTool) Name() string { return ToolGoAST }
-
 func (g *GoASTTool) Description() string {
+	examples := CollectExamples(g.Examples()...)
+
 	return fmt.Sprintf(
 		"Retrieve the definition of a type. Provide %q if you know what file/directory the definition is in, "+
 			"though this parameter is optional. The parameter %q should contain the name of the type you want the "+
-			"definition for. The tool will return the full definition with file path and line numbers.",
-		GoASTPath, GoASTSearch,
+			"definition for. The tool will return the full definition with file path and line numbers.%s",
+		GoASTPath, GoASTSearch, examples,
 	)
+}
+
+func (g *GoASTTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Get the type definition of the "Tool" type from the "pkg/tools" directory`,
+			Args: Args{
+				GoASTPath:   "pkg/tools",
+				GoASTSearch: "Tool",
+			},
+		},
+	}
 }
 
 func (g *GoASTTool) Params() Params {

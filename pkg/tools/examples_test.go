@@ -9,53 +9,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExampleJSONParams(t *testing.T) { //nolint:funlen
+func TestExampleJSONParams(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
-		args     []any
+		args     tools.Args
 		expected string
 		err      string
 	}{
 		{
-			name: "invalid_arg_number",
-			args: []any{"a"},
-			err:  "example args must have key + val pairs, got non-even number of args",
-		},
-		{
-			name: "invalid_arg_name",
-			args: []any{1, 2},
-			err:  "argument 0 was not a string (int): 1",
-		},
-		{
-			name: "repeated_args",
-			args: []any{"a", 1, "a", 2},
-			err:  "got same argument (a) more than once",
-		},
-		{
 			name:     "empty",
-			args:     []any{},
+			args:     tools.Args{},
 			expected: "{}",
 		},
 		{
 			name:     "int_arg",
-			args:     []any{"a", 1},
+			args:     tools.Args{"a": 1},
 			expected: `{"a":1}`,
 		},
 		{
 			name:     "int_slice_arg",
-			args:     []any{"a", []int{1, 2, 3}},
+			args:     tools.Args{"a": []int{1, 2, 3}},
 			expected: `{"a":[1,2,3]}`,
 		},
 		{
 			name:     "string_slice_arg",
-			args:     []any{"a", []string{"a", "b", "c"}},
+			args:     tools.Args{"a": []string{"a", "b", "c"}},
 			expected: `{"a":["a","b","c"]}`,
 		},
 		{
 			name:     "two_args",
-			args:     []any{"a", 1, "b", 2},
+			args:     tools.Args{"a": 1, "b": 2},
 			expected: `{"a":1,"b":2}`,
 		},
 	}
@@ -64,7 +49,7 @@ func TestExampleJSONParams(t *testing.T) { //nolint:funlen
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			output, err := tools.ExampleJSONParams(test.args...)
+			output, err := tools.ExampleJSONArguments(test.args)
 			if test.err == "" {
 				require.NoError(t, err, "failed to generate JSON param example")
 			} else {

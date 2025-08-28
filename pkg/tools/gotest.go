@@ -27,12 +27,22 @@ func NewGoTestTool(projectPath, _ string) Tool {
 
 func (g *GoTestTool) Name() string { return "go_test" }
 func (g *GoTestTool) Description() string {
-	return fmt.Sprintf(
-		"Runs `go test` against the file/directory specified in %q, or the whole project if not specified. "+
-			"If a file is provided, tests in its containing directory will be run. Output is the raw `go test -json` "+
-			"stream.",
-		GoTestPath,
+	examples := CollectExamples(g.Examples()...)
+
+	return fmt.Sprintf("Runs `go test` against the file/directory specified in %q, or the whole project if not "+
+		"specified. If a file is provided, tests in its containing directory will be run. Output is the raw `go test` "+
+		"stream with coverage information.%s",
+		GoTestPath, examples,
 	)
+}
+
+func (g *GoTestTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Run "go test" on the "pkg/fs" directory`,
+			Args:        Args{GoTestPath: "pkg/fs"},
+		},
+	}
 }
 
 func (g *GoTestTool) Params() Params {

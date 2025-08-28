@@ -23,15 +23,25 @@ func NewWriteFileTool(projectPath, _ string) Tool {
 	return &WriteFileTool{ProjectPath: projectPath}
 }
 
-var _ = Tool(&WriteFileTool{})
-
 func (w *WriteFileTool) Name() string { return ToolWriteFile }
 func (w *WriteFileTool) Description() string {
-	return fmt.Sprintf(
-		"Create a new file at the path specified in %q and write the contents in %q to it. Cannot edit existing files",
-		WriteFilePath,
-		WriteFileContents,
+	examples := CollectExamples(w.Examples()...)
+
+	return fmt.Sprintf("Create a new file at the path specified in %q and write the contents in %q to it. Cannot edit "+
+		"existing files.%s", WriteFilePath, WriteFileContents, examples,
 	)
+}
+
+func (w *WriteFileTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Create the file "cmd/tool/main.go" and write a simple program to it`,
+			Args: Args{
+				WriteFilePath:     "cmd/tool/main.go",
+				WriteFileContents: "package main\n\nfunc main() {\n\tfmt.Printf(\"Hello, world\")\n}\n",
+			},
+		},
+	}
 }
 
 func (w *WriteFileTool) Params() Params {

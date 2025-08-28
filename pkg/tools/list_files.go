@@ -18,15 +18,25 @@ type ListFilesTool struct {
 	ProjectPath string
 }
 
-var _ = Tool(&ListFilesTool{})
-
 func NewListFilesTool(projectPath, _ string) Tool {
 	return &ListFilesTool{ProjectPath: projectPath}
 }
 
 func (l *ListFilesTool) Name() string { return ToolListFiles }
 func (l *ListFilesTool) Description() string {
-	return fmt.Sprintf("List files in the directory %q recursively, with file mode + size info.", ListFilesPath)
+	examples := CollectExamples(l.Examples()...)
+
+	return fmt.Sprintf("List files in the directory %q recursively, with file mode + size info.%s",
+		ListFilesPath, examples)
+}
+
+func (l *ListFilesTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `List all files in the "pkg/models" directory recursively`,
+			Args:        Args{ListFilesPath: "pkg/models"},
+		},
+	}
 }
 
 func (l *ListFilesTool) Params() Params {

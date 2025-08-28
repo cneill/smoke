@@ -26,11 +26,26 @@ func NewGoFumptTool(projectPath, _ string) Tool {
 
 func (g *GoFumptTool) Name() string { return ToolGoFumpt }
 func (g *GoFumptTool) Description() string {
+	examples := CollectExamples(g.Examples()...)
+
 	return fmt.Sprintf(
 		"Runs the gofumpt formatter against the file/directory specified in %q, or the whole project directory if "+
-			"not specified. Changes are written in place (-w) and the list of files formatted is returned (-l).",
-		GoFumptPath,
+			"not specified. Changes are written in place (-w) and the list of files formatted is returned (-l).%s",
+		GoFumptPath, examples,
 	)
+}
+
+func (g *GoFumptTool) Examples() Examples {
+	return Examples{
+		{
+			Description: "Format the entire repository",
+			Args:        Args{},
+		},
+		{
+			Description: `Format the "pkg/tools" directory specifically`,
+			Args:        Args{GoFumptPath: "pkg/tools"},
+		},
+	}
 }
 
 func (g *GoFumptTool) Params() Params {

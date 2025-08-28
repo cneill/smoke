@@ -28,11 +28,21 @@ func NewGoLintTool(projectPath, _ string) Tool {
 
 func (g *GoLintTool) Name() string { return ToolGoLint }
 func (g *GoLintTool) Description() string {
-	return fmt.Sprintf(
-		"Runs the golangci-lint linter against the file/directory specified in %q, or the whole project directory if "+
-			"not specified.",
-		GoLintPath,
+	examples := CollectExamples(g.Examples()...)
+
+	return fmt.Sprintf("Runs the golangci-lint linter against the file/directory specified in %q, or the whole "+
+		"project directory if not specified.%s",
+		GoLintPath, examples,
 	)
+}
+
+func (g *GoLintTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Lint the "pkg/llms" directory`,
+			Args:        Args{GoLintPath: "pkg/llms"},
+		},
+	}
 }
 
 func (g *GoLintTool) Params() Params {

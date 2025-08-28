@@ -20,15 +20,37 @@ func TestAllToolDescriptions(t *testing.T) {
 
 	for _, tool := range testTools {
 		name := tool.Name()
-		t.Run(name, func(t *testing.T) {
+		params := tool.Params()
+		examples := tool.Examples()
+
+		t.Run(name+"_description", func(t *testing.T) {
 			t.Parallel()
 
-			assert.NotEmpty(t, tool.Description(), "description for tool "+name+" was empty")
+			description := tool.Description()
+			assert.NotEmpty(t, description, "description for tool %s was empty", name)
+			assert.Contains(t, description, "\n## Examples\n", "no examples in description for tool %s", name)
 		})
 
-		params := tool.Params()
-		for _, param := range params {
-			assert.NotEmpty(t, param.Description, "description for tool "+name+" param "+param.Key+" was empty")
-		}
+		t.Run(name+"_params_description", func(t *testing.T) {
+			t.Parallel()
+
+			for _, param := range params {
+				assert.NotEmpty(t, param.Description, "description for tool %s param %s was empty", name, param.Key)
+			}
+		})
+
+		t.Run(name+"_examples", func(t *testing.T) {
+			t.Parallel()
+
+			requiredKeys := params.RequiredKeys()
+			assert.NotEmpty(t, examples, "got zero examples for tool %s", name)
+
+			for i, example := range examples {
+				assert.NotEmpty(t, example.Description, "description for example %d from tool %s was empty", i, name)
+				for _, key := range requiredKeys {
+					assert.Contains(t, example.Args, key, "example %d missing required argument %s", i, key)
+				}
+			}
+		})
 	}
 }

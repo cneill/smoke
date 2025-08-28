@@ -20,19 +20,33 @@ type ReadFileTool struct {
 	ProjectPath string
 }
 
-var _ = Tool(&ReadFileTool{})
-
 func NewReadFileTool(projectPath, _ string) Tool {
 	return &ReadFileTool{ProjectPath: projectPath}
 }
 
 func (r *ReadFileTool) Name() string { return ToolReadFile }
 func (r *ReadFileTool) Description() string {
-	return fmt.Sprintf(
-		"Read the contents of a file. If you just want to read the whole file, don't include %q/%q",
-		ReadFileStartLine,
-		ReadFileEndLine,
-	)
+	examples := CollectExamples(r.Examples()...)
+
+	return fmt.Sprintf("Read the contents of a file. If you just want to read the whole file, don't include %q/%q.%s",
+		ReadFileStartLine, ReadFileEndLine, examples)
+}
+
+func (r *ReadFileTool) Examples() Examples {
+	return Examples{
+		{
+			Description: `Read the whole "LICENSE" file in the root of the repository`,
+			Args:        Args{ReadFilePath: "LICENSE"},
+		},
+		{
+			Description: `Read the first 20 lines of the "src/main.go" file`,
+			Args: Args{
+				ReadFilePath:      "src/main.go",
+				ReadFileStartLine: 1,
+				ReadFileEndLine:   20,
+			},
+		},
+	}
 }
 
 func (r *ReadFileTool) Params() Params {

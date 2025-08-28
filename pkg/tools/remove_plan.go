@@ -17,11 +17,20 @@ func NewRemovePlanTool(projectPath, sessionName string) Tool {
 	return &RemovePlanTool{ProjectPath: projectPath, SessionName: sessionName}
 }
 
-var _ = Tool(&RemovePlanTool{})
-
 func (r *RemovePlanTool) Name() string { return ToolRemovePlan }
 func (r *RemovePlanTool) Description() string {
-	return "Remove the plan file when the plan has been completed."
+	examples := CollectExamples(r.Examples()...)
+
+	return "Remove the plan file when the plan has been completed." + examples
+}
+
+func (r *RemovePlanTool) Examples() Examples {
+	return Examples{
+		{
+			Description: "Remove the plan file",
+			Args:        Args{},
+		},
+	}
 }
 
 func (r *RemovePlanTool) Params() Params { return Params{} }
