@@ -142,19 +142,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case commands.SessionUpdateMessage:
 		m.smoke.SetSession(msg.Session)
 
-		newLog := []any{}
+		cmds = append(cmds, updateHistory(msg))
 
-		for _, msg := range msg.Session.Messages {
-			newLog = append(newLog, msg)
-		}
+		if msg.ResetHistory {
+			newLog := []any{}
 
-		refresh := func() tea.Msg {
-			return history.ContentRefresh{
-				Log: newLog,
+			for _, msg := range msg.Session.Messages {
+				newLog = append(newLog, msg)
 			}
-		}
 
-		cmds = append(cmds, tea.Batch(refresh, updateHistory(msg)))
+			resetHistory := func() tea.Msg {
+				return history.ContentRefresh{
+					Log: newLog,
+				}
+			}
+
+			cmds = append(cmds, resetHistory)
+		}
 	case commands.PlanningModeMessage:
 		m.smoke.SetPlanningMode(msg.Enabled)
 		cmds = append(cmds, updateHistory(msg.SessionMessage))

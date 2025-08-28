@@ -32,6 +32,7 @@ func (h HistoryUpdateMessage) Cmd() tea.Cmd {
 type SessionUpdateMessage struct {
 	PromptCommand PromptCommandMessage
 	Session       *llms.Session
+	ResetHistory  bool
 	Message       string
 }
 

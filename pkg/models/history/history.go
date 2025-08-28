@@ -234,8 +234,8 @@ func (m *Model) logContent() string {
 		case commands.SessionUpdateMessage:
 			// TODO: bounds-check?
 			switch item.PromptCommand.Command {
-			case commands.CommandClear:
-				info.title = "Cleared session"
+			case commands.CommandSession:
+				info.title = "Started new session"
 			case commands.CommandLoad:
 				info.title = "Loaded session from file " + item.PromptCommand.Args[0]
 			default:

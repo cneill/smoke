@@ -21,38 +21,90 @@ type BaseHandler struct {
 	promptCommand PromptCommandMessage
 }
 
-// CommandClear clears the current session contents.
-const CommandClear = "clear"
+// CommandEdit opens the last assistant message in $EDITOR
+const CommandEdit = "edit"
 
-type ClearHandler struct {
+type EditTarget string
+
+const (
+	EditLast EditTarget = "last"
+	EditAll  EditTarget = "all"
+)
+
+type EditHandler struct {
 	*BaseHandler
+
+	Target EditTarget
 }
 
-func NewClearHandler(msg PromptCommandMessage) (Command, error) {
-	handler := &ClearHandler{
+func NewEditHandler(msg PromptCommandMessage) (Command, error) {
+	handler := &EditHandler{
 		BaseHandler: &BaseHandler{promptCommand: msg},
+		Target:      EditAll,
+	}
+
+	if len(msg.Args) > 0 {
+		switch EditTarget(msg.Args[0]) {
+		case EditLast, EditAll:
+			handler.Target = EditTarget(msg.Args[0])
+		default:
+			return nil, fmt.Errorf("unknown edit target %q", msg.Args[0])
+		}
 	}
 
 	return handler, nil
 }
 
-func (c *ClearHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	newSession, err := llms.NewSession(&llms.SessionOpts{
-		Name:          session.Name,
-		SystemMessage: session.SystemMessage,
-		Tools:         session.Tools,
-	})
+func (e *EditHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	var content []byte
+
+	switch e.Target {
+	case EditLast:
+		last := session.LastByRole(llms.RoleAssistant)
+		if last == nil {
+			return nil, fmt.Errorf("no assistant message found to edit")
+		}
+
+		content = []byte(last.ToMarkdown())
+
+	case EditAll:
+		buf := &bytes.Buffer{}
+		for _, msg := range session.Messages {
+			buf.WriteString(msg.ToMarkdown())
+		}
+
+		content = buf.Bytes()
+	}
+
+	tmpFile, err := os.CreateTemp("", session.Name+"_*.md")
 	if err != nil {
-		return nil, fmt.Errorf("failed to clear session and create new one: %w", err)
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.Write(content); err != nil {
+		return nil, fmt.Errorf("failed to write temp file: %w", err)
 	}
 
-	update := SessionUpdateMessage{
-		PromptCommand: c.promptCommand,
-		Session:       newSession,
-		Message:       "Cleared session.",
+	path := tmpFile.Name()
+
+	editor := "nvim"
+	if envEditor := os.Getenv("EDITOR"); envEditor != "" {
+		editor = envEditor
 	}
 
-	return update.Cmd(), nil
+	if _, err := exec.LookPath(editor); err != nil {
+		return nil, fmt.Errorf("failed to find editor %q: %w", editor, err)
+	}
+
+	req := EditRequestMessage{
+		PromptCommand: e.promptCommand,
+		Path:          path,
+		Editor:        editor,
+		Description:   "last assistant message",
+	}
+
+	return req.Cmd(), nil
 }
 
 // CommandExit closes the program.
@@ -132,15 +184,14 @@ type LoadHandler struct {
 }
 
 func NewLoadHandler(msg PromptCommandMessage) (Command, error) {
-	handler := &LoadHandler{
-		BaseHandler: &BaseHandler{promptCommand: msg},
-	}
-
 	if len(msg.Args) == 0 {
 		return nil, fmt.Errorf("%w: missing path", ErrArguments)
 	}
 
-	handler.Path = msg.Args[0]
+	handler := &LoadHandler{
+		BaseHandler: &BaseHandler{promptCommand: msg},
+		Path:        msg.Args[0],
+	}
 
 	return handler, nil
 }
@@ -252,18 +303,17 @@ type RunHandler struct {
 }
 
 func NewRunHandler(msg PromptCommandMessage) (Command, error) {
-	handler := &RunHandler{
-		BaseHandler: &BaseHandler{
-			promptCommand: msg,
-		},
-	}
-
 	if len(msg.Args) < 2 {
 		return nil, fmt.Errorf("must supply tool name and arguments as JSON string")
 	}
 
-	handler.ToolName = msg.Args[0]
-	handler.RawArgs = strings.Join(msg.Args[1:], " ")
+	handler := &RunHandler{
+		BaseHandler: &BaseHandler{
+			promptCommand: msg,
+		},
+		ToolName: msg.Args[0],
+		RawArgs:  strings.Join(msg.Args[1:], " "),
+	}
 
 	return handler, nil
 }
@@ -343,88 +393,53 @@ func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	return update.Cmd(), nil
 }
 
-// CommandEdit opens the last assistant message in $EDITOR
-const CommandEdit = "edit"
+// CommandSession allows the user to modify the current session:
+// - with the argument "new", it will start a new session without wiping the visible history
+// - with the argument "clear", it will start a new session and wipe the visible history
+const CommandSession = "session"
 
-type EditTarget string
-
-const (
-	EditLast EditTarget = "last"
-	EditAll  EditTarget = "all"
-)
-
-type EditHandler struct {
+type SessionHandler struct {
 	*BaseHandler
 
-	Target EditTarget
+	Command string
 }
 
-func NewEditHandler(msg PromptCommandMessage) (Command, error) {
-	handler := &EditHandler{
-		BaseHandler: &BaseHandler{promptCommand: msg},
-		Target:      EditAll,
+func NewSessionHandler(msg PromptCommandMessage) (Command, error) {
+	if len(msg.Args) < 1 || (msg.Args[0] != "new" && msg.Args[0] != "clear") {
+		return nil, fmt.Errorf("must supply either 'new' or 'clear' argument")
 	}
 
-	if len(msg.Args) > 0 {
-		switch EditTarget(msg.Args[0]) {
-		case EditLast, EditAll:
-			handler.Target = EditTarget(msg.Args[0])
-		default:
-			return nil, fmt.Errorf("unknown edit target %q", msg.Args[0])
-		}
+	handler := &SessionHandler{
+		BaseHandler: &BaseHandler{promptCommand: msg},
+		Command:     msg.Args[0],
 	}
 
 	return handler, nil
 }
 
-func (e *EditHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	var content []byte
-
-	switch e.Target {
-	case EditLast:
-		last := session.LastByRole(llms.RoleAssistant)
-		if last == nil {
-			return nil, fmt.Errorf("no assistant message found to edit")
-		}
-
-		content = []byte(last.ToMarkdown())
-
-	case EditAll:
-		buf := &bytes.Buffer{}
-		for _, msg := range session.Messages {
-			buf.WriteString(msg.ToMarkdown())
-		}
-
-		content = buf.Bytes()
-	}
-
-	tmpFile, err := os.CreateTemp("", session.Name+"_*.md")
+func (s *SessionHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	newSession, err := llms.NewSession(&llms.SessionOpts{
+		Name:          session.Name,
+		SystemMessage: session.SystemMessage,
+		Tools:         session.Tools,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer tmpFile.Close()
-
-	if _, err := tmpFile.Write(content); err != nil {
-		return nil, fmt.Errorf("failed to write temp file: %w", err)
+		return nil, fmt.Errorf("failed to create new session: %w", err)
 	}
 
-	path := tmpFile.Name()
-
-	editor := "nvim"
-	if envEditor := os.Getenv("EDITOR"); envEditor != "" {
-		editor = envEditor
+	msg := "Started new LLM session"
+	if s.Command == "clear" {
+		msg += " and cleared history."
+	} else {
+		msg += " and preserved history."
 	}
 
-	if _, err := exec.LookPath(editor); err != nil {
-		return nil, fmt.Errorf("failed to find editor %q: %w", editor, err)
+	update := SessionUpdateMessage{
+		PromptCommand: s.promptCommand,
+		Session:       newSession,
+		Message:       msg,
+		ResetHistory:  s.Command == "clear",
 	}
 
-	req := EditRequestMessage{
-		PromptCommand: e.promptCommand,
-		Path:          path,
-		Editor:        editor,
-		Description:   "last assistant message",
-	}
-
-	return req.Cmd(), nil
+	return update.Cmd(), nil
 }
