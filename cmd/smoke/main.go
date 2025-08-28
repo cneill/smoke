@@ -213,7 +213,7 @@ func action(ctx *cli.Context) error {
 	opts := []smoke.OptFunc{
 		smoke.WithDebug(ctx.Bool(FlagDebug)),
 		smoke.WithProjectPath(ctx.Path(FlagDir)),
-		smoke.WithSessionInfo(sessionName, prompts.SystemJSON(sessionName)),
+		smoke.WithSessionInfo(sessionName, prompts.SystemJSON()),
 		smoke.WithLLMConfig(llmConfig),
 	}
 

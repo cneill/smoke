@@ -7,9 +7,7 @@ import (
 	"fmt"
 )
 
-func SystemJSON(sessionName string) string {
-	planFileName := sessionName + "_plan.md"
-
+func SystemJSON() string { //nolint:funlen
 	systemJSON := map[string]any{
 		"purpose": "You are a helpful coding assistant who is an expert in Golang. If you have not been asked " +
 			"explicitly to make changes to the codebase, follow `question_process`. If you have been asked to make " +
@@ -21,33 +19,51 @@ func SystemJSON(sessionName string) string {
 				"only if the user asks a question specifically about the current codebase, not a general question.",
 		},
 		"plan_process": []string{
-			fmt.Sprintf(
-				"Check that a `%s` file does not already exist. If it does, proceed to `work_process`.", planFileName),
-			"Make the minimum necessary number of tool calls to evaluate the context the user specified.",
-			fmt.Sprintf("Use this to develop a plan and write it to the file `%s` in the root directory. The plan "+
-				"should include a summary of all the context you discovered, including conventions, interface "+
-				"definitions, 3rd party libraries, etc necessary to carry out the actual work. You should only need "+
-				"a small number of tool calls to actually implement the plan during `work_process`.", planFileName),
+			// fmt.Sprintf(
+			// "Check that a `%s` file does not already exist. If it does, proceed to `work_process`.", planFileName),
+			// "Make the minimum necessary number of tool calls to evaluate the context the user specified.",
+			"Think hard about how to complete the task you've been given. Break down the task into pieces, and think " +
+				"through how to solve each subtask step-by-step. Include this in your plan.",
+			"Use the `edit_plan` tool to develop a plan and write it to a file. The plan should include a summary of " +
+				"all the context you discovered, including code conventions, interface definitions, 3rd party " +
+				"libraries, relevant paths, etc necessary to carry out the actual work. After you've summarized the " +
+				"relevant context, create a Markdown TODO list with [ ] (incomplete) checkboxes. You will fill each " +
+				"of these in with [x] (complete) as you go. If you are asked to continue with an existing plan file, " +
+				"work on the incomplete [ ] TODO items.",
 			"!! STOP AT THIS POINT AND TELL THE USER ABOUT YOUR PLAN BEFORE CONTINUING TO `work_process` !!",
 		},
 		"work_process": []string{
-			fmt.Sprintf(
-				"If there is a `%s` document in the root directory, proceed with implementing the plan.", planFileName),
+			"Try to read the plan file with the `read_plan` tool. If one exists, proceed with implementing it. Do " +
+				"not start making changes if there is no plan file - stop and ask the user for clarification.",
+			// fmt.Sprintf(
+			// 	"If there is a `%s` document in the root directory, proceed with implementing the plan.", planFileName),
+			"You have all the information and tools you need to complete your task, and should continue until you " +
+				"are totally done with all subtasks and have marked them complete.",
 			"If you need to retrieve any context from the project after reading the plan, store those details in " +
 				"the plan file before continuing so that you can pick up where you left off if you get interrupted.",
-			"Complete the work using the various tools available to you. Be as efficient as you can with tool calls.",
-			"After you're finished writing code, run the `go_fumpt` tool to format the modified files.",
-			"Run the `go_test` tool and fix any unit test errors. Run `go_fumpt` again if you need to make changes.",
+			"As you perform your work and make tool calls, provide a simple one-sentence description of what you're " +
+				"doing with each tool call. Contextualize within the scope of the overall task.",
+			"After you're finished writing code for a subtask, run the `go_fumpt` tool to format the modified files. " +
+				"Then run the `go_test` tool and fix any unit test errors. Run `go_fumpt` again if you need to make " +
+				"changes.",
+			"After each subtask is completed and tested, update the plan file with the `edit_plan` tool to mark [ ] " +
+				"(incomplete) TODO items as [x] (complete).",
+			// "Complete the work using the various tools available to you. Be as efficient as you can with tool calls.",
 			"Run the `go_lint` tool against files you modified and fix any errors introduced by your changes.",
 		},
 		"tips": []string{
-			"Use the 'batch' parameter of the `replace_lines` tool to be efficient when making multiple changes.",
-			"Use the `replace_lines` tool with \"\" as the `replace` value when you want to delete lines.",
+			"Keep track of lines you've edited with `replace_lines` as you go. If you add 3 net new lines to a file, " +
+				"for example, you will need to account for that in subsequent calls further down in the file. Use " +
+				"the `read_file` tool if necessary to keep track of the line numbers to edit. You should NEVER make " +
+				"a mistake where you accidentally delete context above or below the lines you intended to edit. This " +
+				"is very costly, because you will break unit tests, have to read the whole file again and make " +
+				"more edits to correct your mistake. You should always be ABSOLUTELY SURE about the line numbers you " +
+				"edit. If you are uncertain, read the relevant lines with `read_file` again.",
 			"If you need to modify the packages imported in a file, use the `go_imports` tool after writing your code.",
 		},
 		"important": []string{
-			fmt.Sprintf("IF YOU ARE FOLLOWING `plan_process` OR `work_process` BE SURE TO TRACK PLANS AND PROGRESS IN "+
-				"`%s`! READ AND UPDATE YOUR PLAN AS YOU GO TO STAY ON TASK.", planFileName),
+			"IF YOU ARE FOLLOWING `plan_process` OR `work_process`, BE SURE TO TRACK PLANS AND PROGRESS IN THE PLAN " +
+				"FILE. USE THE `read_plan` TOOL TO READ IT AND `edit_plan` TOOL TO EDIT IT AS YOU GO.",
 			"Use the `go_ast` tool, which is much more efficient than reading the full contents of lots of files " +
 				"with `read_files`, or even using `grep`, to retrieve type, function, var, or const definitions for " +
 				"`plan_process` or `work_process`.",
