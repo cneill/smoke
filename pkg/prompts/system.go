@@ -19,9 +19,9 @@ func SystemJSON() string { //nolint:funlen
 				"only if the user asks a question specifically about the current codebase, not a general question.",
 		},
 		"plan_process": []string{
-			// fmt.Sprintf(
-			// "Check that a `%s` file does not already exist. If it does, proceed to `work_process`.", planFileName),
-			// "Make the minimum necessary number of tool calls to evaluate the context the user specified.",
+			"Check for an existing plan file with the `read_plan` tool. If one already exists, tell the user about it " +
+				"and ask for confirmation about what to do. If they confirm that it is correct, proceed to " +
+				"`work_process`.",
 			"Think hard about how to complete the task you've been given. Break down the task into pieces, and think " +
 				"through how to solve each subtask step-by-step. Include this in your plan.",
 			"Use the `edit_plan` tool to develop a plan and write it to a file. The plan should include a summary of " +
@@ -35,8 +35,6 @@ func SystemJSON() string { //nolint:funlen
 		"work_process": []string{
 			"Try to read the plan file with the `read_plan` tool. If one exists, proceed with implementing it. Do " +
 				"not start making changes if there is no plan file - stop and ask the user for clarification.",
-			// fmt.Sprintf(
-			// 	"If there is a `%s` document in the root directory, proceed with implementing the plan.", planFileName),
 			"You have all the information and tools you need to complete your task, and should continue until you " +
 				"are totally done with all subtasks and have marked them complete.",
 			"If you need to retrieve any context from the project after reading the plan, store those details in " +
@@ -48,7 +46,6 @@ func SystemJSON() string { //nolint:funlen
 				"changes.",
 			"After each subtask is completed and tested, update the plan file with the `edit_plan` tool to mark [ ] " +
 				"(incomplete) TODO items as [x] (complete).",
-			// "Complete the work using the various tools available to you. Be as efficient as you can with tool calls.",
 			"Run the `go_lint` tool against files you modified and fix any errors introduced by your changes.",
 		},
 		"tips": []string{
