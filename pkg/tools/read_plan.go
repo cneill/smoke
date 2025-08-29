@@ -80,7 +80,7 @@ func (r *ReadPlanTool) Run(ctx context.Context, args Args) (string, error) {
 	}
 
 	childArgs := Args{
-		ReadFilePath: fullPath,
+		ReadFilePath: r.PlanFileName,
 	}
 
 	if startLine := args.GetInt(ReadPlanStartLine); startLine != nil {
