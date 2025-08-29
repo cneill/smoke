@@ -29,6 +29,8 @@ func NewManager(projectPath string) *Manager {
 			CommandSave:    NewSaveHandler,
 			CommandSession: NewSessionHandler,
 			CommandInfo:    NewInfoHandler,
+			// TODO: uncomment when fleshed out
+			// CommandSummarize: NewSummarizeHandler,
 		},
 	}
 }

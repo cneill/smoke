@@ -481,3 +481,149 @@ func (i *InfoHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 	return update.Cmd(), nil
 }
+
+// CommandSummarize summarizes the session history and writes it to a JSON file in the format that can be loaded as a
+// session.
+const CommandSummarize = "summarize"
+
+type SummarizeHandler struct {
+	*BaseHandler
+
+	Scope     string
+	Value     string
+	ValueInt  int
+	ValueTime time.Time
+}
+
+func NewSummarizeHandler(msg PromptCommandMessage) (Command, error) {
+	handler := &SummarizeHandler{
+		BaseHandler: &BaseHandler{promptCommand: msg},
+		Scope:       "entire",
+	}
+
+	if len(msg.Args) == 0 {
+		return handler, nil
+	}
+
+	if len(msg.Args) != 2 {
+		return nil, fmt.Errorf("usage: /summarize [--last N | --first N | --since TIME | --before TIME], e.g. --last 10")
+	}
+
+	flag := strings.TrimPrefix(msg.Args[0], "--")
+	switch flag {
+	case "last", "first", "since", "before":
+		handler.Scope = flag
+	default:
+		return nil, fmt.Errorf("unknown scope flag %q, use --last, --first, --since, --before", msg.Args[0])
+	}
+
+	handler.Value = msg.Args[1]
+
+	if flag == "last" || flag == "first" {
+		num, err := strconv.Atoi(msg.Args[1])
+		if err != nil || num < 1 {
+			return nil, fmt.Errorf("value for --%s must be a positive integer", flag)
+		}
+
+		handler.ValueInt = num
+	} else {
+		// TODO: more flexible time format parsing
+		t, err := time.Parse(time.RFC3339, msg.Args[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid time format for --%s, use RFC3339 (e.g., 2023-01-01T00:00:00Z)", flag)
+		}
+
+		handler.ValueTime = t
+	}
+
+	return handler, nil
+}
+
+func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	filtered := s.filterMessages(session.Messages)
+
+	summaryMsg := s.generateSummary(filtered, session.Name)
+
+	newSession := &llms.Session{
+		Name:          session.Name + "_summary",
+		SystemMessage: session.SystemMessage,
+		Messages:      []*llms.Message{summaryMsg},
+		CreatedAt:     time.Now(),
+	}
+
+	if len(filtered) == 0 {
+		newSession.Messages = []*llms.Message{}
+	}
+
+	sessionBytes, err := json.MarshalIndent(newSession, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal summary JSON: %w", err)
+	}
+
+	filename := fmt.Sprintf("%s_history_summary.json", session.Name)
+	if err := os.WriteFile(filename, sessionBytes, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to write summary file %q: %w", filename, err)
+	}
+
+	update := HistoryUpdateMessage{
+		PromptCommand: s.promptCommand,
+		Message:       fmt.Sprintf("Summarized %d messages and saved to %s", len(filtered), filename),
+	}
+
+	return update.Cmd(), nil
+}
+
+func (s *SummarizeHandler) filterMessages(messages []*llms.Message) []*llms.Message {
+	if s.Scope == "entire" || len(messages) == 0 {
+		return messages
+	}
+
+	switch s.Scope {
+	case "last":
+		if s.ValueInt >= len(messages) {
+			return messages
+		}
+
+		return messages[len(messages)-s.ValueInt:]
+	case "first":
+		if s.ValueInt >= len(messages) {
+			return messages
+		}
+
+		return messages[:s.ValueInt]
+	case "since":
+		since := s.ValueTime
+
+		var filtered []*llms.Message
+
+		for _, msg := range messages {
+			if msg.Added.After(since) || msg.Added.Equal(since) {
+				filtered = append(filtered, msg)
+			}
+		}
+
+		return filtered
+	case "before":
+		before := s.ValueTime
+
+		var filtered []*llms.Message
+
+		for _, msg := range messages {
+			if msg.Added.Before(before) {
+				filtered = append(filtered, msg)
+			}
+		}
+
+		return filtered
+	}
+
+	return messages
+}
+
+func (s *SummarizeHandler) generateSummary(messages []*llms.Message, sessionName string) *llms.Message {
+	// Mock summary
+	num := len(messages)
+	summary := fmt.Sprintf("Mock summary of session %s with %d messages.", sessionName, num)
+
+	return llms.NewMessage(llms.WithRole(llms.RoleAssistant), llms.WithContent(summary))
+}
