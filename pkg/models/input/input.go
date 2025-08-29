@@ -179,7 +179,7 @@ func getTextArea(opts *Opts) textarea.Model {
 		Foreground(lipgloss.Color("#8888888"))
 	model.BlurredStyle.Prompt = lipgloss.NewStyle().
 		Inherit(model.FocusedStyle.Prompt).
-		Foreground(lipgloss.Color("#888888"))
+		Foreground(darkgray)
 
 	model.ShowLineNumbers = false
 
