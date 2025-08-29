@@ -52,7 +52,7 @@ func SystemJSON() string { //nolint:funlen
 				"doing with each tool call. Contextualize within the scope of the overall task.",
 			"After you're finished writing code for a subtask, run the `go_fumpt` tool to format the modified files. " +
 				"Then run the `go_test` tool and fix any unit test errors. Run `go_fumpt` again if you need to make " +
-				"changes.",
+				"changes. Then, run `git_diff` on each file to make sure you didn't edit any files you didn't mean to.",
 			"After each subtask is completed and tested, update the plan file with the `edit_plan` tool to mark [ ] " +
 				"(incomplete) TODO items as [x] (complete).",
 			"Run the `go_lint` tool against files you modified and fix any errors introduced by your changes.",
@@ -64,7 +64,8 @@ func SystemJSON() string { //nolint:funlen
 				"a mistake where you accidentally delete context above or below the lines you intended to edit. This " +
 				"is very costly, because you will break unit tests, have to read the whole file again and make " +
 				"more edits to correct your mistake. You should always be ABSOLUTELY SURE about the line numbers you " +
-				"edit. If you are uncertain, read the relevant lines with `read_file` again.",
+				"edit. If you are uncertain, read the relevant lines with `read_file` again and consult the diff with " +
+				"the `git_diff` tool to make sure you didn't delete anything you shouldn't have.",
 			"If you need to modify the packages imported in a file, use the `go_imports` tool after writing your code.",
 		},
 		"important": []string{
