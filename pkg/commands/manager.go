@@ -28,6 +28,7 @@ func NewManager(projectPath string) *Manager {
 			CommandRun:     NewRunHandler,
 			CommandSave:    NewSaveHandler,
 			CommandSession: NewSessionHandler,
+			CommandInfo:    NewInfoHandler,
 		},
 	}
 }

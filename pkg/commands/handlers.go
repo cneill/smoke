@@ -443,3 +443,41 @@ func (s *SessionHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 	return update.Cmd(), nil
 }
+
+// CommandInfo displays information about the current session.
+const CommandInfo = "info"
+
+type InfoHandler struct {
+	*BaseHandler
+}
+
+func NewInfoHandler(msg PromptCommandMessage) (Command, error) {
+	handler := &InfoHandler{
+		&BaseHandler{
+			promptCommand: msg,
+		},
+	}
+
+	return handler, nil
+}
+
+func (i *InfoHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	name := session.Name
+	messageCount := session.MessageCount()
+	inputTokens, outputTokens := session.Usage()
+	totalTokens := inputTokens + outputTokens
+	duration := time.Since(session.CreatedAt)
+
+	info := "Session name: " + name + "\n"
+	info += fmt.Sprintf("Messages: user %d, assistant %d, tool call %d\n",
+		messageCount.UserMessages, messageCount.UserMessages, messageCount.UserMessages)
+	info += fmt.Sprintf("Tokens: input %d, output %d, total %d\n", inputTokens, outputTokens, totalTokens)
+	info += fmt.Sprintf("Duration: %s", duration)
+
+	update := HistoryUpdateMessage{
+		PromptCommand: i.promptCommand,
+		Message:       info,
+	}
+
+	return update.Cmd(), nil
+}

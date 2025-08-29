@@ -14,6 +14,8 @@ type Session struct {
 	Messages      []*Message     `json:"messages"`
 	Tools         *tools.Manager `json:"-"`
 
+	CreatedAt time.Time `json:"created_at"`
+
 	messageMutex sync.RWMutex `json:"-"`
 
 	usageMutex   sync.RWMutex `json:"-"`
@@ -51,6 +53,8 @@ func NewSession(opts *SessionOpts) (*Session, error) {
 		SystemMessage: opts.SystemMessage,
 		Messages:      []*Message{},
 		Tools:         opts.Tools,
+
+		CreatedAt: time.Now(),
 
 		messageMutex: sync.RWMutex{},
 	}
@@ -126,4 +130,30 @@ func (s *Session) Usage() (inputTokens, outputTokens int64) { //nolint:nonamedre
 	defer s.usageMutex.RUnlock()
 
 	return s.InputTokens, s.OutputTokens
+}
+
+type MessageCount struct {
+	UserMessages      int
+	AssistantMessages int
+	ToolCallMessages  int
+}
+
+func (s *Session) MessageCount() MessageCount {
+	s.messageMutex.RLock()
+	defer s.messageMutex.RUnlock()
+
+	result := MessageCount{}
+
+	for _, msg := range s.Messages {
+		switch msg.Role { //nolint:exhaustive
+		case RoleAssistant:
+			result.AssistantMessages++
+		case RoleTool:
+			result.ToolCallMessages++
+		case RoleUser:
+			result.UserMessages++
+		}
+	}
+
+	return result
 }
