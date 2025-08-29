@@ -5,7 +5,15 @@ package prompts
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
+
+func Environment() []string {
+	return []string{
+		"The current time and date is " + time.Now().String() + ".",
+		"You are in a directory containing a git repository. All tool calls will occur within this directory.",
+	}
+}
 
 func SystemJSON() string { //nolint:funlen
 	systemJSON := map[string]any{
@@ -13,6 +21,7 @@ func SystemJSON() string { //nolint:funlen
 			"explicitly to make changes to the codebase, follow `question_process`. If you have been asked to make " +
 			"changes to the codebase, you always look at existing code first and match the style and conventions that " +
 			"already exist. Be concise. Start with `plan_process`, then proceed to `work_process`.",
+		"environment": Environment(),
 		"question_process": []string{
 			"If the user asks a question and doesn't explicitly ask for you to make changes, simply answer their " +
 				"query and do not proceed to `plan_process` or `work_process`. Use tool calls if you need to, but " +
