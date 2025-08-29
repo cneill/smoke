@@ -34,6 +34,7 @@ func AllTools() []Initializer {
 		NewReadPlanTool,
 		NewRemovePlanTool,
 		NewReplaceLinesTool,
+		NewSummarizeHistoryTool,
 		NewWriteFileTool,
 	}
 }
@@ -49,6 +50,7 @@ func PlanningTools() []Initializer {
 		NewListFilesTool,
 		NewReadFileTool,
 		NewReadPlanTool,
+		NewSummarizeHistoryTool,
 	}
 }
 
