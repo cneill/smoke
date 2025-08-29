@@ -32,7 +32,7 @@ func AllTools() []Initializer {
 		NewListFilesTool,
 		NewReadFileTool,
 		NewReadPlanTool,
-		NewRemovePlanTool,
+		// NewRemovePlanTool,
 		NewReplaceLinesTool,
 		// NewSummarizeHistoryTool,
 		NewWriteFileTool,
