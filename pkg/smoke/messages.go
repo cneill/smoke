@@ -2,6 +2,7 @@ package smoke
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
 )
 
@@ -25,4 +26,11 @@ func (t ToolCallResponseMessage) Cmd() tea.Cmd {
 	return func() tea.Msg {
 		return t
 	}
+}
+
+// TODO: better name
+type SendCommandMessageResponseMessage struct {
+	OriginalMessage commands.SendSessionMessage
+	Session         *llms.Session
+	Err             error
 }

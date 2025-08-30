@@ -541,39 +541,28 @@ func NewSummarizeHandler(msg PromptCommandMessage) (Command, error) {
 
 func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	filtered := s.filterMessages(session.Messages)
-
-	summaryMsg := s.generateSummary(filtered, session.Name)
+	// summaryMsg := s.generateSummary(filtered, session.Name)
 
 	newSession := &llms.Session{
 		Name:          session.Name + "_summary",
 		SystemMessage: session.SystemMessage,
-		Messages:      []*llms.Message{summaryMsg},
+		Messages:      filtered,
 		CreatedAt:     time.Now(),
+		Tools:         session.Tools,
 	}
 
-	if len(filtered) == 0 {
-		newSession.Messages = []*llms.Message{}
+	userMsg := llms.SimpleMessage(llms.RoleUser, "Please summarize the conversation up to this point.")
+	newSession.AddMessage(userMsg)
+
+	send := SendSessionMessage{
+		Session: newSession,
 	}
 
-	sessionBytes, err := json.MarshalIndent(newSession, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal summary JSON: %w", err)
-	}
-
-	filename := fmt.Sprintf("%s_history_summary.json", session.Name)
-	if err := os.WriteFile(filename, sessionBytes, 0o644); err != nil {
-		return nil, fmt.Errorf("failed to write summary file %q: %w", filename, err)
-	}
-
-	update := HistoryUpdateMessage{
-		PromptCommand: s.promptCommand,
-		Message:       fmt.Sprintf("Summarized %d messages and saved to %s", len(filtered), filename),
-	}
-
-	return update.Cmd(), nil
+	return send.Cmd(), nil
 }
 
 func (s *SummarizeHandler) filterMessages(messages []*llms.Message) []*llms.Message {
+	// TODO: need some way to ignore system message if LLM provider includes it in message history
 	if s.Scope == "entire" || len(messages) == 0 {
 		return messages
 	}
@@ -618,12 +607,4 @@ func (s *SummarizeHandler) filterMessages(messages []*llms.Message) []*llms.Mess
 	}
 
 	return messages
-}
-
-func (s *SummarizeHandler) generateSummary(messages []*llms.Message, sessionName string) *llms.Message {
-	// Mock summary
-	num := len(messages)
-	summary := fmt.Sprintf("Mock summary of session %s with %d messages.", sessionName, num)
-
-	return llms.NewMessage(llms.WithRole(llms.RoleAssistant), llms.WithContent(summary))
 }

@@ -187,6 +187,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			cmds = append(cmds, updateHistory(msg))
 		}
+	case commands.SendSessionMessage:
+		if cmd := m.smoke.SendCommandMessage(msg); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 	case smoke.AssistantResponseMessage:
 		if msg.Err != nil {
 			cmds = append(cmds, updateHistory(msg.Err))
@@ -198,6 +202,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, updateHistory(msg.Err))
 		} else if cmd := m.handleToolCallResponse(msg); cmd != nil {
 			cmds = append(cmds, cmd)
+		}
+	case smoke.SendCommandMessageResponseMessage:
+		if msg.Err != nil {
+			cmds = append(cmds, updateHistory(fmt.Errorf("error sending LLM message with command: %w", msg.Err)))
+		} else {
+			last := msg.Session.LastByRole(llms.RoleAssistant)
+			// TODO: handle stuff other than summaries; incldue full details of original command msg/etc
+			slog.Debug("WE GOT A SUMMARY", "summary", last.Content, "original_message", msg.OriginalMessage)
 		}
 	}
 

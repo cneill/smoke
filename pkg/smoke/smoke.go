@@ -135,6 +135,29 @@ func (s *Smoke) SendUserMessageStreaming(msg *llms.Message, chunkChan chan *llms
 	return send, nil
 }
 
+// SendCommandMessage sends a session to the LLM when triggered by a prompt command.
+func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
+	send := func() tea.Msg {
+		// TODO: add a context.Context here - can't use the global userMessageCancel
+		response, err := s.llm.SendSession(context.TODO(), msg.Session)
+		if err != nil {
+			return SendCommandMessageResponseMessage{
+				OriginalMessage: msg,
+				Err:             fmt.Errorf("failed to send session with user message: %w", err),
+			}
+		}
+
+		msg.Session.AddMessage(response)
+
+		return SendCommandMessageResponseMessage{
+			OriginalMessage: msg,
+			Session:         msg.Session,
+		}
+	}
+
+	return send
+}
+
 // CancelUserMessage can be triggered by the user pressing the escape key while waiting for an assistant response.
 func (s *Smoke) CancelUserMessage(err error) {
 	if s.userMessageCancel != nil {

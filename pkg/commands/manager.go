@@ -30,7 +30,7 @@ func NewManager(projectPath string) *Manager {
 			CommandSession: NewSessionHandler,
 			CommandInfo:    NewInfoHandler,
 			// TODO: uncomment when fleshed out
-			// CommandSummarize: NewSummarizeHandler,
+			CommandSummarize: NewSummarizeHandler,
 		},
 	}
 }
