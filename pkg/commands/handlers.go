@@ -14,6 +14,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -541,70 +542,56 @@ func NewSummarizeHandler(msg PromptCommandMessage) (Command, error) {
 
 func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	filtered := s.filterMessages(session.Messages)
-	// summaryMsg := s.generateSummary(filtered, session.Name)
+	sessionName := session.Name + "_summary"
+	toolManager := tools.NewManager(session.Tools.ProjectPath, sessionName)
+	toolManager.SetTools()
 
 	newSession := &llms.Session{
-		Name:          session.Name + "_summary",
+		Name:          sessionName,
 		SystemMessage: session.SystemMessage,
 		Messages:      filtered,
 		CreatedAt:     time.Now(),
-		Tools:         session.Tools,
+		Tools:         toolManager,
 	}
 
-	userMsg := llms.SimpleMessage(llms.RoleUser, "Please summarize the conversation up to this point.")
+	userMsg := llms.SimpleMessage(llms.RoleUser, prompts.Summarize)
 	newSession.AddMessage(userMsg)
 
 	send := SendSessionMessage{
-		Session: newSession,
+		PromptCommand:    s.promptCommand,
+		OriginalMessages: filtered,
+		Session:          newSession,
 	}
 
 	return send.Cmd(), nil
 }
 
 func (s *SummarizeHandler) filterMessages(messages []*llms.Message) []*llms.Message {
-	// TODO: need some way to ignore system message if LLM provider includes it in message history
-	if s.Scope == "entire" || len(messages) == 0 {
+	if s.Scope == "entire" || len(messages) == 0 || s.ValueInt >= len(messages) {
 		return messages
 	}
 
+	filtered := []*llms.Message{}
+
+	// TODO: need some way to ignore system message if LLM provider includes it in message history
 	switch s.Scope {
 	case "last":
-		if s.ValueInt >= len(messages) {
-			return messages
-		}
-
-		return messages[len(messages)-s.ValueInt:]
+		filtered = messages[len(messages)-s.ValueInt:]
 	case "first":
-		if s.ValueInt >= len(messages) {
-			return messages
-		}
-
-		return messages[:s.ValueInt]
+		filtered = messages[:s.ValueInt]
 	case "since":
-		since := s.ValueTime
-
-		var filtered []*llms.Message
-
 		for _, msg := range messages {
-			if msg.Added.After(since) || msg.Added.Equal(since) {
+			if msg.Added.After(s.ValueTime) {
 				filtered = append(filtered, msg)
 			}
 		}
-
-		return filtered
 	case "before":
-		before := s.ValueTime
-
-		var filtered []*llms.Message
-
 		for _, msg := range messages {
-			if msg.Added.Before(before) {
+			if msg.Added.Before(s.ValueTime) {
 				filtered = append(filtered, msg)
 			}
 		}
-
-		return filtered
 	}
 
-	return messages
+	return filtered
 }

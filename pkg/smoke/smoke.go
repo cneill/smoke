@@ -136,6 +136,7 @@ func (s *Smoke) SendUserMessageStreaming(msg *llms.Message, chunkChan chan *llms
 }
 
 // SendCommandMessage sends a session to the LLM when triggered by a prompt command.
+// TODO: better name
 func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
 	send := func() tea.Msg {
 		// TODO: add a context.Context here - can't use the global userMessageCancel
@@ -156,6 +157,23 @@ func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
 	}
 
 	return send
+}
+
+func (s *Smoke) HandleCommandMessageResponse(msg SendCommandMessageResponseMessage) tea.Cmd {
+	// TODO: handle stuff other than summaries; incldue full details of original command msg/etc
+	last := msg.Session.LastByRole(llms.RoleAssistant)
+	slog.Debug("WE GOT A SUMMARY", "summary", last.Content, "original_message", msg.OriginalMessage)
+
+	if len(msg.OriginalMessage.OriginalMessages) > 0 {
+		s.session.ReplaceMessages(msg.OriginalMessage.OriginalMessages, []*llms.Message{last})
+	}
+
+	return commands.SessionUpdateMessage{
+		PromptCommand: msg.OriginalMessage.PromptCommand,
+		Session:       s.session,
+		ResetHistory:  true,
+		Message:       "Summarizing messages",
+	}.Cmd()
 }
 
 // CancelUserMessage can be triggered by the user pressing the escape key while waiting for an assistant response.

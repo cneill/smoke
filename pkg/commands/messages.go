@@ -86,7 +86,9 @@ func (e EditResultMessage) Cmd() tea.Cmd {
 
 // SendSession is used to send a session to an LLM and get the response asynchronously.
 type SendSessionMessage struct {
-	Session *llms.Session
+	PromptCommand    PromptCommandMessage
+	OriginalMessages []*llms.Message
+	Session          *llms.Session
 }
 
 func (s SendSessionMessage) Cmd() tea.Cmd {

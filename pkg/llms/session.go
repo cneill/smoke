@@ -157,3 +157,42 @@ func (s *Session) MessageCount() MessageCount {
 
 	return result
 }
+
+// ReplaceMessages searches the Session's messages for messages with the same IDs as those in 'searches' and keeps up
+// with the last index, adding the messages from 'replacements' after that index. This assumes that the messages in
+// 'searches' are in the same order as they would appear in the Session.
+func (s *Session) ReplaceMessages(searches, replacements []*Message) {
+	s.messageMutex.Lock()
+	defer s.messageMutex.Unlock()
+
+	newMessages := make([]*Message, 0, len(s.Messages))
+	lastIndex := len(s.Messages)
+
+	for _, msg := range s.Messages {
+		found := false
+
+		for _, search := range searches {
+			if msg.ID == search.ID {
+				found = true
+				lastIndex = len(newMessages) - 1
+
+				break
+			}
+		}
+
+		if !found {
+			newMessages = append(newMessages, msg)
+		}
+	}
+
+	if lastIndex >= len(s.Messages)-1 {
+		newMessages = append(newMessages, replacements...)
+	} else {
+		tempMessages := append([]*Message{}, newMessages[:lastIndex+1]...)
+		tempMessages = append(tempMessages, replacements...)
+		tempMessages = append(tempMessages, newMessages[lastIndex+1:]...)
+		newMessages = tempMessages
+	}
+
+	s.Messages = newMessages
+}
