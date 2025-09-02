@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"math/rand/v2"
 	"strings"
 	"time"
 
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/cneill/smoke/pkg/utils"
 )
 
 type Message struct {
@@ -49,7 +49,7 @@ func NewMessage(opts ...MessageOpt) *Message {
 	now := time.Now()
 
 	msg := &Message{
-		ID:      utils.RandID(),
+		ID:      randID(),
 		Added:   now,
 		Updated: now,
 	}
@@ -298,4 +298,16 @@ func WithIsFinalized(isFinalized bool) MessageOpt {
 		message.IsFinalized = isFinalized
 		return message
 	}
+}
+
+const idChars = "abcdef0123456789"
+
+// randID returns a random 16-character hex string
+func randID() string {
+	output := []byte{}
+	for range 16 {
+		output = append(output, idChars[rand.IntN(len(idChars))]) //nolint:gosec
+	}
+
+	return string(output)
 }

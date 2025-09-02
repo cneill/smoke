@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/fs"
-	"github.com/cneill/smoke/pkg/utils"
+	"github.com/cneill/smoke/pkg/tools/formatting"
 )
 
 const (
@@ -258,7 +258,7 @@ func (r *ReplaceLinesTool) generateContextOutput(filePath string, startLine, end
 		contextLinesSlice = newLines[contextStartIdx:contextEndIdx]
 	}
 
-	contextOutput := utils.WithLineNumbers(contextLinesSlice, contextStart)
+	contextOutput := formatting.WithLineNumbers(contextLinesSlice, contextStart)
 
 	// Create summary message
 	var summary string

@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/cneill/smoke/pkg/fs"
-	"github.com/cneill/smoke/pkg/utils"
+	"github.com/cneill/smoke/pkg/tools/formatting"
 )
 
 const (
@@ -205,7 +205,7 @@ iterloop:
 	for _, result := range matches {
 		lines := bytes.Split(result.file.contents, []byte("\n"))
 		matchedLines := lines[result.declInfo.startPos.Line-1 : result.declInfo.endPos.Line]
-		content := utils.WithLineNumbers(matchedLines, result.declInfo.startPos.Line)
+		content := formatting.WithLineNumbers(matchedLines, result.declInfo.startPos.Line)
 
 		relPath, err := filepath.Rel(g.ProjectPath, result.file.path)
 		if err == nil {

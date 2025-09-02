@@ -1,12 +1,11 @@
-package utils_test
+package formatting_test
 
 import (
 	"bytes"
 	"strings"
 	"testing"
 
-	"github.com/cneill/smoke/pkg/utils"
-
+	"github.com/cneill/smoke/pkg/tools/formatting"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,9 +52,9 @@ func TestWithLineNumbers(t *testing.T) {
 
 			lines := bytes.Split([]byte(test.content), []byte("\n"))
 
-			result := utils.WithLineNumbers(lines)
+			result := formatting.WithLineNumbers(lines)
 			if test.start > 0 {
-				result = utils.WithLineNumbers(lines, test.start)
+				result = formatting.WithLineNumbers(lines, test.start)
 			}
 
 			if len(test.expected) > 0 {

@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/cneill/smoke/pkg/fs"
-	"github.com/cneill/smoke/pkg/utils"
+	"github.com/cneill/smoke/pkg/tools/formatting"
 )
 
 const (
@@ -135,7 +135,7 @@ func (r *ReadFileTool) Run(_ context.Context, args Args) (string, error) { //nol
 		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileStartLine)
 	}
 
-	output := utils.WithLineNumbers(lines[start-1:end], int(start))
+	output := formatting.WithLineNumbers(lines[start-1:end], int(start))
 
 	return string(output), nil
 }
