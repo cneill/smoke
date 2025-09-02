@@ -416,6 +416,7 @@ func (m *Model) handleCommandCompletion(msg tea.KeyMsg) tea.Cmd {
 	options := m.commandCompleter(cmdPart)
 
 	if len(options) == 0 {
+		m.suggestedCompletionText = ""
 		return nil
 	}
 
