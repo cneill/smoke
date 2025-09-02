@@ -331,6 +331,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 
+	// catch an escape key when waiting to abort request; if not escape, continue
 	if m.waiting {
 		if cmd := m.handleWaitingKey(keyMsg); cmd != nil {
 			return cmd
@@ -380,10 +381,15 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		return m.handleCommandCompletion(keyMsg)
 	}
 
-	newTextarea, cmd := m.textarea.Update(keyMsg)
-	m.textarea = newTextarea
+	// don't send key updates to the textarea when scrolling the history viewport
+	if m.Focused() && !m.waiting {
+		newTextarea, cmd := m.textarea.Update(keyMsg)
+		m.textarea = newTextarea
 
-	return cmd
+		return cmd
+	}
+
+	return nil
 }
 
 func (m *Model) setMode(newMode mode) {
