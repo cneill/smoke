@@ -248,7 +248,7 @@ func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, 
 
 	if httpResp.StatusCode != http.StatusOK {
 		buf := &bytes.Buffer{}
-		limitedReader := io.LimitReader(httpResp.Body, 1024*2014)
+		limitedReader := io.LimitReader(httpResp.Body, 1024*2048)
 		_, _ = buf.ReadFrom(limitedReader)
 
 		return nil, fmt.Errorf("streaming response error: %d %s, body: %s", httpResp.StatusCode, httpResp.Status, buf.String())
