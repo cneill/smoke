@@ -218,6 +218,7 @@ func (l *LoadHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		PromptCommand: l.promptCommand,
 		Session:       loaded,
 		Message:       "Loaded session from file " + l.Path + ".",
+		ResetHistory:  true,
 	}
 
 	return update.Cmd(), nil
