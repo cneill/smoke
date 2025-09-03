@@ -179,12 +179,7 @@ func (g *Grok) HandleToolCalls(ctx context.Context, msg *llms.Message, session *
 			toolCallErr error
 		)
 
-		params, err := session.Tools.Params(name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get params for tool %q: %w", name, err)
-		}
-
-		args, err := tools.GetArgs([]byte(toolCall.Function.Arguments), params)
+		args, err := session.Tools.GetArgs(name, []byte(toolCall.Function.Arguments))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}

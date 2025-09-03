@@ -211,12 +211,7 @@ func (c *ChatGPT) HandleToolCalls(ctx context.Context, msg *llms.Message, sessio
 			toolCallErr error
 		)
 
-		params, err := session.Tools.Params(name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get params for tool %q: %w", name, err)
-		}
-
-		args, err := tools.GetArgs([]byte(toolCall.OfFunction.Function.Arguments), params)
+		args, err := session.Tools.GetArgs(name, []byte(toolCall.OfFunction.Function.Arguments))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}

@@ -1,13 +1,11 @@
 package tools
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -16,55 +14,6 @@ import (
 // retrieving these values by name based on the type they are expected to have. Args of the wrong type, or that were
 // not provided at all, return nil.
 type Args map[string]any
-
-// GetArgs takes the raw JSON bytes provided in the [llms.LLM] tool call, decodes them into an [Args] map, and validates
-// that 1) all required keys are present, 2) unknown keys are not present, 3) value types match those expected for the
-// corresponding [Param].
-// TODO: merge this into manager?
-func GetArgs(input []byte, params Params) (Args, error) {
-	result := Args{}
-
-	decoder := json.NewDecoder(bytes.NewReader(input))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&result); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidJSON, err)
-	}
-
-	allParamKeys := params.Keys()
-	seenKeys := []string{}
-	unknownKeys := []string{}
-
-	for key := range result {
-		seenKeys = append(seenKeys, key)
-
-		if !slices.Contains(allParamKeys, key) {
-			unknownKeys = append(unknownKeys, key)
-		}
-	}
-
-	if len(unknownKeys) > 0 {
-		return nil, fmt.Errorf("%w: %s", ErrUnknownKeys, strings.Join(unknownKeys, ", "))
-	}
-
-	missingKeys := []string{}
-
-	for _, key := range params.RequiredKeys() {
-		if !slices.Contains(seenKeys, key) {
-			missingKeys = append(missingKeys, key)
-		}
-	}
-
-	if len(missingKeys) > 0 {
-		return nil, fmt.Errorf("%w: %s", ErrMissingKeys, strings.Join(missingKeys, ", "))
-	}
-
-	if err := result.checkTypes(params); err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
 
 // String gives a string representation of [Args] for use in the history viewport.
 func (a Args) String() string {

@@ -323,12 +323,7 @@ func NewRunHandler(msg PromptCommandMessage) (Command, error) {
 }
 
 func (r *RunHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	params, err := session.Tools.Params(r.ToolName)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrArguments, err)
-	}
-
-	args, err := tools.GetArgs([]byte(r.RawArgs), params)
+	args, err := session.Tools.GetArgs(r.ToolName, []byte(r.RawArgs))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrArguments, err)
 	}

@@ -1,9 +1,13 @@
 package tools
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
+	"strings"
 	"sync"
 )
 
@@ -89,7 +93,7 @@ func (m *Manager) SetTools(initializers ...Initializer) {
 	slog.Debug("setting tools", "tools", m.tools.Names())
 }
 
-func (m *Manager) Params(toolName string) (Params, error) {
+func (m *Manager) GetParams(toolName string) (Params, error) {
 	for _, tool := range m.tools {
 		if tool.Name() == toolName {
 			return tool.Params(), nil
@@ -97,6 +101,59 @@ func (m *Manager) Params(toolName string) (Params, error) {
 	}
 
 	return Params{}, ErrUnknownTool
+}
+
+// GetArgs takes the raw JSON bytes provided in the [llms.LLM] tool call, decodes them into an [Args] map, and validates
+// that 1) all required keys are present, 2) unknown keys are not present, 3) value types match those expected for the
+// corresponding [Param].
+func (m *Manager) GetArgs(toolName string, input []byte) (Args, error) {
+	params, err := m.GetParams(toolName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get params for tool %q: %w", toolName, err)
+	}
+
+	result := Args{}
+
+	decoder := json.NewDecoder(bytes.NewReader(input))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&result); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidJSON, err)
+	}
+
+	allParamKeys := params.Keys()
+	seenKeys := []string{}
+	unknownKeys := []string{}
+
+	for key := range result {
+		seenKeys = append(seenKeys, key)
+
+		if !slices.Contains(allParamKeys, key) {
+			unknownKeys = append(unknownKeys, key)
+		}
+	}
+
+	if len(unknownKeys) > 0 {
+		return nil, fmt.Errorf("%w: %s", ErrUnknownKeys, strings.Join(unknownKeys, ", "))
+	}
+
+	missingKeys := []string{}
+
+	for _, key := range params.RequiredKeys() {
+		if !slices.Contains(seenKeys, key) {
+			missingKeys = append(missingKeys, key)
+		}
+	}
+
+	if len(missingKeys) > 0 {
+		return nil, fmt.Errorf("%w: %s", ErrMissingKeys, strings.Join(missingKeys, ", "))
+	}
+
+	if err := result.checkTypes(params); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // CallTool finds the [Tool] with the name 'toolName' (if known, otherwise returns ErrUnknownTool), and calls it with

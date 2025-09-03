@@ -247,12 +247,7 @@ func (c *Claude) HandleToolCalls(ctx context.Context, msg *llms.Message, session
 			toolCallErr error
 		)
 
-		params, err := session.Tools.Params(name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get params for tool %q: %w", name, err)
-		}
-
-		args, err := tools.GetArgs([]byte(toolCall.Input), params)
+		args, err := session.Tools.GetArgs(name, []byte(toolCall.Input))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get args for tool %q: %w", name, err)
 		}
