@@ -40,8 +40,7 @@ type Model struct {
 	mdRenderer *glamour.TermRenderer
 
 	initContent string
-	// log         []any
-	log *Log
+	log         *Log
 
 	pendingG  bool
 	lastGTime time.Time
@@ -128,34 +127,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.viewport.GotoBottom()
 		}
 	case tea.KeyMsg:
-		// Handle VIM-like scrolling commands
-		switch msg.String() {
-		case "G":
-			m.viewport.GotoBottom()
-			m.pendingG = false
-
-			return m, nil
-		case "g":
-			if m.pendingG && time.Since(m.lastGTime) <= time.Second {
-				m.viewport.GotoTop()
-				m.pendingG = false
-
-				return m, nil
-			}
-
-			m.pendingG = true
-			m.lastGTime = time.Now()
-
-			return m, nil
-		default:
-			m.pendingG = false
-
-			var cmd tea.Cmd
-
-			m.viewport, cmd = m.viewport.Update(msg)
-
-			return m, cmd
-		}
+		return m, m.handleKeyMsg(msg)
 
 	default:
 		var cmd tea.Cmd
@@ -170,6 +142,50 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	return m.viewport.View()
+}
+
+func (m *Model) Resize(width, height int) {
+	m.viewport.Width = width
+	m.viewport.Height = height
+
+	// TODO: figure out how to make this reasonably performant....
+	// newRenderer, err := getGlamourRenderer(width)
+	// if err == nil {
+	// 	m.mdRenderer.Close()
+	// 	m.mdRenderer = newRenderer
+	// }
+}
+
+func (m *Model) GetWidth() int {
+	return m.viewport.Width
+}
+
+func (m *Model) GetHeight() int {
+	return m.viewport.Height
+}
+
+func (m *Model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
+	var cmd tea.Cmd
+
+	// Handle VIM-like scrolling commands
+	switch msg.String() {
+	case "G":
+		m.viewport.GotoBottom()
+		m.pendingG = false
+	case "g":
+		if m.pendingG && time.Since(m.lastGTime) <= time.Second {
+			m.viewport.GotoTop()
+			m.pendingG = false
+		} else {
+			m.lastGTime = time.Now()
+			m.pendingG = true
+		}
+	default:
+		m.pendingG = false
+		m.viewport, cmd = m.viewport.Update(msg)
+	}
+
+	return cmd
 }
 
 func (m *Model) logContent() string {
@@ -188,75 +204,9 @@ func (m *Model) logContent() string {
 
 		switch item := item.(type) {
 		case *llms.Message:
-			info.content = item.Content
-			info.subtitle = item.Added.Format(time.DateTime)
-
-			switch item.Role {
-			case llms.RoleUser:
-				info.title = "👤 User"
-				info.titleStyle = info.titleStyle.
-					Foreground(lipgloss.Color("#0087ff"))
-				info.useMarkdown = true
-			case llms.RoleAssistant:
-				info.title = fmt.Sprintf("🤖 %s (%s)", item.LLMInfo.Type, item.LLMInfo.ModelName)
-				info.titleStyle = info.titleStyle.
-					Foreground(lipgloss.Color("#00af00"))
-				info.useMarkdown = true
-
-				if len(item.ToolsCalled) > 0 {
-					info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(item.ToolsCalled, ", "))
-				}
-			case llms.RoleTool:
-				info.title = "🔧 Tool"
-				info.titleStyle = info.titleStyle.
-					Foreground(lipgloss.Color("#00afaf"))
-
-				if len(item.ToolsCalled) > 0 {
-					info.content = fmt.Sprintf("\nTool call args: %s\n", item.ToolCallArgs.String()) + info.content
-					info.content = fmt.Sprintf("\nTools called: %s\n", strings.Join(item.ToolsCalled, ", ")) + info.content
-				}
-			case llms.RoleSystem:
-				info.title = "🖥️ System"
-				info.titleStyle = info.titleStyle.
-					Foreground(lipgloss.Color("#af00af"))
-			case llms.RoleUnknown:
-				info.title = "❓ UNKNOWN ROLE"
-				info.titleStyle = info.titleStyle.
-					Foreground(lipgloss.Color("#af0000"))
-			}
-
-		case commands.HistoryUpdateMessage:
-			info.title = item.PromptCommand.Command + " command result"
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#dd9911"))
-			info.content = item.Message
-
-		case commands.SessionUpdateMessage:
-			// TODO: bounds-check?
-			switch item.PromptCommand.Command {
-			case commands.CommandSession:
-				info.title = "Started new session"
-			case commands.CommandLoad:
-				info.title = "Loaded session from file " + item.PromptCommand.Args[0]
-			default:
-				info.title = "Updated session"
-			}
-
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#ffffff"))
-			info.content = item.Message
-
-		case commands.PlanningModeMessage:
-			if item.Enabled {
-				info.titleStyle = info.titleStyle.
-					Foreground(lipgloss.Color("#550011"))
-			} else {
-				info.titleStyle = info.titleStyle.
-					Foreground(lipgloss.Color("#005511"))
-			}
-
-			info.title = "Planning mode"
-			info.subtitle = item.Message
+			info = renderLLMMessage(item, info)
+		case commands.HistoryUpdateMessage, commands.SessionUpdateMessage, commands.PlanningModeMessage:
+			info = renderCommandMessage(item, info)
 
 		case error:
 			info.title = "⛔ Error"
@@ -278,6 +228,91 @@ func (m *Model) logContent() string {
 	return builder.String()
 }
 
+func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
+	info.content = msg.Content
+	info.subtitle = msg.Added.Format(time.DateTime)
+
+	switch msg.Role {
+	case llms.RoleUser:
+		info.title = "👤 User"
+		info.titleStyle = info.titleStyle.
+			Foreground(lipgloss.Color("#0087ff"))
+		info.useMarkdown = true
+	case llms.RoleAssistant:
+		info.title = fmt.Sprintf("🤖 %s (%s)", msg.LLMInfo.Type, msg.LLMInfo.ModelName)
+		info.titleStyle = info.titleStyle.
+			Foreground(lipgloss.Color("#00af00"))
+		info.useMarkdown = true
+
+		if len(msg.ToolsCalled) > 0 {
+			info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolsCalled, ", "))
+		}
+	case llms.RoleTool:
+		info.title = "🔧 Tool"
+		info.titleStyle = info.titleStyle.
+			Foreground(lipgloss.Color("#00afaf"))
+
+		if len(msg.ToolsCalled) > 0 {
+			info.content = fmt.Sprintf("\nTool call args: %s\n", msg.ToolCallArgs.String()) + info.content
+			info.content = fmt.Sprintf("\nTools called: %s\n", strings.Join(msg.ToolsCalled, ", ")) + info.content
+		}
+	case llms.RoleSystem:
+		info.title = "🖥️ System"
+		info.titleStyle = info.titleStyle.
+			Foreground(lipgloss.Color("#af00af"))
+	case llms.RoleUnknown:
+		info.title = "❓ UNKNOWN ROLE"
+		info.titleStyle = info.titleStyle.
+			Foreground(lipgloss.Color("#af0000"))
+	}
+
+	return info
+}
+
+func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
+	switch msg := msg.(type) {
+	case commands.HistoryUpdateMessage:
+		info.title = msg.PromptCommand.Command + " command result"
+		info.titleStyle = info.titleStyle.
+			Foreground(lipgloss.Color("#dd9911"))
+		info.content = msg.Message
+
+	case commands.SessionUpdateMessage:
+		switch msg.PromptCommand.Command {
+		case commands.CommandSession:
+			info.title = "Started new session"
+		case commands.CommandLoad:
+			sessionFile := "<unknown>"
+
+			if len(msg.PromptCommand.Args) > 0 {
+				sessionFile = msg.PromptCommand.Args[0]
+			}
+
+			info.title = "Loaded session from file " + sessionFile
+		default:
+			info.title = "Updated session"
+		}
+
+		info.titleStyle = info.titleStyle.
+			Foreground(lipgloss.Color("#ffffff"))
+		info.content = msg.Message
+
+	case commands.PlanningModeMessage:
+		if msg.Enabled {
+			info.titleStyle = info.titleStyle.
+				Foreground(lipgloss.Color("#550011"))
+		} else {
+			info.titleStyle = info.titleStyle.
+				Foreground(lipgloss.Color("#005511"))
+		}
+
+		info.title = "Planning mode"
+		info.subtitle = msg.Message
+	}
+
+	return info
+}
+
 type bubbleInfo struct {
 	title         string
 	titleStyle    lipgloss.Style
@@ -285,26 +320,6 @@ type bubbleInfo struct {
 	subtitleStyle lipgloss.Style
 	content       string
 	useMarkdown   bool
-}
-
-func (m *Model) Resize(width, height int) {
-	m.viewport.Width = width
-	m.viewport.Height = height
-
-	// TODO: figure out how to make this reasonably performant....
-	// newRenderer, err := getGlamourRenderer(width)
-	// if err == nil {
-	// 	m.mdRenderer.Close()
-	// 	m.mdRenderer = newRenderer
-	// }
-}
-
-func (m *Model) GetWidth() int {
-	return m.viewport.Width
-}
-
-func (m *Model) GetHeight() int {
-	return m.viewport.Height
 }
 
 // renderBubble displays messages and errors with a nice title/subtitle bubble before the item's content. It word-wraps
