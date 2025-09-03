@@ -73,7 +73,7 @@ func (m *Message) OK() error {
 		return fmt.Errorf("message is missing ID")
 	case m.Role == "":
 		return fmt.Errorf("message is missing role")
-	case m.IsStreamed && (!m.IsInitial || !m.IsChunk || !m.IsFinalized):
+	case m.IsStreamed && !m.IsInitial && !m.IsChunk && !m.IsFinalized:
 		return fmt.Errorf("message is marked as streamed but without other details")
 	case m.IsChunk && m.IsFinalized:
 		return fmt.Errorf("message is marked as chunk AND final - must be one or the other")
