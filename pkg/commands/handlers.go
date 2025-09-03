@@ -269,6 +269,7 @@ func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		historyMessage string
 	)
 
+	// TODO: move to prompts package
 	if p.Enabled {
 		sessionMessage = "!!IMPORTANT!! You are now in planning mode. Refer to `plan_process` and do not proceed to " +
 			"`work_process` until you have exited planning mode."
@@ -281,7 +282,9 @@ func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 	msg := llms.SimpleMessage(llms.RoleUser, sessionMessage)
 
-	session.AddMessage(msg)
+	if err := session.AddMessage(msg); err != nil {
+		return nil, fmt.Errorf("failed to add plan message: %w", err)
+	}
 
 	update := PlanningModeMessage{
 		PromptCommand:  p.promptCommand,
@@ -336,7 +339,9 @@ func (r *RunHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	msg := llms.SimpleMessage(llms.RoleUser, output)
-	session.AddMessage(msg)
+	if err := session.AddMessage(msg); err != nil {
+		return nil, fmt.Errorf("failed to add run message: %w", err)
+	}
 
 	updateMsg := fmt.Sprintf("User called tool %q with args %q:\n\n%s\n", r.ToolName, r.RawArgs, output)
 
@@ -555,7 +560,9 @@ func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	userMsg := llms.SimpleMessage(llms.RoleUser, prompts.Summarize)
-	newSession.AddMessage(userMsg)
+	if err := newSession.AddMessage(userMsg); err != nil {
+		return nil, fmt.Errorf("failed to add summarization prompt: %w", err)
+	}
 
 	send := SendSessionMessage{
 		PromptCommand:    s.promptCommand,

@@ -83,11 +83,17 @@ func (s *Session) SetSystemMessage(system string) {
 }
 
 // AddMessage adds an existing Message to the Session as-is.
-func (s *Session) AddMessage(msg *Message) {
+func (s *Session) AddMessage(msg *Message) error {
+	if err := msg.OK(); err != nil {
+		return fmt.Errorf("failed to add message to session: %w", err)
+	}
+
 	s.messageMutex.Lock()
 	defer s.messageMutex.Unlock()
 
 	s.Messages = append(s.Messages, msg)
+
+	return nil
 }
 
 // LastByRole returns the most recent message from the specified Role, or nil if there are none.

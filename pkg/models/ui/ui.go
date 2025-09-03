@@ -280,7 +280,12 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 		commands = append(commands, cmd)
 		commands = append(commands, m.chunkListener())
 	} else {
-		if cmd := m.smoke.SendUserMessage(llmMessage); cmd != nil {
+		cmd, err := m.smoke.SendUserMessage(llmMessage)
+		if err != nil {
+			return updateHistory(err)
+		}
+
+		if cmd != nil {
 			commands = append(commands, cmd)
 		}
 	}
@@ -332,7 +337,12 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 			commands = append(commands, updateHistory(message))
 		}
 
-		if cmd := m.smoke.HandleToolCallResults(response.Messages); cmd != nil {
+		cmd, err := m.smoke.HandleToolCallResults(response.Messages)
+		if err != nil {
+			return updateHistory(err)
+		}
+
+		if cmd != nil {
 			commands = append(commands, cmd)
 		}
 	}

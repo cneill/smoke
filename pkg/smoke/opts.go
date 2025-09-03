@@ -105,7 +105,10 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 		}
 
 		if llm.RequiresSessionSystem() {
-			smoke.session.AddMessage(llms.SimpleMessage(llms.RoleSystem, smoke.session.SystemMessage))
+			systemMsg := llms.SimpleMessage(llms.RoleSystem, smoke.session.SystemMessage)
+			if err := smoke.session.AddMessage(systemMsg); err != nil {
+				return nil, fmt.Errorf("failed to add system message: %w", err)
+			}
 		}
 
 		smoke.llm = llm

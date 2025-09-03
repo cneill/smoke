@@ -110,6 +110,7 @@ func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.
 	}
 
 	msg := c.newMessage(
+		llms.WithID(response.ID),
 		llms.WithRole(llms.RoleAssistant),
 		llms.WithContent(textBuilder.String()),
 		llms.WithToolsCalled(toolCallNames...),

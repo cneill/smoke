@@ -24,7 +24,7 @@ type Message struct {
 	// ToolsCalled contains the names of tools the assistant requested to use.
 	ToolsCalled []string `json:"tools_called,omitempty"`
 	// ToolCallInfo contains the raw representation of the tool call information from the assistant.
-	// TODO: hide this?
+	// TODO: hide this in JSON marshalling?
 	ToolCallInfo any `json:"tool_call_info,omitempty,omitzero"`
 
 	// ToolCallID is the ID associated with the assistant's tool use request.
@@ -68,18 +68,20 @@ func SimpleMessage(role Role, content string) *Message {
 	)
 }
 
-func ChunkMessage(role Role, id, content string) *Message {
-	return NewMessage(
-		WithID(id),
-		WithRole(role),
-		WithContent(content),
-		WithIsStreamed(true),
-		WithIsInitial(true),
-		WithIsChunk(true),
-	)
-}
+func (m *Message) OK() error {
+	switch {
+	case m.ID == "":
+		return fmt.Errorf("message is missing ID")
+	case m.Role == "":
+		return fmt.Errorf("message is missing role")
+	case m.IsStreamed && (!m.IsInitial || !m.IsChunk || !m.IsFinalized):
+		return fmt.Errorf("message is marked as streamed but without other details")
+	case m.IsChunk && m.IsFinalized:
+		return fmt.Errorf("message is marked as chunk AND final - must be one or the other")
+	}
 
-// TODO: add OK() method
+	return nil
+}
 
 func (m *Message) Clone() *Message {
 	newMessage := Message{

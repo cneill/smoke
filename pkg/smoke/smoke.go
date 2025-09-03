@@ -65,8 +65,10 @@ func New(opts ...OptFunc) (*Smoke, error) {
 
 // SendUserMessage appends 'msg' to the current [*llms.Session], invokes the [llms.LLM] to send that session to the
 // provider, then adds the response to the session as well.
-func (s *Smoke) SendUserMessage(msg *llms.Message) tea.Cmd {
-	s.session.AddMessage(msg)
+func (s *Smoke) SendUserMessage(msg *llms.Message) (tea.Cmd, error) {
+	if err := s.session.AddMessage(msg); err != nil {
+		return nil, fmt.Errorf("failed to add user message: %w", err)
+	}
 
 	send := func() tea.Msg {
 		// TODO: WithTimeout?
@@ -89,12 +91,14 @@ func (s *Smoke) SendUserMessage(msg *llms.Message) tea.Cmd {
 			return AssistantResponseMessage{Err: fmt.Errorf("failed to send session with user message: %w", err)}
 		}
 
-		s.session.AddMessage(response)
+		if err := s.session.AddMessage(response); err != nil {
+			return AssistantResponseMessage{Err: fmt.Errorf("failed to add assistant response message: %w", err)}
+		}
 
 		return AssistantResponseMessage{Message: response}
 	}
 
-	return send
+	return send, nil
 }
 
 func (s *Smoke) SendUserMessageStreaming(msg *llms.Message, chunkChan chan *llms.Message) (tea.Cmd, error) {
@@ -103,7 +107,9 @@ func (s *Smoke) SendUserMessageStreaming(msg *llms.Message, chunkChan chan *llms
 		return nil, fmt.Errorf("streaming is not supported by this LLM (%s, %s)", s.llmConfig.Provider, s.llmConfig.Model)
 	}
 
-	s.session.AddMessage(msg)
+	if err := s.session.AddMessage(msg); err != nil {
+		return nil, fmt.Errorf("failed to add user message: %w", err)
+	}
 
 	send := func() tea.Msg {
 		slog.Debug("sending session, starting streaming")
@@ -127,7 +133,9 @@ func (s *Smoke) SendUserMessageStreaming(msg *llms.Message, chunkChan chan *llms
 			return AssistantResponseMessage{Err: fmt.Errorf("failed to send session with user message: %w", err)}
 		}
 
-		s.session.AddMessage(response)
+		if err := s.session.AddMessage(response); err != nil {
+			return AssistantResponseMessage{Err: fmt.Errorf("failed to add assistant response message: %w", err)}
+		}
 
 		return AssistantResponseMessage{Message: response}
 	}
@@ -148,7 +156,12 @@ func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
 			}
 		}
 
-		msg.Session.AddMessage(response)
+		if err := msg.Session.AddMessage(response); err != nil {
+			return SendCommandMessageResponseMessage{
+				OriginalMessage: msg,
+				Err:             fmt.Errorf("failed to add assistant response from command run: %w", err),
+			}
+		}
 
 		return SendCommandMessageResponseMessage{
 			OriginalMessage: msg,
@@ -206,9 +219,11 @@ func (s *Smoke) HandleAssistantToolCalls(msg *llms.Message) (tea.Cmd, error) {
 // HandleToolCallResults receives the slice of [*llms.Message] resulting from one or more tool calls by the [llms.LLM],
 // adds these to the current [*llms.Session], and sends the session to the provider. It then appends the response to the
 // current session.
-func (s *Smoke) HandleToolCallResults(messages []*llms.Message) tea.Cmd {
-	for _, message := range messages {
-		s.session.AddMessage(message)
+func (s *Smoke) HandleToolCallResults(messages []*llms.Message) (tea.Cmd, error) {
+	for i, message := range messages {
+		if err := s.session.AddMessage(message); err != nil {
+			return nil, fmt.Errorf("failed to add message for tool call %d: %w", i, err)
+		}
 	}
 
 	handle := func() tea.Msg {
@@ -232,12 +247,14 @@ func (s *Smoke) HandleToolCallResults(messages []*llms.Message) tea.Cmd {
 			return AssistantResponseMessage{Err: fmt.Errorf("failed to send session with tool call results: %w", err)}
 		}
 
-		s.session.AddMessage(response)
+		if err := s.session.AddMessage(response); err != nil {
+			return AssistantResponseMessage{Err: fmt.Errorf("failed to add assistant response to tool call: %w", err)}
+		}
 
 		return AssistantResponseMessage{Message: response}
 	}
 
-	return handle
+	return handle, nil
 }
 
 // GetMessages returns the set of all [*llms.Message] attached to the current [*llms.Session]

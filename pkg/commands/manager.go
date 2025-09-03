@@ -20,16 +20,15 @@ func NewManager(projectPath string) *Manager {
 	return &Manager{
 		ProjectPath: projectPath,
 		Commands: map[string]Initializer{
-			CommandEdit:    NewEditHandler,
-			CommandExit:    NewExitHandler,
-			CommandExport:  NewExportHandler,
-			CommandLoad:    NewLoadHandler,
-			CommandPlan:    NewPlanHandler,
-			CommandRun:     NewRunHandler,
-			CommandSave:    NewSaveHandler,
-			CommandSession: NewSessionHandler,
-			CommandInfo:    NewInfoHandler,
-			// TODO: uncomment when fleshed out
+			CommandEdit:      NewEditHandler,
+			CommandExit:      NewExitHandler,
+			CommandExport:    NewExportHandler,
+			CommandLoad:      NewLoadHandler,
+			CommandPlan:      NewPlanHandler,
+			CommandRun:       NewRunHandler,
+			CommandSave:      NewSaveHandler,
+			CommandSession:   NewSessionHandler,
+			CommandInfo:      NewInfoHandler,
 			CommandSummarize: NewSummarizeHandler,
 		},
 	}

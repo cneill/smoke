@@ -73,11 +73,6 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 
 	result, err := c.client.Chat.Completions.New(ctx, options, option.WithMaxRetries(5))
 	if err != nil {
-		// TODO: remove this
-		for i, msg := range options.Messages {
-			slog.Error("completion failed", "message_num", i, "message", msg)
-		}
-
 		return nil, fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
@@ -96,6 +91,7 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 	response := result.Choices[0].Message
 
 	msg := c.newMessage(
+		llms.WithID(result.ID),
 		llms.WithRole(llms.RoleAssistant),
 		llms.WithContent(response.Content),
 		llms.WithToolsCalled(c.getToolCallNames(response.ToolCalls)...),
@@ -254,7 +250,6 @@ func (c *ChatGPT) HandleToolCalls(ctx context.Context, msg *llms.Message, sessio
 }
 
 func (c *ChatGPT) newMessage(opts ...llms.MessageOpt) *llms.Message {
-	// TODO: Refactor
 	msg := llms.NewMessage(
 		llms.WithLLMInfo(c.LLMInfo()),
 	)
