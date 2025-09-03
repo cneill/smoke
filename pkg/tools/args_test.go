@@ -70,67 +70,82 @@ func TestArgs_GetString(t *testing.T) {
 	}
 }
 
-func TestArgs_GetInt64(t *testing.T) { //nolint:funlen
+func TestArgs_GetInt_and_GetInt64(t *testing.T) { //nolint:funlen
 	t.Parallel()
+
+	intPtr := func(input int) *int {
+		return &input
+	}
 
 	int64Ptr := func(input int64) *int64 {
 		return &input
 	}
 
 	tests := []struct {
-		name     string
-		args     tools.Args
-		expected *int64
+		name          string
+		args          tools.Args
+		expectedInt   *int
+		expectedInt64 *int64
 	}{
 		{
-			name:     "nil",
-			args:     nil,
-			expected: nil,
+			name:          "nil",
+			args:          nil,
+			expectedInt:   nil,
+			expectedInt64: nil,
 		},
 		{
-			name:     "empty",
-			args:     tools.Args{},
-			expected: nil,
+			name:          "empty",
+			args:          tools.Args{},
+			expectedInt:   nil,
+			expectedInt64: nil,
 		},
 		{
-			name:     "bool",
-			args:     tools.Args{testKey: true},
-			expected: nil,
+			name:          "bool",
+			args:          tools.Args{testKey: true},
+			expectedInt:   nil,
+			expectedInt64: nil,
 		},
 		{
-			name:     "float_str",
-			args:     tools.Args{testKey: "1.2"},
-			expected: nil,
+			name:          "float_str",
+			args:          tools.Args{testKey: "1.2"},
+			expectedInt:   nil,
+			expectedInt64: nil,
 		},
 		{
-			name:     "garbage_str",
-			args:     tools.Args{testKey: "garbage"},
-			expected: nil,
+			name:          "garbage_str",
+			args:          tools.Args{testKey: "garbage"},
+			expectedInt:   nil,
+			expectedInt64: nil,
 		},
 		{
-			name:     "int",
-			args:     tools.Args{testKey: int(1)},
-			expected: int64Ptr(1),
+			name:          "json_number_float",
+			args:          tools.Args{testKey: json.Number("1.5")},
+			expectedInt:   nil,
+			expectedInt64: nil,
 		},
 		{
-			name:     "int64",
-			args:     tools.Args{testKey: int64(1)},
-			expected: int64Ptr(1),
+			name:          "int",
+			args:          tools.Args{testKey: int(1)},
+			expectedInt:   intPtr(1),
+			expectedInt64: int64Ptr(1),
 		},
 		{
-			name:     "string",
-			args:     tools.Args{testKey: "1"},
-			expected: int64Ptr(1),
+			name:          "int64",
+			args:          tools.Args{testKey: int64(1)},
+			expectedInt:   intPtr(1),
+			expectedInt64: int64Ptr(1),
 		},
 		{
-			name:     "json_number_int",
-			args:     tools.Args{testKey: json.Number("1")},
-			expected: int64Ptr(1),
+			name:          "string",
+			args:          tools.Args{testKey: "1"},
+			expectedInt:   intPtr(1),
+			expectedInt64: int64Ptr(1),
 		},
 		{
-			name:     "json_number_float",
-			args:     tools.Args{testKey: json.Number("1.5")},
-			expected: nil,
+			name:          "json_number_int",
+			args:          tools.Args{testKey: json.Number("1")},
+			expectedInt:   intPtr(1),
+			expectedInt64: int64Ptr(1),
 		},
 	}
 
@@ -138,13 +153,11 @@ func TestArgs_GetInt64(t *testing.T) { //nolint:funlen
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := test.args.GetInt64(testKey)
+			intResult := test.args.GetInt(testKey)
+			int64Result := test.args.GetInt64(testKey)
 
-			assert.Equal(t, test.expected == nil, result == nil)
-
-			if test.expected != nil && result != nil {
-				assert.Equal(t, *test.expected, *result)
-			}
+			assert.Equal(t, test.expectedInt, intResult, "unexpected int value")
+			assert.Equal(t, test.expectedInt64, int64Result, "unexpected int64 value")
 		})
 	}
 }

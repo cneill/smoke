@@ -53,40 +53,14 @@ func (a Args) GetString(key string) *string {
 // handles it appropriately to return an int. If the int64 value can't be safely converted to an int, or if the type is
 // not a reasonable one for an int, it returns nil.
 func (a Args) GetInt(key string) *int {
-	val, hasKey := a[key]
-	if !hasKey {
+	int64Val := a.GetInt64(key)
+	if int64Val == nil {
+		return nil
+	} else if *int64Val < math.MinInt || *int64Val > math.MaxInt {
 		return nil
 	}
 
-	var (
-		int64Val int64
-		err      error
-	)
-
-	switch val := val.(type) {
-	case json.Number:
-		int64Val, err = val.Int64()
-		if err != nil {
-			return nil
-		}
-	case int64:
-		int64Val = val
-	case string:
-		int64Val, err = strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return nil
-		}
-	case int:
-		return &val
-	default:
-		return nil
-	}
-
-	if int64Val < math.MinInt || int64Val > math.MaxInt {
-		return nil
-	}
-
-	intVal := int(int64Val)
+	intVal := int(*int64Val)
 
 	return &intVal
 }
