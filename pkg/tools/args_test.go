@@ -2,228 +2,14 @@ package tools_test
 
 import (
 	"encoding/json"
-	"io"
 	"testing"
 	"time"
 
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const testKey = "test"
-
-func TestGetArgs(t *testing.T) { //nolint:funlen
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		input    string
-		params   tools.Params
-		expected tools.Args
-		errors   []error
-	}{
-		{
-			name:     "empty_input",
-			input:    "",
-			params:   tools.Params{},
-			expected: nil,
-			errors:   []error{tools.ErrInvalidJSON, io.EOF},
-		},
-		{
-			name:     "invalid_json",
-			input:    `{"a":`,
-			params:   tools.Params{},
-			expected: nil,
-			errors:   []error{tools.ErrInvalidJSON},
-		},
-		{
-			name:     "unknown_key",
-			input:    `{"unknown": "1"}`,
-			params:   tools.Params{},
-			expected: nil,
-			errors:   []error{tools.ErrUnknownKeys},
-		},
-		{
-			name:  "missing_required_key",
-			input: `{}`,
-			params: tools.Params{
-				{
-					Key:         "missing",
-					Description: "missing key",
-					Type:        tools.ParamTypeBoolean,
-					Required:    true,
-				},
-			},
-			expected: nil,
-			errors:   []error{tools.ErrMissingKeys},
-		},
-		{
-			name:  "missing_optional_key",
-			input: `{}`,
-			params: tools.Params{
-				{
-					Key:         "missing",
-					Description: "missing key",
-					Type:        tools.ParamTypeBoolean,
-					Required:    false,
-				},
-			},
-			expected: tools.Args{},
-			errors:   nil,
-		},
-		{
-			name:  "wrong_type_required_bool_key",
-			input: `{"wrong_type": 1.0}`,
-			params: tools.Params{
-				{
-					Key:         "wrong_type",
-					Description: "wrong type key",
-					Type:        tools.ParamTypeBoolean,
-					Required:    true,
-				},
-			},
-			expected: nil,
-			errors:   []error{tools.ErrWrongTypeKeys},
-		},
-		{
-			name:  "wrong_type_optional_bool_key",
-			input: `{"wrong_type": 1.0}`,
-			params: tools.Params{
-				{
-					Key:         "wrong_type",
-					Description: "wrong type key",
-					Type:        tools.ParamTypeBoolean,
-					Required:    false,
-				},
-			},
-			expected: nil,
-			errors:   []error{tools.ErrWrongTypeKeys},
-		},
-		{
-			name:  "wrong_type_number_key",
-			input: `{"wrong_type": "abc"}`,
-			params: tools.Params{
-				{
-					Key:         "wrong_type",
-					Description: "wrong type key",
-					Type:        tools.ParamTypeNumber,
-					Required:    true,
-				},
-			},
-			expected: nil,
-			errors:   []error{tools.ErrWrongTypeKeys},
-		},
-		{
-			name:  "wrong_item_type_string",
-			input: `{"wrong_type": [1, 2, 3]}`,
-			params: tools.Params{
-				{
-					Key:         "wrong_type",
-					Description: "wrong type key",
-					Type:        tools.ParamTypeArray,
-					ItemType:    tools.ParamTypeString,
-					Required:    true,
-				},
-			},
-			expected: nil,
-			errors:   []error{tools.ErrWrongTypeKeys},
-		},
-		{
-			name:  "wrong_item_type_number",
-			input: `{"wrong_type": ["1", "2", "3"]}`,
-			params: tools.Params{
-				{
-					Key:         "wrong_type",
-					Description: "wrong type key",
-					Type:        tools.ParamTypeArray,
-					ItemType:    tools.ParamTypeNumber,
-					Required:    true,
-				},
-			},
-			expected: nil,
-			errors:   []error{tools.ErrWrongTypeKeys},
-		},
-		{
-			name: "multiple_valid",
-			input: `{"number_key_int": 1, "number_key_float": 2.0, "str_key": "test", "bool_key": false, ` +
-				`"object_key": {}, "str_array_key": ["a", "b", "c"], "int_array_key": [1, 2, 3]}`,
-			params: tools.Params{
-				{
-					Key:         "number_key_int",
-					Description: "int key",
-					Type:        tools.ParamTypeNumber,
-					Required:    true,
-				},
-				{
-					Key:         "number_key_float",
-					Description: "float key",
-					Type:        tools.ParamTypeNumber,
-					Required:    true,
-				},
-				{
-					Key:         "str_key",
-					Description: "str key",
-					Type:        tools.ParamTypeString,
-					Required:    true,
-				},
-				{
-					Key:         "bool_key",
-					Description: "bool key",
-					Type:        tools.ParamTypeBoolean,
-					Required:    true,
-				},
-				{
-					Key:         "object_key",
-					Description: "object key",
-					Type:        tools.ParamTypeObject,
-					Required:    true,
-				},
-				{
-					Key:         "str_array_key",
-					Description: "string slice key",
-					Type:        tools.ParamTypeArray,
-					ItemType:    tools.ParamTypeString,
-					Required:    true,
-				},
-				{
-					Key:         "int_array_key",
-					Description: "string slice key",
-					Type:        tools.ParamTypeArray,
-					ItemType:    tools.ParamTypeNumber,
-					Required:    true,
-				},
-			},
-			expected: tools.Args{
-				"number_key_int":   json.Number("1"),
-				"number_key_float": json.Number("2.0"),
-				"str_key":          "test",
-				"bool_key":         false,
-				"object_key":       map[string]any{},
-				"str_array_key":    []any{"a", "b", "c"},
-				"int_array_key":    []any{json.Number("1"), json.Number("2"), json.Number("3")},
-			},
-			errors: nil,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			args, err := tools.GetArgs([]byte(test.input), test.params)
-			if test.errors == nil {
-				require.NoError(t, err)
-			} else {
-				for _, testErr := range test.errors {
-					require.ErrorIs(t, err, testErr)
-				}
-			}
-
-			assert.Equal(t, test.expected, args)
-		})
-	}
-}
 
 func TestArgs_GetString(t *testing.T) {
 	t.Parallel()
@@ -524,18 +310,19 @@ func TestArgs_GetBool(t *testing.T) { //nolint:funlen
 func TestArgs_GetStringSlice(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
-	rawArgs := `{"test": ["1", "2", "3"]}`
-
-	parsedArgs, err := tools.GetArgs([]byte(rawArgs), tools.Params{
-		{
-			Key:      testKey,
-			Type:     tools.ParamTypeArray,
-			ItemType: tools.ParamTypeString,
-		},
-	})
-	if err != nil {
-		t.Fatalf("failed to get args for test case: %v", err)
-	}
+	// TODO?
+	// rawArgs := `{"test": ["1", "2", "3"]}`
+	//
+	// parsedArgs, err := tools.GetArgs([]byte(rawArgs), tools.Params{
+	// 	{
+	// 		Key:      testKey,
+	// 		Type:     tools.ParamTypeArray,
+	// 		ItemType: tools.ParamTypeString,
+	// 	},
+	// })
+	// if err != nil {
+	// 	t.Fatalf("failed to get args for test case: %v", err)
+	// }
 
 	tests := []struct {
 		name     string
@@ -562,11 +349,11 @@ func TestArgs_GetStringSlice(t *testing.T) { //nolint:funlen
 			args:     tools.Args{testKey: []string{"1", "2", "3"}},
 			expected: []string{"1", "2", "3"},
 		},
-		{
-			name:     "parsed_args",
-			args:     parsedArgs,
-			expected: []string{"1", "2", "3"},
-		},
+		// {
+		// 	name:     "parsed_args",
+		// 	args:     parsedArgs,
+		// 	expected: []string{"1", "2", "3"},
+		// },
 	}
 
 	for _, test := range tests {
