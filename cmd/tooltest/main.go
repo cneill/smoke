@@ -27,12 +27,7 @@ func run() error {
 	toolName := os.Args[2]
 	rawArgs := os.Args[3]
 
-	params, err := toolManager.Params(toolName)
-	if err != nil {
-		return fmt.Errorf("failed to get params: %w", err)
-	}
-
-	args, err := tools.GetArgs([]byte(rawArgs), params)
+	args, err := toolManager.GetArgs(toolName, []byte(rawArgs))
 	if err != nil {
 		return fmt.Errorf("failed to get args from input %q: %w", rawArgs, err)
 	}
