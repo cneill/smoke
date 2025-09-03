@@ -1,7 +1,6 @@
 package llms
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -140,12 +139,6 @@ func (m *Message) LogValue() slog.Value {
 		}
 
 		if m.ToolCallInfo != nil {
-			if tcBytes, err := json.Marshal(m.ToolCallInfo); err != nil {
-				panic(err)
-			} else {
-				slog.Debug("we marshalled the call info for logging...", "output", string(tcBytes))
-			}
-
 			toolCallAttrs = append(toolCallAttrs, slog.Any("call_info", m.ToolCallInfo))
 		}
 

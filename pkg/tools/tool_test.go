@@ -43,10 +43,12 @@ func TestAllToolDescriptions(t *testing.T) {
 			t.Parallel()
 
 			requiredKeys := params.RequiredKeys()
+
 			assert.NotEmpty(t, examples, "got zero examples for tool %s", name)
 
 			for i, example := range examples {
 				assert.NotEmpty(t, example.Description, "description for example %d from tool %s was empty", i, name)
+
 				for _, key := range requiredKeys {
 					assert.Contains(t, example.Args, key, "example %d missing required argument %s", i, key)
 				}

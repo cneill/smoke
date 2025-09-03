@@ -173,7 +173,7 @@ func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
 }
 
 func (s *Smoke) HandleCommandMessageResponse(msg SendCommandMessageResponseMessage) tea.Cmd {
-	// TODO: handle stuff other than summaries; incldue full details of original command msg/etc
+	// TODO: handle stuff other than summaries; include full details of original command msg/etc
 	last := msg.Session.LastByRole(llms.RoleAssistant)
 	slog.Debug("WE GOT A SUMMARY", "summary", last.Content, "original_message", msg.OriginalMessage)
 

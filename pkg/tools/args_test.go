@@ -307,7 +307,7 @@ func TestArgs_GetBool(t *testing.T) { //nolint:funlen
 	}
 }
 
-func TestArgs_GetStringSlice(t *testing.T) { //nolint:funlen
+func TestArgs_GetStringSlice(t *testing.T) {
 	t.Parallel()
 
 	// TODO?

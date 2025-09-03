@@ -20,11 +20,7 @@ func GetRelativePath(projectPath, targetPath string) (string, error) {
 		return "", ErrInsecureProjectPath
 	}
 
-	if strings.HasPrefix(targetPath, "..") ||
-		strings.Contains(targetPath, "../") ||
-		strings.Contains(targetPath, "..\\") ||
-		strings.Contains(targetPath, "/..") ||
-		strings.Contains(targetPath, "\\..") {
+	if hasTraversal(targetPath) {
 		return "", ErrInsecureTargetPath
 	}
 
@@ -41,4 +37,12 @@ func GetRelativePath(projectPath, targetPath string) (string, error) {
 	}
 
 	return fullPath, nil
+}
+
+func hasTraversal(targetPath string) bool {
+	return strings.HasPrefix(targetPath, "..") ||
+		strings.Contains(targetPath, "../") ||
+		strings.Contains(targetPath, "..\\") ||
+		strings.Contains(targetPath, "/..") ||
+		strings.Contains(targetPath, "\\..")
 }

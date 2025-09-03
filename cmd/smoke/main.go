@@ -44,74 +44,95 @@ const (
 )
 
 func flags() []cli.Flag {
+	flags := []cli.Flag{}
+	flags = append(flags, localConfigFlags()...)
+	flags = append(flags, llmConfigFlags()...)
+	flags = append(flags, providerFlags()...)
+
+	return flags
+}
+
+func localConfigFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.PathFlag{
 			Name:     FlagDir,
 			Usage:    "The `DIRECTORY` where your project lives.",
+			Category: "Local config",
 			Aliases:  []string{"d"},
 			Required: true,
 			EnvVars:  []string{EnvDir},
 		},
 		&cli.BoolFlag{
-			Name:    FlagDebug,
-			Usage:   "Enable debug logging.",
-			Aliases: []string{"D"},
-			EnvVars: []string{EnvDebug},
-		},
-		&cli.Int64Flag{
-			Name:     FlagMaxTokens,
-			Usage:    "The max tokens to return in any given response",
-			Category: "Models",
-			Aliases:  []string{"t"},
-			EnvVars:  []string{EnvMaxTokens},
-			Value:    8192,
-		},
-		&cli.StringFlag{
-			Name:     FlagModel,
-			Usage:    "The provider's model to use, or an alias for it",
-			Category: "Models",
-			Aliases:  []string{"m"},
-			EnvVars:  []string{EnvModel},
+			Name:     FlagDebug,
+			Usage:    "Enable debug logging.",
+			Category: "Local config",
+			Aliases:  []string{"D"},
+			EnvVars:  []string{EnvDebug},
 		},
 		&cli.StringFlag{
 			Name:     FlagSessionName,
 			Usage:    "The name of the session",
-			Category: "Models",
+			Category: "Local config",
 			Aliases:  []string{"s"},
 			EnvVars:  []string{EnvSessionName},
 			Value:    "session",
 		},
-		&cli.StringFlag{
-			Name:     FlagProvider,
-			Usage:    fmt.Sprintf("Either '%s', '%s', or '%s'", llms.LLMTypeChatGPT, llms.LLMTypeClaude, llms.LLMTypeGrok),
-			Category: "Models",
-			Aliases:  []string{"p"},
-			EnvVars:  []string{EnvProvider},
-			Required: true,
+	}
+}
+
+func llmConfigFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.Int64Flag{
+			Name:     FlagMaxTokens,
+			Usage:    "The max tokens to return in any given response",
+			Category: "LLM config",
+			Aliases:  []string{"t"},
+			EnvVars:  []string{EnvMaxTokens},
+			Value:    8192,
 		},
 		&cli.Float64Flag{
 			Name:     FlagTemperature,
 			Usage:    "The temperature value to use with the model",
-			Category: "Models",
+			Category: "LLM config",
 			Aliases:  []string{"T"},
 			EnvVars:  []string{EnvTemperature},
 			Value:    1.0,
 		},
+	}
+}
+
+func providerFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:     FlagModel,
+			Usage:    "The provider's model to use, or an alias for it",
+			Category: "Providers",
+			Aliases:  []string{"m"},
+			EnvVars:  []string{EnvModel},
+		},
+		&cli.StringFlag{
+			Name:     FlagProvider,
+			Usage:    fmt.Sprintf("Either '%s', '%s', or '%s'", llms.LLMTypeChatGPT, llms.LLMTypeClaude, llms.LLMTypeGrok),
+			Category: "Providers",
+			Aliases:  []string{"p"},
+			EnvVars:  []string{EnvProvider},
+			Required: true,
+		},
 		&cli.StringFlag{
 			Name:     FlagOpenAIKey,
-			Category: "Models",
+			Category: "Providers",
 			Usage:    "The API key for OpenAI",
 			EnvVars:  []string{EnvOpenAIKey},
 		},
 		&cli.StringFlag{
 			Name:     FlagAnthropicKey,
-			Category: "Models",
+			Category: "Providers",
 			Usage:    "The API key for Anthropic",
 			EnvVars:  []string{EnvAnthropicKey},
 		},
 		&cli.StringFlag{
 			Name:     FlagXAIKey,
-			Category: "Models",
+			Category: "Providers",
 			Usage:    "The API key for xAI",
 			EnvVars:  []string{EnvXAIKey},
 		},
