@@ -51,7 +51,6 @@ func (l *ListFilesTool) Params() Params {
 }
 
 // ListFiles expects a directory 'dir' that exists within ProjectPath.
-// TODO: .gitignore?
 func (l *ListFilesTool) Run(_ context.Context, args Args) (string, error) {
 	path := args.GetString(ListFilesPath)
 	if path == nil {
