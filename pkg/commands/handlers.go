@@ -23,33 +23,31 @@ type BaseHandler struct {
 }
 
 // CommandEdit opens the last assistant message in $EDITOR
-const CommandEdit = "edit"
-
-type EditTarget string
-
 const (
-	EditLast EditTarget = "last"
-	EditAll  EditTarget = "all"
+	CommandEdit = "edit"
+
+	editLast = "last"
+	editAll  = "all"
 )
 
 type EditHandler struct {
 	*BaseHandler
 
-	Target EditTarget
+	Target string
 }
 
 func NewEditHandler(msg PromptCommandMessage) (Command, error) {
 	handler := &EditHandler{
 		BaseHandler: &BaseHandler{promptCommand: msg},
-		Target:      EditAll,
+		Target:      editAll,
 	}
 
 	if len(msg.Args) > 0 {
-		switch EditTarget(msg.Args[0]) {
-		case EditLast, EditAll:
-			handler.Target = EditTarget(msg.Args[0])
+		switch msg.Args[0] {
+		case editLast, editAll:
+			handler.Target = msg.Args[0]
 		default:
-			return nil, fmt.Errorf("unknown edit target %q", msg.Args[0])
+			return nil, fmt.Errorf("unknown edit target %q, must specify %q or %q", msg.Args[0], editLast, editAll)
 		}
 	}
 
@@ -60,7 +58,7 @@ func (e *EditHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	var content []byte
 
 	switch e.Target {
-	case EditLast:
+	case editLast:
 		last := session.LastByRole(llms.RoleAssistant)
 		if last == nil {
 			return nil, fmt.Errorf("no assistant message found to edit")
@@ -68,7 +66,7 @@ func (e *EditHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 		content = []byte(last.ToMarkdown())
 
-	case EditAll:
+	case editAll:
 		buf := &bytes.Buffer{}
 		for _, msg := range session.Messages {
 			buf.WriteString(msg.ToMarkdown())
@@ -264,19 +262,13 @@ func NewPlanHandler(msg PromptCommandMessage) (Command, error) {
 }
 
 func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	var (
-		sessionMessage string
-		historyMessage string
-	)
+	var sessionMessage, historyMessage string
 
-	// TODO: move to prompts package
 	if p.Enabled {
-		sessionMessage = "!!IMPORTANT!! You are now in planning mode. Refer to `plan_process` and do not proceed to " +
-			"`work_process` until you have exited planning mode."
+		sessionMessage = prompts.PlanningOn
 		historyMessage = "Entering planning mode."
 	} else {
-		sessionMessage = "!!IMPORTANT!! You have now exited planning mode. Refer to the plan file and proceed to " +
-			"`work_process` to begin your work."
+		sessionMessage = prompts.PlanningOff
 		historyMessage = "Exiting planning mode."
 	}
 
@@ -397,7 +389,11 @@ func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
 // CommandSession allows the user to modify the current session:
 // - with the argument "new", it will start a new session without wiping the visible history
 // - with the argument "clear", it will start a new session and wipe the visible history
-const CommandSession = "session"
+const (
+	CommandSession = "session"
+
+	sessionClear = "clear"
+)
 
 type SessionHandler struct {
 	*BaseHandler
@@ -406,7 +402,7 @@ type SessionHandler struct {
 }
 
 func NewSessionHandler(msg PromptCommandMessage) (Command, error) {
-	if len(msg.Args) < 1 || (msg.Args[0] != "new" && msg.Args[0] != "clear") {
+	if len(msg.Args) < 1 || (msg.Args[0] != "new" && msg.Args[0] != sessionClear) {
 		return nil, fmt.Errorf("must supply either 'new' or 'clear' argument")
 	}
 
@@ -429,7 +425,7 @@ func (s *SessionHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	msg := "Started new LLM session"
-	if s.Command == "clear" {
+	if s.Command == sessionClear {
 		msg += " and cleared history."
 	} else {
 		msg += " and preserved history."
@@ -439,7 +435,7 @@ func (s *SessionHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		PromptCommand: s.promptCommand,
 		Session:       newSession,
 		Message:       msg,
-		ResetHistory:  s.Command == "clear",
+		ResetHistory:  s.Command == sessionClear,
 	}
 
 	return update.Cmd(), nil
@@ -485,7 +481,15 @@ func (i *InfoHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 // CommandSummarize summarizes the session history and writes it to a JSON file in the format that can be loaded as a
 // session.
-const CommandSummarize = "summarize"
+const (
+	CommandSummarize = "summarize"
+
+	summarizeEntire = "entire"
+	summarizeFirst  = "first"
+	summarizeLast   = "last"
+	summarizeBefore = "before"
+	summarizeAfter  = "after"
+)
 
 type SummarizeHandler struct {
 	*BaseHandler
@@ -499,7 +503,7 @@ type SummarizeHandler struct {
 func NewSummarizeHandler(msg PromptCommandMessage) (Command, error) {
 	handler := &SummarizeHandler{
 		BaseHandler: &BaseHandler{promptCommand: msg},
-		Scope:       "entire",
+		Scope:       summarizeEntire,
 	}
 
 	if len(msg.Args) == 0 {
@@ -507,20 +511,20 @@ func NewSummarizeHandler(msg PromptCommandMessage) (Command, error) {
 	}
 
 	if len(msg.Args) != 2 {
-		return nil, fmt.Errorf("usage: /summarize [--last N | --first N | --since TIME | --before TIME], e.g. --last 10")
+		return nil, fmt.Errorf("usage: /summarize [--first N | --last N | --before TIME | --after TIME], e.g. --last 10")
 	}
 
 	flag := strings.TrimPrefix(msg.Args[0], "--")
 	switch flag {
-	case "last", "first", "since", "before":
+	case summarizeFirst, summarizeLast, summarizeBefore, summarizeAfter:
 		handler.Scope = flag
 	default:
-		return nil, fmt.Errorf("unknown scope flag %q, use --last, --first, --since, --before", msg.Args[0])
+		return nil, fmt.Errorf("unknown scope flag %q, use --first, --last, --before, --after", msg.Args[0])
 	}
 
 	handler.Value = msg.Args[1]
 
-	if flag == "last" || flag == "first" {
+	if flag == summarizeLast || flag == summarizeFirst {
 		num, err := strconv.Atoi(msg.Args[1])
 		if err != nil || num < 1 {
 			return nil, fmt.Errorf("value for --%s must be a positive integer", flag)
@@ -568,31 +572,40 @@ func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	return send.Cmd(), nil
 }
 
-func (s *SummarizeHandler) filterMessages(messages []*llms.Message) []*llms.Message {
-	if s.Scope == "entire" || len(messages) == 0 || s.ValueInt >= len(messages) {
+func (s *SummarizeHandler) filterMessages(messages []*llms.Message) []*llms.Message { //nolint:cyclop
+	if s.Scope == summarizeEntire || s.ValueInt >= len(messages) {
 		return messages
+	}
+
+	selected := []*llms.Message{}
+
+	switch s.Scope {
+	case summarizeFirst:
+		selected = messages[:s.ValueInt]
+	case summarizeLast:
+		selected = messages[len(messages)-s.ValueInt:]
+	case summarizeBefore:
+		for _, msg := range messages {
+			if msg.Added.Before(s.ValueTime) {
+				selected = append(selected, msg)
+			}
+		}
+	case summarizeAfter:
+		for _, msg := range messages {
+			if msg.Added.After(s.ValueTime) {
+				selected = append(selected, msg)
+			}
+		}
 	}
 
 	filtered := []*llms.Message{}
 
-	// TODO: need some way to ignore system message if LLM provider includes it in message history
-	switch s.Scope {
-	case "last":
-		filtered = messages[len(messages)-s.ValueInt:]
-	case "first":
-		filtered = messages[:s.ValueInt]
-	case "since":
-		for _, msg := range messages {
-			if msg.Added.After(s.ValueTime) {
-				filtered = append(filtered, msg)
-			}
+	for _, msg := range selected {
+		if msg.Role == llms.RoleSystem {
+			continue
 		}
-	case "before":
-		for _, msg := range messages {
-			if msg.Added.Before(s.ValueTime) {
-				filtered = append(filtered, msg)
-			}
-		}
+
+		filtered = append(filtered, msg)
 	}
 
 	return filtered

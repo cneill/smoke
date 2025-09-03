@@ -61,7 +61,7 @@ func (p PlanningModeMessage) Cmd() tea.Cmd {
 // EditRequestMessage asks the UI to open a given file path in an editor, suspending the TUI.
 type EditRequestMessage struct {
 	PromptCommand PromptCommandMessage
-	Target        EditTarget
+	Target        string
 	Path          string
 	Editor        string
 	Description   string
