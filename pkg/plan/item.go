@@ -1,0 +1,257 @@
+package plan
+
+import (
+	"encoding/json"
+	"fmt"
+	"math/rand/v2"
+	"time"
+)
+
+// TODO: Use "union" pattern like openai/anthropic SDKs? interface for Item? will need some way to load these from file
+// and don't want that to get sloppy
+
+type ItemUnion struct {
+	TaskItem       *TaskItem
+	ContextItem    *ContextItem
+	CompletionItem *CompletionItem
+}
+
+func (i *ItemUnion) OK() error {
+	if i == nil {
+		return fmt.Errorf("item union is empty")
+	}
+
+	if i.Type() == ItemTypeUnknown {
+		return fmt.Errorf("unknown item type, maybe more than one item specified in union")
+	}
+
+	return nil
+}
+
+func (i *ItemUnion) Type() ItemType {
+	typ := ItemTypeUnknown
+
+	if i.TaskItem != nil {
+		typ = ItemTypeTask
+	}
+
+	if i.ContextItem != nil {
+		if typ != ItemTypeUnknown {
+			typ = ItemTypeUnknown
+		} else {
+			typ = ItemTypeContext
+		}
+	}
+
+	if i.CompletionItem != nil {
+		if typ != ItemTypeUnknown {
+			typ = ItemTypeUnknown
+		} else {
+			typ = ItemTypeCompletion
+		}
+	}
+
+	return typ
+}
+
+func (i *ItemUnion) MarshalJSON() ([]byte, error) {
+	var (
+		bytes []byte
+		err   error
+	)
+
+	switch i.Type() { //nolint:exhaustive
+	case ItemTypeContext:
+		bytes, err = json.Marshal(i.ContextItem)
+	case ItemTypeCompletion:
+		bytes, err = json.Marshal(i.CompletionItem)
+	case ItemTypeTask:
+		bytes, err = json.Marshal(i.TaskItem)
+	default:
+		err = fmt.Errorf("unknown item type: %q", i.Type())
+	}
+
+	return bytes, err
+}
+
+func (i *ItemUnion) UnmarshalJSON(data []byte) error {
+	var itemTypeOnly struct {
+		ItemType ItemType `json:"item_type"`
+	}
+
+	if err := json.Unmarshal(data, &itemTypeOnly); err != nil {
+		return fmt.Errorf("failed to get item type: %w", err)
+	}
+
+	switch itemTypeOnly.ItemType { //nolint:exhaustive
+	case ItemTypeContext:
+		i.ContextItem = &ContextItem{}
+		if err := json.Unmarshal(data, i.ContextItem); err != nil {
+			return fmt.Errorf("failed to unmarshal context item: %w", err)
+		}
+	case ItemTypeCompletion:
+		i.CompletionItem = &CompletionItem{}
+		if err := json.Unmarshal(data, i.CompletionItem); err != nil {
+			return fmt.Errorf("failed to unmarshal completion item: %w", err)
+		}
+	case ItemTypeTask:
+		i.TaskItem = &TaskItem{}
+		if err := json.Unmarshal(data, i.TaskItem); err != nil {
+			return fmt.Errorf("failed to unmarshal task item: %w", err)
+		}
+	default:
+		return fmt.Errorf("unknown item type: %q", itemTypeOnly.ItemType)
+	}
+
+	return nil
+}
+
+func (i *ItemUnion) ID() string {
+	switch i.Type() { //nolint:exhaustive
+	case ItemTypeCompletion:
+		return i.CompletionItem.ID
+	case ItemTypeContext:
+		return i.ContextItem.ID
+	case ItemTypeTask:
+		return i.TaskItem.ID
+	default:
+		return ""
+	}
+}
+
+type ItemType string
+
+const (
+	ItemTypeUnknown    ItemType = ""
+	ItemTypeContext    ItemType = "context"
+	ItemTypeCompletion ItemType = "completion"
+	ItemTypeTask       ItemType = "task"
+)
+
+type baseItem struct {
+	ID       string    `json:"id"`
+	Time     time.Time `json:"time"`
+	ItemType ItemType  `json:"item_type"`
+}
+
+func newBaseItem(itemType ItemType) *baseItem {
+	return &baseItem{
+		ID:       randID(),
+		Time:     time.Now(),
+		ItemType: itemType,
+	}
+}
+
+type TaskItem struct {
+	*baseItem
+
+	Content      string   `json:"content"`
+	Parent       string   `json:"parent"`
+	Dependencies []string `json:"dependencies"`
+}
+
+func NewTaskItem(content string) *TaskItem {
+	return &TaskItem{
+		baseItem:     newBaseItem(ItemTypeTask),
+		Content:      content,
+		Dependencies: []string{},
+	}
+}
+
+func (t *TaskItem) SetParent(parentID string) *TaskItem {
+	t.Parent = parentID
+	return t
+}
+
+func (t *TaskItem) SetDependencies(dependencyIDs ...string) *TaskItem {
+	t.Dependencies = dependencyIDs
+	return t
+}
+
+func (t *TaskItem) IsChildOf(taskID string) bool {
+	return t.Parent == taskID
+}
+
+func (t *TaskItem) HasDependency(taskID string) bool {
+	for _, dependencyID := range t.Dependencies {
+		if dependencyID == taskID {
+			return true
+		}
+	}
+
+	return false
+}
+
+type ContextType string
+
+const (
+	ContextTypeCode      ContextType = "code"
+	ContextTypeDecision  ContextType = "decision"
+	ContextTypeReference ContextType = "reference"
+)
+
+type ContextItem struct {
+	*baseItem
+
+	ContextType ContextType `json:"context_type"`
+	Content     string      `json:"content"`
+	Owners      []string    `json:"owners"`
+}
+
+func NewContextItem(contextType ContextType, content string) *ContextItem {
+	return &ContextItem{
+		baseItem: newBaseItem(ItemTypeContext),
+
+		ContextType: contextType,
+		Content:     content,
+		Owners:      []string{},
+	}
+}
+
+func (c *ContextItem) SetOwners(ownerIDs ...string) *ContextItem {
+	c.Owners = ownerIDs
+	return c
+}
+
+type CompletionStatus string
+
+const (
+	CompletionStatusUnknown CompletionStatus = ""
+	CompletionStatusSuccess CompletionStatus = "success"
+	CompletionStatusFailed  CompletionStatus = "failed"
+	CompletionStatusPartial CompletionStatus = "partial"
+)
+
+type CompletionItem struct {
+	*baseItem
+
+	Status  CompletionStatus `json:"status"`
+	TaskIDs []string         `json:"task_ids"`
+}
+
+func NewCompletionItem(taskIDs ...string) *CompletionItem {
+	return &CompletionItem{
+		baseItem: newBaseItem(ItemTypeCompletion),
+
+		Status:  CompletionStatusSuccess,
+		TaskIDs: taskIDs,
+	}
+}
+
+func (c *CompletionItem) SetStatus(status CompletionStatus) *CompletionItem {
+	c.Status = status
+	return c
+}
+
+const idChars = "abcdef0123456789"
+
+// randID returns a random 16-character hex string
+// TODO: consolidate with llms.randID? make this a variable so it can be replaced for testing?
+func randID() string {
+	output := []byte{}
+	for range 32 {
+		output = append(output, idChars[rand.IntN(len(idChars))]) //nolint:gosec
+	}
+
+	return string(output)
+}
