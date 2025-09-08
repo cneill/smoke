@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
+	"slices"
 	"time"
 )
 
@@ -18,11 +19,11 @@ type ItemUnion struct {
 
 func (i *ItemUnion) OK() error {
 	if i == nil {
-		return fmt.Errorf("item union is empty")
+		return fmt.Errorf("item is nil")
 	}
 
 	if i.Type() == ItemTypeUnknown {
-		return fmt.Errorf("unknown item type, maybe more than one item specified in union")
+		return fmt.Errorf("unknown item type, maybe more than one item specified")
 	}
 
 	return nil
@@ -128,14 +129,14 @@ const (
 	ItemTypeTask       ItemType = "task"
 )
 
-type baseItem struct {
+type BaseItem struct {
 	ID       string    `json:"id"`
 	Time     time.Time `json:"time"`
 	ItemType ItemType  `json:"item_type"`
 }
 
-func newBaseItem(itemType ItemType) *baseItem {
-	return &baseItem{
+func NewBaseItem(itemType ItemType) *BaseItem {
+	return &BaseItem{
 		ID:       randID(),
 		Time:     time.Now(),
 		ItemType: itemType,
@@ -143,7 +144,7 @@ func newBaseItem(itemType ItemType) *baseItem {
 }
 
 type TaskItem struct {
-	*baseItem
+	*BaseItem
 
 	Content      string   `json:"content"`
 	Parent       string   `json:"parent"`
@@ -152,7 +153,7 @@ type TaskItem struct {
 
 func NewTaskItem(content string) *TaskItem {
 	return &TaskItem{
-		baseItem:     newBaseItem(ItemTypeTask),
+		BaseItem:     NewBaseItem(ItemTypeTask),
 		Content:      content,
 		Dependencies: []string{},
 	}
@@ -173,13 +174,7 @@ func (t *TaskItem) IsChildOf(taskID string) bool {
 }
 
 func (t *TaskItem) HasDependency(taskID string) bool {
-	for _, dependencyID := range t.Dependencies {
-		if dependencyID == taskID {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(t.Dependencies, taskID)
 }
 
 type ContextType string
@@ -191,7 +186,7 @@ const (
 )
 
 type ContextItem struct {
-	*baseItem
+	*BaseItem
 
 	ContextType ContextType `json:"context_type"`
 	Content     string      `json:"content"`
@@ -200,7 +195,7 @@ type ContextItem struct {
 
 func NewContextItem(contextType ContextType, content string) *ContextItem {
 	return &ContextItem{
-		baseItem: newBaseItem(ItemTypeContext),
+		BaseItem: NewBaseItem(ItemTypeContext),
 
 		ContextType: contextType,
 		Content:     content,
@@ -223,7 +218,7 @@ const (
 )
 
 type CompletionItem struct {
-	*baseItem
+	*BaseItem
 
 	Status  CompletionStatus `json:"status"`
 	TaskIDs []string         `json:"task_ids"`
@@ -231,7 +226,7 @@ type CompletionItem struct {
 
 func NewCompletionItem(taskIDs ...string) *CompletionItem {
 	return &CompletionItem{
-		baseItem: newBaseItem(ItemTypeCompletion),
+		BaseItem: NewBaseItem(ItemTypeCompletion),
 
 		Status:  CompletionStatusSuccess,
 		TaskIDs: taskIDs,
@@ -246,7 +241,7 @@ func (c *CompletionItem) SetStatus(status CompletionStatus) *CompletionItem {
 const idChars = "abcdef0123456789"
 
 // randID returns a random 16-character hex string
-// TODO: consolidate with llms.randID? make this a variable so it can be replaced for testing?
+// TODO: consolidate with llms.randID?
 func randID() string {
 	output := []byte{}
 	for range 32 {
