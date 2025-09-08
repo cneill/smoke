@@ -12,7 +12,7 @@ import (
 
 type Manager struct {
 	writer    io.Writer
-	isWriting bool
+	IsWriting bool
 
 	items     []*ItemUnion
 	completed map[string]CompletionStatus
@@ -22,7 +22,7 @@ type Manager struct {
 func NewManager(writer io.Writer) *Manager {
 	return &Manager{
 		writer:    writer,
-		isWriting: true,
+		IsWriting: true,
 		items:     []*ItemUnion{},
 		completed: map[string]CompletionStatus{},
 		mutex:     sync.RWMutex{},
@@ -31,7 +31,7 @@ func NewManager(writer io.Writer) *Manager {
 
 func ManagerFromReader(reader io.ReadWriter) (*Manager, error) {
 	manager := NewManager(reader)
-	manager.isWriting = false
+	manager.IsWriting = false
 
 	scanner := bufio.NewScanner(reader)
 	itemNumber := 1
@@ -54,7 +54,7 @@ func ManagerFromReader(reader io.ReadWriter) (*Manager, error) {
 		return nil, fmt.Errorf("failed to read log: %w", err)
 	}
 
-	manager.isWriting = true
+	manager.IsWriting = true
 
 	return manager, nil
 }
@@ -76,7 +76,7 @@ func (m *Manager) AddItem(item *ItemUnion) error {
 	m.items = append(m.items, item)
 
 	// if we're e.g. loading an existing log with ManagerFromReader, don't write the same items again
-	if m.isWriting {
+	if m.IsWriting {
 		marshalled, err := json.Marshal(item)
 		if err != nil {
 			return fmt.Errorf("failed to marshal item to JSON: %w", err)
@@ -101,6 +101,14 @@ func (m *Manager) AddItem(item *ItemUnion) error {
 	}
 
 	return nil
+}
+
+func (m *Manager) AllItems() []*ItemUnion {
+	return m.items
+}
+
+func (m *Manager) Completed() map[string]CompletionStatus {
+	return m.completed
 }
 
 func (m *Manager) GetItemByID(searchID string) *ItemUnion {
