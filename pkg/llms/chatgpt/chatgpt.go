@@ -275,6 +275,10 @@ func (c *ChatGPT) completionTools(session *llms.Session) []openai.ChatCompletion
 				}
 			}
 
+			if param.EnumStringValues != nil {
+				keyParams["enum"] = param.EnumStringValues
+			}
+
 			properties[param.Key] = keyParams
 
 			if param.Required {

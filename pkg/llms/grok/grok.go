@@ -345,6 +345,10 @@ func (g *Grok) completionTools(session *llms.Session) []*ChatCompletionTool {
 				}
 			}
 
+			if param.EnumStringValues != nil {
+				keyParams["enum"] = param.EnumStringValues
+			}
+
 			properties[param.Key] = keyParams
 
 			if param.Required {

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -275,4 +276,30 @@ func (a Args) rightType(param *Param, value any) bool { //nolint:cyclop
 	}
 
 	return rightType
+}
+
+func (a Args) checkValues(params Params) error {
+	invalidEnumKeys := []string{}
+
+	for key, value := range a {
+		param := params.ByKey(key)
+		if param.EnumStringValues == nil {
+			continue
+		}
+
+		strVal, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("%w: got non-string argument value for param %q with string enum values", ErrWrongTypeKeys, key)
+		}
+
+		if !slices.Contains(param.EnumStringValues, strVal) {
+			invalidEnumKeys = append(invalidEnumKeys, key)
+		}
+	}
+
+	if len(invalidEnumKeys) > 0 {
+		return fmt.Errorf("%w: incorrect enum values for keys %s", ErrUnexpectedValue, strings.Join(invalidEnumKeys, ", "))
+	}
+
+	return nil
 }

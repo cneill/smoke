@@ -34,6 +34,8 @@ func AllTools() []Initializer {
 		NewGoTestTool,
 		NewGrepTool,
 		NewListFilesTool,
+		// TODO: add when finished
+		// NewPlanAddTool,
 		NewReadFileTool,
 		NewReadPlanTool,
 		// NewRemovePlanTool,
@@ -52,6 +54,8 @@ func PlanningTools() []Initializer {
 		NewGoTestTool,
 		NewGrepTool,
 		NewListFilesTool,
+		// TODO: add when finished
+		// NewPlanAddTool,
 		NewReadFileTool,
 		NewReadPlanTool,
 		// NewSummarizeHistoryTool,
@@ -150,6 +154,10 @@ func (m *Manager) GetArgs(toolName string, input []byte) (Args, error) {
 	}
 
 	if err := result.checkTypes(params); err != nil {
+		return nil, err
+	}
+
+	if err := result.checkValues(params); err != nil {
 		return nil, err
 	}
 

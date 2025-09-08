@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-// TODO: Use "union" pattern like openai/anthropic SDKs? interface for Item? will need some way to load these from file
-// and don't want that to get sloppy
-
 type ItemUnion struct {
 	TaskItem       *TaskItem
 	ContextItem    *ContextItem

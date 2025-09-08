@@ -25,6 +25,8 @@ type Param struct {
 	Required bool
 	// ItemType corresponds to the type of individual items if Type is ParamTypeArray.
 	ItemType ParamType
+	// EnumStringValues contains an optional list of acceptable string values for the field.
+	EnumStringValues []string
 }
 
 // Params is a convenience type for a slice of Param structs.

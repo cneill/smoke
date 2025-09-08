@@ -169,9 +169,25 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 			errors:   []error{tools.ErrWrongTypeKeys},
 		},
 		{
+			name:  "invalid_enum_value",
+			input: `{"key": "wrong_value"}`,
+			params: tools.Params{
+				{
+					Key:              "key",
+					Description:      "key",
+					Type:             tools.ParamTypeString,
+					Required:         true,
+					EnumStringValues: []string{"right_value"},
+				},
+			},
+			expected: nil,
+			errors:   []error{tools.ErrUnexpectedValue},
+		},
+		{
 			name: "multiple_valid",
 			input: `{"number_key_int": 1, "number_key_float": 2.0, "str_key": "test", "bool_key": false, ` +
-				`"object_key": {}, "str_array_key": ["a", "b", "c"], "int_array_key": [1, 2, 3]}`,
+				`"object_key": {}, "str_array_key": ["a", "b", "c"], "int_array_key": [1, 2, 3], ` +
+				`"string_enum_key": "good3"}`,
 			params: tools.Params{
 				{
 					Key:         "number_key_int",
@@ -212,10 +228,17 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 				},
 				{
 					Key:         "int_array_key",
-					Description: "string slice key",
+					Description: "int slice key",
 					Type:        tools.ParamTypeArray,
 					ItemType:    tools.ParamTypeNumber,
 					Required:    true,
+				},
+				{
+					Key:              "string_enum_key",
+					Description:      "string enum key",
+					Type:             tools.ParamTypeString,
+					Required:         true,
+					EnumStringValues: []string{"good1", "good2", "good3"},
 				},
 			},
 			expected: tools.Args{
@@ -226,6 +249,7 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 				"object_key":       map[string]any{},
 				"str_array_key":    []any{"a", "b", "c"},
 				"int_array_key":    []any{json.Number("1"), json.Number("2"), json.Number("3")},
+				"string_enum_key":  "good3",
 			},
 			errors: nil,
 		},

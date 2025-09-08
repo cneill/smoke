@@ -296,6 +296,10 @@ func (c *Claude) newMessageTools(session *llms.Session) []anthropic.ToolUnionPar
 				}
 			}
 
+			if param.EnumStringValues != nil {
+				keyParams["enum"] = param.EnumStringValues
+			}
+
 			properties[param.Key] = keyParams
 
 			if param.Required {
