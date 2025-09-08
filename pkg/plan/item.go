@@ -32,6 +32,10 @@ func (i *ItemUnion) OK() error {
 func (i *ItemUnion) Type() ItemType {
 	typ := ItemTypeUnknown
 
+	if i == nil {
+		return typ
+	}
+
 	if i.TaskItem != nil {
 		typ = ItemTypeTask
 	}
