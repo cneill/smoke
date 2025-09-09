@@ -1,6 +1,9 @@
 package tools
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // ParamType maps to JSON Schema types for properties. See here:
 // https://json-schema.org/understanding-json-schema/reference/type
@@ -41,12 +44,21 @@ func (p Param) OK() error {
 		return fmt.Errorf("missing description")
 	case p.Type == "":
 		return fmt.Errorf("missing type")
+	case !slices.Contains(
+		[]ParamType{ParamTypeArray, ParamTypeBoolean, ParamTypeNull, ParamTypeNumber, ParamTypeObject, ParamTypeString}, p.Type):
+		return fmt.Errorf("invalid param type: %q", p.Type)
 	case p.ItemType != "" && p.Type != ParamTypeArray:
-		return fmt.Errorf("item type specified for non-array param type")
+		return fmt.Errorf("item type defined for non-array param type")
 	case len(p.EnumStringValues) > 0 && p.Type != ParamTypeString:
-		return fmt.Errorf("string enum values supplied for non-string param type")
-	case len(p.NestedParams) > 0 && p.Type != ParamTypeObject:
-		return fmt.Errorf("nested properties supplied for non-string param type")
+		return fmt.Errorf("string enum values defined for non-string param type")
+	case len(p.NestedParams) > 0:
+		if p.Type != ParamTypeObject {
+			return fmt.Errorf("nested params defined for non-object param type")
+		}
+
+		if err := p.NestedParams.OK(); err != nil {
+			return fmt.Errorf("error with nested params: %w", err)
+		}
 	}
 
 	return nil
@@ -54,6 +66,16 @@ func (p Param) OK() error {
 
 // Params is a convenience type for a slice of Param structs.
 type Params []Param
+
+func (p Params) OK() error {
+	for paramIdx, param := range p {
+		if err := param.OK(); err != nil {
+			return fmt.Errorf("error with param at index %d (key=%s): %w", paramIdx, param.Key, err)
+		}
+	}
+
+	return nil
+}
 
 func (p Params) ByKey(key string) *Param {
 	for _, param := range p {
@@ -104,11 +126,11 @@ func (p Params) Required(key string) bool {
 func (p Params) JSONSchemaProperties() (map[string]any, error) {
 	properties := map[string]any{}
 
-	for paramIdx, param := range p {
-		if err := param.OK(); err != nil {
-			return nil, fmt.Errorf("param %d (key=%q) was invalid: %w", paramIdx, param.Key, err)
-		}
+	if err := p.OK(); err != nil {
+		return nil, fmt.Errorf("param validation error: %w", err)
+	}
 
+	for paramIdx, param := range p {
 		keyProps := map[string]any{
 			"type":        param.Type,
 			"description": param.Description,
@@ -124,10 +146,10 @@ func (p Params) JSONSchemaProperties() (map[string]any, error) {
 			keyProps["enum"] = param.EnumStringValues
 		}
 
-		if param.ItemType == ParamTypeObject && len(param.NestedParams) > 0 {
+		if param.Type == ParamTypeObject && len(param.NestedParams) > 0 {
 			nestedProps, err := param.NestedParams.JSONSchemaProperties()
 			if err != nil {
-				return nil, fmt.Errorf("error with nested properties on param %d (key=%q): %w", paramIdx, param.Key, err)
+				return nil, fmt.Errorf("error with nested properties on param at index %d (key=%q): %w", paramIdx, param.Key, err)
 			}
 
 			keyProps["properties"] = nestedProps
