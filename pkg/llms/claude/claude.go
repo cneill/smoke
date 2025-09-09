@@ -10,7 +10,6 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/tools"
 )
 
 type Claude struct {
@@ -277,49 +276,28 @@ func (c *Claude) HandleToolCalls(ctx context.Context, msg *llms.Message, session
 }
 
 func (c *Claude) newMessageTools(session *llms.Session) []anthropic.ToolUnionParam {
-	sessionTools := session.Tools.GetTools()
-	results := make([]anthropic.ToolUnionParam, len(sessionTools))
+	results := []anthropic.ToolUnionParam{}
 
-	for toolNum, tool := range sessionTools {
-		properties := map[string]any{}
-		requiredKeys := []string{}
+	for _, tool := range session.Tools.GetTools() {
+		params := tool.Params()
 
-		for _, param := range tool.Params() {
-			keyParams := map[string]any{
-				"type":        param.Type,
-				"description": param.Description,
-			}
-
-			if param.Type == tools.ParamTypeArray {
-				keyParams["items"] = map[string]any{
-					"type": param.ItemType,
-				}
-			}
-
-			if param.EnumStringValues != nil {
-				keyParams["enum"] = param.EnumStringValues
-			}
-
-			properties[param.Key] = keyParams
-
-			if param.Required {
-				requiredKeys = append(requiredKeys, param.Key)
-			}
+		properties, err := params.JSONSchemaProperties()
+		if err != nil {
+			c.logger.Error("failed to get JSON Schema properties for tool, skipping", "tool_name", tool.Name(), "error", err)
+			continue
 		}
 
-		schema := anthropic.ToolInputSchemaParam{
-			Properties: properties,
-			Required:   requiredKeys,
-			Type:       "object",
-		}
-
-		toolParam := anthropic.ToolParam{
+		toolDef := anthropic.ToolParam{
 			Name:        tool.Name(),
 			Description: anthropic.String(tool.Description()),
-			InputSchema: schema,
+			InputSchema: anthropic.ToolInputSchemaParam{
+				Type:       "object",
+				Properties: properties,
+				Required:   params.RequiredKeys(),
+			},
 		}
 
-		results[toolNum] = anthropic.ToolUnionParam{OfTool: &toolParam}
+		results = append(results, anthropic.ToolUnionParam{OfTool: &toolDef})
 	}
 
 	return results
