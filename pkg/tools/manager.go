@@ -1,13 +1,9 @@
 package tools
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"slices"
-	"strings"
 	"sync"
 )
 
@@ -116,52 +112,7 @@ func (m *Manager) GetArgs(toolName string, input []byte) (Args, error) {
 		return nil, fmt.Errorf("failed to get params for tool %q: %w", toolName, err)
 	}
 
-	result := Args{}
-
-	decoder := json.NewDecoder(bytes.NewReader(input))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&result); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidJSON, err)
-	}
-
-	allParamKeys := params.Keys()
-	seenKeys := []string{}
-	unknownKeys := []string{}
-
-	for key := range result {
-		seenKeys = append(seenKeys, key)
-
-		if !slices.Contains(allParamKeys, key) {
-			unknownKeys = append(unknownKeys, key)
-		}
-	}
-
-	if len(unknownKeys) > 0 {
-		return nil, fmt.Errorf("%w: %s", ErrUnknownKeys, strings.Join(unknownKeys, ", "))
-	}
-
-	missingKeys := []string{}
-
-	for _, key := range params.RequiredKeys() {
-		if !slices.Contains(seenKeys, key) {
-			missingKeys = append(missingKeys, key)
-		}
-	}
-
-	if len(missingKeys) > 0 {
-		return nil, fmt.Errorf("%w: %s", ErrMissingKeys, strings.Join(missingKeys, ", "))
-	}
-
-	if err := result.checkTypes(params); err != nil {
-		return nil, err
-	}
-
-	if err := result.checkValues(params); err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return ParseArgs(params, input)
 }
 
 // CallTool finds the [Tool] with the name 'toolName' (if known, otherwise returns ErrUnknownTool), and calls it with

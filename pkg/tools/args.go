@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -15,6 +16,55 @@ import (
 // retrieving these values by name based on the type they are expected to have. Args of the wrong type, or that were
 // not provided at all, return nil.
 type Args map[string]any
+
+func ParseArgs(params Params, input []byte) (Args, error) {
+	result := Args{}
+
+	decoder := json.NewDecoder(bytes.NewReader(input))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&result); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidJSON, err)
+	}
+
+	allParamKeys := params.Keys()
+	seenKeys := []string{}
+	unknownKeys := []string{}
+
+	for key := range result {
+		seenKeys = append(seenKeys, key)
+
+		if !slices.Contains(allParamKeys, key) {
+			unknownKeys = append(unknownKeys, key)
+		}
+	}
+
+	if len(unknownKeys) > 0 {
+		return nil, fmt.Errorf("%w: %s", ErrUnknownKeys, strings.Join(unknownKeys, ", "))
+	}
+
+	missingKeys := []string{}
+
+	for _, key := range params.RequiredKeys() {
+		if !slices.Contains(seenKeys, key) {
+			missingKeys = append(missingKeys, key)
+		}
+	}
+
+	if len(missingKeys) > 0 {
+		return nil, fmt.Errorf("%w: %s", ErrMissingKeys, strings.Join(missingKeys, ", "))
+	}
+
+	if err := result.checkTypes(params); err != nil {
+		return nil, err
+	}
+
+	if err := result.checkValues(params); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
 
 // String gives a string representation of [Args] for use in the history viewport.
 func (a Args) String() string {
@@ -166,6 +216,20 @@ func (a Args) GetBool(key string) *bool {
 	return &boolVal
 }
 
+func (a Args) GetArgsObject(key string) Args {
+	val, hasKey := a[key]
+	if !hasKey {
+		return nil
+	}
+
+	objVal, isObj := val.(map[string]any)
+	if !isObj {
+		return nil
+	}
+
+	return objVal
+}
+
 // GetStringSlice first checks that we have a slice of []any, then converts this into a []string slice. If any elements
 // are not strings, it returns nil.
 func (a Args) GetStringSlice(key string) []string {
@@ -186,17 +250,42 @@ func (a Args) GetStringSlice(key string) []string {
 
 	stringSlice := make([]string, len(sliceVal))
 
-	for itemNum, rawVal := range sliceVal {
+	for itemIdx, rawVal := range sliceVal {
 		strVal, ok := rawVal.(string)
 		// be brutal - no non-strings allowed
 		if !ok {
 			return nil
 		}
 
-		stringSlice[itemNum] = strVal
+		stringSlice[itemIdx] = strVal
 	}
 
 	return stringSlice
+}
+
+func (a Args) GetArgsObjectSlice(key string) []Args {
+	val, hasKey := a[key]
+	if !hasKey {
+		return nil
+	}
+
+	sliceVal, isSlice := val.([]any)
+	if !isSlice {
+		return nil
+	}
+
+	objectSlice := make([]Args, len(sliceVal))
+
+	for itemIdx, rawVal := range sliceVal {
+		objVal, ok := rawVal.(map[string]any)
+		if !ok {
+			return nil
+		}
+
+		objectSlice[itemIdx] = objVal
+	}
+
+	return objectSlice
 }
 
 // LogValue helps with rendering [Args] in a slog message.
@@ -279,27 +368,59 @@ func (a Args) rightType(param *Param, value any) bool { //nolint:cyclop
 }
 
 func (a Args) checkValues(params Params) error {
-	invalidEnumKeys := []string{}
-
 	for key, value := range a {
 		param := params.ByKey(key)
-		if param.EnumStringValues == nil {
-			continue
-		}
-
-		strVal, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("%w: got non-string argument value for param %q with string enum values", ErrWrongTypeKeys, key)
-		}
-
-		if !slices.Contains(param.EnumStringValues, strVal) {
-			invalidEnumKeys = append(invalidEnumKeys, key)
+		switch param.Type { //nolint:exhaustive
+		case ParamTypeString:
+			if err := a.checkStringValue(param, value); err != nil {
+				return fmt.Errorf("invalid string value for param %q: %w", key, err)
+			}
+		case ParamTypeObject:
+			if err := a.checkObjectValue(param, value); err != nil {
+				return fmt.Errorf("invalid object value for param %q: %w", key, err)
+			}
+		case ParamTypeArray:
+			return a.checkArrayValues(param, key, value)
 		}
 	}
 
-	if len(invalidEnumKeys) > 0 {
-		return fmt.Errorf("%w: incorrect enum values for keys %s", ErrUnexpectedValue, strings.Join(invalidEnumKeys, ", "))
+	return nil
+}
+
+func (a Args) checkStringValue(param *Param, argValue any) error {
+	if len(param.EnumStringValues) == 0 {
+		return nil
 	}
 
+	strVal, ok := argValue.(string)
+	if !ok {
+		return fmt.Errorf("%w: got non-string argument value", ErrWrongTypeKeys)
+	}
+
+	if !slices.Contains(param.EnumStringValues, strVal) {
+		return fmt.Errorf("%w: not one of the expected enum values %s", ErrUnexpectedValue, strings.Join(param.EnumStringValues, ", "))
+	}
+
+	return nil
+}
+
+func (a Args) checkObjectValue(param *Param, argValue any) error {
+	if param.NestedParams == nil {
+		return nil
+	}
+
+	marshalled, err := json.Marshal(argValue)
+	if err != nil {
+		return fmt.Errorf("%w: failed to marshal object value to JSON: %w", ErrInvalidJSON, err)
+	}
+
+	if _, err := ParseArgs(param.NestedParams, marshalled); err != nil {
+		return fmt.Errorf("%w: failed to parse nested object: %w", ErrUnexpectedValue, err)
+	}
+
+	return nil
+}
+
+func (a Args) checkArrayValues(param *Param, argKey string, argValue any) error {
 	return nil
 }
