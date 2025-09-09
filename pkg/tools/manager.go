@@ -43,19 +43,23 @@ func AllTools() []Initializer {
 
 func PlanningTools() []Initializer {
 	return []Initializer{
-		NewEditPlanTool,
-		NewGitDiffTool,
-		NewGoASTTool,
-		NewGoLintTool,
-		NewGoTestTool,
-		NewGrepTool,
-		NewListFilesTool,
-		// TODO: add when finished
-		// NewPlanAddTool,
+		NewPlanAddTool,
 		NewReadFileTool,
-		NewReadPlanTool,
-		// NewSummarizeHistoryTool,
 	}
+	// return []Initializer{
+	// 	NewEditPlanTool,
+	// 	NewGitDiffTool,
+	// 	NewGoASTTool,
+	// 	NewGoLintTool,
+	// 	NewGoTestTool,
+	// 	NewGrepTool,
+	// 	NewListFilesTool,
+	// 	// TODO: add when finished
+	// 	// NewPlanAddTool,
+	// 	NewReadFileTool,
+	// 	NewReadPlanTool,
+	// 	// NewSummarizeHistoryTool,
+	// }
 }
 
 func NewManager(projectPath, sessionName string) *Manager {

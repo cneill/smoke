@@ -28,19 +28,22 @@ func SystemJSON() string { //nolint:funlen
 				"only if the user asks a question specifically about the current codebase, not a general question.",
 		},
 		"plan_process": []string{
-			"Check for an existing plan file with the `read_plan` tool. If one already exists, tell the user about it " +
-				"and ask for confirmation about what to do. If they confirm that it is correct, proceed to " +
-				"`work_process`.",
-			"Think hard about how to complete the task you've been given. Break down the task into pieces, and think " +
-				"through how to solve each subtask step-by-step. Include this in your plan.",
-			"Use the `edit_plan` tool to develop a plan and write it to a file. The plan should include a summary of " +
-				"all the context you discovered, including code conventions, interface definitions, 3rd party " +
-				"libraries, relevant paths, etc necessary to carry out the actual work. After you've summarized the " +
-				"relevant context, create a Markdown TODO list with [ ] (incomplete) checkboxes. You will fill each " +
-				"of these in with [x] (complete) as you go. If you are asked to continue with an existing plan file, " +
-				"work on the incomplete [ ] TODO items.",
-			"!! STOP AT THIS POINT AND TELL THE USER ABOUT YOUR PLAN BEFORE CONTINUING TO `work_process` !!",
+			"Add tasks with the `plan_add` tool.",
 		},
+		// "plan_process": []string{
+		// 	"Check for an existing plan file with the `read_plan` tool. If one already exists, tell the user about it " +
+		// 		"and ask for confirmation about what to do. If they confirm that it is correct, proceed to " +
+		// 		"`work_process`.",
+		// 	"Think hard about how to complete the task you've been given. Break down the task into pieces, and think " +
+		// 		"through how to solve each subtask step-by-step. Include this in your plan.",
+		// 	"Use the `edit_plan` tool to develop a plan and write it to a file. The plan should include a summary of " +
+		// 		"all the context you discovered, including code conventions, interface definitions, 3rd party " +
+		// 		"libraries, relevant paths, etc necessary to carry out the actual work. After you've summarized the " +
+		// 		"relevant context, create a Markdown TODO list with [ ] (incomplete) checkboxes. You will fill each " +
+		// 		"of these in with [x] (complete) as you go. If you are asked to continue with an existing plan file, " +
+		// 		"work on the incomplete [ ] TODO items.",
+		// 	"!! STOP AT THIS POINT AND TELL THE USER ABOUT YOUR PLAN BEFORE CONTINUING TO `work_process` !!",
+		// },
 		"work_process": []string{
 			"Try to read the plan file with the `read_plan` tool. If one exists, proceed with implementing it. Do " +
 				"not start making changes if there is no plan file - stop and ask the user for clarification.",

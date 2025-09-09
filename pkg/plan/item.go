@@ -160,6 +160,11 @@ func NewTaskItem(content string) *TaskItem {
 	}
 }
 
+func (t *TaskItem) SetID(id string) *TaskItem {
+	t.BaseItem.ID = id
+	return t
+}
+
 func (t *TaskItem) SetParent(parentID string) *TaskItem {
 	t.Parent = parentID
 	return t
