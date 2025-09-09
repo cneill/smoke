@@ -88,7 +88,7 @@ func TestParam_OK(t *testing.T) {
 					},
 				},
 			},
-			errorStr: "nested params defined for non-object param type",
+			errorStr: "nested params defined for non-object param type, or array without object items",
 		},
 		{
 			name: "nested_missing_description",
@@ -117,6 +117,23 @@ func TestParam_OK(t *testing.T) {
 						Description:      "nested",
 						Type:             tools.ParamTypeString,
 						EnumStringValues: []string{"test"},
+					},
+				},
+			},
+		},
+		{
+			name: "valid_with_object_array",
+			param: tools.Param{
+				Key:         "test",
+				Description: "test",
+				Type:        tools.ParamTypeArray,
+				ItemType:    tools.ParamTypeObject,
+				NestedParams: tools.Params{
+					{
+						Key:         "nested_number_array",
+						Description: "nested_number_array",
+						Type:        tools.ParamTypeArray,
+						ItemType:    tools.ParamTypeNumber,
 					},
 				},
 			},
@@ -187,10 +204,19 @@ func TestParams_JSONSchemaProperties(t *testing.T) {
 							Required:         true,
 						},
 						{
-							Key:         "nested_array",
-							Description: "nested_array",
+							Key:         "nested_object_array",
+							Description: "nested_object_array",
 							Type:        tools.ParamTypeArray,
-							ItemType:    tools.ParamTypeNumber,
+							ItemType:    tools.ParamTypeObject,
+							Required:    true,
+							NestedParams: tools.Params{
+								{
+									Key:         "array_object_nested_number",
+									Description: "array_object_nested_number",
+									Type:        tools.ParamTypeNumber,
+									Required:    true,
+								},
+							},
 						},
 						{
 							Key:         "nested_object",
@@ -218,11 +244,18 @@ func TestParams_JSONSchemaProperties(t *testing.T) {
 							"type":        tools.ParamTypeString,
 							"enum":        []string{"test"},
 						},
-						"nested_array": map[string]any{
-							"description": "nested_array",
+						"nested_object_array": map[string]any{
+							"description": "nested_object_array",
 							"type":        tools.ParamTypeArray,
 							"items": map[string]any{
-								"type": tools.ParamTypeNumber,
+								"type": tools.ParamTypeObject,
+								"properties": map[string]any{
+									"array_object_nested_number": map[string]any{
+										"description": "array_object_nested_number",
+										"type":        tools.ParamTypeNumber,
+									},
+								},
+								"required": []string{"array_object_nested_number"},
 							},
 						},
 						"nested_object": map[string]any{
@@ -237,7 +270,7 @@ func TestParams_JSONSchemaProperties(t *testing.T) {
 							"required": []string{"double_nested_number"},
 						},
 					},
-					"required": []string{"nested_enum"},
+					"required": []string{"nested_enum", "nested_object_array"},
 				},
 			},
 		},

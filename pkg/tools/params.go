@@ -32,11 +32,11 @@ type Param struct {
 	ItemType ParamType
 	// EnumStringValues contains an optional list of acceptable string values for the field.
 	EnumStringValues []string
-	// NestedParams is for Objects with nested properties.
+	// NestedParams is for Objects or Arrays of Objects with nested properties.
 	NestedParams Params
 }
 
-func (p Param) OK() error {
+func (p Param) OK() error { //nolint:cyclop
 	switch {
 	case p.Key == "":
 		return fmt.Errorf("missing key")
@@ -52,8 +52,8 @@ func (p Param) OK() error {
 	case len(p.EnumStringValues) > 0 && p.Type != ParamTypeString:
 		return fmt.Errorf("string enum values defined for non-string param type")
 	case len(p.NestedParams) > 0:
-		if p.Type != ParamTypeObject {
-			return fmt.Errorf("nested params defined for non-object param type")
+		if p.Type != ParamTypeObject && (p.Type != ParamTypeArray || p.ItemType != ParamTypeObject) {
+			return fmt.Errorf("nested params defined for non-object param type, or array without object items")
 		}
 
 		if err := p.NestedParams.OK(); err != nil {
@@ -136,22 +136,36 @@ func (p Params) JSONSchemaProperties() (map[string]any, error) {
 			"description": param.Description,
 		}
 
-		if param.ItemType != "" {
-			keyProps["items"] = map[string]any{
+		var (
+			nestedProps map[string]any
+			nestedErr   error
+		)
+
+		if len(param.NestedParams) > 0 {
+			nestedProps, nestedErr = param.NestedParams.JSONSchemaProperties()
+			if nestedErr != nil {
+				return nil, fmt.Errorf("error with nested properties on param at index %d (key=%q): %w", paramIdx, param.Key, nestedErr)
+			}
+		}
+
+		if param.Type == ParamTypeArray && param.ItemType != "" {
+			itemProps := map[string]any{
 				"type": param.ItemType,
 			}
+
+			if param.ItemType == ParamTypeObject && nestedProps != nil {
+				itemProps["properties"] = nestedProps
+				itemProps["required"] = param.NestedParams.RequiredKeys()
+			}
+
+			keyProps["items"] = itemProps
 		}
 
 		if len(param.EnumStringValues) > 0 {
 			keyProps["enum"] = param.EnumStringValues
 		}
 
-		if param.Type == ParamTypeObject && len(param.NestedParams) > 0 {
-			nestedProps, err := param.NestedParams.JSONSchemaProperties()
-			if err != nil {
-				return nil, fmt.Errorf("error with nested properties on param at index %d (key=%q): %w", paramIdx, param.Key, err)
-			}
-
+		if param.Type == ParamTypeObject && nestedProps != nil {
 			keyProps["properties"] = nestedProps
 			keyProps["required"] = param.NestedParams.RequiredKeys()
 		}
