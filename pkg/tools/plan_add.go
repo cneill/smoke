@@ -15,6 +15,11 @@ const (
 	PlanAddTasksContent  = "content"
 	PlanAddTasksID       = "id"
 	PlanAddTasksParentID = "parent_id"
+
+	PlanAddContext        = "context"
+	PlanAddContextType    = "type"
+	PlanAddContextContent = "content"
+	PlanAddContextOwners  = "owners"
 )
 
 type PlanAddTool struct {
@@ -60,7 +65,7 @@ func (p *PlanAddTool) Description() string {
 func (p *PlanAddTool) Examples() Examples {
 	return Examples{
 		{
-			Description: "Add a few simple tasks",
+			Description: "Add a few simple tasks and sub-tasks",
 			Args: Args{
 				PlanAddTasks: []Args{
 					{
@@ -89,20 +94,24 @@ func (p *PlanAddTool) Params() Params {
 			Key:         PlanAddTasks,
 			Description: "An array of 1 or more tasks to be completed",
 			Type:        ParamTypeArray,
-			Required:    true,
+			Required:    false,
 			ItemType:    ParamTypeObject,
 			NestedParams: Params{
 				{
-					Key:         PlanAddTasksContent,
-					Description: "The description of the task to be completed",
-					Type:        ParamTypeString,
-					Required:    true,
+					Key: PlanAddTasksContent,
+					Description: "The description of the task to be completed. This should be concise, but should " +
+						"describe the task in sufficient detail to allow for implementation even if the conversation " +
+						"is reset.",
+					Type:     ParamTypeString,
+					Required: true,
 				},
 				{
-					Key:         PlanAddTasksID,
-					Description: fmt.Sprintf("A short, unique identifier for this task. Can be used to link sub-tasks with %q", PlanAddTasksID),
-					Type:        ParamTypeString,
-					Required:    true,
+					Key: PlanAddTasksID,
+					Description: fmt.Sprintf(
+						"A short, unique identifier for this task. Can be used to link sub-tasks with %q",
+						PlanAddTasksParentID),
+					Type:     ParamTypeString,
+					Required: true,
 				},
 				{
 					Key:         PlanAddTasksParentID,
@@ -112,14 +121,50 @@ func (p *PlanAddTool) Params() Params {
 				},
 			},
 		},
+		{
+			Key:         PlanAddContext,
+			Description: "An array of 1 or more items of context",
+			Type:        ParamTypeArray,
+			Required:    false,
+			ItemType:    ParamTypeObject,
+			NestedParams: Params{
+				{
+					Key: PlanAddContextContent,
+					Description: "A piece of context you want to associate with one or more tasks in order to help " +
+						"you stay on track and implement the user's request.",
+					Type:     ParamTypeString,
+					Required: true,
+				},
+				{
+					Key: PlanAddContextType,
+					Description: fmt.Sprintf(
+						"The type of context this represents. %q is a snippet or long section of source code from "+
+							"e.g. the %q tool. %q is a decision made about the design of the solution that will be "+
+							`developed as part of "work_process". %q is reference material about a 3rd party library`+
+							"or external service.",
+						plan.ContextTypeCode, ToolReadFile, plan.ContextTypeDecision, plan.ContextTypeReference),
+					Type: ParamTypeString,
+					EnumStringValues: ToStrings(
+						[]plan.ContextType{plan.ContextTypeCode, plan.ContextTypeDecision, plan.ContextTypeReference}),
+					Required: true,
+				},
+				{
+					Key:         PlanAddContextOwners,
+					Description: "The IDs of the tasks for which this piece of context is relevant",
+					Type:        ParamTypeArray,
+					ItemType:    ParamTypeString,
+					Required:    true,
+				},
+			},
+		},
 	}
 }
 
 func (p *PlanAddTool) Run(_ context.Context, args Args) (string, error) {
-	tasks := args.GetArgsObjectSlice("tasks")
+	tasks := args.GetArgsObjectSlice(PlanAddTasks)
 
-	for i, task := range tasks {
-		slog.Debug("Task details", "num", i, "task", task)
+	for taskIdx, task := range tasks {
+		slog.Debug("Task details", "num", taskIdx, "task", task)
 		id := task.GetString(PlanAddTasksID)
 		content := task.GetString(PlanAddTasksContent)
 		parentID := task.GetString(PlanAddTasksParentID)
@@ -131,7 +176,24 @@ func (p *PlanAddTool) Run(_ context.Context, args Args) (string, error) {
 
 		item := &plan.ItemUnion{TaskItem: task}
 		if err := p.PlanManager.AddItem(item); err != nil {
-			return "", fmt.Errorf("failed to add task: %w", err)
+			return "", fmt.Errorf("failed to add task with index %d: %w", taskIdx, err)
+		}
+	}
+
+	context := args.GetArgsObjectSlice(PlanAddContext)
+
+	for contextIdx, contextItem := range context {
+		slog.Debug("Context details", "num", contextIdx, "context", contextItem)
+		content := contextItem.GetString(PlanAddContextContent)
+		rawContextType := contextItem.GetString(PlanAddContextType)
+		owners := contextItem.GetStringSlice(PlanAddContextOwners)
+
+		contextItem := plan.NewContextItem(plan.ContextType(*rawContextType), *content)
+		contextItem.SetOwners(owners...)
+
+		item := &plan.ItemUnion{ContextItem: contextItem}
+		if err := p.PlanManager.AddItem(item); err != nil {
+			return "", fmt.Errorf("failed to add context with index %d: %w", contextIdx, err)
 		}
 	}
 
