@@ -77,6 +77,7 @@ func PlanningTools() []Initializer {
 		NewGrepTool,
 		NewListFilesTool,
 		NewPlanAddTool,
+		NewPlanReadTool,
 		NewPlanUpdateTool,
 		NewReadFileTool,
 		// NewReadPlanTool,

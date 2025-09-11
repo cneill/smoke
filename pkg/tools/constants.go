@@ -20,6 +20,7 @@ const (
 	ToolPlanUpdate       = "plan_update"
 	ToolReadFile         = "read_file"
 	ToolReadPlan         = "read_plan"
+	ToolPlanRead         = "plan_read"
 	ToolRemovePlan       = "remove_plan"
 	ToolReplaceLines     = "replace_lines"
 	ToolSummarizeHistory = "summarize_history"
