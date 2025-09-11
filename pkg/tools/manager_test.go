@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"path/filepath"
 	"testing"
 
 	"github.com/cneill/smoke/pkg/tools"
@@ -27,7 +28,19 @@ func (d dummyTool) Run(_ context.Context, _ tools.Args) (string, error) { return
 func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	t.Helper()
 
-	manager := tools.NewManager(".", "test")
+	absPath, err := filepath.Abs(".")
+	require.NoError(t, err)
+
+	opts := &tools.ManagerOpts{
+		ProjectPath:     absPath,
+		SessionName:     "test",
+		Tools:           tools.AllTools(),
+		WithPlanManager: true,
+	}
+
+	manager, err := tools.NewManager(opts)
+	require.NoError(t, err)
+
 	dummy := dummyTool{params: params}
 
 	manager.SetTools(func(_, _ string) tools.Tool {

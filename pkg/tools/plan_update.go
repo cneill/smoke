@@ -4,66 +4,58 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/cneill/smoke/pkg/plan"
 )
 
 const (
-	PlanAddTasks         = "tasks"
-	PlanAddTasksContent  = "content"
-	PlanAddTasksID       = "id"
-	PlanAddTasksParentID = "parent_id"
+	PlanUpdateTasks         = "tasks"
+	PlanUpdateTasksContent  = "content"
+	PlanUpdateTasksID       = "id"
+	PlanUpdateTasksParentID = "parent_id"
 
-	PlanAddContext        = "context"
-	PlanAddContextType    = "type"
-	PlanAddContextContent = "content"
-	PlanAddContextID      = "id"
-	PlanAddContextOwners  = "owners"
+	PlanUpdateContext        = "context"
+	PlanUpdateContextType    = "type"
+	PlanUpdateContextContent = "content"
+	PlanUpdateContextID      = "id"
+	PlanUpdateContextOwners  = "owners"
 )
 
-type PlanAddTool struct {
-	ProjectPath string
-	SessionName string
-	PlanManager *plan.Manager
+type PlanUpdateTool struct {
+	ProjectPath  string
+	SessionName  string
+	PlanFileName string
+	PlanFile     *os.File
+	PlanManager  *plan.Manager
 }
 
-// TODO: allow tool initializations to fail with error...?
-func NewPlanAddTool(projectPath, sessionName string) Tool {
-	return &PlanAddTool{
+func NewPlanUpdateTool(projectPath, sessionName string) Tool {
+	return &PlanUpdateTool{
 		ProjectPath: projectPath,
 		SessionName: sessionName,
 	}
 }
 
-func (p *PlanAddTool) Name() string { return ToolPlanAdd }
-func (p *PlanAddTool) Description() string {
+func (p *PlanUpdateTool) Name() string { return ToolPlanUpdate }
+func (p *PlanUpdateTool) Description() string {
 	examples := CollectExamples(p.Examples()...)
 
-	return "Add tasks and sub-tasks to the plan that will be executed during `work_process`, or pieces of context " +
-		"linked to those tasks that are relevant to completing them." + examples
+	return "Update tasks and items of context that have already been added to the plan by referring to their IDs." +
+		examples
 }
 
-func (p *PlanAddTool) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
+func (p *PlanUpdateTool) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
 
-func (p *PlanAddTool) Examples() Examples {
+func (p *PlanUpdateTool) Examples() Examples {
 	return Examples{
 		{
-			Description: "Add a few simple tasks and sub-tasks",
+			Description: "Update an existing task",
 			Args: Args{
-				PlanAddTasks: []Args{
+				PlanUpdateTasks: []Args{
 					{
-						PlanAddTasksID:      "DoThing_context",
-						PlanAddTasksContent: "Update the DoThing() function to use context.Context",
-					},
-					{
-						PlanAddTasksID:       "DoThing_context_param",
-						PlanAddTasksContent:  "Update the DoThing() function to take a context.Context in its parameters",
-						PlanAddTasksParentID: "DoThing_context",
-					},
-					{
-						PlanAddTasksID:       "DoThing_context_cancellation",
-						PlanAddTasksContent:  "Update the DoThing() function to use the provided context.Context for cancellation",
-						PlanAddTasksParentID: "DoThing_context",
+						PlanUpdateTasksID:      "DoThing_context",
+						PlanUpdateTasksContent: "Update the DoThing() function to use context.Context instead of context.TODO",
 					},
 				},
 			},
@@ -71,17 +63,17 @@ func (p *PlanAddTool) Examples() Examples {
 	}
 }
 
-func (p *PlanAddTool) Params() Params {
+func (p *PlanUpdateTool) Params() Params {
 	return Params{
 		{
-			Key:         PlanAddTasks,
+			Key:         PlanUpdateTasks,
 			Description: "An array of 1 or more tasks to be completed",
 			Type:        ParamTypeArray,
 			Required:    false,
 			ItemType:    ParamTypeObject,
 			NestedParams: Params{
 				{
-					Key: PlanAddTasksContent,
+					Key: PlanUpdateTasksContent,
 					Description: "The description of the task to be completed. This should be concise, but should " +
 						"describe the task in sufficient detail to allow for implementation even if the conversation " +
 						"is reset.",
@@ -89,15 +81,15 @@ func (p *PlanAddTool) Params() Params {
 					Required: true,
 				},
 				{
-					Key: PlanAddTasksID,
+					Key: PlanUpdateTasksID,
 					Description: fmt.Sprintf(
 						"A short, unique identifier for this task. Can be used to link sub-tasks with %q",
-						PlanAddTasksParentID),
+						PlanUpdateTasksParentID),
 					Type:     ParamTypeString,
 					Required: true,
 				},
 				{
-					Key:         PlanAddTasksParentID,
+					Key:         PlanUpdateTasksParentID,
 					Description: "If this is a sub-task of another task, provide the unique ID of its parent",
 					Type:        ParamTypeString,
 					Required:    false,
@@ -105,21 +97,21 @@ func (p *PlanAddTool) Params() Params {
 			},
 		},
 		{
-			Key:         PlanAddContext,
+			Key:         PlanUpdateContext,
 			Description: "An array of 1 or more items of context",
 			Type:        ParamTypeArray,
 			Required:    false,
 			ItemType:    ParamTypeObject,
 			NestedParams: Params{
 				{
-					Key: PlanAddContextContent,
+					Key: PlanUpdateContextContent,
 					Description: "A piece of context you want to associate with one or more tasks in order to help " +
 						"you stay on track and implement the user's request.",
 					Type:     ParamTypeString,
 					Required: true,
 				},
 				{
-					Key: PlanAddContextType,
+					Key: PlanUpdateContextType,
 					Description: fmt.Sprintf(
 						"The type of context this represents. %q is a snippet or long section of source code from "+
 							"e.g. the %q tool. %q is a decision made about the design of the solution that will be "+
@@ -132,13 +124,13 @@ func (p *PlanAddTool) Params() Params {
 					Required: true,
 				},
 				{
-					Key:         PlanAddContextID,
+					Key:         PlanUpdateContextID,
 					Description: "A short, unique identifier for this piece of context.",
 					Type:        ParamTypeString,
 					Required:    true,
 				},
 				{
-					Key:         PlanAddContextOwners,
+					Key:         PlanUpdateContextOwners,
 					Description: "The IDs of the tasks for which this piece of context is relevant",
 					Type:        ParamTypeArray,
 					ItemType:    ParamTypeString,
@@ -149,14 +141,14 @@ func (p *PlanAddTool) Params() Params {
 	}
 }
 
-func (p *PlanAddTool) Run(_ context.Context, args Args) (string, error) {
-	if tasks := args.GetArgsObjectSlice(PlanAddTasks); tasks != nil {
+func (p *PlanUpdateTool) Run(_ context.Context, args Args) (string, error) {
+	if tasks := args.GetArgsObjectSlice(PlanUpdateTasks); tasks != nil {
 		if err := p.handleTasks(tasks); err != nil {
 			return "", err
 		}
 	}
 
-	if context := args.GetArgsObjectSlice(PlanAddContext); context != nil {
+	if context := args.GetArgsObjectSlice(PlanUpdateContext); context != nil {
 		if err := p.handleContext(context); err != nil {
 			return "", err
 		}
@@ -165,12 +157,12 @@ func (p *PlanAddTool) Run(_ context.Context, args Args) (string, error) {
 	return "", nil
 }
 
-func (p *PlanAddTool) handleTasks(tasks []Args) error {
+func (p *PlanUpdateTool) handleTasks(tasks []Args) error {
 	for taskIdx, rawTask := range tasks {
 		slog.Debug("Task details", "num", taskIdx, "task", rawTask)
-		id := rawTask.GetString(PlanAddTasksID)
-		content := rawTask.GetString(PlanAddTasksContent)
-		parentID := rawTask.GetString(PlanAddTasksParentID)
+		id := rawTask.GetString(PlanUpdateTasksID)
+		content := rawTask.GetString(PlanUpdateTasksContent)
+		parentID := rawTask.GetString(PlanUpdateTasksParentID)
 
 		task := plan.NewTaskItem(*content).SetID(*id)
 		if parentID != nil {
@@ -186,13 +178,13 @@ func (p *PlanAddTool) handleTasks(tasks []Args) error {
 	return nil
 }
 
-func (p *PlanAddTool) handleContext(context []Args) error {
+func (p *PlanUpdateTool) handleContext(context []Args) error {
 	for contextIdx, rawContext := range context {
 		slog.Debug("Context details", "num", contextIdx, "context", rawContext)
-		rawContextType := rawContext.GetString(PlanAddContextType)
-		content := rawContext.GetString(PlanAddContextContent)
-		id := rawContext.GetString(PlanAddContextID)
-		owners := rawContext.GetStringSlice(PlanAddContextOwners)
+		rawContextType := rawContext.GetString(PlanUpdateContextType)
+		content := rawContext.GetString(PlanUpdateContextContent)
+		id := rawContext.GetString(PlanUpdateContextID)
+		owners := rawContext.GetStringSlice(PlanUpdateContextOwners)
 
 		contextItem := plan.NewContextItem(plan.ContextType(*rawContextType), *content)
 		contextItem.SetOwners(owners...).SetID(*id)

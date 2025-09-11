@@ -47,10 +47,22 @@ func WithSessionInfo(name, systemPrompt string) OptFunc {
 			return nil, fmt.Errorf("must supply project path before session info")
 		}
 
+		toolOpts := &tools.ManagerOpts{
+			ProjectPath:     smoke.projectPath,
+			SessionName:     name,
+			Tools:           tools.AllTools(),
+			WithPlanManager: true,
+		}
+
+		toolManager, err := tools.NewManager(toolOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize tools manager: %w", err)
+		}
+
 		session, err := llms.NewSession(&llms.SessionOpts{
 			Name:          name,
 			SystemMessage: systemPrompt,
-			Tools:         tools.NewManager(smoke.projectPath, name),
+			Tools:         toolManager,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize session: %w", err)

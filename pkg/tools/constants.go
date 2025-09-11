@@ -17,6 +17,7 @@ const (
 	ToolGrep             = "grep"
 	ToolListFiles        = "list_files"
 	ToolPlanAdd          = "plan_add"
+	ToolPlanUpdate       = "plan_update"
 	ToolReadFile         = "read_file"
 	ToolReadPlan         = "read_plan"
 	ToolRemovePlan       = "remove_plan"

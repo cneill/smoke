@@ -161,7 +161,7 @@ func NewTaskItem(content string) *TaskItem {
 }
 
 func (t *TaskItem) SetID(id string) *TaskItem {
-	t.BaseItem.ID = id
+	t.ID = id
 	return t
 }
 
@@ -207,6 +207,11 @@ func NewContextItem(contextType ContextType, content string) *ContextItem {
 		Content:     content,
 		Owners:      []string{},
 	}
+}
+
+func (c *ContextItem) SetID(id string) *ContextItem {
+	c.ID = id
+	return c
 }
 
 func (c *ContextItem) SetOwners(ownerIDs ...string) *ContextItem {

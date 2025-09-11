@@ -23,7 +23,18 @@ func run() error {
 		return fmt.Errorf("path error: %w", err)
 	}
 
-	toolManager := tools.NewManager(absPath, "test_session")
+	opts := &tools.ManagerOpts{
+		ProjectPath:     absPath,
+		SessionName:     "test_session",
+		Tools:           tools.AllTools(),
+		WithPlanManager: true,
+	}
+
+	toolManager, err := tools.NewManager(opts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize tool manager: %w", err)
+	}
+
 	toolName := os.Args[2]
 	rawArgs := os.Args[3]
 

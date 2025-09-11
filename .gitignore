@@ -3,3 +3,4 @@ cmd/tooltest/tooltest
 logs/
 *.log
 *_plan.md
+*_plan.json
