@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	PlanAddTasks         = "tasks"
-	PlanAddTasksContent  = "content"
-	PlanAddTasksID       = "id"
-	PlanAddTasksParentID = "parent_id"
+	PlanAddTasks             = "tasks"
+	PlanAddTasksContent      = "content"
+	PlanAddTasksID           = "id"
+	PlanAddTasksParentID     = "parent_id"
+	PlanAddTasksDependencies = "dependencies"
 
 	PlanAddContext        = "context"
 	PlanAddContextType    = "type"
@@ -27,7 +28,6 @@ type PlanAddTool struct {
 	PlanManager *plan.Manager
 }
 
-// TODO: allow tool initializations to fail with error...?
 func NewPlanAddTool(projectPath, sessionName string) Tool {
 	return &PlanAddTool{
 		ProjectPath: projectPath,
@@ -102,6 +102,14 @@ func (p *PlanAddTool) Params() Params {
 					Type:        ParamTypeString,
 					Required:    false,
 				},
+				{
+					Key: PlanAddTasksDependencies,
+					Description: "Mark other tasks or subtasks as dependencies, meaning that they must be completed " +
+						"before this task, by including their IDs.",
+					Type:     ParamTypeArray,
+					ItemType: ParamTypeString,
+					Required: false,
+				},
 			},
 		},
 		{
@@ -171,14 +179,22 @@ func (p *PlanAddTool) handleTasks(tasks []Args) error {
 		id := rawTask.GetString(PlanAddTasksID)
 		content := rawTask.GetString(PlanAddTasksContent)
 		parentID := rawTask.GetString(PlanAddTasksParentID)
+		dependencies := rawTask.GetStringSlice(PlanAddTasksDependencies)
 
-		task := plan.NewTaskItem(*content).SetID(*id)
+		task := plan.NewTaskItem(*content).
+			SetID(*id).
+			SetOperation(plan.OperationAdd)
+
 		if parentID != nil {
 			task = task.SetParent(*parentID)
 		}
 
+		if dependencies != nil {
+			task = task.SetDependencies(dependencies...)
+		}
+
 		item := &plan.ItemUnion{TaskItem: task}
-		if err := p.PlanManager.AddItem(item); err != nil {
+		if err := p.PlanManager.HandleItem(item); err != nil {
 			return fmt.Errorf("failed to add task with index %d: %w", taskIdx, err)
 		}
 	}
@@ -194,11 +210,13 @@ func (p *PlanAddTool) handleContext(context []Args) error {
 		id := rawContext.GetString(PlanAddContextID)
 		owners := rawContext.GetStringSlice(PlanAddContextOwners)
 
-		contextItem := plan.NewContextItem(plan.ContextType(*rawContextType), *content)
-		contextItem.SetOwners(owners...).SetID(*id)
+		contextItem := plan.NewContextItem(plan.ContextType(*rawContextType), *content).
+			SetOwners(owners...).
+			SetID(*id).
+			SetOperation(plan.OperationAdd)
 
 		item := &plan.ItemUnion{ContextItem: contextItem}
-		if err := p.PlanManager.AddItem(item); err != nil {
+		if err := p.PlanManager.HandleItem(item); err != nil {
 			return fmt.Errorf("failed to add context with index %d: %w", contextIdx, err)
 		}
 	}

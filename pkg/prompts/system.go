@@ -28,7 +28,12 @@ func SystemJSON() string { //nolint:funlen
 				"only if the user asks a question specifically about the current codebase, not a general question.",
 		},
 		"plan_process": []string{
-			"Add tasks with the `plan_add` tool.",
+			"Think hard about how to complete what the user has asked. Break it into smaller subtasks, and think " +
+				"through how to solve each subtask step-by-step. Add these tasks and subtasks with `plan_add`.",
+			"As you enumerate the tasks and subtasks to be completed, use `plan_add` to add context associated with " +
+				"your tasks. This can include code conventions, interface definitions, 3rd party libraries, relevant " +
+				"paths, etc.",
+			"!! STOP AT THIS POINT AND TELL THE USER ABOUT YOUR PLAN BEFORE CONTINUING TO `work_process` !!",
 		},
 		// "plan_process": []string{
 		// 	"Check for an existing plan file with the `read_plan` tool. If one already exists, tell the user about it " +

@@ -4,16 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
+	"strings"
 
 	"github.com/cneill/smoke/pkg/plan"
 )
 
 const (
-	PlanUpdateTasks         = "tasks"
-	PlanUpdateTasksContent  = "content"
-	PlanUpdateTasksID       = "id"
-	PlanUpdateTasksParentID = "parent_id"
+	PlanUpdateTasks             = "tasks"
+	PlanUpdateTasksContent      = "content"
+	PlanUpdateTasksID           = "id"
+	PlanUpdateTasksParentID     = "parent_id"
+	PlanUpdateTasksDependencies = "dependencies"
 
 	PlanUpdateContext        = "context"
 	PlanUpdateContextType    = "type"
@@ -23,11 +24,9 @@ const (
 )
 
 type PlanUpdateTool struct {
-	ProjectPath  string
-	SessionName  string
-	PlanFileName string
-	PlanFile     *os.File
-	PlanManager  *plan.Manager
+	ProjectPath string
+	SessionName string
+	PlanManager *plan.Manager
 }
 
 func NewPlanUpdateTool(projectPath, sessionName string) Tool {
@@ -67,48 +66,59 @@ func (p *PlanUpdateTool) Params() Params {
 	return Params{
 		{
 			Key:         PlanUpdateTasks,
-			Description: "An array of 1 or more tasks to be completed",
+			Description: "An array of 1 or more existing tasks to be updated",
 			Type:        ParamTypeArray,
 			Required:    false,
 			ItemType:    ParamTypeObject,
 			NestedParams: Params{
 				{
-					Key: PlanUpdateTasksContent,
-					Description: "The description of the task to be completed. This should be concise, but should " +
-						"describe the task in sufficient detail to allow for implementation even if the conversation " +
-						"is reset.",
-					Type:     ParamTypeString,
-					Required: true,
+					Key:         PlanUpdateTasksID,
+					Description: "The identifier for an existing task or sub-task.",
+					Type:        ParamTypeString,
+					Required:    true,
 				},
 				{
-					Key: PlanUpdateTasksID,
-					Description: fmt.Sprintf(
-						"A short, unique identifier for this task. Can be used to link sub-tasks with %q",
-						PlanUpdateTasksParentID),
+					Key: PlanUpdateTasksContent,
+					Description: "Used to adjust the description of the referenced task. This should be concise, but " +
+						"should describe the task in sufficient detail to allow for implementation even if the " +
+						"conversation is reset.",
 					Type:     ParamTypeString,
-					Required: true,
+					Required: false,
 				},
 				{
 					Key:         PlanUpdateTasksParentID,
-					Description: "If this is a sub-task of another task, provide the unique ID of its parent",
+					Description: "Adjust the parent of a task or sub-task by providing the new parent's ID.",
 					Type:        ParamTypeString,
 					Required:    false,
+				},
+				{
+					Key: PlanUpdateTasksDependencies,
+					Description: "Update the list of depenendencies on the referenced task or sub-task by providing " +
+						"a full array of the new dependencies.",
+					Type:     ParamTypeArray,
+					ItemType: ParamTypeString,
+					Required: false,
 				},
 			},
 		},
 		{
 			Key:         PlanUpdateContext,
-			Description: "An array of 1 or more items of context",
+			Description: "An array of 1 or more existing items of context to be updated",
 			Type:        ParamTypeArray,
 			Required:    false,
 			ItemType:    ParamTypeObject,
 			NestedParams: Params{
 				{
-					Key: PlanUpdateContextContent,
-					Description: "A piece of context you want to associate with one or more tasks in order to help " +
-						"you stay on track and implement the user's request.",
-					Type:     ParamTypeString,
-					Required: true,
+					Key:         PlanUpdateContextID,
+					Description: "The identifier for an existing piece of context.",
+					Type:        ParamTypeString,
+					Required:    true,
+				},
+				{
+					Key:         PlanUpdateContextContent,
+					Description: "Used to update the content of the referenced piece of context.",
+					Type:        ParamTypeString,
+					Required:    false,
 				},
 				{
 					Key: PlanUpdateContextType,
@@ -121,20 +131,15 @@ func (p *PlanUpdateTool) Params() Params {
 					Type: ParamTypeString,
 					EnumStringValues: ToStrings(
 						[]plan.ContextType{plan.ContextTypeCode, plan.ContextTypeDecision, plan.ContextTypeReference}),
-					Required: true,
+					Required: false,
 				},
 				{
-					Key:         PlanUpdateContextID,
-					Description: "A short, unique identifier for this piece of context.",
-					Type:        ParamTypeString,
-					Required:    true,
-				},
-				{
-					Key:         PlanUpdateContextOwners,
-					Description: "The IDs of the tasks for which this piece of context is relevant",
-					Type:        ParamTypeArray,
-					ItemType:    ParamTypeString,
-					Required:    true,
+					Key: PlanUpdateContextOwners,
+					Description: "Adjust the owners, or tasks for which this piece of context is relevant, by " +
+						"providing their IDs.",
+					Type:     ParamTypeArray,
+					ItemType: ParamTypeString,
+					Required: false,
 				},
 			},
 		},
@@ -142,58 +147,129 @@ func (p *PlanUpdateTool) Params() Params {
 }
 
 func (p *PlanUpdateTool) Run(_ context.Context, args Args) (string, error) {
-	if tasks := args.GetArgsObjectSlice(PlanUpdateTasks); tasks != nil {
-		if err := p.handleTasks(tasks); err != nil {
+	var taskIDs, contextIDs []string
+	var err error
+
+	tasks := args.GetArgsObjectSlice(PlanUpdateTasks)
+	if tasks != nil {
+		taskIDs, err = p.handleTasks(tasks)
+		if err != nil {
 			return "", err
 		}
 	}
 
-	if context := args.GetArgsObjectSlice(PlanUpdateContext); context != nil {
-		if err := p.handleContext(context); err != nil {
+	context := args.GetArgsObjectSlice(PlanUpdateContext)
+	if context != nil {
+		contextIDs, err = p.handleContext(context)
+		if err != nil {
 			return "", err
 		}
 	}
 
-	return "", nil
+	if len(tasks) == 0 && len(context) == 0 {
+		return "", fmt.Errorf("no tasks or context items were provided to update")
+	}
+
+	output := "Updated "
+
+	if len(taskIDs) > 0 {
+		output += fmt.Sprintf("tasks with IDs %s; ", strings.Join(taskIDs, ", "))
+	}
+
+	if len(contextIDs) > 0 {
+		output += fmt.Sprintf("context items with IDs %s; ", strings.Join(taskIDs, ", "))
+	}
+
+	output = strings.TrimRight(output, "; ")
+
+	return output, nil
 }
 
-func (p *PlanUpdateTool) handleTasks(tasks []Args) error {
-	for taskIdx, rawTask := range tasks {
-		slog.Debug("Task details", "num", taskIdx, "task", rawTask)
-		id := rawTask.GetString(PlanUpdateTasksID)
-		content := rawTask.GetString(PlanUpdateTasksContent)
-		parentID := rawTask.GetString(PlanUpdateTasksParentID)
+func (p *PlanUpdateTool) handleTasks(tasks []Args) ([]string, error) {
+	taskIDs := make([]string, len(tasks))
 
-		task := plan.NewTaskItem(*content).SetID(*id)
-		if parentID != nil {
-			task = task.SetParent(*parentID)
+	for taskIdx, rawTask := range tasks {
+		slog.Debug("Updating task details", "num", taskIdx, "task", rawTask)
+		id := rawTask.GetString(PlanUpdateTasksID)
+
+		existing := p.PlanManager.GetItemByID(*id)
+		if existing == nil {
+			return []string{}, fmt.Errorf("no existing task with the ID %q was found to update", *id)
 		}
+
+		content := rawTask.GetString(PlanUpdateTasksContent)
+		if content == nil {
+			content = &existing.TaskItem.Content
+		}
+
+		parentID := rawTask.GetString(PlanUpdateTasksParentID)
+		if parentID == nil {
+			parentID = &existing.TaskItem.Parent
+		}
+
+		dependencies := rawTask.GetStringSlice(PlanAddTasksDependencies)
+		if dependencies == nil {
+			dependencies = append([]string{}, existing.TaskItem.Dependencies...)
+		}
+
+		task := plan.NewTaskItem(*content).
+			SetID(*id).
+			SetOperation(plan.OperationUpdate).
+			SetParent(*parentID).
+			SetDependencies(dependencies...)
 
 		item := &plan.ItemUnion{TaskItem: task}
-		if err := p.PlanManager.AddItem(item); err != nil {
-			return fmt.Errorf("failed to add task with index %d: %w", taskIdx, err)
+		if err := p.PlanManager.HandleItem(item); err != nil {
+			return []string{}, fmt.Errorf("failed to add task with index %d: %w", taskIdx, err)
 		}
+
+		taskIDs[taskIdx] = *id
 	}
 
-	return nil
+	return taskIDs, nil
 }
 
-func (p *PlanUpdateTool) handleContext(context []Args) error {
-	for contextIdx, rawContext := range context {
-		slog.Debug("Context details", "num", contextIdx, "context", rawContext)
-		rawContextType := rawContext.GetString(PlanUpdateContextType)
-		content := rawContext.GetString(PlanUpdateContextContent)
-		id := rawContext.GetString(PlanUpdateContextID)
-		owners := rawContext.GetStringSlice(PlanUpdateContextOwners)
+func (p *PlanUpdateTool) handleContext(context []Args) ([]string, error) {
+	contextIDs := make([]string, len(context))
 
-		contextItem := plan.NewContextItem(plan.ContextType(*rawContextType), *content)
-		contextItem.SetOwners(owners...).SetID(*id)
+	for contextIdx, rawContext := range context {
+		slog.Debug("Updating context details", "num", contextIdx, "context", rawContext)
+
+		id := rawContext.GetString(PlanUpdateContextID)
+
+		existing := p.PlanManager.GetItemByID(*id)
+		if existing == nil {
+			return []string{}, fmt.Errorf("no existing context item with the ID %q was found to update", *id)
+		}
+
+		contextType := rawContext.GetString(PlanUpdateContextType)
+		if contextType == nil {
+			existingType := string(existing.ContextItem.ContextType)
+			contextType = &existingType
+		}
+
+		content := rawContext.GetString(PlanUpdateContextContent)
+		if content == nil {
+			content = &existing.ContextItem.Content
+		}
+
+		owners := rawContext.GetStringSlice(PlanUpdateContextOwners)
+		if owners == nil {
+			owners = append([]string{}, existing.ContextItem.Owners...)
+		}
+
+		contextItem := plan.NewContextItem(plan.ContextType(*contextType), *content).
+			SetID(*id).
+			SetOperation(plan.OperationUpdate).
+			SetOwners(owners...)
 
 		item := &plan.ItemUnion{ContextItem: contextItem}
-		if err := p.PlanManager.AddItem(item); err != nil {
-			return fmt.Errorf("failed to add context with index %d: %w", contextIdx, err)
+		if err := p.PlanManager.HandleItem(item); err != nil {
+			return []string{}, fmt.Errorf("failed to add context with index %d: %w", contextIdx, err)
 		}
+
+		contextIDs[contextIdx] = *id
 	}
 
-	return nil
+	return contextIDs, nil
 }

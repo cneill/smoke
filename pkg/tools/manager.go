@@ -70,6 +70,8 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 			return nil, fmt.Errorf("failed to open session plan file: %w", err)
 		}
 
+		// TODO: teardown method to close this file if tool manager gets cycled or program closed
+
 		manager.planFile = planFile
 		manager.planManager = plan.NewManager(planFile)
 	}

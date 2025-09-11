@@ -56,6 +56,19 @@ func (i *ItemUnion) Type() ItemType {
 	return typ
 }
 
+func (i *ItemUnion) Operation() Operation {
+	operation := OperationAdd
+
+	switch i.Type() { //nolint:exhaustive
+	case ItemTypeTask:
+		operation = i.TaskItem.Operation
+	case ItemTypeContext:
+		operation = i.TaskItem.Operation
+	}
+
+	return operation
+}
+
 func (i *ItemUnion) MarshalJSON() ([]byte, error) {
 	var (
 		bytes []byte
@@ -130,10 +143,18 @@ const (
 	ItemTypeTask       ItemType = "task"
 )
 
+type Operation string
+
+const (
+	OperationAdd    Operation = "add"
+	OperationUpdate Operation = "update"
+)
+
 type BaseItem struct {
-	ID       string    `json:"id"`
-	Time     time.Time `json:"time"`
-	ItemType ItemType  `json:"item_type"`
+	ID        string    `json:"id"`
+	Time      time.Time `json:"time"`
+	ItemType  ItemType  `json:"item_type"`
+	Operation Operation `json:"operation"`
 }
 
 func NewBaseItem(itemType ItemType) *BaseItem {
@@ -162,6 +183,11 @@ func NewTaskItem(content string) *TaskItem {
 
 func (t *TaskItem) SetID(id string) *TaskItem {
 	t.ID = id
+	return t
+}
+
+func (t *TaskItem) SetOperation(operation Operation) *TaskItem {
+	t.Operation = operation
 	return t
 }
 
@@ -211,6 +237,11 @@ func NewContextItem(contextType ContextType, content string) *ContextItem {
 
 func (c *ContextItem) SetID(id string) *ContextItem {
 	c.ID = id
+	return c
+}
+
+func (c *ContextItem) SetOperation(operation Operation) *ContextItem {
+	c.Operation = operation
 	return c
 }
 
