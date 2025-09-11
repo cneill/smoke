@@ -63,7 +63,7 @@ func (i *ItemUnion) Operation() Operation {
 	case ItemTypeTask:
 		operation = i.TaskItem.Operation
 	case ItemTypeContext:
-		operation = i.TaskItem.Operation
+		operation = i.ContextItem.Operation
 	}
 
 	return operation
