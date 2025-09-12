@@ -55,8 +55,8 @@ func AllTools() []Initializer {
 		NewGoTestTool,
 		NewGrepTool,
 		NewListFilesTool,
-		// TODO: add when finished
 		NewPlanAddTool,
+		NewPlanCompletionTool,
 		NewPlanReadTool,
 		NewPlanUpdateTool,
 		NewReadFileTool,
@@ -78,6 +78,7 @@ func PlanningTools() []Initializer {
 		NewGrepTool,
 		NewListFilesTool,
 		NewPlanAddTool,
+		NewPlanCompletionTool,
 		NewPlanReadTool,
 		NewPlanUpdateTool,
 		NewReadFileTool,

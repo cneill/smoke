@@ -219,6 +219,21 @@ func (m *Manager) GetContextFor(searchID string) []*ContextItem {
 	return allContext
 }
 
+func (m *Manager) Teardown() error {
+	m.writerMutex.Lock()
+	defer m.writerMutex.Unlock()
+
+	m.IsWriting = false
+
+	if closer, ok := m.writer.(io.WriteCloser); ok {
+		if err := closer.Close(); err != nil {
+			return fmt.Errorf("failed to close plan manager writer: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // validateTaskDependencies ensures that we have matching items for the dependencies declared on a TaskItem
 func (m *Manager) validateTaskDependencies(item *TaskItem) error {
 	missingDependencyIDs := []string{}

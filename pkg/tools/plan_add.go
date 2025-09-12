@@ -158,16 +158,26 @@ func (p *PlanAddTool) Params() Params {
 }
 
 func (p *PlanAddTool) Run(_ context.Context, args Args) (string, error) {
+	performedAdd := false
+
 	if tasks := args.GetArgsObjectSlice(PlanAddTasks); tasks != nil {
 		if err := p.handleTasks(tasks); err != nil {
 			return "", err
 		}
+
+		performedAdd = true
 	}
 
 	if context := args.GetArgsObjectSlice(PlanAddContext); context != nil {
 		if err := p.handleContext(context); err != nil {
 			return "", err
 		}
+
+		performedAdd = true
+	}
+
+	if !performedAdd {
+		return "", fmt.Errorf("no valid tasks or context items were found in this tool call")
 	}
 
 	return "", nil

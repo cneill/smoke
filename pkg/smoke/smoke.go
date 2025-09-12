@@ -263,8 +263,16 @@ func (s *Smoke) GetMessages() []*llms.Message {
 }
 
 // SetSession overwrites the current [*llms.Session].
-func (s *Smoke) SetSession(newSession *llms.Session) {
+func (s *Smoke) SetSession(newSession *llms.Session) error {
+	if s.session != nil {
+		if err := s.session.Teardown(); err != nil {
+			return fmt.Errorf("failed to tear down previous session when replacing: %w", err)
+		}
+	}
+
 	s.session = newSession
+
+	return nil
 }
 
 // SetPlanningMode enables or disables planning mode.

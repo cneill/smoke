@@ -18,6 +18,7 @@ const (
 	ToolListFiles        = "list_files"
 	ToolPlanAdd          = "plan_add"
 	ToolPlanUpdate       = "plan_update"
+	ToolPlanCompletion   = "plan_completion"
 	ToolReadFile         = "read_file"
 	ToolReadPlan         = "read_plan"
 	ToolPlanRead         = "plan_read"

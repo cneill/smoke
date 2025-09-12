@@ -97,6 +97,7 @@ func (m *Manager) SetTools(initializers ...Initializer) {
 	defer m.toolMutex.Unlock()
 
 	tools := Tools{}
+
 	for _, init := range initializers {
 		tool := init(m.ProjectPath, m.SessionName)
 		if pt, ok := tool.(PlanTool); ok {
@@ -155,4 +156,12 @@ func (m *Manager) CallTool(ctx context.Context, toolName string, args Args) (str
 	m.logger.Error("unknown tool", "tool_name", toolName)
 
 	return "", ErrUnknownTool
+}
+
+func (m *Manager) Teardown() error {
+	if err := m.planManager.Teardown(); err != nil {
+		return fmt.Errorf("failed teardown of plan manager using plan file %q: %w", m.planFile.Name(), err)
+	}
+
+	return nil
 }
