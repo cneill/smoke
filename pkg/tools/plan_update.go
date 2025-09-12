@@ -147,8 +147,10 @@ func (p *PlanUpdateTool) Params() Params {
 }
 
 func (p *PlanUpdateTool) Run(_ context.Context, args Args) (string, error) {
-	var taskIDs, contextIDs []string
-	var err error
+	var (
+		taskIDs, contextIDs []string
+		err                 error
+	)
 
 	tasks := args.GetArgsObjectSlice(PlanUpdateTasks)
 	if tasks != nil {
@@ -182,6 +184,7 @@ func (p *PlanUpdateTool) Run(_ context.Context, args Args) (string, error) {
 
 	output = strings.TrimRight(output, "; ")
 
+	// TODO: maybe include current context with ReadPlanTool ?
 	return output, nil
 }
 
