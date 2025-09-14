@@ -35,7 +35,7 @@ linters:
       min-name-length: 2
       ignore-type-assert-ok: true
       ignore-map-index-ok: true
-      ignore-recv-check-ok: true
+      ignore-chan-recv-ok: true
     wsl_v5:
       allow-first-in-block: true
       allow-whole-block: false
