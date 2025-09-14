@@ -2,12 +2,14 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"sync"
 
-	"github.com/cneill/smoke/pkg/fs"
+	smokefs "github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/plan"
 )
 
@@ -57,23 +59,9 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 	}
 
 	if opts.WithPlanManager {
-		planFileName := opts.SessionName + "_plan.json"
-
-		relPath, err := fs.GetRelativePath(opts.ProjectPath, planFileName)
-		if err != nil {
-			return nil, fmt.Errorf("invalid session plan file path (%s): %w", planFileName, err)
+		if err := manager.setupPlanManager(opts); err != nil {
+			return nil, fmt.Errorf("error setting up plan manager: %w", err)
 		}
-
-		// TODO: stat for existing plan planFile, create the manager by loading if exists
-		planFile, err := os.OpenFile(relPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open session plan file: %w", err)
-		}
-
-		// TODO: teardown method to close this file if tool manager gets cycled or program closed
-
-		manager.planFile = planFile
-		manager.planManager = plan.NewManager(planFile)
 	}
 
 	if opts.Tools != nil {
@@ -161,6 +149,44 @@ func (m *Manager) CallTool(ctx context.Context, toolName string, args Args) (str
 func (m *Manager) Teardown() error {
 	if err := m.planManager.Teardown(); err != nil {
 		return fmt.Errorf("failed teardown of plan manager using plan file %q: %w", m.planFile.Name(), err)
+	}
+
+	return nil
+}
+
+func (m *Manager) setupPlanManager(opts *ManagerOpts) error {
+	planFileName := opts.SessionName + "_plan.json"
+
+	relPath, err := smokefs.GetRelativePath(opts.ProjectPath, planFileName)
+	if err != nil {
+		return fmt.Errorf("invalid session plan file path (%s): %w", planFileName, err)
+	}
+
+	_, statErr := os.Stat(relPath)
+	switch {
+	case statErr != nil && !errors.Is(statErr, fs.ErrNotExist):
+		return fmt.Errorf("error opening existing plan file %q: %w", relPath, statErr)
+	case errors.Is(statErr, fs.ErrNotExist):
+		planFile, openErr := os.OpenFile(relPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		if openErr != nil {
+			return fmt.Errorf("failed to create plan file %q: %w", relPath, openErr)
+		}
+
+		m.planFile = planFile
+		m.planManager = plan.NewManager(planFile)
+	default:
+		planFile, openErr := os.OpenFile(relPath, os.O_APPEND|os.O_RDWR, 0o644)
+		if openErr != nil {
+			return fmt.Errorf("failed to open plan file %q: %w", relPath, openErr)
+		}
+
+		manager, readErr := plan.ManagerFromReader(planFile)
+		if readErr != nil {
+			return fmt.Errorf("failed to read existing plan file: %w", readErr)
+		}
+
+		m.planFile = planFile
+		m.planManager = manager
 	}
 
 	return nil
