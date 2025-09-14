@@ -172,6 +172,8 @@ func (m *Manager) setupPlanManager(opts *ManagerOpts) error {
 			return fmt.Errorf("failed to create plan file %q: %w", relPath, openErr)
 		}
 
+		m.logger.Debug("created new plan file", "path", relPath)
+
 		m.planFile = planFile
 		m.planManager = plan.NewManager(planFile)
 	default:
@@ -184,6 +186,8 @@ func (m *Manager) setupPlanManager(opts *ManagerOpts) error {
 		if readErr != nil {
 			return fmt.Errorf("failed to read existing plan file: %w", readErr)
 		}
+
+		m.logger.Debug("opened and parsed existing plan file", "path", relPath)
 
 		m.planFile = planFile
 		m.planManager = manager
