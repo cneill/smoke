@@ -14,4 +14,5 @@ var (
 	ErrMissingKeys      = errors.New("missing required keys")
 	ErrWrongTypeKeys    = errors.New("keys with wrong types")
 	ErrCommandExecution = errors.New("error executing command")
+	ErrUnexpectedValue  = errors.New("unexpected value")
 )

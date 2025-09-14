@@ -2,7 +2,11 @@
 // [ReadFileTool]. These are used by an LLM to take actions on the codebase.
 package tools
 
-import "context"
+import (
+	"context"
+
+	"github.com/cneill/smoke/pkg/plan"
+)
 
 type Tool interface {
 	// Name returns the name by which an LLM will reference the tool.
@@ -32,3 +36,48 @@ func (t Tools) Names() []string {
 
 // TODO: make initializer more general; this isn't really ideal
 type Initializer func(projectPath, sessionName string) Tool
+
+type PlanTool interface {
+	Tool
+
+	SetPlanManager(manager *plan.Manager)
+}
+
+func AllTools() []Initializer {
+	return []Initializer{
+		NewCreateDirectoryTool,
+		NewGitDiffTool,
+		NewGoASTTool,
+		NewGoFumptTool,
+		NewGoImportsTool,
+		NewGoLintTool,
+		NewGoTestTool,
+		NewGrepTool,
+		NewListFilesTool,
+		NewPlanAddTool,
+		NewPlanCompletionTool,
+		NewPlanReadTool,
+		NewPlanUpdateTool,
+		NewReadFileTool,
+		NewReplaceLinesTool,
+		// NewSummarizeHistoryTool,
+		NewWriteFileTool,
+	}
+}
+
+func PlanningTools() []Initializer {
+	return []Initializer{
+		NewGitDiffTool,
+		NewGoASTTool,
+		NewGoLintTool,
+		NewGoTestTool,
+		NewGrepTool,
+		NewListFilesTool,
+		NewPlanAddTool,
+		NewPlanCompletionTool,
+		NewPlanReadTool,
+		NewPlanUpdateTool,
+		NewReadFileTool,
+		// NewSummarizeHistoryTool,
+	}
+}

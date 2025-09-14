@@ -202,3 +202,13 @@ func (s *Session) ReplaceMessages(searches, replacements []*Message) {
 
 	s.Messages = newMessages
 }
+
+func (s *Session) Teardown() error {
+	if s.Tools != nil {
+		if err := s.Tools.Teardown(); err != nil {
+			return fmt.Errorf("session %q teardown failed: %w", s.Name, err)
+		}
+	}
+
+	return nil
+}

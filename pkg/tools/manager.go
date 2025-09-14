@@ -1,15 +1,36 @@
 package tools
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
-	"slices"
-	"strings"
+	"os"
 	"sync"
+
+	smokefs "github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/plan"
 )
+
+type ManagerOpts struct {
+	ProjectPath     string
+	SessionName     string
+	Tools           []Initializer
+	WithPlanManager bool
+}
+
+func (m *ManagerOpts) OK() error {
+	if m.ProjectPath == "" {
+		return fmt.Errorf("missing project path")
+	}
+
+	if m.SessionName == "" {
+		return fmt.Errorf("missing session name")
+	}
+
+	return nil
+}
 
 // Manager holds the [Tools] that are available for use by the LLM. It makes tool calls and logs results.
 // TODO: standard / per-tool timeout for Run() calls
@@ -18,58 +39,38 @@ type Manager struct {
 	ProjectPath string
 	SessionName string
 
-	tools     Tools
-	toolMutex sync.RWMutex
+	tools       Tools
+	toolMutex   sync.RWMutex
+	planManager *plan.Manager
+	planFile    *os.File
 }
 
-func AllTools() []Initializer {
-	return []Initializer{
-		NewCreateDirectoryTool,
-		NewEditPlanTool,
-		NewGitDiffTool,
-		NewGoASTTool,
-		NewGoFumptTool,
-		NewGoImportsTool,
-		NewGoLintTool,
-		NewGoTestTool,
-		NewGrepTool,
-		NewListFilesTool,
-		NewReadFileTool,
-		NewReadPlanTool,
-		// NewRemovePlanTool,
-		NewReplaceLinesTool,
-		// NewSummarizeHistoryTool,
-		NewWriteFileTool,
+func NewManager(opts *ManagerOpts) (*Manager, error) {
+	if err := opts.OK(); err != nil {
+		return nil, fmt.Errorf("error with tool manager options: %w", err)
 	}
-}
 
-func PlanningTools() []Initializer {
-	return []Initializer{
-		NewEditPlanTool,
-		NewGitDiffTool,
-		NewGoASTTool,
-		NewGoLintTool,
-		NewGoTestTool,
-		NewGrepTool,
-		NewListFilesTool,
-		NewReadFileTool,
-		NewReadPlanTool,
-		// NewSummarizeHistoryTool,
-	}
-}
-
-func NewManager(projectPath, sessionName string) *Manager {
 	manager := &Manager{
 		logger:      slog.Default().WithGroup("tools_manager"),
-		ProjectPath: projectPath,
-		SessionName: sessionName,
+		ProjectPath: opts.ProjectPath,
+		SessionName: opts.SessionName,
 
 		toolMutex: sync.RWMutex{},
 	}
 
-	manager.SetTools(AllTools()...)
+	if opts.WithPlanManager {
+		if err := manager.setupPlanManager(opts); err != nil {
+			return nil, fmt.Errorf("error setting up plan manager: %w", err)
+		}
+	}
 
-	return manager
+	if opts.Tools != nil {
+		manager.SetTools(opts.Tools...)
+	} else {
+		manager.SetTools(AllTools()...)
+	}
+
+	return manager, nil
 }
 
 func (m *Manager) GetTools() Tools {
@@ -84,8 +85,14 @@ func (m *Manager) SetTools(initializers ...Initializer) {
 	defer m.toolMutex.Unlock()
 
 	tools := Tools{}
+
 	for _, init := range initializers {
-		tools = append(tools, init(m.ProjectPath, m.SessionName))
+		tool := init(m.ProjectPath, m.SessionName)
+		if pt, ok := tool.(PlanTool); ok {
+			pt.SetPlanManager(m.planManager)
+		}
+
+		tools = append(tools, tool)
 	}
 
 	m.tools = tools
@@ -104,56 +111,15 @@ func (m *Manager) GetParams(toolName string) (Params, error) {
 }
 
 // GetArgs takes the raw JSON bytes provided in the [llms.LLM] tool call, decodes them into an [Args] map, and validates
-// that 1) all required keys are present, 2) unknown keys are not present, 3) value types match those expected for the
-// corresponding [Param].
+// that 1) all required keys are present, 2) unknown keys are not present, 3) values and value types match those
+// expected for the corresponding [Param].
 func (m *Manager) GetArgs(toolName string, input []byte) (Args, error) {
 	params, err := m.GetParams(toolName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get params for tool %q: %w", toolName, err)
 	}
 
-	result := Args{}
-
-	decoder := json.NewDecoder(bytes.NewReader(input))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&result); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidJSON, err)
-	}
-
-	allParamKeys := params.Keys()
-	seenKeys := []string{}
-	unknownKeys := []string{}
-
-	for key := range result {
-		seenKeys = append(seenKeys, key)
-
-		if !slices.Contains(allParamKeys, key) {
-			unknownKeys = append(unknownKeys, key)
-		}
-	}
-
-	if len(unknownKeys) > 0 {
-		return nil, fmt.Errorf("%w: %s", ErrUnknownKeys, strings.Join(unknownKeys, ", "))
-	}
-
-	missingKeys := []string{}
-
-	for _, key := range params.RequiredKeys() {
-		if !slices.Contains(seenKeys, key) {
-			missingKeys = append(missingKeys, key)
-		}
-	}
-
-	if len(missingKeys) > 0 {
-		return nil, fmt.Errorf("%w: %s", ErrMissingKeys, strings.Join(missingKeys, ", "))
-	}
-
-	if err := result.checkTypes(params); err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return ParseArgs(params, input)
 }
 
 // CallTool finds the [Tool] with the name 'toolName' (if known, otherwise returns ErrUnknownTool), and calls it with
@@ -178,4 +144,54 @@ func (m *Manager) CallTool(ctx context.Context, toolName string, args Args) (str
 	m.logger.Error("unknown tool", "tool_name", toolName)
 
 	return "", ErrUnknownTool
+}
+
+func (m *Manager) Teardown() error {
+	if err := m.planManager.Teardown(); err != nil {
+		return fmt.Errorf("failed teardown of plan manager using plan file %q: %w", m.planFile.Name(), err)
+	}
+
+	return nil
+}
+
+func (m *Manager) setupPlanManager(opts *ManagerOpts) error {
+	planFileName := opts.SessionName + "_plan.json"
+
+	relPath, err := smokefs.GetRelativePath(opts.ProjectPath, planFileName)
+	if err != nil {
+		return fmt.Errorf("invalid session plan file path (%s): %w", planFileName, err)
+	}
+
+	_, statErr := os.Stat(relPath)
+	switch {
+	case statErr != nil && !errors.Is(statErr, fs.ErrNotExist):
+		return fmt.Errorf("error opening existing plan file %q: %w", relPath, statErr)
+	case errors.Is(statErr, fs.ErrNotExist):
+		planFile, openErr := os.OpenFile(relPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		if openErr != nil {
+			return fmt.Errorf("failed to create plan file %q: %w", relPath, openErr)
+		}
+
+		m.logger.Debug("created new plan file", "path", relPath)
+
+		m.planFile = planFile
+		m.planManager = plan.NewManager(planFile)
+	default:
+		planFile, openErr := os.OpenFile(relPath, os.O_APPEND|os.O_RDWR, 0o644)
+		if openErr != nil {
+			return fmt.Errorf("failed to open plan file %q: %w", relPath, openErr)
+		}
+
+		manager, readErr := plan.ManagerFromReader(planFile)
+		if readErr != nil {
+			return fmt.Errorf("failed to read existing plan file: %w", readErr)
+		}
+
+		m.logger.Debug("opened and parsed existing plan file", "path", relPath)
+
+		m.planFile = planFile
+		m.planManager = manager
+	}
+
+	return nil
 }

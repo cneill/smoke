@@ -326,46 +326,31 @@ func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, 
 }
 
 func (g *Grok) completionTools(session *llms.Session) []*ChatCompletionTool {
-	sessionTools := session.Tools.GetTools()
-	results := make([]*ChatCompletionTool, len(sessionTools))
+	results := []*ChatCompletionTool{}
 
-	for toolNum, tool := range sessionTools {
-		properties := map[string]any{}
-		requiredKeys := []string{}
+	for _, tool := range session.Tools.GetTools() {
+		params := tool.Params()
 
-		for _, param := range tool.Params() {
-			keyParams := map[string]any{
-				"type":        param.Type,
-				"description": param.Description,
-			}
-
-			if param.Type == tools.ParamTypeArray {
-				keyParams["items"] = map[string]any{
-					"type": param.ItemType,
-				}
-			}
-
-			properties[param.Key] = keyParams
-
-			if param.Required {
-				requiredKeys = append(requiredKeys, param.Key)
-			}
+		properties, err := params.JSONSchemaProperties()
+		if err != nil {
+			g.logger.Error("failed to get JSON Schema properties for tool, skipping", "tool_name", tool.Name(), "error", err)
+			continue
 		}
 
 		toolDef := &ChatCompletionTool{
 			Function: &ChatCompletionToolFunction{
-				Description: tool.Description(),
 				Name:        tool.Name(),
+				Description: tool.Description(),
 				Parameters: map[string]any{
-					"type":       "object",
-					"required":   requiredKeys,
+					"type":       tools.ParamTypeObject,
+					"required":   params.RequiredKeys(),
 					"properties": properties,
 				},
 			},
 			Type: "function",
 		}
 
-		results[toolNum] = toolDef
+		results = append(results, toolDef)
 	}
 
 	return results

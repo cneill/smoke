@@ -140,7 +140,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case commands.HistoryUpdateMessage:
 		cmds = append(cmds, updateHistory(msg))
 	case commands.SessionUpdateMessage:
-		m.smoke.SetSession(msg.Session)
+		if err := m.smoke.SetSession(msg.Session); err != nil {
+			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session: %w", err)))
+			break
+		}
 
 		cmds = append(cmds, updateHistory(msg))
 

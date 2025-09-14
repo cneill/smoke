@@ -260,39 +260,24 @@ func (c *ChatGPT) completionTools(session *llms.Session) []openai.ChatCompletion
 	results := []openai.ChatCompletionToolUnionParam{}
 
 	for _, tool := range session.Tools.GetTools() {
-		properties := map[string]any{}
-		required := []string{}
+		params := tool.Params()
 
-		for _, param := range tool.Params() {
-			keyParams := map[string]any{
-				"type":        param.Type,
-				"description": param.Description,
-			}
-
-			if param.Type == tools.ParamTypeArray {
-				keyParams["items"] = map[string]any{
-					"type": param.ItemType,
-				}
-			}
-
-			properties[param.Key] = keyParams
-
-			if param.Required {
-				required = append(required, param.Key)
-			}
+		properties, err := params.JSONSchemaProperties()
+		if err != nil {
+			c.logger.Error("failed to get JSON Schema properties for tool, skipping", "tool_name", tool.Name(), "error", err)
+			continue
 		}
 
-		params := openai.FunctionParameters{
-			"type":       tools.ParamTypeObject,
-			"properties": properties,
-			"required":   required,
-		}
-
-		results = append(results, openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+		toolDef := openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
 			Name:        tool.Name(),
 			Description: openai.String(tool.Description()),
-			Parameters:  params,
-		}))
+			Parameters: openai.FunctionParameters{
+				"type":       tools.ParamTypeObject,
+				"properties": properties,
+				"required":   params.RequiredKeys(),
+			},
+		})
+		results = append(results, toolDef)
 	}
 
 	return results

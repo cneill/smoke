@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"path/filepath"
 	"testing"
 
 	"github.com/cneill/smoke/pkg/tools"
@@ -27,7 +28,19 @@ func (d dummyTool) Run(_ context.Context, _ tools.Args) (string, error) { return
 func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	t.Helper()
 
-	manager := tools.NewManager(".", "test")
+	absPath, err := filepath.Abs(".")
+	require.NoError(t, err)
+
+	opts := &tools.ManagerOpts{
+		ProjectPath:     absPath,
+		SessionName:     "test",
+		Tools:           tools.AllTools(),
+		WithPlanManager: true,
+	}
+
+	manager, err := tools.NewManager(opts)
+	require.NoError(t, err)
+
 	dummy := dummyTool{params: params}
 
 	manager.SetTools(func(_, _ string) tools.Tool {
@@ -169,9 +182,69 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 			errors:   []error{tools.ErrWrongTypeKeys},
 		},
 		{
+			name:  "invalid_enum_value",
+			input: `{"key": "wrong_value"}`,
+			params: tools.Params{
+				{
+					Key:              "key",
+					Description:      "key",
+					Type:             tools.ParamTypeString,
+					Required:         true,
+					EnumStringValues: []string{"right_value"},
+				},
+			},
+			expected: nil,
+			errors:   []error{tools.ErrUnexpectedValue},
+		},
+		{
+			name:  "valid_enum_values",
+			input: `{"key": "right_value", "key2": "test"}`,
+			params: tools.Params{
+				{
+					Key:              "key",
+					Description:      "key",
+					Type:             tools.ParamTypeString,
+					Required:         true,
+					EnumStringValues: []string{"right_value"},
+				},
+				{
+					Key:              "key2",
+					Description:      "key2",
+					Type:             tools.ParamTypeString,
+					Required:         true,
+					EnumStringValues: []string{"test"},
+				},
+			},
+			expected: tools.Args{"key": "right_value", "key2": "test"},
+			errors:   nil,
+		},
+		{
+			name:  "invalid_object_param",
+			input: `{"object": {"property2": 1}}`,
+			params: tools.Params{
+				{
+					Key:         "object",
+					Description: "object_param",
+					Type:        tools.ParamTypeObject,
+					Required:    true,
+					NestedParams: tools.Params{
+						{
+							Key:         "property1",
+							Description: "property1",
+							Type:        tools.ParamTypeNumber,
+							Required:    true,
+						},
+					},
+				},
+			},
+			expected: nil,
+			errors:   []error{tools.ErrUnknownKeys, tools.ErrUnexpectedValue},
+		},
+		{
 			name: "multiple_valid",
 			input: `{"number_key_int": 1, "number_key_float": 2.0, "str_key": "test", "bool_key": false, ` +
-				`"object_key": {}, "str_array_key": ["a", "b", "c"], "int_array_key": [1, 2, 3]}`,
+				`"object_key": {}, "str_array_key": ["a", "b", "c"], "int_array_key": [1, 2, 3], ` +
+				`"string_enum_key": "good3"}`,
 			params: tools.Params{
 				{
 					Key:         "number_key_int",
@@ -212,10 +285,18 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 				},
 				{
 					Key:         "int_array_key",
-					Description: "string slice key",
+					Description: "int slice key",
 					Type:        tools.ParamTypeArray,
 					ItemType:    tools.ParamTypeNumber,
 					Required:    true,
+				},
+				// TODO: figure out why this isn't being evaluated for right/wrong???
+				{
+					Key:              "string_enum_key",
+					Description:      "string enum key",
+					Type:             tools.ParamTypeString,
+					Required:         true,
+					EnumStringValues: []string{"good1", "good2", "good3"},
 				},
 			},
 			expected: tools.Args{
@@ -226,8 +307,34 @@ func TestGetArgs(t *testing.T) { //nolint:funlen
 				"object_key":       map[string]any{},
 				"str_array_key":    []any{"a", "b", "c"},
 				"int_array_key":    []any{json.Number("1"), json.Number("2"), json.Number("3")},
+				"string_enum_key":  "good3",
 			},
 			errors: nil,
+		},
+		{
+			name:  "valid_object_param",
+			input: `{"object": {"property1": 1}}`,
+			params: tools.Params{
+				{
+					Key:         "object",
+					Description: "object_param",
+					Type:        tools.ParamTypeObject,
+					Required:    true,
+					NestedParams: tools.Params{
+						{
+							Key:         "property1",
+							Description: "property1",
+							Type:        tools.ParamTypeNumber,
+							Required:    true,
+						},
+					},
+				},
+			},
+			expected: tools.Args{
+				"object": map[string]any{
+					"property1": json.Number("1"),
+				},
+			},
 		},
 	}
 

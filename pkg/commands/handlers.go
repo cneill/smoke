@@ -548,7 +548,19 @@ func NewSummarizeHandler(msg PromptCommandMessage) (Command, error) {
 func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	filtered := s.filterMessages(session.Messages)
 	sessionName := session.Name + "_summary"
-	toolManager := tools.NewManager(session.Tools.ProjectPath, sessionName)
+
+	managerOpts := &tools.ManagerOpts{
+		ProjectPath:     session.Tools.ProjectPath,
+		SessionName:     sessionName,
+		Tools:           []tools.Initializer{},
+		WithPlanManager: false,
+	}
+
+	toolManager, err := tools.NewManager(managerOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize tools manager: %w", err)
+	}
+
 	toolManager.SetTools()
 
 	newSession := &llms.Session{

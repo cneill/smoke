@@ -320,6 +320,58 @@ func TestArgs_GetBool(t *testing.T) { //nolint:funlen
 	}
 }
 
+func TestArgs_GetArgsObject(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		args     tools.Args
+		expected tools.Args
+	}{
+		{
+			name:     "nil",
+			args:     nil,
+			expected: nil,
+		},
+		{
+			name:     "empty",
+			args:     tools.Args{},
+			expected: nil,
+		},
+		{
+			name:     "number",
+			args:     tools.Args{testKey: 1},
+			expected: nil,
+		},
+		{
+			name:     "int_array",
+			args:     tools.Args{testKey: []any{1, 2, 3}},
+			expected: nil,
+		},
+		{
+			name:     "object",
+			args:     tools.Args{testKey: map[string]any{"a": 1, "b": "string"}},
+			expected: tools.Args{"a": 1, "b": "string"},
+		},
+		{
+			name:     "nested_object",
+			args:     tools.Args{testKey: map[string]any{"nested": map[string]any{"a": 1}}},
+			expected: tools.Args{"nested": map[string]any{"a": 1}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := test.args.GetArgsObject(testKey)
+
+			assert.Equal(t, test.expected == nil, result == nil)
+			assert.Equal(t, test.expected, result)
+		})
+	}
+}
+
 func TestArgs_GetStringSlice(t *testing.T) {
 	t.Parallel()
 
@@ -353,7 +405,7 @@ func TestArgs_GetStringSlice(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:     "strings",
+			name:     "anys",
 			args:     tools.Args{testKey: []any{"1", "2", "3"}},
 			expected: []string{"1", "2", "3"},
 		},
@@ -388,6 +440,57 @@ func TestArgs_GetStringSlice(t *testing.T) {
 				if result[i] != test.expected[i] {
 					t.Errorf("mismatch in position %d: got %s, expected %s", i, test.expected[i], result[i])
 				}
+			}
+		})
+	}
+}
+
+func TestArgs_GetArgsObjectSlice(t *testing.T) {
+	t.Parallel()
+
+	nestedIntKey := "nested_key"
+
+	tests := []struct {
+		name     string
+		args     tools.Args
+		expected []tools.Args
+	}{
+		{
+			name:     "nil",
+			args:     nil,
+			expected: nil,
+		},
+		{
+			name:     "empty",
+			args:     tools.Args{},
+			expected: nil,
+		},
+		{
+			name:     "string_slice",
+			args:     tools.Args{testKey: []string{"1", "2", "3"}},
+			expected: nil,
+		},
+		{
+			name:     "object_slice",
+			args:     tools.Args{testKey: []any{map[string]any{nestedIntKey: 1}, map[string]any{nestedIntKey: 2}}},
+			expected: []tools.Args{{nestedIntKey: 1}, {nestedIntKey: 2}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := test.args.GetArgsObjectSlice(testKey)
+			assert.Len(t, result, len(test.expected))
+			assert.Equal(t, test.expected, result)
+
+			if result == nil || test.expected == nil {
+				return
+			}
+
+			for _, item := range result {
+				assert.NotNil(t, item.GetInt(nestedIntKey))
 			}
 		})
 	}
