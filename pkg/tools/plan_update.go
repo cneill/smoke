@@ -125,14 +125,19 @@ func (p *PlanUpdateTool) Params() Params {
 					Description: fmt.Sprintf(
 						"The type of context this represents. %q is a snippet or long section of source code from "+
 							"e.g. the %q tool. %q is a decision made about the design of the solution that will be "+
-							`developed as part of "work_process". %q is reference material about a 3rd party library`+
-							"or external service.",
-						plan.ContextTypeCode, ToolReadFile, plan.ContextTypeDecision, plan.ContextTypeReference),
+							"developed as part of `work_process`. %q is reference material about a 3rd party library"+
+							"or external service. %q is a constraint imposed either by the user or the underlying "+
+							"codebase.",
+						plan.ContextTypeCode, ToolReadFile, plan.ContextTypeDecision, plan.ContextTypeReference,
+						plan.ContextTypeConstraint),
 					Type: ParamTypeString,
-					EnumStringValues: ToStrings(
-						[]plan.ContextType{plan.ContextTypeCode, plan.ContextTypeDecision, plan.ContextTypeReference}),
+					EnumStringValues: ToStrings([]plan.ContextType{
+						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeDecision,
+						plan.ContextTypeReference,
+					}),
 					Required: false,
 				},
+
 				{
 					Key: PlanUpdateContextOwners,
 					Description: "Adjust the owners, or tasks for which this piece of context is relevant, by " +
@@ -179,7 +184,7 @@ func (p *PlanUpdateTool) Run(_ context.Context, args Args) (string, error) {
 	}
 
 	if len(contextIDs) > 0 {
-		output += fmt.Sprintf("context items with IDs %s; ", strings.Join(taskIDs, ", "))
+		output += fmt.Sprintf("context items with IDs %s; ", strings.Join(contextIDs, ", "))
 	}
 
 	output = strings.TrimRight(output, "; ")
@@ -210,7 +215,7 @@ func (p *PlanUpdateTool) handleTasks(tasks []Args) ([]string, error) {
 			parentID = &existing.TaskItem.Parent
 		}
 
-		dependencies := rawTask.GetStringSlice(PlanAddTasksDependencies)
+		dependencies := rawTask.GetStringSlice(PlanUpdateTasksDependencies)
 		if dependencies == nil {
 			dependencies = append([]string{}, existing.TaskItem.Dependencies...)
 		}

@@ -39,13 +39,15 @@ func (p *PlanAddTool) Name() string { return ToolPlanAdd }
 func (p *PlanAddTool) Description() string {
 	examples := CollectExamples(p.Examples()...)
 
-	return "Add tasks and sub-tasks to the plan that will be executed during `work_process`, or pieces of context " +
-		"linked to those tasks that are relevant to completing them." + examples
+	return "Add tasks and subtasks to the plan during `plan_process` that will be executed during `work_process`, " +
+		"or pieces of context linked to those tasks that are relevant to completing them. If your plan will require " +
+		"editing multiple functions/methods extensively, create subtasks for each. If you are implementing simple " +
+		"getter/setter methods, you can consolidate to a single, clear task description to cover them all." + examples
 }
 
 func (p *PlanAddTool) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
 
-func (p *PlanAddTool) Examples() Examples {
+func (p *PlanAddTool) Examples() Examples { //nolint:funlen
 	return Examples{
 		{
 			Description: "Add a few simple tasks and sub-tasks",
@@ -100,6 +102,13 @@ func (p *PlanAddTool) Examples() Examples {
 							"list of possible errors returned by the vendor REST API, as defined in their docs.",
 						PlanAddContextOwners: "vendor_error_handling",
 						PlanAddContextType:   plan.ContextTypeReference,
+					},
+					{
+						PlanAddContextID: "implementation_constraints",
+						PlanAddContextContent: "Do not create named errors for every rare, one-off error. Focus on " +
+							"naming errors that can occur in multiple different places.",
+						PlanAddContextOwners: "vendor_error_handling",
+						PlanAddContextType:   plan.ContextTypeConstraint,
 					},
 				},
 			},
@@ -167,12 +176,16 @@ func (p *PlanAddTool) Params() Params { //nolint:funlen
 					Description: fmt.Sprintf(
 						"The type of context this represents. %q is a snippet or long section of source code from "+
 							"e.g. the %q tool. %q is a decision made about the design of the solution that will be "+
-							`developed as part of "work_process". %q is reference material about a 3rd party library`+
-							"or external service.",
-						plan.ContextTypeCode, ToolReadFile, plan.ContextTypeDecision, plan.ContextTypeReference),
+							"developed as part of `work_process`. %q is reference material about a 3rd party library"+
+							"or external service. %q is a constraint imposed either by the user or the underlying "+
+							"codebase.",
+						plan.ContextTypeCode, ToolReadFile, plan.ContextTypeDecision, plan.ContextTypeReference,
+						plan.ContextTypeConstraint),
 					Type: ParamTypeString,
-					EnumStringValues: ToStrings(
-						[]plan.ContextType{plan.ContextTypeCode, plan.ContextTypeDecision, plan.ContextTypeReference}),
+					EnumStringValues: ToStrings([]plan.ContextType{
+						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeDecision,
+						plan.ContextTypeReference,
+					}),
 					Required: true,
 				},
 				{

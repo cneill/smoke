@@ -212,9 +212,10 @@ func (t *TaskItem) HasDependency(taskID string) bool {
 type ContextType string
 
 const (
-	ContextTypeCode      ContextType = "code"
-	ContextTypeDecision  ContextType = "decision"
-	ContextTypeReference ContextType = "reference"
+	ContextTypeCode       ContextType = "code"
+	ContextTypeDecision   ContextType = "decision"
+	ContextTypeReference  ContextType = "reference"
+	ContextTypeConstraint ContextType = "constraint"
 )
 
 type ContextItem struct {
@@ -253,23 +254,26 @@ func (c *ContextItem) SetOwners(ownerIDs ...string) *ContextItem {
 type CompletionStatus string
 
 const (
-	CompletionStatusUnknown CompletionStatus = ""
-	CompletionStatusSuccess CompletionStatus = "success"
-	CompletionStatusFailed  CompletionStatus = "failed"
-	CompletionStatusPartial CompletionStatus = "partial"
+	CompletionStatusUnknown  CompletionStatus = ""
+	CompletionStatusSuccess  CompletionStatus = "success"
+	CompletionStatusFailed   CompletionStatus = "failed"
+	CompletionStatusPartial  CompletionStatus = "partial"
+	CompletionStatusObsolete CompletionStatus = "obsolete"
 )
 
 type CompletionItem struct {
 	*BaseItem
 
+	Content string           `json:"content"`
 	Status  CompletionStatus `json:"status"`
 	TaskIDs []string         `json:"task_ids"`
 }
 
-func NewCompletionItem(taskIDs ...string) *CompletionItem {
+func NewCompletionItem(content string, taskIDs ...string) *CompletionItem {
 	return &CompletionItem{
 		BaseItem: NewBaseItem(ItemTypeCompletion),
 
+		Content: content,
 		Status:  CompletionStatusSuccess,
 		TaskIDs: taskIDs,
 	}
@@ -282,7 +286,7 @@ func (c *CompletionItem) SetStatus(status CompletionStatus) *CompletionItem {
 
 const idChars = "abcdef0123456789"
 
-// randID returns a random 16-character hex string
+// randID returns a random 32-character hex string
 // TODO: consolidate with llms.randID?
 func randID() string {
 	output := []byte{}
