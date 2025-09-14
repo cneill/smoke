@@ -59,10 +59,50 @@ func (p *PlanUpdateTool) Examples() Examples {
 				},
 			},
 		},
+		{
+			Description: "Update task dependencies after discovering additional requirements",
+			Args: Args{
+				PlanUpdateTasks: []Args{
+					{
+						PlanUpdateTasksID: "deploy_service",
+						PlanUpdateTasksDependencies: []string{
+							"create_dockerfile", "setup_kubernetes", "configure_monitoring",
+						},
+					},
+				},
+			},
+		},
+		{
+			Description: "Update context items including changing type and adding/removing owners",
+			Args: Args{
+				PlanUpdateContext: []Args{
+					{
+						PlanUpdateContextID:   "api_design_notes",
+						PlanUpdateContextType: plan.ContextTypeDecision,
+						PlanUpdateContextContent: "After team discussion, decided to use REST API instead of GraphQL " +
+							"for better caching and simpler client implementation",
+						PlanUpdateContextOwners: []string{"implement_api", "design_api_schema", "create_api_docs"},
+					},
+				},
+			},
+		},
+		{
+			Description: "Move a subtask to a different parent task during reorganization",
+			Args: Args{
+				PlanUpdateTasks: []Args{
+					{
+						PlanUpdateTasksID:       "validate_user_input",
+						PlanUpdateTasksParentID: "user_service_layer",
+						PlanUpdateTasksContent: "Move input validation from the controller layer to the service " +
+							"layer for better reusability",
+					},
+				},
+			},
+		},
 	}
 }
 
-func (p *PlanUpdateTool) Params() Params {
+func (p *PlanUpdateTool) Params() Params { //nolint:funlen
 	return Params{
 		{
 			Key:         PlanUpdateTasks,

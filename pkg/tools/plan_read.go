@@ -35,8 +35,14 @@ func (p *PlanReadTool) SetPlanManager(manager *plan.Manager) { p.PlanManager = m
 func (p *PlanReadTool) Examples() Examples {
 	return Examples{
 		{
-			Description: "Read the full current state of the plan",
-			Args:        Args{},
+			Description: "Read the full current state of the plan\n\nThe output format shows:\n" +
+				"- Tasks in a hierarchical tree structure with indentation for subtasks\n" +
+				"- Task format: '- <content> (id: <id>) [<status>]'\n" +
+				"- Status can be: pending, success, failed, partial, or obsolete\n" +
+				"- Dependencies listed under tasks that have them\n" +
+				"- Context items associated with each task\n" +
+				"- All contexts listed at the end with their types and owners",
+			Args: Args{},
 		},
 	}
 }

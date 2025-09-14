@@ -113,6 +113,120 @@ func (p *PlanAddTool) Examples() Examples { //nolint:funlen
 				},
 			},
 		},
+		{
+			Description: "Add tasks with dependencies to ensure proper execution order",
+			Args: Args{
+				PlanAddTasks: []Args{
+					{
+						PlanAddTasksID:      "database_migration",
+						PlanAddTasksContent: "Create database migration scripts for the new user table schema",
+					},
+					{
+						PlanAddTasksID:           "user_model",
+						PlanAddTasksContent:      "Implement the User model struct with validation methods",
+						PlanAddTasksDependencies: []string{"database_migration"},
+					},
+					{
+						PlanAddTasksID:           "user_repository",
+						PlanAddTasksContent:      "Create UserRepository with CRUD operations",
+						PlanAddTasksDependencies: []string{"user_model", "database_migration"},
+					},
+					{
+						PlanAddTasksID:           "user_service",
+						PlanAddTasksContent:      "Implement UserService business logic layer",
+						PlanAddTasksDependencies: []string{"user_repository"},
+					},
+				},
+			},
+		},
+		{
+			Description: "Add a complex multi-level task hierarchy for refactoring a large module",
+			Args: Args{
+				PlanAddTasks: []Args{
+					{
+						PlanAddTasksID:      "refactor_auth_module",
+						PlanAddTasksContent: "Refactor the entire authentication module to use JWT tokens instead of sessions",
+					},
+					{
+						PlanAddTasksID:       "refactor_auth_backend",
+						PlanAddTasksContent:  "Update backend authentication logic",
+						PlanAddTasksParentID: "refactor_auth_module",
+					},
+					{
+						PlanAddTasksID:       "implement_jwt_generation",
+						PlanAddTasksContent:  "Create JWT token generation and signing logic",
+						PlanAddTasksParentID: "refactor_auth_backend",
+					},
+					{
+						PlanAddTasksID:       "implement_jwt_validation",
+						PlanAddTasksContent:  "Create JWT token validation and parsing logic",
+						PlanAddTasksParentID: "refactor_auth_backend",
+					},
+					{
+						PlanAddTasksID:           "update_auth_middleware",
+						PlanAddTasksContent:      "Update authentication middleware to use JWT tokens",
+						PlanAddTasksParentID:     "refactor_auth_backend",
+						PlanAddTasksDependencies: []string{"implement_jwt_generation", "implement_jwt_validation"},
+					},
+					{
+						PlanAddTasksID:       "refactor_auth_frontend",
+						PlanAddTasksContent:  "Update frontend authentication flow",
+						PlanAddTasksParentID: "refactor_auth_module",
+					},
+					{
+						PlanAddTasksID:       "update_login_component",
+						PlanAddTasksContent:  "Modify login component to handle JWT tokens",
+						PlanAddTasksParentID: "refactor_auth_frontend",
+					},
+					{
+						PlanAddTasksID:       "update_auth_service",
+						PlanAddTasksContent:  "Update frontend auth service to store and send JWT tokens",
+						PlanAddTasksParentID: "refactor_auth_frontend",
+					},
+				},
+			},
+		},
+		{
+			Description: "Add a task with all four types of context to demonstrate comprehensive planning",
+			Args: Args{
+				PlanAddTasks: []Args{
+					{
+						PlanAddTasksID:      "implement_rate_limiting",
+						PlanAddTasksContent: "Add rate limiting to the API endpoints to prevent abuse",
+					},
+				},
+				PlanAddContext: []Args{
+					{
+						PlanAddContextID: "existing_middleware_code",
+						PlanAddContextContent: "The current middleware stack is defined in pkg/middleware/chain.go " +
+							"and uses the standard net/http Handler interface",
+						PlanAddContextOwners: []string{"implement_rate_limiting"},
+						PlanAddContextType:   plan.ContextTypeCode,
+					},
+					{
+						PlanAddContextID: "rate_limit_algorithm_decision",
+						PlanAddContextContent: "Use a sliding window algorithm with Redis backend for distributed " +
+							"rate limiting across multiple server instances",
+						PlanAddContextOwners: []string{"implement_rate_limiting"},
+						PlanAddContextType:   plan.ContextTypeDecision,
+					},
+					{
+						PlanAddContextID: "redis_rate_limiter_reference",
+						PlanAddContextContent: "The go-redis/redis_rate library (github.com/go-redis/redis_rate/v10) " +
+							"provides a proven implementation of sliding window rate limiting with Redis",
+						PlanAddContextOwners: []string{"implement_rate_limiting"},
+						PlanAddContextType:   plan.ContextTypeReference,
+					},
+					{
+						PlanAddContextID: "rate_limit_constraints",
+						PlanAddContextContent: "Rate limits must be configurable per endpoint, with default of 100 " +
+							"requests per minute for authenticated users and 20 for anonymous users",
+						PlanAddContextOwners: []string{"implement_rate_limiting"},
+						PlanAddContextType:   plan.ContextTypeConstraint,
+					},
+				},
+			},
+		},
 	}
 }
 

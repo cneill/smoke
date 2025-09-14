@@ -73,6 +73,28 @@ func (p *PlanCompletionTool) Examples() Examples {
 				PlanCompletionStatus: string(plan.CompletionStatusObsolete),
 			},
 		},
+		{
+			Description: "Mark a task as partially completed when some work is done but blocked by external factors",
+			Args: Args{
+				PlanCompletionTaskIDs: []string{"integrate_payment_api"},
+				PlanCompletionContent: "Implemented the payment gateway client and data models, but cannot complete " +
+					"the integration testing because the sandbox environment credentials have not been provided. " +
+					"The code is ready but untested against the actual API.",
+				PlanCompletionStatus: string(plan.CompletionStatusPartial),
+			},
+		},
+		{
+			Description: "Complete a parent task and all its subtasks after successfully implementing a feature",
+			Args: Args{
+				PlanCompletionTaskIDs: []string{
+					"add_user_authentication", "implement_login", "implement_logout", "add_session_management",
+				},
+				PlanCompletionContent: "Successfully implemented the complete authentication system. Login and logout " +
+					"endpoints are working correctly with session management. All unit tests pass and integration " +
+					"tests confirm proper authentication flow.",
+				PlanCompletionStatus: string(plan.CompletionStatusSuccess),
+			},
+		},
 	}
 }
 
