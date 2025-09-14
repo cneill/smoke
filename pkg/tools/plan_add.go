@@ -68,10 +68,46 @@ func (p *PlanAddTool) Examples() Examples {
 				},
 			},
 		},
+		{
+			Description: "Add some context about the existing codebase to make it clearer what work needs to be done " +
+				"to complete the task.",
+			Args: Args{
+				PlanAddTasks: []Args{
+					{
+						PlanAddTasksID: "vendor_error_handling",
+						PlanAddTasksContent: "Improve the error-handling for the VendorClient struct in the vendor " +
+							"package by using named errors to make it more testable and consistent.",
+					},
+				},
+				PlanAddContext: []Args{
+					{
+						PlanAddContextID: "vendor_defined_errors",
+						PlanAddContextContent: "The vendor package contains the ErrTimeout, ErrConnectionRefused, " +
+							"ErrUnauthorized, and ErrUnknown error types.",
+						PlanAddContextOwners: "vendor_error_handling",
+						PlanAddContextType:   plan.ContextTypeCode,
+					},
+					{
+						PlanAddContextID: "vendor_undefined_errors",
+						PlanAddContextContent: "VendorClient methods return several identical error strings in " +
+							"multiple locations that do not have corresponding types.",
+						PlanAddContextOwners: "vendor_error_handling",
+						PlanAddContextType:   plan.ContextTypeCode,
+					},
+					{
+						PlanAddContextID: "vendor_api_details",
+						PlanAddContextContent: "The package comment at the top of `pkg/vendor/vendor.go` includes a " +
+							"list of possible errors returned by the vendor REST API, as defined in their docs.",
+						PlanAddContextOwners: "vendor_error_handling",
+						PlanAddContextType:   plan.ContextTypeReference,
+					},
+				},
+			},
+		},
 	}
 }
 
-func (p *PlanAddTool) Params() Params {
+func (p *PlanAddTool) Params() Params { //nolint:funlen
 	return Params{
 		{
 			Key:         PlanAddTasks,
