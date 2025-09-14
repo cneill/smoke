@@ -56,7 +56,7 @@ func TestManagerAddMultipleItems(t *testing.T) {
 	items := []*plan.ItemUnion{
 		{TaskItem: plan.NewTaskItem("task 1")},
 		{ContextItem: plan.NewContextItem(plan.ContextTypeCode, "code snippet").SetOwners("task1")},
-		{CompletionItem: plan.NewCompletionItem("task1")},
+		{CompletionItem: plan.NewCompletionItem("Completed task1", "task1")},
 	}
 
 	for _, item := range items {
@@ -77,7 +77,7 @@ func TestManagerCompletionTracking(t *testing.T) {
 	allItems := mgr.AllItems()
 	taskID := allItems[0].TaskItem.ID
 
-	completion := &plan.ItemUnion{CompletionItem: plan.NewCompletionItem(taskID)}
+	completion := &plan.ItemUnion{CompletionItem: plan.NewCompletionItem("Completed task", taskID)}
 	require.NoError(t, mgr.AddItem(completion))
 
 	completed := mgr.Completed()
@@ -89,7 +89,7 @@ func TestManagerCompletionTracking(t *testing.T) {
 	}
 
 	// Test duplicate completion - should just log a warning, no error
-	completion2 := &plan.ItemUnion{CompletionItem: plan.NewCompletionItem(taskID)}
+	completion2 := &plan.ItemUnion{CompletionItem: plan.NewCompletionItem("Completed task", taskID)}
 	require.NoError(t, mgr.AddItem(completion2))
 
 	completed = mgr.Completed()

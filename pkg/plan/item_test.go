@@ -48,7 +48,7 @@ func TestItemUnionValidStates(t *testing.T) {
 		{
 			name: "valid completion item",
 			setupFunc: func() *plan.ItemUnion {
-				return &plan.ItemUnion{CompletionItem: plan.NewCompletionItem("task1")}
+				return &plan.ItemUnion{CompletionItem: plan.NewCompletionItem("Completed task1", "task1")}
 			},
 			expectedType: plan.ItemTypeCompletion,
 			shouldError:  false,
@@ -108,7 +108,7 @@ func TestItemUnionJSONMarshaling(t *testing.T) {
 		{
 			name: "completion item",
 			setup: func() *plan.ItemUnion {
-				return &plan.ItemUnion{CompletionItem: plan.NewCompletionItem("task1", "task2")}
+				return &plan.ItemUnion{CompletionItem: plan.NewCompletionItem("Completed task 1 and 2", "task1", "task2")}
 			},
 			itemType: plan.ItemTypeCompletion,
 		},
@@ -220,7 +220,7 @@ func TestContextItemSetOwners(t *testing.T) {
 func TestCompletionItemCreation(t *testing.T) {
 	t.Parallel()
 
-	comp := plan.NewCompletionItem("task1", "task2")
+	comp := plan.NewCompletionItem("Successfully completed tasks 1 and 2", "task1", "task2")
 
 	assert.Len(t, comp.TaskIDs, 2)
 	assert.Equal(t, "task1", comp.TaskIDs[0])
