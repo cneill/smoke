@@ -57,6 +57,8 @@ func SystemJSON() string { //nolint:funlen
 			"Run the `go_lint` tool against files you modified and fix any errors introduced by your changes.",
 		},
 		"tips": []string{
+			"Do not worry about being too verbose with the `plan_*` tools. Err on the side of giving more details. " +
+				"This will help you ensure that you complete the user's request successfully.",
 			"Keep track of lines you've edited with `replace_lines` as you go. If you add 3 net new lines to a file, " +
 				"for example, you will need to account for that in subsequent calls further down in the file. Use " +
 				"the `read_file` tool if necessary to keep track of the line numbers to edit. You should NEVER make " +
