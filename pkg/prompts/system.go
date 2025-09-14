@@ -37,6 +37,9 @@ func SystemJSON() string { //nolint:funlen
 			"You should consider whether your task can be understood on its own without reference to context that " +
 				"might exist in tool call results messages. If you need to preserve context, add it to the plan as a " +
 				"context item with `plan_add`.",
+			"When you are in planning mode, you will not have access to tools like `write_file` that you will need " +
+				"to complete your work. When the user is satisfied with your plan, they will tell you that you have " +
+				"exited planning mode, and you will get access to additional tools.",
 			"!! STOP AT THIS POINT AND TELL THE USER ABOUT YOUR PLAN BEFORE CONTINUING TO `work_process` !!",
 		},
 		"work_process": []string{
