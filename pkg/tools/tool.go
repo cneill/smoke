@@ -46,7 +46,6 @@ type PlanTool interface {
 func AllTools() []Initializer {
 	return []Initializer{
 		NewCreateDirectoryTool,
-		// NewEditPlanTool,
 		NewGitDiffTool,
 		NewGoASTTool,
 		NewGoFumptTool,
@@ -60,8 +59,6 @@ func AllTools() []Initializer {
 		NewPlanReadTool,
 		NewPlanUpdateTool,
 		NewReadFileTool,
-		// NewReadPlanTool,
-		// NewRemovePlanTool,
 		NewReplaceLinesTool,
 		// NewSummarizeHistoryTool,
 		NewWriteFileTool,
@@ -70,7 +67,6 @@ func AllTools() []Initializer {
 
 func PlanningTools() []Initializer {
 	return []Initializer{
-		// NewEditPlanTool,
 		NewGitDiffTool,
 		NewGoASTTool,
 		NewGoLintTool,
@@ -82,7 +78,6 @@ func PlanningTools() []Initializer {
 		NewPlanReadTool,
 		NewPlanUpdateTool,
 		NewReadFileTool,
-		// NewReadPlanTool,
 		// NewSummarizeHistoryTool,
 	}
 }
