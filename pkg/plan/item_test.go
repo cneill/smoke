@@ -12,7 +12,7 @@ import (
 
 // Unit Tests for ItemUnion
 
-func TestItemUnionValidStates(t *testing.T) {
+func TestItemUnionValidStates(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tests := []struct {

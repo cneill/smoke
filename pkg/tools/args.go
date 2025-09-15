@@ -380,7 +380,9 @@ func (a Args) checkValues(params Params) error {
 				return fmt.Errorf("invalid object value for param %q: %w", key, err)
 			}
 		case ParamTypeArray:
-			return a.checkArrayValues(param, key, value)
+			if err := a.checkArrayValues(param, value); err != nil {
+				return fmt.Errorf("invalid value for param %q: %w", key, err)
+			}
 		}
 	}
 
@@ -421,6 +423,7 @@ func (a Args) checkObjectValue(param *Param, argValue any) error {
 	return nil
 }
 
-func (a Args) checkArrayValues(param *Param, argKey string, argValue any) error {
+// TODO: complete
+func (a Args) checkArrayValues(_ *Param, _ any) error {
 	return nil
 }

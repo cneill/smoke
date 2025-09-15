@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParam_OK(t *testing.T) {
+func TestParam_OK(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tests := []struct {
@@ -154,7 +154,7 @@ func TestParam_OK(t *testing.T) {
 	}
 }
 
-func TestParams_JSONSchemaProperties(t *testing.T) {
+func TestParams_JSONSchemaProperties(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tests := []struct {

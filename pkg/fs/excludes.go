@@ -34,29 +34,19 @@ type WalkerEntry struct {
 	DirEntry fs.DirEntry
 }
 
-// ExcludesWalker returns an iterator that returns the entries from a filepath.WalkDir call, filtered by the
-// ExcludesMatcher for this directory.
+// ExcludesWalker returns an iterator that yields the entries from a filepath.WalkDir call, filtered by the
+// ExcludesMatcher for 'targetPath'.
 func ExcludesWalker(projectPath, targetPath string) (iter.Seq2[WalkerEntry, error], error) {
-	_, err := filepath.Rel(projectPath, targetPath)
+	absPath, err := getWalkPath(projectPath, targetPath)
 	if err != nil {
-		return nil, fmt.Errorf("target path is not a subpath of project path: %w", err)
-	}
-
-	if !filepath.IsAbs(targetPath) {
-		abs, err := filepath.Abs(targetPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get absolute path from %q: %w", targetPath, err)
-		}
-
-		targetPath = abs
+		return nil, fmt.Errorf("error with path: %w", err)
 	}
 
 	excludes := GetExcludeMatcher(projectPath)
+	errStop := errors.New("stop walk")
 
 	iter := func(yield func(WalkerEntry, error) bool) {
-		errStop := errors.New("stop walk")
-
-		_ = filepath.WalkDir(targetPath, func(path string, dirEntry fs.DirEntry, err error) error {
+		_ = filepath.WalkDir(absPath, func(path string, dirEntry fs.DirEntry, err error) error {
 			if err != nil {
 				if !yield(WalkerEntry{}, fmt.Errorf("walk error on %q: %w", path, err)) {
 					return errStop
@@ -65,7 +55,7 @@ func ExcludesWalker(projectPath, targetPath string) (iter.Seq2[WalkerEntry, erro
 				return nil
 			}
 
-			if path == targetPath {
+			if path == absPath {
 				return nil
 			}
 
@@ -100,6 +90,26 @@ func ExcludesWalker(projectPath, targetPath string) (iter.Seq2[WalkerEntry, erro
 	}
 
 	return iter, nil
+}
+
+// getWalkPath checks that "targetPath" is part of "projectPath" and ensures it is an absolute path.
+func getWalkPath(projectPath, targetPath string) (string, error) {
+	result := targetPath
+
+	if _, err := filepath.Rel(projectPath, targetPath); err != nil {
+		return "", fmt.Errorf("target path is not a subpath of project path: %w", err)
+	}
+
+	if !filepath.IsAbs(targetPath) {
+		abs, err := filepath.Abs(targetPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to get absolute path from %q: %w", targetPath, err)
+		}
+
+		result = abs
+	}
+
+	return result, nil
 }
 
 // GetExcludeMatcher looks at a few locations to get exclusion files, then returns an ExcludeMatcher that will exclude

@@ -50,7 +50,7 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	return manager
 }
 
-func TestGetArgs(t *testing.T) { //nolint:funlen
+func TestGetArgs(t *testing.T) { //nolint:funlen,maintidx
 	t.Parallel()
 
 	tests := []struct {

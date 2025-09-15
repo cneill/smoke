@@ -72,7 +72,7 @@ func (p *PlanReadTool) Run(_ context.Context, _ Args) (string, error) {
 	contexts := make([]*plan.ContextItem, 0, len(latestItems))
 
 	for _, item := range latestItems {
-		switch item.Type() {
+		switch item.Type() { //nolint:exhaustive
 		case plan.ItemTypeTask:
 			tasks = append(tasks, item.TaskItem)
 		case plan.ItemTypeContext:

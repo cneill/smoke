@@ -4,6 +4,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -169,7 +170,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case commands.EditRequestMessage:
 		slog.Debug("got request to open temp file in editor", "file_path", msg.Path, "description", msg.Description, "editor", msg.Editor)
 
-		execCmd := exec.Command(msg.Editor, msg.Path)
+		execCmd := exec.CommandContext(context.TODO(), msg.Editor, msg.Path) //nolint:gosec // Already sanitized
 		teaCmd := tea.ExecProcess(execCmd, func(err error) tea.Msg {
 			return commands.EditResultMessage{
 				EditRequestMessage: msg,
