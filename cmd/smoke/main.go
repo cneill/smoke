@@ -18,7 +18,7 @@ import (
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/smoke"
 	"github.com/openai/openai-go/v2"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -56,27 +56,27 @@ func flags() []cli.Flag {
 
 func localConfigFlags() []cli.Flag {
 	return []cli.Flag{
-		&cli.PathFlag{
+		&cli.StringFlag{
 			Name:     FlagDir,
 			Usage:    "The `DIRECTORY` where your project lives.",
 			Category: "Local config",
 			Aliases:  []string{"d"},
 			Required: true,
-			EnvVars:  []string{EnvDir},
+			Sources:  cli.EnvVars(EnvDir),
 		},
 		&cli.BoolFlag{
 			Name:     FlagDebug,
 			Usage:    "Enable debug logging.",
 			Category: "Local config",
 			Aliases:  []string{"D"},
-			EnvVars:  []string{EnvDebug},
+			Sources:  cli.EnvVars(EnvDebug),
 		},
 		&cli.StringFlag{
 			Name:     FlagSessionName,
 			Usage:    "The name of the session",
 			Category: "Local config",
 			Aliases:  []string{"s"},
-			EnvVars:  []string{EnvSessionName},
+			Sources:  cli.EnvVars(EnvSessionName),
 			Value:    "session",
 		},
 	}
@@ -89,7 +89,7 @@ func llmConfigFlags() []cli.Flag {
 			Usage:    "The max tokens to return in any given response",
 			Category: "LLM config",
 			Aliases:  []string{"t"},
-			EnvVars:  []string{EnvMaxTokens},
+			Sources:  cli.EnvVars(EnvMaxTokens),
 			Value:    8192,
 		},
 		&cli.Float64Flag{
@@ -97,7 +97,7 @@ func llmConfigFlags() []cli.Flag {
 			Usage:    "The temperature value to use with the model",
 			Category: "LLM config",
 			Aliases:  []string{"T"},
-			EnvVars:  []string{EnvTemperature},
+			Sources:  cli.EnvVars(EnvTemperature),
 			Value:    1.0,
 		},
 	}
@@ -110,38 +110,38 @@ func providerFlags() []cli.Flag {
 			Usage:    "The provider's model to use, or an alias for it",
 			Category: "Providers",
 			Aliases:  []string{"m"},
-			EnvVars:  []string{EnvModel},
+			Sources:  cli.EnvVars(EnvModel),
 		},
 		&cli.StringFlag{
 			Name:     FlagProvider,
 			Usage:    fmt.Sprintf("Either '%s', '%s', or '%s'", llms.LLMTypeChatGPT, llms.LLMTypeClaude, llms.LLMTypeGrok),
 			Category: "Providers",
 			Aliases:  []string{"p"},
-			EnvVars:  []string{EnvProvider},
+			Sources:  cli.EnvVars(EnvProvider),
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:     FlagOpenAIKey,
 			Category: "Providers",
 			Usage:    "The API key for OpenAI",
-			EnvVars:  []string{EnvOpenAIKey},
+			Sources:  cli.EnvVars(EnvOpenAIKey),
 		},
 		&cli.StringFlag{
 			Name:     FlagAnthropicKey,
 			Category: "Providers",
 			Usage:    "The API key for Anthropic",
-			EnvVars:  []string{EnvAnthropicKey},
+			Sources:  cli.EnvVars(EnvAnthropicKey),
 		},
 		&cli.StringFlag{
 			Name:     FlagXAIKey,
 			Category: "Providers",
 			Usage:    "The API key for xAI",
-			EnvVars:  []string{EnvXAIKey},
+			Sources:  cli.EnvVars(EnvXAIKey),
 		},
 	}
 }
 
-func validate(ctx *cli.Context) error {
+func validate(ctx *cli.Command) error {
 	switch llms.LLMType(ctx.String(FlagProvider)) {
 	case llms.LLMTypeChatGPT:
 		if ctx.String(FlagOpenAIKey) == "" {
@@ -165,34 +165,33 @@ func validate(ctx *cli.Context) error {
 func run() error {
 	var logFile *os.File
 
-	app := &cli.App{
+	command := &cli.Command{
 		Name:        "smoke",
-		HelpName:    "smoke",
 		Description: "Smoke 'em if you got 'em.",
 		Flags:       flags(),
-		Before: func(ctx *cli.Context) error {
-			if err := validate(ctx); err != nil {
-				return fmt.Errorf("flag validation error: %w", err)
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			if err := validate(cmd); err != nil {
+				return nil, fmt.Errorf("flag validation error: %w", err)
 			}
 
 			level := slog.LevelInfo
-			if ctx.Bool(FlagDebug) {
+			if cmd.Bool(FlagDebug) {
 				level = slog.LevelDebug
 			}
 
-			logFileName := ctx.String(FlagSessionName) + "_log.log"
+			logFileName := cmd.String(FlagSessionName) + "_log.log"
 			var err error
 			logFile, err = os.OpenFile(logFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 			if err != nil {
-				return fmt.Errorf("failed to open log file")
+				return nil, fmt.Errorf("failed to open log file")
 			}
 
 			log.Setup(logFile, level)
 
-			return nil
+			return ctx, nil
 		},
 		Action: action,
-		After: func(_ *cli.Context) error {
+		After: func(_ context.Context, _ *cli.Command) error {
 			if logFile != nil {
 				if err := logFile.Close(); err != nil {
 					return fmt.Errorf("failed to close log file %q: %w", logFile.Name(), err)
@@ -203,49 +202,49 @@ func run() error {
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
+	if err := command.Run(context.TODO(), os.Args); err != nil {
 		return fmt.Errorf("run error: %w", err)
 	}
 
 	return nil
 }
 
-func action(ctx *cli.Context) error {
-	provider := llms.LLMType(ctx.String(FlagProvider))
-	modelFlag := ctx.String(FlagModel)
-	sessionName := ctx.String(FlagSessionName)
-	projectPath := ctx.Path(FlagDir)
+func action(ctx context.Context, cmd *cli.Command) error {
+	provider := llms.LLMType(cmd.String(FlagProvider))
+	modelFlag := cmd.String(FlagModel)
+	sessionName := cmd.String(FlagSessionName)
+	projectPath := cmd.String(FlagDir)
 
 	llmConfig := &llms.Config{
-		MaxTokens:   ctx.Int64(FlagMaxTokens),
+		MaxTokens:   cmd.Int64(FlagMaxTokens),
 		Provider:    provider,
-		Temperature: ctx.Float64(FlagTemperature),
+		Temperature: cmd.Float64(FlagTemperature),
 	}
 
 	switch provider {
 	case llms.LLMTypeChatGPT:
-		llmConfig.APIKey = ctx.String(FlagOpenAIKey)
+		llmConfig.APIKey = cmd.String(FlagOpenAIKey)
 		llmConfig.Model = chatgpt.GetModel(modelFlag, openai.ChatModelGPT5)
 	case llms.LLMTypeClaude:
-		llmConfig.APIKey = ctx.String(FlagAnthropicKey)
+		llmConfig.APIKey = cmd.String(FlagAnthropicKey)
 		llmConfig.Model = string(claude.GetModel(modelFlag, anthropic.ModelClaudeSonnet4_0))
 	case llms.LLMTypeGrok:
-		llmConfig.APIKey = ctx.String(FlagXAIKey)
+		llmConfig.APIKey = cmd.String(FlagXAIKey)
 		llmConfig.Model = grok.GetModel(modelFlag, "grok-3")
 	}
 
 	// TODO: allow for more MCP clients
-	mcpClient, err := mcp.NewClient(context.TODO(), projectPath, "gopls", "mcp")
+	mcpClient, err := mcp.NewClient(ctx, projectPath, "gopls", "mcp")
 	if err != nil {
 		return fmt.Errorf("failed to set up gopls MCP client: %w", err)
 	}
 
 	opts := []smoke.OptFunc{
-		smoke.WithDebug(ctx.Bool(FlagDebug)),
+		smoke.WithDebug(cmd.Bool(FlagDebug)),
 		smoke.WithProjectPath(projectPath),
 		smoke.WithSessionInfo(sessionName, prompts.SystemJSON()),
 		smoke.WithLLMConfig(llmConfig),
-		smoke.WithMCPClient(mcpClient),
+		smoke.WithMCPClient(ctx, mcpClient),
 	}
 
 	smokeInstance, err := smoke.New(opts...)

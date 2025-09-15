@@ -131,13 +131,13 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 	}
 }
 
-func WithMCPClient(client *mcp.Client) OptFunc {
+func WithMCPClient(ctx context.Context, client *mcp.Client) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		if smoke.session == nil {
 			return nil, fmt.Errorf("must set up session first")
 		}
 
-		tools, err := client.Tools(context.TODO())
+		tools, err := client.Tools(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools from MCP client: %w", err)
 		}
