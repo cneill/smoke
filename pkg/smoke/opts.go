@@ -1,6 +1,7 @@
 package smoke
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"github.com/cneill/smoke/pkg/llms/chatgpt"
 	"github.com/cneill/smoke/pkg/llms/claude"
 	"github.com/cneill/smoke/pkg/llms/grok"
+	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -129,15 +131,18 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 	}
 }
 
-func WithMCPClient(client *tools.MCPClient) OptFunc {
+func WithMCPClient(client *mcp.Client) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		if smoke.session == nil {
 			return nil, fmt.Errorf("must set up session first")
 		}
 
-		if err := smoke.session.Tools.AddMCP(client); err != nil {
-			return nil, fmt.Errorf("failed to add MCP tools to session tool manager: %w", err)
+		tools, err := client.Tools(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tools from MCP client: %w", err)
 		}
+
+		smoke.session.Tools.AddTools(tools...)
 
 		return smoke, nil
 	}

@@ -13,10 +13,10 @@ import (
 	"github.com/cneill/smoke/pkg/llms/claude"
 	"github.com/cneill/smoke/pkg/llms/grok"
 	"github.com/cneill/smoke/pkg/log"
+	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/models/ui"
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/smoke"
-	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v2"
 	"github.com/urfave/cli/v2"
 )
@@ -234,8 +234,8 @@ func action(ctx *cli.Context) error {
 		llmConfig.Model = grok.GetModel(modelFlag, "grok-3")
 	}
 
-	// TODO: tidy this up
-	mcpClient, err := tools.NewMCPClient(context.TODO(), projectPath)
+	// TODO: handle this better
+	mcpClient, err := mcp.NewClient(context.TODO(), projectPath)
 	if err != nil {
 		return fmt.Errorf("failed to set up MCP client: %w", err)
 	}
