@@ -10,6 +10,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v2"
 	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/packages/ssestream"
 )
 
 type ChatGPT struct {
@@ -57,14 +58,7 @@ func (c *ChatGPT) LLMInfo() *llms.LLMInfo {
 func (c *ChatGPT) RequiresSessionSystem() bool { return true }
 
 func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
-	options := openai.ChatCompletionNewParams{
-		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
-		Messages:            c.getSessionMessages(session),
-		Model:               c.config.Model,
-		N:                   openai.Int(1),
-		Tools:               c.completionTools(session),
-		Temperature:         openai.Float(c.config.Temperature),
-	}
+	options := c.getNewCompletionParams(session)
 
 	latest := session.Last()
 	if latest != nil {
@@ -105,14 +99,7 @@ func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms
 func (c *ChatGPT) SendSessionStreaming(ctx context.Context, session *llms.Session, chunkChan chan<- *llms.Message) (*llms.Message, error) {
 	defer close(chunkChan)
 
-	options := openai.ChatCompletionNewParams{
-		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
-		Messages:            c.getSessionMessages(session),
-		Model:               c.config.Model,
-		N:                   openai.Int(1),
-		Tools:               c.completionTools(session),
-		Temperature:         openai.Float(c.config.Temperature),
-	}
+	options := c.getNewCompletionParams(session)
 
 	latest := session.Last()
 	if latest != nil {
@@ -129,40 +116,9 @@ func (c *ChatGPT) SendSessionStreaming(ctx context.Context, session *llms.Sessio
 	stream := c.client.Chat.Completions.NewStreaming(ctx, options, option.WithMaxRetries(5))
 	defer stream.Close()
 
-	accumulator := openai.ChatCompletionAccumulator{}
-	first := true
-
-	for stream.Next() {
-		if !first && msg.IsInitial {
-			msg = msg.Update(llms.WithIsInitial(false))
-		}
-
-		chunk := stream.Current()
-		accumulator.AddChunk(chunk)
-
-		if _, ok := accumulator.JustFinishedContent(); ok {
-			slog.Debug("got end of content", "current_delta", chunk.Choices[0].Delta.Content, "finish_reason", chunk.Choices[0].FinishReason)
-			// break
-		}
-
-		if _, ok := accumulator.JustFinishedToolCall(); ok {
-			slog.Debug("got end of tool call info", "current_delta", chunk.Choices[0].Delta.Content, "tool_calls", accumulator.Choices[0].Message.ToolCalls)
-			// break
-		}
-
-		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
-			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
-		}
-
-		msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
-
-		chunkChan <- msg
-
-		first = false
-	}
-
-	if err := stream.Err(); err != nil {
-		return nil, fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
+	accumulator, err := c.handleStreamingResponse(stream, msg, chunkChan)
+	if err != nil {
+		return nil, fmt.Errorf("error handling streaming response: %w", err)
 	}
 
 	c.logger.Debug("token usage", "prompt", accumulator.Usage.PromptTokens, "completion", accumulator.Usage.CompletionTokens)
@@ -256,6 +212,17 @@ func (c *ChatGPT) newMessage(opts ...llms.MessageOpt) *llms.Message {
 	return msg
 }
 
+func (c *ChatGPT) getNewCompletionParams(session *llms.Session) openai.ChatCompletionNewParams {
+	return openai.ChatCompletionNewParams{
+		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
+		Messages:            c.getSessionMessages(session),
+		Model:               c.config.Model,
+		N:                   openai.Int(1),
+		Tools:               c.completionTools(session),
+		Temperature:         openai.Float(c.config.Temperature),
+	}
+}
+
 func (c *ChatGPT) completionTools(session *llms.Session) []openai.ChatCompletionToolUnionParam {
 	results := []openai.ChatCompletionToolUnionParam{}
 
@@ -324,4 +291,43 @@ func (c *ChatGPT) getSessionMessages(session *llms.Session) []openai.ChatComplet
 	}
 
 	return results
+}
+
+func (c *ChatGPT) handleStreamingResponse(
+	stream *ssestream.Stream[openai.ChatCompletionChunk], msg *llms.Message, chunkChan chan<- *llms.Message,
+) (openai.ChatCompletionAccumulator, error) {
+	accumulator := openai.ChatCompletionAccumulator{}
+
+	for stream.Next() {
+		chunk := stream.Current()
+		accumulator.AddChunk(chunk)
+
+		if _, ok := accumulator.JustFinishedContent(); ok {
+			c.logger.Debug("got end of content",
+				"current_delta", chunk.Choices[0].Delta.Content,
+				"finish_reason", chunk.Choices[0].FinishReason)
+		}
+
+		if _, ok := accumulator.JustFinishedToolCall(); ok {
+			c.logger.Debug("got end of tool call info",
+				"current_delta", chunk.Choices[0].Delta.Content,
+				"tool_calls", accumulator.Choices[0].Message.ToolCalls)
+		}
+
+		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
+			return accumulator, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+		}
+
+		msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
+
+		chunkChan <- msg
+
+		msg = msg.Update(llms.WithIsInitial(false))
+	}
+
+	if err := stream.Err(); err != nil {
+		return accumulator, fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
+	}
+
+	return accumulator, nil
 }

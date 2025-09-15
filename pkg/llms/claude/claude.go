@@ -9,6 +9,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 	"github.com/cneill/smoke/pkg/llms"
 )
 
@@ -58,16 +59,7 @@ func (c *Claude) LLMInfo() *llms.LLMInfo {
 func (c *Claude) RequiresSessionSystem() bool { return false }
 
 func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
-	messageParams := anthropic.MessageNewParams{
-		Messages:  c.getSessionMessages(session),
-		MaxTokens: c.config.MaxTokens,
-		Model:     anthropic.Model(c.config.Model),
-		System: []anthropic.TextBlockParam{
-			{Text: session.SystemMessage},
-		},
-		Tools:       c.newMessageTools(session),
-		Temperature: anthropic.Float(c.config.Temperature),
-	}
+	messageParams := c.getMessageNewParams(session)
 
 	latest := session.Last()
 	if latest != nil {
@@ -122,16 +114,7 @@ func (c *Claude) SendSession(ctx context.Context, session *llms.Session) (*llms.
 func (c *Claude) SendSessionStreaming(ctx context.Context, session *llms.Session, chunkChan chan<- *llms.Message) (*llms.Message, error) {
 	defer close(chunkChan)
 
-	messageParams := anthropic.MessageNewParams{
-		Messages:  c.getSessionMessages(session),
-		MaxTokens: c.config.MaxTokens,
-		Model:     anthropic.Model(c.config.Model),
-		System: []anthropic.TextBlockParam{
-			{Text: session.SystemMessage},
-		},
-		Tools:       c.newMessageTools(session),
-		Temperature: anthropic.Float(c.config.Temperature),
-	}
+	messageParams := c.getMessageNewParams(session)
 
 	latest := session.Last()
 	if latest != nil {
@@ -148,49 +131,9 @@ func (c *Claude) SendSessionStreaming(ctx context.Context, session *llms.Session
 	stream := c.client.Messages.NewStreaming(ctx, messageParams, option.WithMaxRetries(5))
 	defer stream.Close()
 
-	accumulator := anthropic.Message{}
-	first := true
-
-	for stream.Next() {
-		if !first && msg.IsInitial {
-			msg = msg.Update(llms.WithIsInitial(false))
-		}
-
-		chunk := stream.Current()
-		if err := accumulator.Accumulate(chunk); err != nil {
-			return nil, fmt.Errorf("failed to handle message chunk: %w", err)
-		}
-
-		chunkType, ok := chunk.AsAny().(anthropic.ContentBlockDeltaEvent)
-		if !ok {
-			slog.Warn("unknown chunk type", "type", fmt.Sprintf("%T", chunk.AsAny()))
-			continue
-		}
-
-		switch deltaType := chunkType.Delta.AsAny().(type) {
-		case anthropic.TextDelta:
-			msg = msg.Update(llms.WithChunkContent(deltaType.Text))
-			slog.Debug("updating chunk with text", "text", deltaType.Text, "current_text", msg.Content)
-			// TODO: other delta types?
-		default:
-			continue
-		}
-
-		chunkChan <- msg
-
-		first = false
-	}
-
-	if err := stream.Err(); err != nil {
-		return nil, fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
-	}
-
-	if len(accumulator.Content) == 0 {
-		return nil, fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
-	}
-
-	if accumulator.StopReason == anthropic.StopReasonRefusal {
-		return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, accumulator.Content[0].Text)
+	accumulator, err := c.handleStreamingResponse(stream, msg, chunkChan)
+	if err != nil {
+		return nil, fmt.Errorf("failed to handle streaming response: %w", err)
 	}
 
 	session.UpdateUsage(accumulator.Usage.InputTokens, accumulator.Usage.OutputTokens)
@@ -273,6 +216,19 @@ func (c *Claude) HandleToolCalls(ctx context.Context, msg *llms.Message, session
 	}
 
 	return results, nil
+}
+
+func (c *Claude) getMessageNewParams(session *llms.Session) anthropic.MessageNewParams {
+	return anthropic.MessageNewParams{
+		Messages:  c.getSessionMessages(session),
+		MaxTokens: c.config.MaxTokens,
+		Model:     anthropic.Model(c.config.Model),
+		System: []anthropic.TextBlockParam{
+			{Text: session.SystemMessage},
+		},
+		Tools:       c.newMessageTools(session),
+		Temperature: anthropic.Float(c.config.Temperature),
+	}
 }
 
 func (c *Claude) newMessageTools(session *llms.Session) []anthropic.ToolUnionParam {
@@ -364,4 +320,50 @@ func (c *Claude) getAssistantMessage(msg *llms.Message) anthropic.MessageParam {
 	}
 
 	return anthropic.NewAssistantMessage(contentBlocks...)
+}
+
+func (c *Claude) handleStreamingResponse(
+	stream *ssestream.Stream[anthropic.MessageStreamEventUnion], msg *llms.Message, chunkChan chan<- *llms.Message,
+) (anthropic.Message, error) {
+	accumulator := anthropic.Message{}
+
+	for stream.Next() {
+		chunk := stream.Current()
+		if err := accumulator.Accumulate(chunk); err != nil {
+			return accumulator, fmt.Errorf("failed to handle message chunk: %w", err)
+		}
+
+		chunkType, ok := chunk.AsAny().(anthropic.ContentBlockDeltaEvent)
+		if !ok {
+			c.logger.Warn("unknown chunk type", "type", fmt.Sprintf("%T", chunk.AsAny()))
+			continue
+		}
+
+		switch deltaType := chunkType.Delta.AsAny().(type) {
+		case anthropic.TextDelta:
+			msg = msg.Update(llms.WithChunkContent(deltaType.Text))
+			c.logger.Debug("updating chunk with text", "text", deltaType.Text, "current_text", msg.Content)
+			// TODO: other delta types?
+		default:
+			continue
+		}
+
+		chunkChan <- msg
+
+		msg = msg.Update(llms.WithIsInitial(false))
+	}
+
+	if err := stream.Err(); err != nil {
+		return accumulator, fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
+	}
+
+	if len(accumulator.Content) == 0 {
+		return accumulator, fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
+	}
+
+	if accumulator.StopReason == anthropic.StopReasonRefusal {
+		return accumulator, fmt.Errorf("%w: %s", llms.ErrPromptRefused, accumulator.Content[0].Text)
+	}
+
+	return accumulator, nil
 }

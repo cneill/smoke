@@ -85,17 +85,7 @@ func (g *Grok) RequiresSessionSystem() bool { return true }
 
 // TODO: handle retries/rate limits
 func (g *Grok) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
-	req := &ChatCompletionRequest{
-		Model:               g.config.Model,
-		Messages:            g.getSessionMessages(session),
-		N:                   1,
-		ParallelToolCalls:   false,
-		Temperature:         g.config.Temperature,
-		MaxCompletionTokens: g.config.MaxTokens,
-		Stream:              false,
-		Tools:               g.completionTools(session),
-		// TODO? ReasoningEffort:
-	}
+	req := g.getChatCompletionRequest(session, false)
 
 	httpResp, err := g.client.Do(
 		hc.Context(ctx),
@@ -215,17 +205,7 @@ func (g *Grok) HandleToolCalls(ctx context.Context, msg *llms.Message, session *
 func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, chunkChan chan<- *llms.Message) (*llms.Message, error) {
 	defer close(chunkChan)
 
-	req := &ChatCompletionRequest{
-		Model:               g.config.Model,
-		Messages:            g.getSessionMessages(session),
-		N:                   1,
-		ParallelToolCalls:   false,
-		Temperature:         g.config.Temperature,
-		MaxCompletionTokens: g.config.MaxTokens,
-		Stream:              true,
-		Tools:               g.completionTools(session),
-		// TODO? ReasoningEffort:
-	}
+	req := g.getChatCompletionRequest(session, true)
 
 	httpResp, err := g.client.Do(
 		hc.Context(ctx),
@@ -256,60 +236,10 @@ func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, 
 		llms.WithIsChunk(true),
 	)
 
-	accumulator := NewStreamingAccumulator()
-	first := true
-
-	scanner := bufio.NewScanner(httpResp.Body)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.HasPrefix(line, "data: ") {
-			continue
-		}
-
-		data := strings.TrimPrefix(line, "data: ")
-		if data == "" || data == "[DONE]" {
-			continue
-		}
-
-		chunk := &ChatCompletionChunk{}
-		if err := json.Unmarshal([]byte(data), chunk); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal streaming chunk: %w", err)
-		}
-
-		if !first && msg.IsInitial {
-			msg = msg.Update(llms.WithIsInitial(false))
-		}
-
-		accumulator.Accumulate(chunk)
-
-		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
-			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
-		}
-
-		if len(chunk.Choices) == 0 {
-			continue
-		}
-
-		if chunk.Choices[0].Delta != nil && chunk.Choices[0].Delta.Content != "" {
-			msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
-		}
-
-		if msg.Content == "" {
-			continue
-		}
-
-		slog.Debug("got a real chunk", "content", chunk.Choices[0].Delta.Content)
-
-		chunkChan <- msg
-
-		first = false
+	accumulator, err := g.handleStreamingResponse(httpResp.Body, msg, chunkChan)
+	if err != nil {
+		return nil, fmt.Errorf("failed to handle streaming response: %w", err)
 	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading streaming response: %w", err)
-	}
-
-	accumulator.Finalize()
 
 	session.UpdateUsage(accumulator.Usage.PromptTokens, accumulator.Usage.CompletionTokens)
 
@@ -323,6 +253,20 @@ func (g *Grok) SendSessionStreaming(ctx context.Context, session *llms.Session, 
 	)
 
 	return msg, nil
+}
+
+func (g *Grok) getChatCompletionRequest(session *llms.Session, streaming bool) *ChatCompletionRequest {
+	return &ChatCompletionRequest{
+		Model:               g.config.Model,
+		Messages:            g.getSessionMessages(session),
+		N:                   1,
+		ParallelToolCalls:   false,
+		Temperature:         g.config.Temperature,
+		MaxCompletionTokens: g.config.MaxTokens,
+		Stream:              streaming,
+		Tools:               g.completionTools(session),
+		// TODO? ReasoningEffort:
+	}
 }
 
 func (g *Grok) completionTools(session *llms.Session) []*ChatCompletionTool {
@@ -397,4 +341,49 @@ func (g *Grok) getSessionMessages(session *llms.Session) []*ChatCompletionMessag
 	}
 
 	return results
+}
+
+func (g *Grok) handleStreamingResponse(body io.Reader, msg *llms.Message, chunkChan chan<- *llms.Message) (*StreamingAccumulator, error) {
+	accumulator := NewStreamingAccumulator()
+	scanner := bufio.NewScanner(body)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data: "))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+
+		chunk := &ChatCompletionChunk{}
+		if err := json.Unmarshal([]byte(data), chunk); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal streaming chunk: %w", err)
+		}
+
+		accumulator.Accumulate(chunk)
+
+		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
+			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+		}
+
+		if len(chunk.Choices) == 0 || chunk.Choices[0].Delta == nil || chunk.Choices[0].Delta.Content == "" {
+			continue
+		}
+
+		msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
+
+		slog.Debug("got a real chunk", "content", chunk.Choices[0].Delta.Content)
+
+		chunkChan <- msg
+
+		msg = msg.Update(llms.WithIsInitial(false))
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading streaming response: %w", err)
+	}
+
+	accumulator.Finalize()
+
+	return accumulator, nil
 }
