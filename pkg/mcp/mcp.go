@@ -15,7 +15,11 @@ type Client struct {
 	session *mcp.ClientSession
 }
 
-func NewClient(ctx context.Context, directory string) (*Client, error) {
+func NewClient(ctx context.Context, directory string, commandArgs ...string) (*Client, error) {
+	if len(commandArgs) == 0 {
+		return nil, fmt.Errorf("command arguments must be provided")
+	}
+
 	impl := &mcp.Implementation{
 		Name:    "smoke",
 		Title:   "Smoke",
@@ -25,8 +29,7 @@ func NewClient(ctx context.Context, directory string) (*Client, error) {
 	opts := &mcp.ClientOptions{}
 	mcpClient := mcp.NewClient(impl, opts)
 
-	// TODO: make this customizable
-	cmd := exec.CommandContext(ctx, "gopls", "mcp")
+	cmd := exec.CommandContext(ctx, commandArgs[0], commandArgs[1:]...) //nolint:gosec
 	cmd.Dir = directory
 
 	logger := slog.Default().WithGroup("mcp")

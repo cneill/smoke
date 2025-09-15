@@ -234,8 +234,7 @@ func action(ctx *cli.Context) error {
 		llmConfig.Model = grok.GetModel(modelFlag, "grok-3")
 	}
 
-	// TODO: handle this better
-	mcpClient, err := mcp.NewClient(context.TODO(), projectPath)
+	mcpClient, err := mcp.NewClient(context.TODO(), projectPath, "gopls", "mcp")
 	if err != nil {
 		return fmt.Errorf("failed to set up MCP client: %w", err)
 	}
