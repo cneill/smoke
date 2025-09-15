@@ -128,3 +128,17 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 		return smoke, nil
 	}
 }
+
+func WithMCPClient(client *tools.MCPClient) OptFunc {
+	return func(smoke *Smoke) (*Smoke, error) {
+		if smoke.session == nil {
+			return nil, fmt.Errorf("must set up session first")
+		}
+
+		if err := smoke.session.Tools.AddMCP(client); err != nil {
+			return nil, fmt.Errorf("failed to add MCP tools to session tool manager: %w", err)
+		}
+
+		return smoke, nil
+	}
+}

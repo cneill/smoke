@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/cneill/smoke/pkg/models/ui"
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/smoke"
+	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v2"
 	"github.com/urfave/cli/v2"
 )
@@ -212,6 +214,7 @@ func action(ctx *cli.Context) error {
 	provider := llms.LLMType(ctx.String(FlagProvider))
 	modelFlag := ctx.String(FlagModel)
 	sessionName := ctx.String(FlagSessionName)
+	projectPath := ctx.Path(FlagDir)
 
 	llmConfig := &llms.Config{
 		MaxTokens:   ctx.Int64(FlagMaxTokens),
@@ -231,11 +234,18 @@ func action(ctx *cli.Context) error {
 		llmConfig.Model = grok.GetModel(modelFlag, "grok-3")
 	}
 
+	// TODO: tidy this up
+	mcpClient, err := tools.NewMCPClient(context.TODO(), projectPath)
+	if err != nil {
+		return fmt.Errorf("failed to set up MCP client: %w", err)
+	}
+
 	opts := []smoke.OptFunc{
 		smoke.WithDebug(ctx.Bool(FlagDebug)),
-		smoke.WithProjectPath(ctx.Path(FlagDir)),
+		smoke.WithProjectPath(projectPath),
 		smoke.WithSessionInfo(sessionName, prompts.SystemJSON()),
 		smoke.WithLLMConfig(llmConfig),
+		smoke.WithMCPClient(mcpClient),
 	}
 
 	smokeInstance, err := smoke.New(opts...)

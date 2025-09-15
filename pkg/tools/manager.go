@@ -100,6 +100,20 @@ func (m *Manager) SetTools(initializers ...Initializer) {
 	slog.Debug("setting tools", "tools", m.tools.Names())
 }
 
+func (m *Manager) AddMCP(client *MCPClient) error {
+	m.toolMutex.Lock()
+	defer m.toolMutex.Unlock()
+
+	mcpTools, err := client.Tools(context.TODO())
+	if err != nil {
+		return fmt.Errorf("error with collecting MCP tools: %w", err)
+	}
+
+	m.tools = append(m.tools, mcpTools...)
+
+	return nil
+}
+
 func (m *Manager) GetParams(toolName string) (Params, error) {
 	for _, tool := range m.tools {
 		if tool.Name() == toolName {
