@@ -167,6 +167,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.smoke.SetPlanningMode(msg.Enabled)
 		cmds = append(cmds, updateHistory(msg.SessionMessage))
 		cmds = append(cmds, updateHistory(msg))
+	case commands.ReviewModeMessage:
+		if err := m.smoke.SetSession(msg.Session); err != nil {
+			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for review mode: %w", err)))
+			break
+		}
+
+		m.smoke.SetReviewMode(msg.Enabled)
+		cmds = append(cmds, updateHistory(msg))
 	case commands.EditRequestMessage:
 		slog.Debug("got request to open temp file in editor", "file_path", msg.Path, "description", msg.Description, "editor", msg.Editor)
 

@@ -308,6 +308,19 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 
 		info.title = "Planning mode"
 		info.subtitle = msg.Message
+
+		// TODO: handle mode messages more elegantly
+	case commands.ReviewModeMessage:
+		if msg.Enabled {
+			info.titleStyle = info.titleStyle.
+				Foreground(lipgloss.Color("#550011"))
+		} else {
+			info.titleStyle = info.titleStyle.
+				Foreground(lipgloss.Color("#005511"))
+		}
+
+		info.title = "Review mode"
+		info.subtitle = msg.Message
 	}
 
 	return info

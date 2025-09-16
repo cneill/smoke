@@ -58,6 +58,21 @@ func (p PlanningModeMessage) Cmd() tea.Cmd {
 	}
 }
 
+// ReviewModeMessage signals to Smoke to either enable or disable review mode.
+type ReviewModeMessage struct {
+	PromptCommand PromptCommandMessage
+	Enabled       bool
+	Message       string
+	Session       *llms.Session
+}
+
+// Cmd returns a tea.Cmd to enable or disable review mode.
+func (r ReviewModeMessage) Cmd() tea.Cmd {
+	return func() tea.Msg {
+		return r
+	}
+}
+
 // EditRequestMessage asks the UI to open a given file path in an editor, suspending the TUI.
 type EditRequestMessage struct {
 	PromptCommand PromptCommandMessage

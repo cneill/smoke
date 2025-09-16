@@ -480,6 +480,67 @@ func (i *InfoHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	return update.Cmd(), nil
 }
 
+// CommandReview asks the model to review the code referenced by the user for red flags
+const CommandReview = "review"
+
+type ReviewHandler struct {
+	*BaseHandler
+
+	Enabled bool
+}
+
+func NewReviewHandler(msg PromptCommandMessage) (Command, error) {
+	handler := &ReviewHandler{
+		BaseHandler: &BaseHandler{
+			promptCommand: msg,
+		},
+	}
+
+	if len(msg.Args) == 0 {
+		handler.Enabled = true
+		return handler, nil
+	}
+
+	boolVal, err := strconv.ParseBool(msg.Args[0])
+	if err != nil {
+		switch msg.Args[0] {
+		case "off":
+			boolVal = false
+		case "on":
+			boolVal = true
+		default:
+			return nil, fmt.Errorf("%w: %s", ErrArguments, msg.Args[0])
+		}
+	}
+
+	handler.Enabled = boolVal
+
+	return handler, nil
+}
+
+func (r *ReviewHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	var systemMessage, historyMessage string
+
+	if r.Enabled {
+		systemMessage = prompts.ReviewJSON()
+		historyMessage = "Entering review mode."
+	} else {
+		systemMessage = prompts.SystemJSON()
+		historyMessage = "Exiting review mode."
+	}
+
+	session.SetSystemMessage(systemMessage)
+
+	update := ReviewModeMessage{
+		PromptCommand: r.promptCommand,
+		Enabled:       r.Enabled,
+		Message:       historyMessage,
+		Session:       session,
+	}
+
+	return update.Cmd(), nil
+}
+
 // CommandSummarize summarizes the session history and writes it to a JSON file in the format that can be loaded as a
 // session.
 const (

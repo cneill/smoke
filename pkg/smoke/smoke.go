@@ -26,7 +26,8 @@ import (
 type Smoke struct {
 	config       *config.Config
 	debug        bool
-	planningMode bool
+	planningMode bool // TODO: have an enum of modes?
+	reviewMode   bool
 
 	projectPath       string
 	session           *llms.Session
@@ -311,6 +312,29 @@ func (s *Smoke) SetPlanningMode(enabled bool) {
 	// TODO: update system prompt?
 }
 
+// SetReviewMode enables or disables review mode.
+func (s *Smoke) SetReviewMode(enabled bool) {
+	s.reviewMode = enabled
+
+	var enabledTools []tools.Initializer
+
+	if enabled {
+		enabledTools = tools.PlanningTools()
+	} else {
+		enabledTools = tools.AllTools()
+	}
+
+	s.session.Tools.InitTools(enabledTools...)
+
+	mcpTools, err := s.getMCPTools()
+	if err != nil {
+		slog.Error("failed to list MCP tools", "error", err)
+	}
+
+	s.session.Tools.AddTools(mcpTools...)
+	// TODO: update system prompt?
+}
+
 // HandleCommand invokes a prompt command provided by the user.
 func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error) {
 	cmd, err := s.commands.HandleCommand(s.session, msg)
@@ -357,7 +381,7 @@ func (s *Smoke) getMCPTools() (tools.Tools, error) {
 			err      error
 		)
 
-		if s.planningMode {
+		if s.planningMode || s.reviewMode { // TODO: handle modes more elegantly
 			mcpTools, err = mcpClient.PlanTools(ctx)
 		} else {
 			mcpTools, err = mcpClient.Tools(ctx)
