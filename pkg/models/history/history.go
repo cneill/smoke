@@ -205,7 +205,7 @@ func (m *Model) logContent() string {
 		switch item := item.(type) {
 		case *llms.Message:
 			info = renderLLMMessage(item, info)
-		case commands.HistoryUpdateMessage, commands.SessionUpdateMessage, commands.PlanningModeMessage:
+		case commands.HistoryUpdateMessage, commands.SessionUpdateMessage, commands.PlanningModeMessage, commands.ReviewModeMessage:
 			info = renderCommandMessage(item, info)
 
 		case error:

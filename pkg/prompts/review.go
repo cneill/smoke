@@ -10,6 +10,7 @@ func ReviewJSON() string {
 		"task": `Review the user's code and note any areas that match one of the "red flags" described here, and ` +
 			`make suggestions for how the user could improve it. Note the name of the red flag that was violated and ` +
 			`why you think the code is affected by that red flag.`,
+		// Full list on p. 183
 		"red_flags": map[string]string{
 			// p. 25
 			"shallow_modules": "A **shallow module** is one whose interface is complicated relative to the " +
@@ -45,6 +46,29 @@ func ReviewJSON() string {
 				"another, that's a red flag. This red flag can occur in other contexts as well: if two pieces of " +
 				"code are physically separated, but each can only be understood by looking at the other, that is a " +
 				"red flag.",
+			// p. 104
+			"comment_repeats_code": "If the information in a comment is already obvious from the code next to the " +
+				"comment, then the comment isn't helpful. One example of this is when the comment uses the same " +
+				"words that make up the name of the thing it is describing.",
+			// p. 114
+			"implementation_documentation_contaminates_interface": "This red flag occurs when interface " +
+				"documentation, such as that for a method, describes implementation details that aren't needed in " +
+				"order to use the thing being documented.",
+			// p. 123
+			"vague_name": "If a variable or method name is broad enough to refer to many different things, then it " +
+				"doesn't convey much information to the developer and the underlying entity is more likely to be " +
+				"misused.",
+			// p. 125
+			// "hard_to_pick_name": "If it's hard to find a simple name for a variable or method that creates a clear " +
+			// 	"image of the underlying object, that's a hint that the underlying object may not have a clean design.",
+			// p. 133
+			// "hard_to_describe": "The comment that describes a method or a variable should be simple and yet " +
+			// 	"complete. If you find it difficult to write such a comment, that's an indicator that there may be a " +
+			// 	"problem with the design of the thing you are describing.",
+			// p. 150
+			"nonobvious_code": "If the meaning and behavior of code cannot be understood with a quick reading, it is " +
+				"a red flag. Often this means that there is important information that is not immediately clear to " +
+				"someone reading the code.",
 		},
 		"tips": []string{
 			"Think hard about how a user's code might be affected by one of these red flags.",
