@@ -276,6 +276,7 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 		info.titleStyle = info.titleStyle.
 			Foreground(lipgloss.Color("#dd9911"))
 		info.content = msg.Message
+		info.useMarkdown = true
 
 	case commands.SessionUpdateMessage:
 		switch msg.PromptCommand.Command {

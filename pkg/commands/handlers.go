@@ -465,12 +465,15 @@ func (i *InfoHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	inputTokens, outputTokens := session.Usage()
 	totalTokens := inputTokens + outputTokens
 	duration := time.Since(session.CreatedAt)
+	toolNames := session.Tools.GetTools().Names()
 
-	info := "Session name: " + name + "\n"
-	info += fmt.Sprintf("Messages: user %d, assistant %d, tool call %d\n",
+	info := "**Session name:** " + name + "\n\n"
+	info += fmt.Sprintf("**Messages:** user %d, assistant %d, tool call %d\n\n",
 		messageCount.UserMessages, messageCount.UserMessages, messageCount.UserMessages)
-	info += fmt.Sprintf("Tokens: input %d, output %d, total %d\n", inputTokens, outputTokens, totalTokens)
-	info += fmt.Sprintf("Duration: %s", duration)
+	info += fmt.Sprintf("**Tokens:** input %d, output %d, total %d\n\n", inputTokens, outputTokens, totalTokens)
+	info += fmt.Sprintf("**Duration:** %s\n\n", duration)
+	info += fmt.Sprintf("**Tools available:** %s\n\n", strings.Join(toolNames, ", "))
+	info += fmt.Sprintf("\n**System message:**\n```json\n%s\n```\n\n", session.SystemMessage)
 
 	update := HistoryUpdateMessage{
 		PromptCommand: i.promptCommand,
