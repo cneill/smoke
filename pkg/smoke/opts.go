@@ -2,9 +2,12 @@ package smoke
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
@@ -131,15 +134,22 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 	}
 }
 
-func WithMCPClient(ctx context.Context, client *mcp.Client) OptFunc {
+func WithMCPClient(ctx context.Context, client *mcp.CommandClient) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		if smoke.session == nil {
 			return nil, fmt.Errorf("must set up session first")
 		}
 
-		tools, err := client.Tools(ctx)
+		timedCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+		defer cancel()
+
+		tools, err := client.Tools(timedCtx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get tools from MCP client: %w", err)
+			if !errors.Is(err, context.Canceled) {
+				return nil, fmt.Errorf("failed to get tools from MCP client: %w", err)
+			}
+
+			slog.Error("timed out waiting for tools from MCP client")
 		}
 
 		smoke.session.Tools.AddTools(tools...)

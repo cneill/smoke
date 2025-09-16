@@ -6,18 +6,43 @@ import (
 	"log/slog"
 	"os/exec"
 
+	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-type Client struct {
+type CommandClientOpts struct {
+	*config.MCPServer
+
+	// Name      string
+	// Directory string
+	// Command   string
+	// Args      []string
+	Directory string
+}
+
+func (c *CommandClientOpts) OK() error {
+	switch {
+	case c.Name == "":
+		return fmt.Errorf("missing name")
+	case c.Directory == "":
+		return fmt.Errorf("missing directory")
+	case c.Command == "":
+		return fmt.Errorf("missing command")
+	}
+
+	return nil
+}
+
+type CommandClient struct {
+	name    string
 	logger  *slog.Logger
 	session *mcp.ClientSession
 }
 
-func NewClient(ctx context.Context, directory string, commandArgs ...string) (*Client, error) {
-	if len(commandArgs) == 0 {
-		return nil, fmt.Errorf("command arguments must be provided")
+func NewCommandClient(ctx context.Context, opts *CommandClientOpts) (*CommandClient, error) {
+	if err := opts.OK(); err != nil {
+		return nil, fmt.Errorf("options error for MCP client: %w", err)
 	}
 
 	impl := &mcp.Implementation{
@@ -26,13 +51,12 @@ func NewClient(ctx context.Context, directory string, commandArgs ...string) (*C
 		Version: "v0.0.1",
 	}
 
-	opts := &mcp.ClientOptions{}
-	mcpClient := mcp.NewClient(impl, opts)
+	mcpClient := mcp.NewClient(impl, &mcp.ClientOptions{})
 
-	cmd := exec.CommandContext(ctx, commandArgs[0], commandArgs[1:]...) //nolint:gosec
-	cmd.Dir = directory
+	cmd := exec.CommandContext(ctx, opts.Command, opts.Args...) //nolint:gosec
+	cmd.Dir = opts.Directory
 
-	logger := slog.Default().WithGroup("mcp")
+	logger := slog.Default().WithGroup("mcp_" + opts.Name)
 	writer := &logHandler{logger: logger}
 
 	transport := &mcp.LoggingTransport{
@@ -49,7 +73,8 @@ func NewClient(ctx context.Context, directory string, commandArgs ...string) (*C
 		return nil, fmt.Errorf("failed to start MCP session: %w", err)
 	}
 
-	client := &Client{
+	client := &CommandClient{
+		name:    opts.Name,
 		logger:  logger,
 		session: session,
 	}
@@ -57,7 +82,7 @@ func NewClient(ctx context.Context, directory string, commandArgs ...string) (*C
 	return client, nil
 }
 
-func (c *Client) Tools(ctx context.Context) (tools.Tools, error) {
+func (c *CommandClient) Tools(ctx context.Context) (tools.Tools, error) {
 	results := tools.Tools{}
 
 	for tool, err := range c.session.Tools(ctx, &mcp.ListToolsParams{}) {
@@ -72,7 +97,7 @@ func (c *Client) Tools(ctx context.Context) (tools.Tools, error) {
 	return results, nil
 }
 
-func (c *Client) Close() error {
+func (c *CommandClient) Close() error {
 	if err := c.session.Close(); err != nil {
 		return fmt.Errorf("failed to close client session: %w", err)
 	}
