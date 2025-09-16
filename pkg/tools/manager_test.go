@@ -32,10 +32,10 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	require.NoError(t, err)
 
 	opts := &tools.ManagerOpts{
-		ProjectPath:     absPath,
-		SessionName:     "test",
-		Tools:           tools.AllTools(),
-		WithPlanManager: true,
+		ProjectPath:      absPath,
+		SessionName:      "test",
+		ToolInitializers: tools.AllTools(),
+		WithPlanManager:  true,
 	}
 
 	manager, err := tools.NewManager(opts)
@@ -43,7 +43,7 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 
 	dummy := dummyTool{params: params}
 
-	manager.SetTools(func(_, _ string) tools.Tool {
+	manager.SetToolInitializers(func(_, _ string) tools.Tool {
 		return dummy
 	})
 

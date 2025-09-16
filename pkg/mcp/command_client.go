@@ -82,6 +82,8 @@ func NewCommandClient(ctx context.Context, opts *CommandClientOpts) (*CommandCli
 	return client, nil
 }
 
+func (c *CommandClient) Name() string { return c.name }
+
 func (c *CommandClient) Tools(ctx context.Context) (tools.Tools, error) {
 	results := tools.Tools{}
 
@@ -90,8 +92,15 @@ func (c *CommandClient) Tools(ctx context.Context) (tools.Tools, error) {
 			return nil, fmt.Errorf("error with tool: %w", err)
 		}
 
-		// fmt.Printf("%s\n----\n%s\n", tool.Name, tool.Description)
-		results = append(results, toTool(c.session, tool))
+		mcpTool := &Tool{
+			name:       c.name + "_" + tool.Name,
+			clientName: c.name,
+			session:    c.session,
+			underlying: tool,
+			params:     paramsFromSchema(tool.InputSchema),
+		}
+
+		results = append(results, mcpTool)
 	}
 
 	return results, nil

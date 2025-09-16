@@ -12,23 +12,18 @@ import (
 )
 
 type Tool struct {
+	name       string
+	clientName string
 	session    *mcp.ClientSession
 	underlying *mcp.Tool
 	params     tools.Params
 }
 
-func toTool(mcpSession *mcp.ClientSession, mcpTool *mcp.Tool) *Tool {
-	return &Tool{
-		session:    mcpSession,
-		underlying: mcpTool,
-		params:     paramsFromSchema(mcpTool.InputSchema),
-	}
-}
-
-func (t *Tool) Name() string             { return t.underlying.Name }
+func (t *Tool) Name() string             { return t.name }
 func (t *Tool) Description() string      { return t.underlying.Description }
 func (t *Tool) Examples() tools.Examples { return nil }
 func (t *Tool) Params() tools.Params     { return t.params }
+func (t *Tool) Source() string           { return t.clientName }
 
 func (t *Tool) Run(ctx context.Context, args tools.Args) (string, error) {
 	params := &mcp.CallToolParams{

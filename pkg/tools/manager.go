@@ -14,10 +14,10 @@ import (
 )
 
 type ManagerOpts struct {
-	ProjectPath     string
-	SessionName     string
-	Tools           []Initializer
-	WithPlanManager bool
+	ProjectPath      string
+	SessionName      string
+	ToolInitializers []Initializer
+	WithPlanManager  bool
 }
 
 func (m *ManagerOpts) OK() error {
@@ -64,10 +64,10 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 		}
 	}
 
-	if opts.Tools != nil {
-		manager.SetTools(opts.Tools...)
+	if opts.ToolInitializers != nil {
+		manager.InitTools(opts.ToolInitializers...)
 	} else {
-		manager.SetTools(AllTools()...)
+		manager.tools = Tools{}
 	}
 
 	return manager, nil
@@ -80,7 +80,7 @@ func (m *Manager) GetTools() Tools {
 	return m.tools
 }
 
-func (m *Manager) SetTools(initializers ...Initializer) {
+func (m *Manager) InitTools(initializers ...Initializer) {
 	m.toolMutex.Lock()
 	defer m.toolMutex.Unlock()
 
@@ -100,11 +100,11 @@ func (m *Manager) SetTools(initializers ...Initializer) {
 	slog.Debug("setting tools", "tools", m.tools.Names())
 }
 
-func (m *Manager) AddTools(tools ...Tool) {
+func (m *Manager) AddTools(newTools ...Tool) {
 	m.toolMutex.Lock()
 	defer m.toolMutex.Unlock()
 
-	m.tools = append(m.tools, tools...)
+	m.tools = append(m.tools, newTools...)
 }
 
 func (m *Manager) GetParams(toolName string) (Params, error) {
