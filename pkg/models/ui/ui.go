@@ -302,7 +302,8 @@ func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage)
 		updateHistory(response.Message),
 	}
 
-	if !response.Message.IsChunk {
+	// Make sure we don't log a bunch of fragments as streamed messages come in
+	if !response.Message.IsChunk || response.Message.IsFinalized {
 		slog.Debug("got assistant message", "message", response.Message)
 	}
 
