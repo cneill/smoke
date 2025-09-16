@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/llms/chatgpt"
 	"github.com/cneill/smoke/pkg/llms/claude"
@@ -38,6 +39,13 @@ func WithProjectPath(path string) OptFunc {
 		smoke.projectPath = absPath
 		smoke.commands = commands.NewManager(absPath)
 
+		return smoke, nil
+	}
+}
+
+func WithConfig(config *config.Config) OptFunc {
+	return func(smoke *Smoke) (*Smoke, error) {
+		smoke.config = config
 		return smoke, nil
 	}
 }

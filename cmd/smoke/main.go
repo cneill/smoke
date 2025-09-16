@@ -107,6 +107,7 @@ func (a *App) run(ctx context.Context, cmd *cli.Command) error {
 	llmConfig := a.getLLMConfig(cmd)
 
 	opts := []smoke.OptFunc{
+		smoke.WithConfig(a.config),
 		smoke.WithDebug(cmd.Bool(FlagDebug)),
 		smoke.WithProjectPath(projectPath),
 		smoke.WithSessionInfo(sessionName, prompts.SystemJSON()),
@@ -176,7 +177,14 @@ func (a *App) getMCPClients(ctx context.Context, projectPath string) ([]*mcp.Com
 	}
 
 	results := []*mcp.CommandClient{}
+
 	for _, serverConfig := range a.config.MCP.Servers {
+		// Don't initialize clients for servers the user has disabled
+		if !serverConfig.Enabled {
+			slog.Debug("MCP server is disabled", "name", serverConfig.Name)
+			continue
+		}
+
 		opts := &mcp.CommandClientOpts{
 			MCPServer: serverConfig,
 			Directory: projectPath,
