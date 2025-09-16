@@ -6,19 +6,14 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/anthropics/anthropic-sdk-go"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/llms/chatgpt"
-	"github.com/cneill/smoke/pkg/llms/claude"
-	"github.com/cneill/smoke/pkg/llms/grok"
 	"github.com/cneill/smoke/pkg/log"
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/models/ui"
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/smoke"
-	"github.com/openai/openai-go/v2"
 	"github.com/urfave/cli/v3"
 )
 
@@ -27,21 +22,15 @@ type App struct {
 }
 
 func (a *App) validate(ctx *cli.Command) error {
-	switch llms.LLMType(ctx.String(FlagProvider)) {
-	case llms.LLMTypeChatGPT:
-		if ctx.String(FlagOpenAIKey) == "" {
-			return fmt.Errorf("must supply %s flag or %s environment variable", FlagOpenAIKey, EnvOpenAIKey)
-		}
-	case llms.LLMTypeClaude:
-		if ctx.String(FlagAnthropicKey) == "" {
-			return fmt.Errorf("must supply %s flag or %s environment variable", FlagAnthropicKey, EnvAnthropicKey)
-		}
-	case llms.LLMTypeGrok:
-		if ctx.String(FlagXAIKey) == "" {
-			return fmt.Errorf("must supply %s flag or %s environment variable", FlagXAIKey, EnvXAIKey)
-		}
-	default:
-		return fmt.Errorf("unknown model provider: %s", ctx.String(FlagProvider))
+	llmType := llms.LLMType(ctx.String(FlagProvider))
+
+	details := providerDetailMappings(llmType)
+	if details == nil {
+		return fmt.Errorf("unknown model provider")
+	}
+
+	if ctx.String(details.flag) == "" {
+		return fmt.Errorf("must supply %s flag or %s environment variable", details.flag, details.envVar)
 	}
 
 	return nil
@@ -148,24 +137,14 @@ func (a *App) run(ctx context.Context, cmd *cli.Command) error {
 
 func (a *App) getLLMConfig(cmd *cli.Command) *llms.Config {
 	provider := llms.LLMType(cmd.String(FlagProvider))
-	modelFlag := cmd.String(FlagModel)
+	details := providerDetailMappings(provider)
 
 	llmConfig := &llms.Config{
+		APIKey:      cmd.String(details.flag),
 		MaxTokens:   cmd.Int64(FlagMaxTokens),
 		Provider:    provider,
 		Temperature: cmd.Float64(FlagTemperature),
-	}
-
-	switch provider {
-	case llms.LLMTypeChatGPT:
-		llmConfig.APIKey = cmd.String(FlagOpenAIKey)
-		llmConfig.Model = chatgpt.GetModel(modelFlag, openai.ChatModelGPT5)
-	case llms.LLMTypeClaude:
-		llmConfig.APIKey = cmd.String(FlagAnthropicKey)
-		llmConfig.Model = string(claude.GetModel(modelFlag, anthropic.ModelClaudeSonnet4_0))
-	case llms.LLMTypeGrok:
-		llmConfig.APIKey = cmd.String(FlagXAIKey)
-		llmConfig.Model = grok.GetModel(modelFlag, "grok-3")
+		Model:       details.getModel(cmd.String(FlagModel)),
 	}
 
 	return llmConfig
