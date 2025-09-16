@@ -29,6 +29,7 @@ func (p providerDetails) getModel(search string) string {
 	return p.defaultModel
 }
 
+// TODO: make this customizable by the user in config?
 func providerDetailMappings(provider llms.LLMType) *providerDetails {
 	mappings := map[llms.LLMType]*providerDetails{
 		llms.LLMTypeChatGPT: {
