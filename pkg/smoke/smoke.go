@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/tools"
@@ -23,6 +24,7 @@ import (
 // [*commands.Manager] that handles prompt commands from the user, and the actual [llms.LLM] that we're interacting
 // with.
 type Smoke struct {
+	config       *config.Config
 	debug        bool
 	planningMode bool
 
@@ -300,7 +302,6 @@ func (s *Smoke) SetPlanningMode(enabled bool) {
 
 	s.session.Tools.InitTools(enabledTools...)
 
-	// TODO: filter some tools as planning vs. not?
 	mcpTools, err := s.getMCPTools()
 	if err != nil {
 		slog.Error("failed to list MCP tools", "error", err)
@@ -351,7 +352,17 @@ func (s *Smoke) getMCPTools() (tools.Tools, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		tools, err := mcpClient.Tools(ctx)
+		var (
+			mcpTools tools.Tools
+			err      error
+		)
+
+		if s.planningMode {
+			mcpTools, err = mcpClient.PlanTools(ctx)
+		} else {
+			mcpTools, err = mcpClient.Tools(ctx)
+		}
+
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				return nil, fmt.Errorf("error retrieving tools from MCP client %q: %w", mcpClient.Name(), err)
@@ -360,7 +371,7 @@ func (s *Smoke) getMCPTools() (tools.Tools, error) {
 			return nil, fmt.Errorf("context cancelled waiting for tools from MCP client %q: %w", mcpClient.Name(), err)
 		}
 
-		results = append(results, tools...)
+		results = append(results, tools.Tools(mcpTools)...)
 	}
 
 	return results, nil

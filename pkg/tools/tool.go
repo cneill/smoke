@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/cneill/smoke/pkg/plan"
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
 type Tool interface {
@@ -49,6 +50,8 @@ type MCPTool interface {
 
 	// Source returns the name of the MCP client from which this Tool derives.
 	Source() string
+	// Schema returns the JSON Schema for the tool's parameters.
+	Schema() *jsonschema.Schema
 }
 
 func AllTools() []Initializer {
