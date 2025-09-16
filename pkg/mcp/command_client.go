@@ -14,10 +14,6 @@ import (
 type CommandClientOpts struct {
 	*config.MCPServer
 
-	// Name      string
-	// Directory string
-	// Command   string
-	// Args      []string
 	Directory string
 }
 
