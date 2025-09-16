@@ -43,6 +43,8 @@ func (s SessionUpdateMessage) Cmd() tea.Cmd {
 	}
 }
 
+// TODO: have a single mode message that returns a session update message in a tea.Batch
+
 // PlanningModeMessage signals to Smoke to either enable or disable planning mode.
 type PlanningModeMessage struct {
 	PromptCommand  PromptCommandMessage
