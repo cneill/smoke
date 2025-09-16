@@ -48,12 +48,31 @@ func (m *MCP) OK() error {
 }
 
 type MCPServer struct {
-	Name    string   `json:"name"`
-	Command string   `json:"command"`
-	Args    []string `json:"args"`
-	Enabled bool     `json:"enabled"`
+	Name string `json:"name"`
+	// Command is the name or the full path to the command to run.
+	Command string `json:"command"`
+	// Args is a list of arguments to pass to the command.
+	Args []string `json:"args"`
+	// Enabled determines whether we will create a client for this server.
+	Enabled bool `json:"enabled"`
+	// AllowedTools contains full names or glob patterns for the only tools that will be provided to the LLM. All are
+	// allowed by default. Mutually exclusive with DeniedTools.
+	AllowedTools []string `json:"allowed_tools"`
+	// DeniedTools contains full names or glob patterns for tools that will not be provided to the LLM. All are allowed
+	// by default. Mutually exclusive with AllowedTools.
+	DeniedTools []string `json:"denied_tools"`
+	// PlanTools contains full names or glob patterns for tools that will be allowed in planning mode. All allowed by
+	// default.
+	PlanTools []string `json:"plan_tools"`
+	// Env contains environment variables that will be set for the command's process.
+	Env []Env `json:"env"`
 	// Type?
 	// Directory?
+}
+
+type Env struct {
+	Var   string `json:"var"`
+	Value string `json:"value"`
 }
 
 func (m *MCPServer) OK() error {
@@ -62,6 +81,24 @@ func (m *MCPServer) OK() error {
 		return fmt.Errorf("missing name")
 	case m.Command == "":
 		return fmt.Errorf("missing command")
+	case len(m.AllowedTools) > 0 && len(m.DeniedTools) > 0:
+		return fmt.Errorf("must specify options in either allowed_tools OR denied_tools")
+	}
+
+	// Ensure that we don't have any malformed patterns in the allowed/denied tools globs
+	// Ref: https://pkg.go.dev/path/filepath#Match
+	patternChecks := map[string][]string{
+		"allowed_tools": m.AllowedTools,
+		"denied_tools":  m.DeniedTools,
+		"plan_tools":    m.PlanTools,
+	}
+
+	for name, patterns := range patternChecks {
+		for idx, pattern := range patterns {
+			if _, err := filepath.Match(pattern, "."); err != nil {
+				return fmt.Errorf("pattern at index %d in %s is invalid: %w; see https://pkg.go.dev/path/filepath#Match for syntax", idx, name, err)
+			}
+		}
 	}
 
 	return nil
@@ -73,10 +110,29 @@ func DefaultConfig() *Config {
 		MCP: &MCP{
 			Servers: []*MCPServer{
 				{
-					Name:    "gopls",
-					Command: "gopls",
-					Args:    []string{"mcp"},
-					Enabled: true,
+					Name:         "example",
+					Command:      "example_tool",
+					Args:         []string{"arg1", "arg2"},
+					Enabled:      false,
+					AllowedTools: []string{},
+					DeniedTools:  []string{"dangerous_*", "evil_tool"},
+					PlanTools:    []string{},
+					Env: []Env{
+						{
+							Var:   "EXAMPLE_ENV_VAR",
+							Value: "EXAMPLE VALUE",
+						},
+					},
+				},
+				{
+					Name:         "gopls",
+					Command:      "gopls",
+					Args:         []string{"mcp"},
+					Enabled:      true,
+					AllowedTools: []string{},
+					DeniedTools:  []string{},
+					PlanTools:    []string{},
+					Env:          nil,
 				},
 			},
 		},
