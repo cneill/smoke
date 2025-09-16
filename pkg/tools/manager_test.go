@@ -43,7 +43,7 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 
 	dummy := dummyTool{params: params}
 
-	manager.SetToolInitializers(func(_, _ string) tools.Tool {
+	manager.InitTools(func(_, _ string) tools.Tool {
 		return dummy
 	})
 
