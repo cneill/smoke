@@ -164,16 +164,27 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, resetHistory)
 		}
 	case commands.PlanningModeMessage:
-		m.smoke.SetPlanningMode(msg.Enabled)
+		if msg.Enabled {
+			m.smoke.SetMode(smoke.ModePlanning)
+		} else {
+			m.smoke.SetMode(smoke.ModeNormal)
+		}
+
 		cmds = append(cmds, updateHistory(msg.SessionMessage))
 		cmds = append(cmds, updateHistory(msg))
+		// TODO: do away with these separate mode messages, unify them with session update message?
 	case commands.ReviewModeMessage:
 		if err := m.smoke.SetSession(msg.Session); err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for review mode: %w", err)))
 			break
 		}
 
-		m.smoke.SetReviewMode(msg.Enabled)
+		if msg.Enabled {
+			m.smoke.SetMode(smoke.ModeReview)
+		} else {
+			m.smoke.SetMode(smoke.ModeNormal)
+		}
+
 		cmds = append(cmds, updateHistory(msg))
 	case commands.EditRequestMessage:
 		slog.Debug("got request to open temp file in editor", "file_path", msg.Path, "description", msg.Description, "editor", msg.Editor)

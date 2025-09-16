@@ -24,10 +24,9 @@ import (
 // [*commands.Manager] that handles prompt commands from the user, and the actual [llms.LLM] that we're interacting
 // with.
 type Smoke struct {
-	config       *config.Config
-	debug        bool
-	planningMode bool // TODO: have an enum of modes?
-	reviewMode   bool
+	config *config.Config
+	debug  bool
+	mode   Mode
 
 	projectPath       string
 	session           *llms.Session
@@ -37,6 +36,14 @@ type Smoke struct {
 	userMessageCancel context.CancelCauseFunc
 	mcpClients        []*mcp.CommandClient
 }
+
+type Mode string
+
+const (
+	ModeNormal   = "normal"
+	ModePlanning = "planning"
+	ModeReview   = "review"
+)
 
 func (s *Smoke) OK() error {
 	switch {
@@ -289,15 +296,16 @@ func (s *Smoke) SetSession(newSession *llms.Session) error {
 	return nil
 }
 
-// SetPlanningMode enables or disables planning mode.
-func (s *Smoke) SetPlanningMode(enabled bool) {
-	s.planningMode = enabled
+func (s *Smoke) SetMode(mode Mode) {
+	s.mode = mode
 
 	var enabledTools []tools.Initializer
 
-	if enabled {
+	switch mode {
+	case ModePlanning, ModeReview:
 		enabledTools = tools.PlanningTools()
-	} else {
+		// TODO: update system prompt for planning mode?
+	case ModeNormal:
 		enabledTools = tools.AllTools()
 	}
 
@@ -309,30 +317,6 @@ func (s *Smoke) SetPlanningMode(enabled bool) {
 	}
 
 	s.session.Tools.AddTools(mcpTools...)
-	// TODO: update system prompt?
-}
-
-// SetReviewMode enables or disables review mode.
-func (s *Smoke) SetReviewMode(enabled bool) {
-	s.reviewMode = enabled
-
-	var enabledTools []tools.Initializer
-
-	if enabled {
-		enabledTools = tools.PlanningTools()
-	} else {
-		enabledTools = tools.AllTools()
-	}
-
-	s.session.Tools.InitTools(enabledTools...)
-
-	mcpTools, err := s.getMCPTools()
-	if err != nil {
-		slog.Error("failed to list MCP tools", "error", err)
-	}
-
-	s.session.Tools.AddTools(mcpTools...)
-	// TODO: update system prompt?
 }
 
 // HandleCommand invokes a prompt command provided by the user.
@@ -381,9 +365,10 @@ func (s *Smoke) getMCPTools() (tools.Tools, error) {
 			err      error
 		)
 
-		if s.planningMode || s.reviewMode { // TODO: handle modes more elegantly
+		switch s.mode {
+		case ModePlanning, ModeReview:
 			mcpTools, err = mcpClient.PlanTools(ctx)
-		} else {
+		case ModeNormal:
 			mcpTools, err = mcpClient.Tools(ctx)
 		}
 
@@ -395,7 +380,7 @@ func (s *Smoke) getMCPTools() (tools.Tools, error) {
 			return nil, fmt.Errorf("context cancelled waiting for tools from MCP client %q: %w", mcpClient.Name(), err)
 		}
 
-		results = append(results, tools.Tools(mcpTools)...)
+		results = append(results, mcpTools...)
 	}
 
 	return results, nil
