@@ -1,15 +1,18 @@
 package smoke
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/llms/chatgpt"
 	"github.com/cneill/smoke/pkg/llms/claude"
 	"github.com/cneill/smoke/pkg/llms/grok"
+	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -40,6 +43,13 @@ func WithProjectPath(path string) OptFunc {
 	}
 }
 
+func WithConfig(config *config.Config) OptFunc {
+	return func(smoke *Smoke) (*Smoke, error) {
+		smoke.config = config
+		return smoke, nil
+	}
+}
+
 // WithSessionInfo configures the details of the session we'll work with.
 func WithSessionInfo(name, systemPrompt string) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
@@ -48,10 +58,10 @@ func WithSessionInfo(name, systemPrompt string) OptFunc {
 		}
 
 		toolOpts := &tools.ManagerOpts{
-			ProjectPath:     smoke.projectPath,
-			SessionName:     name,
-			Tools:           tools.AllTools(),
-			WithPlanManager: true,
+			ProjectPath:      smoke.projectPath,
+			SessionName:      name,
+			ToolInitializers: tools.AllTools(),
+			WithPlanManager:  true,
 		}
 
 		toolManager, err := tools.NewManager(toolOpts)
@@ -125,6 +135,13 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 
 		smoke.llm = llm
 
+		return smoke, nil
+	}
+}
+
+func WithMCPClient(ctx context.Context, client *mcp.CommandClient) OptFunc {
+	return func(smoke *Smoke) (*Smoke, error) {
+		smoke.mcpClients = append(smoke.mcpClients, client)
 		return smoke, nil
 	}
 }

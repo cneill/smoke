@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/cneill/smoke/pkg/plan"
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
 type Tool interface {
@@ -40,14 +41,24 @@ type Initializer func(projectPath, sessionName string) Tool
 type PlanTool interface {
 	Tool
 
+	// SetPlanManager provides the plan.Manager to a tool that needs it to interact with the plan file.
 	SetPlanManager(manager *plan.Manager)
+}
+
+type MCPTool interface {
+	Tool
+
+	// Source returns the name of the MCP client from which this Tool derives.
+	Source() string
+	// Schema returns the JSON Schema for the tool's parameters.
+	Schema() *jsonschema.Schema
 }
 
 func AllTools() []Initializer {
 	return []Initializer{
 		NewCreateDirectoryTool,
 		NewGitDiffTool,
-		NewGoASTTool,
+		// NewGoASTTool,
 		NewGoFumptTool,
 		NewGoImportsTool,
 		NewGoLintTool,
@@ -68,7 +79,7 @@ func AllTools() []Initializer {
 func PlanningTools() []Initializer {
 	return []Initializer{
 		NewGitDiffTool,
-		NewGoASTTool,
+		// NewGoASTTool,
 		NewGoLintTool,
 		NewGoTestTool,
 		NewGrepTool,

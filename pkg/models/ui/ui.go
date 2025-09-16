@@ -302,7 +302,10 @@ func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage)
 		updateHistory(response.Message),
 	}
 
-	slog.Debug("got assistant message", "message", response.Message)
+	// Make sure we don't log a bunch of fragments as streamed messages come in
+	if !response.Message.IsChunk || response.Message.IsFinalized {
+		slog.Debug("got assistant message", "message", response.Message)
+	}
 
 	// update the usage based on the latest response
 	m.input.UpdateUsage(m.smoke.GetUsage())

@@ -550,18 +550,16 @@ func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	sessionName := session.Name + "_summary"
 
 	managerOpts := &tools.ManagerOpts{
-		ProjectPath:     session.Tools.ProjectPath,
-		SessionName:     sessionName,
-		Tools:           []tools.Initializer{},
-		WithPlanManager: false,
+		ProjectPath:      session.Tools.ProjectPath,
+		SessionName:      sessionName,
+		ToolInitializers: []tools.Initializer{},
+		WithPlanManager:  false,
 	}
 
 	toolManager, err := tools.NewManager(managerOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tools manager: %w", err)
 	}
-
-	toolManager.SetTools()
 
 	newSession := &llms.Session{
 		Name:          sessionName,

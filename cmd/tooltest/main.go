@@ -24,10 +24,10 @@ func run() error {
 	}
 
 	opts := &tools.ManagerOpts{
-		ProjectPath:     absPath,
-		SessionName:     "test_session",
-		Tools:           tools.AllTools(),
-		WithPlanManager: true,
+		ProjectPath:      absPath,
+		SessionName:      "test_session",
+		ToolInitializers: tools.AllTools(),
+		WithPlanManager:  true,
 	}
 
 	toolManager, err := tools.NewManager(opts)

@@ -71,6 +71,8 @@ func SystemJSON() string { //nolint:funlen
 				"edit. If you are uncertain, read the relevant lines with `read_file` again and consult the diff with " +
 				"the `git_diff` tool to make sure you didn't delete anything you shouldn't have.",
 			"If you need to modify the packages imported in a file, use the `go_imports` tool after writing your code.",
+			"If you suspect there are compile errors, check for the `gopls_go_diagnostics` tool and use it if you " +
+				"have access to it.",
 		},
 		"important": []string{
 			"IF YOU ARE FOLLOWING `plan_process` OR `work_process`, BE SURE TO TRACK PLANS, CONTEXT, AND PROGRESS " +

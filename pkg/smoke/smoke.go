@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -21,6 +24,7 @@ import (
 // [*commands.Manager] that handles prompt commands from the user, and the actual [llms.LLM] that we're interacting
 // with.
 type Smoke struct {
+	config       *config.Config
 	debug        bool
 	planningMode bool
 
@@ -30,6 +34,7 @@ type Smoke struct {
 	llmConfig         *llms.Config
 	llm               llms.LLM
 	userMessageCancel context.CancelCauseFunc
+	mcpClients        []*mcp.CommandClient
 }
 
 func (s *Smoke) OK() error {
@@ -59,6 +64,14 @@ func New(opts ...OptFunc) (*Smoke, error) {
 	if err := smoke.OK(); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrOptions, err)
 	}
+
+	// Once we've set up the session / etc, add MCP tools as well, if any
+	mcpTools, err := smoke.getMCPTools()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list MCP tools: %w", err)
+	}
+
+	smoke.session.Tools.AddTools(mcpTools...)
 
 	return smoke, nil
 }
@@ -278,12 +291,23 @@ func (s *Smoke) SetSession(newSession *llms.Session) error {
 // SetPlanningMode enables or disables planning mode.
 func (s *Smoke) SetPlanningMode(enabled bool) {
 	s.planningMode = enabled
+
+	var enabledTools []tools.Initializer
+
 	if enabled {
-		s.session.Tools.SetTools(tools.PlanningTools()...)
+		enabledTools = tools.PlanningTools()
 	} else {
-		s.session.Tools.SetTools(tools.AllTools()...)
+		enabledTools = tools.AllTools()
 	}
 
+	s.session.Tools.InitTools(enabledTools...)
+
+	mcpTools, err := s.getMCPTools()
+	if err != nil {
+		slog.Error("failed to list MCP tools", "error", err)
+	}
+
+	s.session.Tools.AddTools(mcpTools...)
 	// TODO: update system prompt?
 }
 
@@ -307,7 +331,7 @@ func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedr
 }
 
 func (s *Smoke) ShouldStream() bool {
-	// TODO: additional toggle switch for this behavior from CLI
+	// TODO: additional toggle switch for this behavior from CLI flags / env vars / config file
 
 	// GPT-5 requires org verification with a photo ID
 	if s.llm.LLMInfo().Type == llms.LLMTypeChatGPT {
@@ -319,4 +343,36 @@ func (s *Smoke) ShouldStream() bool {
 	_, ok := s.llm.(llms.StreamingLLM)
 
 	return ok
+}
+
+func (s *Smoke) getMCPTools() (tools.Tools, error) {
+	results := tools.Tools{}
+
+	for _, mcpClient := range s.mcpClients {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		var (
+			mcpTools tools.Tools
+			err      error
+		)
+
+		if s.planningMode {
+			mcpTools, err = mcpClient.PlanTools(ctx)
+		} else {
+			mcpTools, err = mcpClient.Tools(ctx)
+		}
+
+		if err != nil {
+			if !errors.Is(err, context.Canceled) {
+				return nil, fmt.Errorf("error retrieving tools from MCP client %q: %w", mcpClient.Name(), err)
+			}
+
+			return nil, fmt.Errorf("context cancelled waiting for tools from MCP client %q: %w", mcpClient.Name(), err)
+		}
+
+		results = append(results, tools.Tools(mcpTools)...)
+	}
+
+	return results, nil
 }
