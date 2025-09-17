@@ -292,9 +292,9 @@ func (p *PlanAddTool) Params() Params { //nolint:funlen
 							"e.g. the %q tool. %q is a decision made about the design of the solution that will be "+
 							"developed as part of `work_process`. %q is reference material about a 3rd party library"+
 							"or external service. %q is a constraint imposed either by the user or the underlying "+
-							"codebase.",
+							"codebase. %q is something that is commonly used by other similar parts of the code.",
 						plan.ContextTypeCode, ToolReadFile, plan.ContextTypeDecision, plan.ContextTypeReference,
-						plan.ContextTypeConstraint),
+						plan.ContextTypeConstraint, plan.ContextTypeConvention),
 					Type: ParamTypeString,
 					EnumStringValues: ToStrings([]plan.ContextType{
 						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeDecision,
