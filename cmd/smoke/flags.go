@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/cneill/smoke/pkg/llms"
 	"github.com/urfave/cli/v3"
 )
 
@@ -115,19 +117,19 @@ func providerFlags() []cli.Flag {
 		&cli.StringFlag{
 			Name:     FlagOpenAIKey,
 			Category: category,
-			Usage:    "The API key for OpenAI",
+			Usage:    fmt.Sprintf("The API key for OpenAI. Required when provider is %q", llms.LLMTypeChatGPT),
 			Sources:  cli.EnvVars(EnvOpenAIKey),
 		},
 		&cli.StringFlag{
 			Name:     FlagAnthropicKey,
 			Category: category,
-			Usage:    "The API key for Anthropic",
+			Usage:    fmt.Sprintf("The API key for Anthropic. Required when provider is %q", llms.LLMTypeClaude),
 			Sources:  cli.EnvVars(EnvAnthropicKey),
 		},
 		&cli.StringFlag{
 			Name:     FlagXAIKey,
 			Category: category,
-			Usage:    "The API key for xAI",
+			Usage:    fmt.Sprintf("The API key for xAI. Required when provider is %q", llms.LLMTypeGrok),
 			Sources:  cli.EnvVars(EnvXAIKey),
 		},
 	}

@@ -13,10 +13,10 @@ import (
 
 var providers = providerMappings{ //nolint:gochecknoglobals
 	llms.LLMTypeChatGPT: {
-		flag:         FlagOpenAIKey,
-		envVar:       EnvOpenAIKey,
+		apiKeyFlag:   FlagOpenAIKey,
+		apiKeyEnvVar: EnvOpenAIKey,
 		defaultModel: openai.ChatModelGPT5,
-		fuzzyModelNames: map[string][]string{
+		aliases: modelAliases{
 			openai.ChatModelGPT4o:    {"4", "4o", "gpt4o", "gpt-4o"},
 			openai.ChatModelGPT4_1:   {"4.1", "gpt4.1", "gpt-4.1"},
 			openai.ChatModelGPT5:     {"5", "gpt5", "gpt-5"},
@@ -26,20 +26,20 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 		},
 	},
 	llms.LLMTypeClaude: {
-		flag:         FlagAnthropicKey,
-		envVar:       EnvAnthropicKey,
+		apiKeyFlag:   FlagAnthropicKey,
+		apiKeyEnvVar: EnvAnthropicKey,
 		defaultModel: string(anthropic.ModelClaudeSonnet4_0),
-		fuzzyModelNames: map[string][]string{
+		aliases: modelAliases{
 			string(anthropic.ModelClaudeOpus4_1_20250805): {"opus", "opus4.1"},
 			string(anthropic.ModelClaudeOpus4_0):          {"opus4"},
 			string(anthropic.ModelClaudeSonnet4_0):        {"sonnet", "sonnet4"},
 		},
 	},
 	llms.LLMTypeGrok: {
-		flag:         FlagXAIKey,
-		envVar:       EnvXAIKey,
+		apiKeyFlag:   FlagXAIKey,
+		apiKeyEnvVar: EnvXAIKey,
 		defaultModel: "grok-3",
-		fuzzyModelNames: map[string][]string{
+		aliases: modelAliases{
 			"grok-2-1212":      {"2", "grok2", "grok-2"},
 			"grok-3":           {"3", "grok3", "grok-3"},
 			"grok-3-fast":      {"3-fast", "grok3-fast", "grok-3-fast"},
@@ -48,6 +48,11 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 			"grok-code-fast-1": {"code", "code-fast", "grok-code"},
 		},
 	},
+}
+
+// TODO: make this customizable by the user in config?
+func getProviders() providerMappings {
+	return providers
 }
 
 type providerMappings map[string]*providerDetails
@@ -69,27 +74,37 @@ func (p providerMappings) details(provider string) (*providerDetails, error) {
 }
 
 type providerDetails struct {
-	flag            string
-	envVar          string
-	defaultModel    string
-	fuzzyModelNames map[string][]string
+	apiKeyFlag   string
+	apiKeyEnvVar string
+	defaultModel string
+	aliases      modelAliases
 }
 
-func (p providerDetails) getModel(search string) string {
-	for model, aliases := range p.fuzzyModelNames {
+func (p providerDetails) getModel(search string) (string, error) {
+	for model, aliases := range p.aliases {
 		if model == search {
-			return model
+			return model, nil
 		}
 
 		if slices.Contains(aliases, search) {
-			return model
+			return model, nil
 		}
 	}
 
-	return p.defaultModel
+	if search == "" {
+		return p.defaultModel, nil
+	}
+
+	return "", fmt.Errorf("unknown model: %q\n%s", search, p.aliases)
 }
 
-// TODO: make this customizable by the user in config?
-func getProviders() providerMappings {
-	return providers
+type modelAliases map[string][]string
+
+func (m modelAliases) String() string {
+	result := "Model aliases:\n"
+	for modelName, aliases := range m {
+		result += fmt.Sprintf("%s: %s\n", modelName, strings.Join(aliases, ", "))
+	}
+
+	return result
 }

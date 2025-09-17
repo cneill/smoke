@@ -77,8 +77,8 @@ func validate(cmd *cli.Command) error {
 		return err
 	}
 
-	if cmd.String(details.flag) == "" {
-		return fmt.Errorf("must supply --%s flag or $%s environment variable", details.flag, details.envVar)
+	if cmd.String(details.apiKeyFlag) == "" {
+		return fmt.Errorf("must supply --%s flag or $%s environment variable", details.apiKeyFlag, details.apiKeyEnvVar)
 	}
 
 	return nil
@@ -113,12 +113,17 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 		return nil, err
 	}
 
+	model, err := details.getModel(cmd.String(FlagModel))
+	if err != nil {
+		return nil, fmt.Errorf("failed to select model for provider %q: %w", provider, err)
+	}
+
 	llmConfig := &llms.Config{
-		APIKey:      cmd.String(details.flag),
+		APIKey:      cmd.String(details.apiKeyFlag),
 		MaxTokens:   cmd.Int64(FlagMaxTokens),
 		Provider:    llms.LLMType(provider),
 		Temperature: cmd.Float64(FlagTemperature),
-		Model:       details.getModel(cmd.String(FlagModel)),
+		Model:       model,
 	}
 
 	return llmConfig, nil
