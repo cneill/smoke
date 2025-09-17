@@ -9,7 +9,8 @@ func ReviewJSON() string {
 	reviewJSON := map[string]any{
 		"task": `Review the user's code and note any areas that match one of the "red flags" described here, and ` +
 			`make suggestions for how the user could improve it. Note the name of the red flag that was violated and ` +
-			`why you think the code is affected by that red flag.`,
+			`why you think the code is affected by that red flag. If the user asks for another review, re-read all` +
+			`the files for the latest changes with "read_file" before providing your assessment.`,
 		// Full list on p. 183
 		"red_flags": map[string]string{
 			// p. 25
