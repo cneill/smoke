@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/cneill/smoke/pkg/llms"
@@ -55,6 +57,15 @@ func (p providerMappings) names() []string {
 	slices.Sort(names)
 
 	return names
+}
+
+func (p providerMappings) details(provider string) (*providerDetails, error) {
+	details, ok := p[provider]
+	if !ok {
+		return nil, fmt.Errorf("unknown model provider %q, must choose one of %s", provider, strings.Join(p.names(), ", "))
+	}
+
+	return details, nil
 }
 
 type providerDetails struct {

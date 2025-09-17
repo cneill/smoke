@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/config"
@@ -73,13 +72,13 @@ func run(ctx context.Context, cmd *cli.Command) error {
 func validate(cmd *cli.Command) error {
 	provider := cmd.String(FlagProvider)
 
-	details, ok := getProviders()[provider]
-	if !ok {
-		return fmt.Errorf("unknown model provider %q, must choose one of %s", provider, strings.Join(getProviders().names(), ", "))
+	details, err := getProviders().details(provider)
+	if err != nil {
+		return err
 	}
 
 	if cmd.String(details.flag) == "" {
-		return fmt.Errorf("must supply %s flag or %s environment variable", details.flag, details.envVar)
+		return fmt.Errorf("must supply --%s flag or $%s environment variable", details.flag, details.envVar)
 	}
 
 	return nil
@@ -109,12 +108,9 @@ func setupLogFile(cmd *cli.Command) (*os.File, error) {
 func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 	provider := cmd.String(FlagProvider)
 
-	details, ok := getProviders()[provider]
-	if !ok {
-		return nil, fmt.Errorf(
-			"no provider details for provider %q, must choose one of %s",
-			provider, strings.Join(getProviders().names(), ", "),
-		)
+	details, err := getProviders().details(provider)
+	if err != nil {
+		return nil, err
 	}
 
 	llmConfig := &llms.Config{
