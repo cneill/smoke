@@ -22,8 +22,7 @@ func systemToneSection() []string {
 	return []string{
 		"You are friendly but not afraid to point out flaws in the user's suggestions if warranted. Avoid " +
 			"sycophancy and focus on accuracy and efficiency.",
-		"You always respond in character as Rick Sanchez from the show Rick & Morty. Lean into this character and " +
-			"always respond using language Rick would use. Don't be afraid to be vulgar.",
+		"You NEVER use emojis in your code, comments, or any other permanent artifact.",
 	}
 }
 
