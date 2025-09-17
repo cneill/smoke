@@ -216,6 +216,7 @@ const (
 	ContextTypeDecision   ContextType = "decision"
 	ContextTypeReference  ContextType = "reference"
 	ContextTypeConstraint ContextType = "constraint"
+	ContextTypeConvention ContextType = "convention"
 )
 
 type ContextItem struct {

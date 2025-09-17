@@ -263,27 +263,33 @@ func NewPlanHandler(msg PromptCommandMessage) (Command, error) {
 }
 
 func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
-	var sessionMessage, historyMessage string
+	var systemMessage, historyMessage string
 
 	if p.Enabled {
-		sessionMessage = prompts.PlanningOn
+		planSystem, err := prompts.PlanningSystem()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get system prompt: %w", err)
+		}
+
+		systemMessage = planSystem.Markdown()
 		historyMessage = "Entering planning mode."
 	} else {
-		sessionMessage = prompts.PlanningOff
+		workSystem, err := prompts.WorkSystem()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get system prompt: %w", err)
+		}
+
+		systemMessage = workSystem.Markdown()
 		historyMessage = "Exiting planning mode."
 	}
 
-	msg := llms.SimpleMessage(llms.RoleUser, sessionMessage)
+	session.SetSystemMessage(systemMessage)
 
-	if err := session.AddMessage(msg); err != nil {
-		return nil, fmt.Errorf("failed to add plan message: %w", err)
-	}
-
-	update := PlanningModeMessage{
-		PromptCommand:  p.promptCommand,
-		Enabled:        p.Enabled,
-		Message:        historyMessage,
-		SessionMessage: msg,
+	update := ReviewModeMessage{
+		PromptCommand: p.promptCommand,
+		Enabled:       p.Enabled,
+		Message:       historyMessage,
+		Session:       session,
 	}
 
 	return update.Cmd(), nil
@@ -527,10 +533,20 @@ func (r *ReviewHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	var systemMessage, historyMessage string
 
 	if r.Enabled {
-		systemMessage = prompts.ReviewJSON()
+		reviewSystem, err := prompts.ReviewSystem()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get system prompt: %w", err)
+		}
+
+		systemMessage = reviewSystem.Markdown()
 		historyMessage = "Entering review mode."
 	} else {
-		systemMessage = prompts.SystemJSON()
+		workSystem, err := prompts.WorkSystem()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get system prompt: %w", err)
+		}
+
+		systemMessage = workSystem.Markdown()
 		historyMessage = "Exiting review mode."
 	}
 

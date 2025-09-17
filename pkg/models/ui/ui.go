@@ -164,18 +164,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, resetHistory)
 		}
 	case commands.PlanningModeMessage:
+		if err := m.smoke.SetSession(msg.Session); err != nil {
+			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for planning mode switch: %w", err)))
+			break
+		}
+
 		if msg.Enabled {
 			m.smoke.SetMode(smoke.ModePlanning)
 		} else {
 			m.smoke.SetMode(smoke.ModeNormal)
 		}
 
-		cmds = append(cmds, updateHistory(msg.SessionMessage))
 		cmds = append(cmds, updateHistory(msg))
 		// TODO: do away with these separate mode messages, unify them with session update message?
 	case commands.ReviewModeMessage:
 		if err := m.smoke.SetSession(msg.Session); err != nil {
-			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for review mode: %w", err)))
+			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for review mode switch: %w", err)))
 			break
 		}
 

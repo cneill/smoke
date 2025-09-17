@@ -47,10 +47,10 @@ func (s SessionUpdateMessage) Cmd() tea.Cmd {
 
 // PlanningModeMessage signals to Smoke to either enable or disable planning mode.
 type PlanningModeMessage struct {
-	PromptCommand  PromptCommandMessage
-	Enabled        bool
-	Message        string
-	SessionMessage *llms.Message
+	PromptCommand PromptCommandMessage
+	Enabled       bool
+	Message       string
+	Session       *llms.Session
 }
 
 // Cmd returns a tea.Cmd to enable or disable planning mode.
