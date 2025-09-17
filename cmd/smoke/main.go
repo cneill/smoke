@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/config"
@@ -26,7 +27,7 @@ func (a *App) validate(ctx *cli.Command) error {
 
 	details := providerDetailMappings(llmType)
 	if details == nil {
-		return fmt.Errorf("unknown model provider")
+		return fmt.Errorf("unknown model provider, must choose one of %s", strings.Join(getProviders().names(), ", "))
 	}
 
 	if ctx.String(details.flag) == "" {
@@ -57,7 +58,7 @@ func (a *App) setup() error {
 			var err error
 			logFile, err = os.OpenFile(logFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 			if err != nil {
-				return nil, fmt.Errorf("failed to open log file")
+				return nil, fmt.Errorf("failed to open log file: %w", err)
 			}
 
 			log.Setup(logFile, level)
@@ -171,7 +172,7 @@ func (a *App) getMCPClients(ctx context.Context, projectPath string) ([]*mcp.Com
 
 		client, err := mcp.NewCommandClient(ctx, opts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to set up gopls MCP client: %w", err)
+			return nil, fmt.Errorf("failed to set up MCP client %q: %w", opts.Name, err)
 		}
 
 		results = append(results, client)

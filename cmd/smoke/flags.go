@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"strings"
 
-	"github.com/cneill/smoke/pkg/llms"
 	"github.com/urfave/cli/v3"
 )
 
@@ -58,8 +57,9 @@ func localConfigFlags() []cli.Flag {
 			Sources:  cli.EnvVars(EnvDebug),
 		},
 		&cli.StringFlag{
-			Name:     FlagSessionName,
-			Usage:    "The name of the session",
+			Name: FlagSessionName,
+			Usage: "The name of the session, which will be used for the log file name ([name]_log.log) and plan file " +
+				"name ([name]_plan.json)",
 			Category: "Local config",
 			Aliases:  []string{"s"},
 			Sources:  cli.EnvVars(EnvSessionName),
@@ -100,7 +100,7 @@ func providerFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:     FlagProvider,
-			Usage:    fmt.Sprintf("Either '%s', '%s', or '%s'", llms.LLMTypeChatGPT, llms.LLMTypeClaude, llms.LLMTypeGrok),
+			Usage:    "One of the following: " + strings.Join(getProviders().names(), ", "),
 			Category: "Providers",
 			Aliases:  []string{"p"},
 			Sources:  cli.EnvVars(EnvProvider),

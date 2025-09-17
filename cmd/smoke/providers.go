@@ -1,12 +1,19 @@
 package main
 
 import (
+	"maps"
 	"slices"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/openai/openai-go/v2"
 )
+
+type providerMappings map[string]*providerDetails
+
+func (p providerMappings) names() []string {
+	return slices.Collect(maps.Keys(getProviders()))
+}
 
 type providerDetails struct {
 	flag            string
@@ -29,9 +36,8 @@ func (p providerDetails) getModel(search string) string {
 	return p.defaultModel
 }
 
-// TODO: make this customizable by the user in config?
-func providerDetailMappings(provider llms.LLMType) *providerDetails {
-	mappings := map[llms.LLMType]*providerDetails{
+func getProviders() providerMappings {
+	return providerMappings{
 		llms.LLMTypeChatGPT: {
 			flag:         FlagOpenAIKey,
 			envVar:       EnvOpenAIKey,
@@ -69,8 +75,11 @@ func providerDetailMappings(provider llms.LLMType) *providerDetails {
 			},
 		},
 	}
+}
 
-	if details, ok := mappings[provider]; ok {
+// TODO: make this customizable by the user in config?
+func providerDetailMappings(provider llms.LLMType) *providerDetails {
+	if details, ok := getProviders()[string(provider)]; ok {
 		return details
 	}
 
