@@ -6,6 +6,7 @@ const (
 
 const (
 	ToolCreateDirectory  = "create_directory"
+	ToolDDG              = "duck_duck_go"
 	ToolEditPlan         = "edit_plan"
 	ToolGitDiff          = "git_diff"
 	ToolGoAST            = "go_ast"

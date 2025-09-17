@@ -57,6 +57,7 @@ type MCPTool interface {
 func AllTools() []Initializer {
 	return []Initializer{
 		NewCreateDirectoryTool,
+		NewDDGTool,
 		NewGitDiffTool,
 		// NewGoASTTool,
 		NewGoFumptTool,
@@ -78,6 +79,7 @@ func AllTools() []Initializer {
 
 func PlanningTools() []Initializer {
 	return []Initializer{
+		NewDDGTool,
 		NewGitDiffTool,
 		// NewGoASTTool,
 		NewGoLintTool,
