@@ -285,11 +285,12 @@ func (s *Smoke) GetMessages() []*llms.Message {
 
 // SetSession overwrites the current [*llms.Session].
 func (s *Smoke) SetSession(newSession *llms.Session) error {
-	if s.session != nil {
-		if err := s.session.Teardown(); err != nil {
-			return fmt.Errorf("failed to tear down previous session when replacing: %w", err)
-		}
-	}
+	// TODO: FIGURE OUT HOW TO PROPERLY WORK WITH TEARDOWN HERE - CURRENTLY FUCKING UP PLAN WRITING WHEN SWITCHING MODES
+	// if s.session != nil {
+	// 	if err := s.session.Teardown(); err != nil {
+	// 		return fmt.Errorf("failed to tear down previous session when replacing: %w", err)
+	// 	}
+	// }
 
 	s.session = newSession
 
