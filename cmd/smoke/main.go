@@ -18,106 +18,40 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-type App struct {
-	config *config.Config
+func setup() *cli.Command {
+	return &cli.Command{
+		Name: "smoke",
+		Description: "An agentic coding assistant primarily focused on the Go programming language. It only works on " +
+			"one directory at a time, and requires that directory to contain a .git subdirectory.",
+		Usage:   "Smoke 'em if you got 'em.",
+		Flags:   flags(),
+		Action:  run,
+		Version: "v0.0.1", // TODO: dynamic
+	}
 }
 
-func (a *App) validate(ctx *cli.Command) error {
-	llmType := llms.LLMType(ctx.String(FlagProvider))
-
-	details := providerDetailMappings(llmType)
-	if details == nil {
-		return fmt.Errorf("unknown model provider, must choose one of %s", strings.Join(getProviders().names(), ", "))
+func run(ctx context.Context, cmd *cli.Command) error {
+	if err := validate(cmd); err != nil {
+		return fmt.Errorf("flag validation error: %w", err)
 	}
 
-	if ctx.String(details.flag) == "" {
-		return fmt.Errorf("must supply %s flag or %s environment variable", details.flag, details.envVar)
-	}
-
-	return nil
-}
-
-func (a *App) setup() error {
-	var logFile *os.File
-
-	command := &cli.Command{
-		Name:        "smoke",
-		Description: "Smoke 'em if you got 'em.",
-		Flags:       flags(),
-		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			if err := a.validate(cmd); err != nil {
-				return nil, fmt.Errorf("flag validation error: %w", err)
-			}
-
-			level := slog.LevelInfo
-			if cmd.Bool(FlagDebug) {
-				level = slog.LevelDebug
-			}
-
-			logFileName := cmd.String(FlagSessionName) + "_log.log"
-			var err error
-			logFile, err = os.OpenFile(logFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-			if err != nil {
-				return nil, fmt.Errorf("failed to open log file: %w", err)
-			}
-
-			log.Setup(logFile, level)
-
-			config, err := config.LoadConfig()
-			if err != nil {
-				return nil, fmt.Errorf("failed to load config: %w", err)
-			}
-
-			a.config = config
-
-			return ctx, nil
-		},
-		Action: a.run,
-		After: func(_ context.Context, _ *cli.Command) error {
-			if logFile != nil {
-				if err := logFile.Close(); err != nil {
-					return fmt.Errorf("failed to close log file %q: %w", logFile.Name(), err)
-				}
-			}
-
-			return nil
-		},
-	}
-
-	if err := command.Run(context.TODO(), os.Args); err != nil {
-		return fmt.Errorf("run error: %w", err)
-	}
-
-	return nil
-}
-
-func (a *App) run(ctx context.Context, cmd *cli.Command) error {
-	sessionName := cmd.String(FlagSessionName)
-	projectPath := cmd.String(FlagDir)
-	llmConfig := a.getLLMConfig(cmd)
-
-	opts := []smoke.OptFunc{
-		smoke.WithConfig(a.config),
-		smoke.WithDebug(cmd.Bool(FlagDebug)),
-		smoke.WithProjectPath(projectPath),
-		smoke.WithSessionInfo(sessionName, prompts.SystemJSON()),
-		smoke.WithLLMConfig(llmConfig),
-	}
-
-	mcpClients, err := a.getMCPClients(ctx, projectPath)
+	logFile, err := setupLogFile(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to initialize MCP clients: %w", err)
+		return fmt.Errorf("failed to set up log file: %w", err)
 	}
 
-	for _, client := range mcpClients {
-		opts = append(opts, smoke.WithMCPClient(ctx, client))
-	}
+	defer func() {
+		if err := logFile.Close(); err != nil {
+			fmt.Printf("failed to close log file: %v\n", err)
+		}
+	}()
 
-	smokeInstance, err := smoke.New(opts...)
+	smokeInstance, err := getSmokeInstance(ctx, cmd)
 	if err != nil {
-		return fmt.Errorf("failed to set up smoke: %w", err)
+		return fmt.Errorf("failed to set up smoke controller: %w", err)
 	}
 
+	// Run the Bubbletea loop
 	uiOpts := &ui.Opts{
 		Smoke: smokeInstance,
 	}
@@ -136,29 +70,72 @@ func (a *App) run(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func (a *App) getLLMConfig(cmd *cli.Command) *llms.Config {
-	provider := llms.LLMType(cmd.String(FlagProvider))
-	details := providerDetailMappings(provider)
+func validate(cmd *cli.Command) error {
+	provider := cmd.String(FlagProvider)
+
+	details, ok := getProviders()[provider]
+	if !ok {
+		return fmt.Errorf("unknown model provider %q, must choose one of %s", provider, strings.Join(getProviders().names(), ", "))
+	}
+
+	if cmd.String(details.flag) == "" {
+		return fmt.Errorf("must supply %s flag or %s environment variable", details.flag, details.envVar)
+	}
+
+	return nil
+}
+
+func setupLogFile(cmd *cli.Command) (*os.File, error) {
+	level := slog.LevelInfo
+	if cmd.Bool(FlagDebug) {
+		level = slog.LevelDebug
+	}
+
+	var (
+		logFileName = cmd.String(FlagSessionName) + "_log.log"
+		err         error
+	)
+
+	logFile, err := os.OpenFile(logFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log file: %w", err)
+	}
+
+	log.Setup(logFile, level)
+
+	return logFile, nil
+}
+
+func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
+	provider := cmd.String(FlagProvider)
+
+	details, ok := getProviders()[provider]
+	if !ok {
+		return nil, fmt.Errorf(
+			"no provider details for provider %q, must choose one of %s",
+			provider, strings.Join(getProviders().names(), ", "),
+		)
+	}
 
 	llmConfig := &llms.Config{
 		APIKey:      cmd.String(details.flag),
 		MaxTokens:   cmd.Int64(FlagMaxTokens),
-		Provider:    provider,
+		Provider:    llms.LLMType(provider),
 		Temperature: cmd.Float64(FlagTemperature),
 		Model:       details.getModel(cmd.String(FlagModel)),
 	}
 
-	return llmConfig
+	return llmConfig, nil
 }
 
-func (a *App) getMCPClients(ctx context.Context, projectPath string) ([]*mcp.CommandClient, error) {
-	if a.config == nil || a.config.MCP == nil {
+func getMCPClients(ctx context.Context, projectPath string, mcpConfigs *config.MCP) ([]*mcp.CommandClient, error) {
+	if mcpConfigs == nil {
 		return nil, nil
 	}
 
 	results := []*mcp.CommandClient{}
 
-	for _, serverConfig := range a.config.MCP.Servers {
+	for _, serverConfig := range mcpConfigs.Servers {
 		// Don't initialize clients for servers the user has disabled
 		if !serverConfig.Enabled {
 			slog.Debug("MCP server is disabled", "name", serverConfig.Name)
@@ -181,10 +158,51 @@ func (a *App) getMCPClients(ctx context.Context, projectPath string) ([]*mcp.Com
 	return results, nil
 }
 
-func main() {
-	app := &App{}
+func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, error) {
+	sessionName := cmd.String(FlagSessionName)
+	projectPath := cmd.String(FlagDir)
 
-	if err := app.setup(); err != nil {
-		panic(fmt.Errorf("error: %w", err))
+	loadedConfig, err := config.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	llmConfig, err := getLLMConfig(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set up LLM configuration: %w", err)
+	}
+
+	opts := []smoke.OptFunc{
+		smoke.WithConfig(loadedConfig),
+		smoke.WithDebug(cmd.Bool(FlagDebug)),
+		smoke.WithProjectPath(projectPath),
+		smoke.WithSessionInfo(sessionName, prompts.SystemJSON()),
+		smoke.WithLLMConfig(llmConfig),
+	}
+
+	if loadedConfig.MCP != nil {
+		mcpClients, err := getMCPClients(ctx, projectPath, loadedConfig.MCP)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize MCP clients: %w", err)
+		}
+
+		for _, client := range mcpClients {
+			opts = append(opts, smoke.WithMCPClient(ctx, client))
+		}
+	}
+
+	smokeInstance, err := smoke.New(opts...) //nolint:contextcheck
+	if err != nil {
+		return nil, fmt.Errorf("failed to set up smoke: %w", err)
+	}
+
+	return smokeInstance, nil
+}
+
+func main() {
+	command := setup()
+
+	if err := command.Run(context.TODO(), os.Args); err != nil {
+		panic(fmt.Errorf("run error: %w", err))
 	}
 }
