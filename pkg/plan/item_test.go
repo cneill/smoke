@@ -10,6 +10,51 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestBaseItem_OK(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		baseItem      *plan.BaseItem
+		errorContains string
+	}{
+		{
+			name:          "nil",
+			baseItem:      nil,
+			errorContains: "missing base item properties",
+		},
+		{
+			name:          "missing ID",
+			baseItem:      &plan.BaseItem{},
+			errorContains: "missing ID",
+		},
+		{
+			name:          "unknown item type",
+			baseItem:      &plan.BaseItem{ID: "id1"},
+			errorContains: "unknown item type",
+		},
+		{
+			name:          "unknown operation",
+			baseItem:      &plan.BaseItem{ID: "id1", ItemType: plan.ItemTypeTask},
+			errorContains: "unknown item operation",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := test.baseItem.OK()
+
+			if test.errorContains == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, test.errorContains)
+			}
+		})
+	}
+}
+
 // Unit Tests for ItemUnion
 
 func TestItemUnionValidStates(t *testing.T) { //nolint:funlen
@@ -30,39 +75,60 @@ func TestItemUnionValidStates(t *testing.T) { //nolint:funlen
 			shouldError:  true,
 		},
 		{
-			name: "valid task item",
+			name: "invalid - multiple items set (task, context)",
 			setupFunc: func() *plan.ItemUnion {
-				return &plan.ItemUnion{TaskItem: plan.NewTaskItem("test task")}
+				return &plan.ItemUnion{
+					TaskItem:    plan.NewTaskItem("task1", "test", plan.OperationAdd),
+					ContextItem: plan.NewContextItem(plan.ContextTypeCode, "test", plan.OperationAdd),
+				}
+			},
+			expectedType: plan.ItemTypeUnknown,
+			shouldError:  true,
+		},
+		{
+			name: "invalid - multiple items set (task, completion)",
+			setupFunc: func() *plan.ItemUnion {
+				return &plan.ItemUnion{
+					TaskItem:       plan.NewTaskItem("task1", "test", plan.OperationAdd),
+					CompletionItem: plan.NewCompletionItem("completion", "test"),
+				}
+			},
+			expectedType: plan.ItemTypeUnknown,
+			shouldError:  true,
+		},
+		{
+			name: "invalid - unknown operation",
+			setupFunc: func() *plan.ItemUnion {
+				return plan.NewTaskItem("task1", "test", plan.Operation("unknown")).ToUnion()
+			},
+			expectedType: plan.ItemTypeTask,
+			shouldError:  true,
+		},
+		{
+			name: "valid task item (add)",
+			setupFunc: func() *plan.ItemUnion {
+				return plan.NewTaskItem("task1", "test task", plan.OperationAdd).ToUnion()
 			},
 			expectedType: plan.ItemTypeTask,
 			shouldError:  false,
 		},
 		{
-			name: "valid context item",
+			name: "valid context item (add)",
 			setupFunc: func() *plan.ItemUnion {
-				return &plan.ItemUnion{ContextItem: plan.NewContextItem(plan.ContextTypeCode, "test code")}
+				return plan.NewContextItem(plan.ContextTypeCode, "test code", plan.OperationAdd).
+					SetOwners("task1").
+					ToUnion()
 			},
 			expectedType: plan.ItemTypeContext,
 			shouldError:  false,
 		},
 		{
-			name: "valid completion item",
+			name: "valid completion item (add)",
 			setupFunc: func() *plan.ItemUnion {
-				return &plan.ItemUnion{CompletionItem: plan.NewCompletionItem("Completed task1", "task1")}
+				return plan.NewCompletionItem("Completed task1", "task1").ToUnion()
 			},
 			expectedType: plan.ItemTypeCompletion,
 			shouldError:  false,
-		},
-		{
-			name: "invalid - multiple items set",
-			setupFunc: func() *plan.ItemUnion {
-				return &plan.ItemUnion{
-					TaskItem:    plan.NewTaskItem("test"),
-					ContextItem: plan.NewContextItem(plan.ContextTypeCode, "test"),
-				}
-			},
-			expectedType: plan.ItemTypeUnknown,
-			shouldError:  true,
 		},
 	}
 
@@ -94,21 +160,23 @@ func TestItemUnionJSONMarshaling(t *testing.T) {
 		{
 			name: "task item",
 			setup: func() *plan.ItemUnion {
-				return &plan.ItemUnion{TaskItem: plan.NewTaskItem("test task")}
+				return plan.NewTaskItem("task1", "test task", plan.OperationAdd).ToUnion()
 			},
 			itemType: plan.ItemTypeTask,
 		},
 		{
 			name: "context item",
 			setup: func() *plan.ItemUnion {
-				return &plan.ItemUnion{ContextItem: plan.NewContextItem(plan.ContextTypeDecision, "test decision")}
+				return plan.NewContextItem(plan.ContextTypeDecision, "test decision", plan.OperationAdd).
+					SetOwners("task1").
+					ToUnion()
 			},
 			itemType: plan.ItemTypeContext,
 		},
 		{
 			name: "completion item",
 			setup: func() *plan.ItemUnion {
-				return &plan.ItemUnion{CompletionItem: plan.NewCompletionItem("Completed task 1 and 2", "task1", "task2")}
+				return plan.NewCompletionItem("Completed task 1 and 2", "task1", "task2").ToUnion()
 			},
 			itemType: plan.ItemTypeCompletion,
 		},
@@ -122,13 +190,14 @@ func TestItemUnionJSONMarshaling(t *testing.T) {
 			assert.Equal(t, test.itemType, original.Type())
 
 			data, err := json.Marshal(original)
-			assert.NotEmpty(t, data)
 			require.NoError(t, err)
+			assert.NotEmpty(t, data)
 
 			var restored plan.ItemUnion
 			require.NoError(t, json.Unmarshal(data, &restored))
 
 			assert.Equal(t, original.Type(), restored.Type(), "type mismatch between original and restored")
+			assert.Equal(t, original.Operation(), restored.Operation(), "operation mismatch between original and restored")
 			require.NoError(t, restored.OK())
 		})
 	}
@@ -140,7 +209,7 @@ func TestItemUnionCustomUnmarshalJSON(t *testing.T) {
 	t.Run("unmarshal task", func(t *testing.T) {
 		t.Parallel()
 
-		jsonData := `{"item_type":"task","id":"abc123","time":"2023-01-01T00:00:00Z","content":"test task","parent":"","dependencies":[]}`
+		jsonData := `{"item_type":"task","id":"abc123","time":"2023-01-01T00:00:00Z","content":"test task","parent":"","dependencies":[],"operation":"add"}`
 
 		var item plan.ItemUnion
 		require.NoError(t, json.Unmarshal([]byte(jsonData), &item))
@@ -148,82 +217,48 @@ func TestItemUnionCustomUnmarshalJSON(t *testing.T) {
 		assert.NotNil(t, item.TaskItem)
 		assert.Equal(t, "test task", item.TaskItem.Content)
 		assert.Equal(t, plan.ItemTypeTask, item.Type())
+		assert.NoError(t, item.OK())
 	})
 
-	t.Run("unmarshal unknown type", func(t *testing.T) {
-		t.Parallel()
+	invalidTests := []struct {
+		name        string
+		jsonContent string
+		errorIs     []error
+	}{
+		{
+			name:        "empty",
+			jsonContent: `{}`,
+			errorIs:     []error{plan.ErrUnknownItemType},
+		},
+		{
+			name:        "invalid_type",
+			jsonContent: `{"item_type":"unknown"}`,
+			errorIs:     []error{plan.ErrUnknownItemType},
+		},
+		{
+			name:        "empty_type",
+			jsonContent: `{"item_type":""}`,
+			errorIs:     []error{plan.ErrUnknownItemType},
+		},
+		{
+			name:        "mismatched_type",
+			jsonContent: `{"item_type":"task","id":"abc123","time":"2023-01-01T00:00:00Z","operation":"add","owners":["task1"]}`,
+			errorIs:     []error{plan.ErrInvalidTaskItem},
+		},
+	}
 
-		jsonData := `{"item_type":"unknown","id":"abc123"}`
+	for _, test := range invalidTests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
-		var item plan.ItemUnion
+			var item plan.ItemUnion
 
-		err := json.Unmarshal([]byte(jsonData), &item)
-		require.Error(t, err)
-		require.EqualError(t, err, "unknown item type: \"unknown\"", "Unexpected error message: %v", err.Error())
-	})
-}
+			err := json.Unmarshal([]byte(test.jsonContent), &item)
+			require.Error(t, err)
 
-// Unit Tests for TaskItem
-
-func TestTaskItemCreation(t *testing.T) {
-	t.Parallel()
-
-	content := "Implement authentication"
-	task := plan.NewTaskItem(content)
-
-	assert.Equal(t, content, task.Content)
-	assert.NotEmpty(t, task.ID)
-	assert.NotZero(t, task.Time)
-	assert.Empty(t, task.Dependencies)
-	assert.Equal(t, plan.ItemTypeTask, task.ItemType)
-}
-
-func TestTaskItemBuilders(t *testing.T) {
-	t.Parallel()
-
-	task := plan.NewTaskItem("test task").
-		SetParent("parent-id").
-		SetDependencies("dep1", "dep2")
-
-	assert.Equal(t, "parent-id", task.Parent)
-	assert.Len(t, task.Dependencies, 2)
-	assert.Equal(t, "dep1", task.Dependencies[0])
-	assert.Equal(t, "dep2", task.Dependencies[1])
-}
-
-// Unit Tests for ContextItem
-
-func TestContextItemCreation(t *testing.T) {
-	t.Parallel()
-
-	content := "API documentation"
-	ctx := plan.NewContextItem(plan.ContextTypeReference, content)
-
-	assert.Equal(t, content, ctx.Content)
-	assert.Equal(t, plan.ContextTypeReference, ctx.ContextType)
-	assert.Empty(t, ctx.Owners)
-}
-
-func TestContextItemSetOwners(t *testing.T) {
-	t.Parallel()
-
-	ctx := plan.NewContextItem(plan.ContextTypeCode, "code snippet").
-		SetOwners("task1", "task2")
-
-	assert.Len(t, ctx.Owners, 2)
-	assert.Equal(t, "task1", ctx.Owners[0])
-	assert.Equal(t, "task2", ctx.Owners[1])
-}
-
-// Unit Tests for CompletionItem
-
-func TestCompletionItemCreation(t *testing.T) {
-	t.Parallel()
-
-	comp := plan.NewCompletionItem("Successfully completed tasks 1 and 2", "task1", "task2")
-
-	assert.Len(t, comp.TaskIDs, 2)
-	assert.Equal(t, "task1", comp.TaskIDs[0])
-	assert.Equal(t, "task2", comp.TaskIDs[1])
-	assert.Equal(t, plan.CompletionStatusSuccess, comp.Status)
+			for _, isError := range test.errorIs {
+				require.ErrorIs(t, err, isError, "unexpected error")
+			}
+		})
+	}
 }

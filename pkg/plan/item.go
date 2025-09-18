@@ -20,7 +20,26 @@ func (i *ItemUnion) OK() error {
 	}
 
 	if i.Type() == ItemTypeUnknown {
-		return fmt.Errorf("unknown item type, maybe more than one item specified")
+		return fmt.Errorf("%w, maybe more than one item specified in union", ErrUnknownItemType)
+	}
+
+	if i.Operation() == OperationUnknown {
+		return ErrUnknownOperation
+	}
+
+	switch i.Type() { //nolint:exhaustive
+	case ItemTypeCompletion:
+		if err := i.CompletionItem.OK(); err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalidCompletionItem, err)
+		}
+	case ItemTypeContext:
+		if err := i.ContextItem.OK(); err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalidContextItem, err)
+		}
+	case ItemTypeTask:
+		if err := i.TaskItem.OK(); err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalidTaskItem, err)
+		}
 	}
 
 	return nil
@@ -57,7 +76,7 @@ func (i *ItemUnion) Type() ItemType {
 }
 
 func (i *ItemUnion) Operation() Operation {
-	operation := OperationAdd
+	operation := OperationUnknown
 
 	switch i.Type() { //nolint:exhaustive
 	case ItemTypeTask:
@@ -66,6 +85,10 @@ func (i *ItemUnion) Operation() Operation {
 		operation = i.ContextItem.Operation
 	case ItemTypeCompletion:
 		operation = i.CompletionItem.Operation
+	}
+
+	if !slices.Contains(allOperations(), operation) {
+		operation = OperationUnknown
 	}
 
 	return operation
@@ -97,27 +120,38 @@ func (i *ItemUnion) UnmarshalJSON(data []byte) error {
 	}
 
 	if err := json.Unmarshal(data, &itemTypeOnly); err != nil {
-		return fmt.Errorf("failed to get item type: %w", err)
+		return fmt.Errorf("%w: failed to get item type: %w", ErrInvalidJSON, err)
 	}
 
 	switch itemTypeOnly.ItemType { //nolint:exhaustive
 	case ItemTypeContext:
 		i.ContextItem = &ContextItem{}
 		if err := json.Unmarshal(data, i.ContextItem); err != nil {
-			return fmt.Errorf("failed to unmarshal context item: %w", err)
+			return fmt.Errorf("%w: %w", ErrInvalidContextItem, err)
 		}
 	case ItemTypeCompletion:
 		i.CompletionItem = &CompletionItem{}
 		if err := json.Unmarshal(data, i.CompletionItem); err != nil {
-			return fmt.Errorf("failed to unmarshal completion item: %w", err)
+			return fmt.Errorf("%w: %w", ErrInvalidCompletionItem, err)
 		}
 	case ItemTypeTask:
 		i.TaskItem = &TaskItem{}
 		if err := json.Unmarshal(data, i.TaskItem); err != nil {
-			return fmt.Errorf("failed to unmarshal task item: %w", err)
+			return fmt.Errorf("%w: %w", ErrInvalidTaskItem, err)
 		}
 	default:
-		return fmt.Errorf("unknown item type: %q", itemTypeOnly.ItemType)
+		return fmt.Errorf("%w: %q", ErrUnknownItemType, itemTypeOnly.ItemType)
+	}
+
+	if err := i.OK(); err != nil {
+		switch i.Type() { //nolint:exhaustive
+		case ItemTypeContext:
+			return fmt.Errorf("%w: %w", ErrInvalidContextItem, err)
+		case ItemTypeCompletion:
+			return fmt.Errorf("%w: %w", ErrInvalidCompletionItem, err)
+		case ItemTypeTask:
+			return fmt.Errorf("%w: %w", ErrInvalidTaskItem, err)
+		}
 	}
 
 	return nil
@@ -148,9 +182,17 @@ const (
 type Operation string
 
 const (
-	OperationAdd    Operation = "add"
-	OperationUpdate Operation = "update"
+	OperationUnknown Operation = ""
+	OperationAdd     Operation = "add"
+	OperationUpdate  Operation = "update"
 )
+
+func allOperations() []Operation {
+	return []Operation{
+		OperationAdd,
+		OperationUpdate,
+	}
+}
 
 type BaseItem struct {
 	ID        string    `json:"id"`
@@ -159,142 +201,35 @@ type BaseItem struct {
 	Operation Operation `json:"operation"`
 }
 
-func NewBaseItem(itemType ItemType) *BaseItem {
+func NewBaseItem(itemType ItemType, operation Operation) *BaseItem {
 	return &BaseItem{
-		ID:       randID(),
-		Time:     time.Now(),
-		ItemType: itemType,
+		ID:        RandID(),
+		Time:      time.Now(),
+		ItemType:  itemType,
+		Operation: operation,
 	}
 }
 
-type TaskItem struct {
-	*BaseItem
-
-	Content      string   `json:"content"`
-	Parent       string   `json:"parent"`
-	Dependencies []string `json:"dependencies"`
-}
-
-func NewTaskItem(content string) *TaskItem {
-	return &TaskItem{
-		BaseItem:     NewBaseItem(ItemTypeTask),
-		Content:      content,
-		Dependencies: []string{},
+func (b *BaseItem) OK() error {
+	switch {
+	case b == nil:
+		return fmt.Errorf("missing base item properties")
+	case b.ID == "":
+		return fmt.Errorf("missing ID")
+	case b.ItemType == ItemTypeUnknown:
+		return ErrUnknownItemType
+	case !slices.Contains(allOperations(), b.Operation):
+		return ErrUnknownOperation
 	}
-}
 
-func (t *TaskItem) SetID(id string) *TaskItem {
-	t.ID = id
-	return t
-}
-
-func (t *TaskItem) SetOperation(operation Operation) *TaskItem {
-	t.Operation = operation
-	return t
-}
-
-func (t *TaskItem) SetParent(parentID string) *TaskItem {
-	t.Parent = parentID
-	return t
-}
-
-func (t *TaskItem) SetDependencies(dependencyIDs ...string) *TaskItem {
-	t.Dependencies = dependencyIDs
-	return t
-}
-
-func (t *TaskItem) IsChildOf(taskID string) bool {
-	return t.Parent == taskID
-}
-
-func (t *TaskItem) HasDependency(taskID string) bool {
-	return slices.Contains(t.Dependencies, taskID)
-}
-
-type ContextType string
-
-const (
-	ContextTypeCode       ContextType = "code"
-	ContextTypeDecision   ContextType = "decision"
-	ContextTypeReference  ContextType = "reference"
-	ContextTypeConstraint ContextType = "constraint"
-	ContextTypeConvention ContextType = "convention"
-)
-
-type ContextItem struct {
-	*BaseItem
-
-	ContextType ContextType `json:"context_type"`
-	Content     string      `json:"content"`
-	Owners      []string    `json:"owners"`
-}
-
-func NewContextItem(contextType ContextType, content string) *ContextItem {
-	return &ContextItem{
-		BaseItem: NewBaseItem(ItemTypeContext),
-
-		ContextType: contextType,
-		Content:     content,
-		Owners:      []string{},
-	}
-}
-
-func (c *ContextItem) SetID(id string) *ContextItem {
-	c.ID = id
-	return c
-}
-
-func (c *ContextItem) SetOperation(operation Operation) *ContextItem {
-	c.Operation = operation
-	return c
-}
-
-func (c *ContextItem) SetOwners(ownerIDs ...string) *ContextItem {
-	c.Owners = ownerIDs
-	return c
-}
-
-type CompletionStatus string
-
-const (
-	CompletionStatusUnknown  CompletionStatus = ""
-	CompletionStatusSuccess  CompletionStatus = "success"
-	CompletionStatusFailed   CompletionStatus = "failed"
-	CompletionStatusPartial  CompletionStatus = "partial"
-	CompletionStatusObsolete CompletionStatus = "obsolete"
-)
-
-type CompletionItem struct {
-	*BaseItem
-
-	Content string           `json:"content"`
-	Status  CompletionStatus `json:"status"`
-	TaskIDs []string         `json:"task_ids"`
-}
-
-func NewCompletionItem(content string, taskIDs ...string) *CompletionItem {
-	baseItem := NewBaseItem(ItemTypeCompletion)
-	baseItem.Operation = OperationAdd
-
-	return &CompletionItem{
-		BaseItem: baseItem,
-
-		Content: content,
-		Status:  CompletionStatusSuccess,
-		TaskIDs: taskIDs,
-	}
-}
-
-func (c *CompletionItem) SetStatus(status CompletionStatus) *CompletionItem {
-	c.Status = status
-	return c
+	return nil
 }
 
 const idChars = "abcdef0123456789"
 
-// randID returns a random 32-character hex string
-// TODO: consolidate with llms.randID?
-func randID() string {
+// RandID returns a random 32-character hex string
+// TODO: consolidate with llms.RandID?
+func RandID() string {
 	output := []byte{}
 	for range 32 {
 		output = append(output, idChars[rand.IntN(len(idChars))]) //nolint:gosec

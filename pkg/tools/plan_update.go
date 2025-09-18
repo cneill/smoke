@@ -260,9 +260,7 @@ func (p *PlanUpdateTool) handleTasks(tasks []Args) ([]string, error) {
 			dependencies = append([]string{}, existing.TaskItem.Dependencies...)
 		}
 
-		task := plan.NewTaskItem(*content).
-			SetID(*id).
-			SetOperation(plan.OperationUpdate).
+		task := plan.NewTaskItem(*id, *content, plan.OperationUpdate).
 			SetParent(*parentID).
 			SetDependencies(dependencies...)
 
@@ -306,9 +304,8 @@ func (p *PlanUpdateTool) handleContext(context []Args) ([]string, error) {
 			owners = append([]string{}, existing.ContextItem.Owners...)
 		}
 
-		contextItem := plan.NewContextItem(plan.ContextType(*contextType), *content).
+		contextItem := plan.NewContextItem(plan.ContextType(*contextType), *content, plan.OperationUpdate).
 			SetID(*id).
-			SetOperation(plan.OperationUpdate).
 			SetOwners(owners...)
 
 		item := &plan.ItemUnion{ContextItem: contextItem}
