@@ -72,13 +72,12 @@ func NewSession(opts *SessionOpts) (*Session, error) {
 
 // SetSystemMessage sets the Session's system message, modifying the existing Message if necessary.
 func (s *Session) SetSystemMessage(system string) error {
-	s.messageMutex.Lock()
-	defer s.messageMutex.Unlock()
-
 	s.SystemMessage = system
 
 	// If we have an existing system message in the message log, replace it
 	existingSystemMessage := false
+
+	s.messageMutex.Lock()
 
 	for messageIdx, message := range s.Messages {
 		if message.Role == RoleSystem {
@@ -91,6 +90,8 @@ func (s *Session) SetSystemMessage(system string) error {
 			break
 		}
 	}
+
+	s.messageMutex.Unlock()
 
 	// If we don't already have one, and if we need to provide one for this LLM provider, add it
 	if s.SystemAsMessage && !existingSystemMessage {
