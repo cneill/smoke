@@ -354,9 +354,7 @@ func (p *PlanAddTool) handleTasks(tasks []Args) error {
 		parentID := rawTask.GetString(PlanAddTasksParentID)
 		dependencies := rawTask.GetStringSlice(PlanAddTasksDependencies)
 
-		task := plan.NewTaskItem(*content).
-			SetID(*id).
-			SetOperation(plan.OperationAdd)
+		task := plan.NewTaskItem(*id, *content, plan.OperationAdd)
 
 		if parentID != nil {
 			task = task.SetParent(*parentID)
@@ -383,10 +381,9 @@ func (p *PlanAddTool) handleContext(context []Args) error {
 		id := rawContext.GetString(PlanAddContextID)
 		owners := rawContext.GetStringSlice(PlanAddContextOwners)
 
-		contextItem := plan.NewContextItem(plan.ContextType(*rawContextType), *content).
+		contextItem := plan.NewContextItem(plan.ContextType(*rawContextType), *content, plan.OperationAdd).
 			SetOwners(owners...).
-			SetID(*id).
-			SetOperation(plan.OperationAdd)
+			SetID(*id)
 
 		item := &plan.ItemUnion{ContextItem: contextItem}
 		if err := p.PlanManager.HandleItem(item); err != nil {
