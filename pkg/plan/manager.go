@@ -2,10 +2,12 @@ package plan
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -42,14 +44,20 @@ func ManagerFromReader(reader io.ReadWriter) (*Manager, error) {
 	itemNumber := 1
 
 	for scanner.Scan() {
+		contents := scanner.Bytes()
 		item := &ItemUnion{}
 
-		if err := json.Unmarshal(scanner.Bytes(), item); err != nil {
+		// Skip empty lines
+		if len(bytes.TrimSpace(contents)) == 0 {
+			continue
+		}
+
+		if err := json.Unmarshal(contents, item); err != nil {
 			return nil, fmt.Errorf("failed to parse item number %d: %w", itemNumber, err)
 		}
 
-		if err := manager.AddItem(item); err != nil {
-			return nil, fmt.Errorf("failed to add iten number %d: %w", itemNumber, err)
+		if err := manager.HandleItem(item); err != nil {
+			return nil, fmt.Errorf("failed to handle item number %d: %w", itemNumber, err)
 		}
 
 		itemNumber++
@@ -65,19 +73,25 @@ func ManagerFromReader(reader io.ReadWriter) (*Manager, error) {
 }
 
 func (m *Manager) HandleItem(item *ItemUnion) error {
-	switch item.Operation() {
+	operation := item.Operation()
+
+	switch operation { //nolint:exhaustive
 	case OperationAdd:
 		return m.AddItem(item)
 	case OperationUpdate:
 		return m.UpdateItem(item)
 	}
 
-	return fmt.Errorf("unknown or empty item operation (%s)", item.Operation())
+	return fmt.Errorf("unknown or empty item operation: %q", operation)
 }
 
 func (m *Manager) AddItem(item *ItemUnion) error {
 	if err := item.OK(); err != nil {
 		return fmt.Errorf("item error: %w", err)
+	}
+
+	if op := item.Operation(); op != OperationAdd {
+		return fmt.Errorf("expecting %q operation, got %q", OperationAdd, op)
 	}
 
 	if item.Type() == ItemTypeTask {
@@ -119,15 +133,23 @@ func (m *Manager) UpdateItem(item *ItemUnion) error {
 		return fmt.Errorf("item error: %w", err)
 	}
 
+	if op := item.Operation(); op != OperationUpdate {
+		return fmt.Errorf("expecting %q operation, got %q", OperationUpdate, op)
+	}
+
+	// TODO: always forbid this?
+	// if item.Type() == ItemTypeCompletion {
+	// 	return fmt.Errorf("can't update completion item")
+	// }
+
 	if item.Type() == ItemTypeTask {
 		if err := m.validateTaskDependencies(item.TaskItem); err != nil {
 			return fmt.Errorf("failed to validate task item dependencies: %w", err)
 		}
 	}
 
-	existing := m.GetItemByID(item.ID())
-	if existing == nil {
-		return fmt.Errorf("item does not exist with ID %q to update", item.ID())
+	if existing := m.GetItemByID(item.ID()); existing == nil {
+		return fmt.Errorf("item with ID %q does not exist to update", item.ID())
 	}
 
 	m.itemMutex.Lock()
@@ -136,6 +158,10 @@ func (m *Manager) UpdateItem(item *ItemUnion) error {
 	m.items = append(m.items, item)
 	m.updated[item.ID()] = len(m.items) - 1
 
+	if err := m.writeItem(item); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -143,6 +169,7 @@ func (m *Manager) AllItems() []*ItemUnion {
 	return m.items
 }
 
+// Completed returns a map of all tasks marked completed. These may have been partial / failed completions.
 func (m *Manager) Completed() map[string]CompletionStatus {
 	return m.completed
 }
@@ -183,10 +210,13 @@ func (m *Manager) GetPendingTasks() []*TaskItem {
 			continue
 		}
 
+		// skip tasks completed successfully
 		status, exists := m.completed[item.TaskItem.ID]
-		if !exists || status != CompletionStatusSuccess {
-			pending = append(pending, item.TaskItem)
+		if exists && status == CompletionStatusSuccess {
+			continue
 		}
+
+		pending = append(pending, item.TaskItem)
 	}
 
 	return pending
@@ -209,10 +239,8 @@ func (m *Manager) GetContextFor(searchID string) []*ContextItem {
 			continue
 		}
 
-		for _, ownerID := range item.ContextItem.Owners {
-			if ownerID == searchID {
-				allContext = append(allContext, item.ContextItem)
-			}
+		if slices.Contains(item.ContextItem.Owners, searchID) {
+			allContext = append(allContext, item.ContextItem)
 		}
 	}
 
