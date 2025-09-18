@@ -3,18 +3,44 @@
 package prompts
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/cneill/smoke/pkg/llms"
 )
 
-// TODO: swap this with description to emphasize the actual work / planning processes?
+// From https://go-proverbs.github.io/
+func goProverbs() []string {
+	return []string{
+		`The following are "proverbs" by Rob Pike about Golang. Consider them as you make suggestions.`,
+		"Don't communicate by sharing memory, share memory by communicating.",
+		"Concurrency is not parallelism.",
+		"Channels orchestrate; mutexes serialize.",
+		"The bigger the interface, the weaker the abstraction.",
+		"Make the zero value useful.",
+		"interface{} [or `any`] says nothing.",
+		// "Gofmt's style is no one's favorite, yet gofmt is everyone's favorite.", // irrelevant?
+		"A little copying is better than a little dependency.",
+		// "Syscall must always be guarded with build tags.", // low-value
+		// "Cgo must always be guarded with build tags.", // low-value
+		// "Cgo is not Go.", // low-value
+		"With the unsafe package there are no guarantees.",
+		"Clear is better than clever.",
+		"Reflection is never clear.",
+		"Errors are values.",
+		"Don't just check errors, handle them gracefully [and wrap them when returned].",
+		"Design the architecture, name the components, document the details.",
+		"Documentation is for users.",
+		"Don't panic.",
+	}
+}
+
 func systemTaskSection() []string {
 	return []string{
-		"You are a helpful coding assistant who is an expert in Golang. Your goal is to help the user implement the " +
-			"requests they give you by formulating a plan in `plan_process` and then working on it in `work_process`. " +
-			"Do not worry about being too verbose with the `plan_*` tools - capture all the necessary details you can.",
-		"The user may also ask you to review their code in `review_process`.",
-		"If you suspect there are compile errors, look for the `gopls_go_diagnostics` tool and use it if you have " +
-			"access to it.",
+		"You are a helpful coding assistant who is an expert in software development and architecture in Golang. You " +
+			"strive for a clean architecture that is easy to understand, efficient, and easy to maintain.",
+		"The user may ask you to plan and implement code changes, to review their code, or may simply ask a question " +
+			"that does not require tool use.",
 	}
 }
 
@@ -33,6 +59,8 @@ func systemBackgroundSection() []string {
 		"The code may be written for a version of Go you haven't encountered before. If the user references standard " +
 			"library functions/types/etc. you haven't encountered before, assume that they are correct if there are " +
 			"no build errors reported.",
+		"If you suspect there are compile errors, look for the `gopls_go_diagnostics` tool and use it if you have " +
+			"access to it.",
 	}
 }
 
@@ -49,8 +77,8 @@ func systemFormattingSection() []string {
 	}
 }
 
-func PlanningSystem() (Prompt, error) {
-	return NewSectionsPrompt("planning_system",
+func PlanningSystem() Prompt {
+	planning, err := NewSectionsPrompt("planning_system",
 		WithSection(SectionTask,
 			append(systemTaskSection(),
 				"You are currently in `plan_process`.")...),
@@ -83,10 +111,15 @@ func PlanningSystem() (Prompt, error) {
 				"user has agreed to your plan.",
 		),
 	)
+	if err != nil {
+		panic(fmt.Errorf("failed to construct planning prompt: %w", err))
+	}
+
+	return planning
 }
 
-func WorkSystem() (Prompt, error) {
-	return NewSectionsPrompt("work_system",
+func WorkSystem() Prompt {
+	work, err := NewSectionsPrompt("work_system",
 		WithSection(SectionTask,
 			append(systemTaskSection(),
 				"You are currently in `work_process`.")...),
@@ -126,10 +159,15 @@ func WorkSystem() (Prompt, error) {
 				"stop until you have implemented everything and used `plan_completion` to mark each task as complete.",
 		),
 	)
+	if err != nil {
+		panic(fmt.Errorf("failed to construct work prompt: %w", err))
+	}
+
+	return work
 }
 
-func ReviewSystem() (Prompt, error) {
-	return NewSectionsPrompt("review_system",
+func ReviewSystem() Prompt {
+	review, err := NewSectionsPrompt("review_system",
 		WithSection(SectionTask,
 			`Review the user's code and note any areas that match one of the "red flags" described here, and `+
 				"make suggestions for how the user could improve it. Note the name of the red flag that was violated "+
@@ -205,4 +243,50 @@ func ReviewSystem() (Prompt, error) {
 				"someone reading the code.",
 		),
 	)
+	if err != nil {
+		panic(fmt.Errorf("failed to construct review prompt: %w", err))
+	}
+
+	return review
+}
+
+func SummarizeSystem(messages ...*llms.Message) Prompt {
+	history := []string{}
+
+	for _, message := range messages {
+		history = append(history, message.ToMarkdown())
+	}
+
+	summarize, err := NewSectionsPrompt("summarize_system",
+		WithSection(SectionTask,
+			append(systemTaskSection(),
+				"You are currently in `summarize_process`.")...),
+
+		WithSection(SectionTone, systemToneSection()...),
+		WithSection(SectionBackground, systemBackgroundSection()...),
+		WithSection(SectionInstructions, systemInstructionsSection()...),
+		WithSection(SectionFormatting, systemFormattingSection()...),
+
+		WithSection(SectionDescription,
+			"Please summarize the conversation up to this point. Don't worry about conveying the play-by-play of each "+
+				`message in order with e.g. "The user said... then the next message said...". Focus on summarizing `+
+				"the **important content** of the provided message history. Specifically pay attention to the outputs "+
+				"of tool calls and details that may be relevant when implementing the plan to fulfill the user's "+
+				"request. If no specific task is described, or there is no current plan, just summarize any relevant "+
+				"information about the environment you're in. If there are tool calls present that would make earlier "+
+				"messages irrelevant, ignore the old content. For example, if a file is read and then modified, don't "+
+				"summarize its old contents.",
+		),
+		WithSection(SectionRules,
+			"Use the `plan_read` tool to determine what pieces of information would be most relevant to your summary.",
+			`Use Markdown headings to split your summary into logical groupings like "Package context & definitions",`+
+				`"Design decisions", "Code conventions", "Relevant files", "Third party libraries", and so on.`,
+		),
+		WithSection(SectionConversationHistory, history...),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to construct summarize prompt: %w", err))
+	}
+
+	return summarize
 }

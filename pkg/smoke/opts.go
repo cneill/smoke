@@ -1,7 +1,6 @@
 package smoke
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -126,10 +125,11 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 			return nil, fmt.Errorf("%w: %w", ErrOptions, err)
 		}
 
+		// Update the session with a system message if needed by this provider
 		if llm.RequiresSessionSystem() {
-			systemMsg := llms.SimpleMessage(llms.RoleSystem, smoke.session.SystemMessage)
-			if err := smoke.session.AddMessage(systemMsg); err != nil {
-				return nil, fmt.Errorf("failed to add system message: %w", err)
+			smoke.session.SystemAsMessage = true
+			if err := smoke.session.SetSystemMessage(smoke.session.SystemMessage); err != nil {
+				return nil, fmt.Errorf("failed to update session system prompt: %w", err)
 			}
 		}
 
@@ -139,7 +139,8 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 	}
 }
 
-func WithMCPClient(ctx context.Context, client *mcp.CommandClient) OptFunc {
+// WithMCPClient adds an MCP client to Smoke. Its tools will be added to the tool manager attached to Smoke's session.
+func WithMCPClient(client *mcp.CommandClient) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		smoke.mcpClients = append(smoke.mcpClients, client)
 		return smoke, nil

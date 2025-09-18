@@ -173,16 +173,11 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 		return nil, fmt.Errorf("failed to set up LLM configuration: %w", err)
 	}
 
-	workSystem, err := prompts.WorkSystem()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get system prompt: %w", err)
-	}
-
 	opts := []smoke.OptFunc{
 		smoke.WithConfig(loadedConfig),
 		smoke.WithDebug(cmd.Bool(FlagDebug)),
 		smoke.WithProjectPath(projectPath),
-		smoke.WithSessionInfo(sessionName, workSystem.Markdown()),
+		smoke.WithSessionInfo(sessionName, prompts.WorkSystem().Markdown()),
 		smoke.WithLLMConfig(llmConfig),
 	}
 
@@ -193,7 +188,7 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 		}
 
 		for _, client := range mcpClients {
-			opts = append(opts, smoke.WithMCPClient(ctx, client))
+			opts = append(opts, smoke.WithMCPClient(client))
 		}
 	}
 

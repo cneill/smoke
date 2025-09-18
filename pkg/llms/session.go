@@ -9,24 +9,26 @@ import (
 )
 
 type Session struct {
-	Name          string         `json:"name"`
-	SystemMessage string         `json:"system_message"`
-	Messages      []*Message     `json:"messages"`
-	Tools         *tools.Manager `json:"-"`
+	Name          string    `json:"name"`
+	CreatedAt     time.Time `json:"created_at"`
+	SystemMessage string    `json:"system_message"`
+	// Should we add the system message to the Messages slice?
+	SystemAsMessage bool         `json:"system_as_message"`
+	Messages        []*Message   `json:"messages"`
+	messageMutex    sync.RWMutex `json:"-"`
 
-	CreatedAt time.Time `json:"created_at"`
-
-	messageMutex sync.RWMutex `json:"-"`
+	Tools *tools.Manager `json:"-"`
 
 	usageMutex   sync.RWMutex `json:"-"`
-	InputTokens  int64
-	OutputTokens int64
+	InputTokens  int64        `json:"input_tokens"`
+	OutputTokens int64        `json:"output_tokens"`
 }
 
 type SessionOpts struct {
-	Name          string
-	SystemMessage string
-	Tools         *tools.Manager
+	Name            string
+	SystemMessage   string
+	SystemAsMessage bool
+	Tools           *tools.Manager
 }
 
 func (s *SessionOpts) OK() error {
@@ -49,37 +51,56 @@ func NewSession(opts *SessionOpts) (*Session, error) {
 	}
 
 	session := &Session{
-		Name:          opts.Name,
-		SystemMessage: opts.SystemMessage,
-		Messages:      []*Message{},
-		Tools:         opts.Tools,
+		Name:            opts.Name,
+		SystemMessage:   opts.SystemMessage,
+		SystemAsMessage: opts.SystemAsMessage,
+		Messages:        []*Message{},
+		Tools:           opts.Tools,
 
 		CreatedAt: time.Now(),
 
 		messageMutex: sync.RWMutex{},
+		usageMutex:   sync.RWMutex{},
+	}
+
+	if err := session.SetSystemMessage(opts.SystemMessage); err != nil {
+		return nil, fmt.Errorf("failed to set system message: %w", err)
 	}
 
 	return session, nil
 }
 
 // SetSystemMessage sets the Session's system message, modifying the existing Message if necessary.
-func (s *Session) SetSystemMessage(system string) {
-	s.SystemMessage = system
-
+func (s *Session) SetSystemMessage(system string) error {
 	s.messageMutex.Lock()
 	defer s.messageMutex.Unlock()
 
-	for i, message := range s.Messages {
+	s.SystemMessage = system
+
+	// If we have an existing system message in the message log, replace it
+	existingSystemMessage := false
+
+	for messageIdx, message := range s.Messages {
 		if message.Role == RoleSystem {
-			s.Messages[i] = &Message{
-				Role:    message.Role,
-				Content: system,
-				Added:   time.Now(),
-			}
+			existingSystemMessage = true
+			newMessage := message.Clone()
+			newMessage.Content = system
+			newMessage.Added = time.Now()
+			s.Messages[messageIdx] = newMessage
 
 			break
 		}
 	}
+
+	// If we don't already have one, and if we need to provide one for this LLM provider, add it
+	if s.SystemAsMessage && !existingSystemMessage {
+		systemMsg := SimpleMessage(RoleSystem, s.SystemMessage)
+		if err := s.AddMessage(systemMsg); err != nil {
+			return fmt.Errorf("failed to add system message: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // AddMessage adds an existing Message to the Session as-is.

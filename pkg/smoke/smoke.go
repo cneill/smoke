@@ -305,7 +305,6 @@ func (s *Smoke) SetMode(mode Mode) {
 	switch mode {
 	case ModePlanning, ModeReview:
 		enabledTools = tools.PlanningTools()
-		// TODO: update system prompt for planning mode?
 	case ModeNormal:
 		enabledTools = tools.AllTools()
 	}
