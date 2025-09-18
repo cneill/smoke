@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // Builder provides a fluent API for constructing prompts.
 type Builder struct {
 	p *Prompt
@@ -40,12 +42,32 @@ func (b *Builder) Remove(t SectionType) *Builder {
 }
 
 // Convenience constructors
-func P(text string) *Text               { return &Text{Content: text} }
+func P(text string) *Text { return &Text{Content: text} }
+
+func Pf(format string, arguments ...any) *Text {
+	return &Text{Content: fmt.Sprintf(format, arguments...)}
+}
+
 func H(level int, text string) *Heading { return &Heading{Level: level, Text: text} }
+
+func Hf(level int, format string, arguments ...any) *Heading {
+	return &Heading{
+		Level: level,
+		Text:  fmt.Sprintf(format, arguments...),
+	}
+}
+
 func Code(lang, code string) *CodeBlock { return &CodeBlock{Lang: lang, Code: code} }
 
 func Item(text string, children ...ListItem) ListItem {
 	return ListItem{Text: text, Children: append([]ListItem(nil), children...)}
+}
+
+func Itemf(format string, arguments ...any) ListItem {
+	return ListItem{
+		Text:     fmt.Sprintf(format, arguments...),
+		Children: []ListItem{},
+	}
 }
 
 func List(items ...ListItem) *BulletList {
