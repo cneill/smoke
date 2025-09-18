@@ -64,6 +64,8 @@ func (i *ItemUnion) Operation() Operation {
 		operation = i.TaskItem.Operation
 	case ItemTypeContext:
 		operation = i.ContextItem.Operation
+	case ItemTypeCompletion:
+		operation = i.CompletionItem.Operation
 	}
 
 	return operation
@@ -271,8 +273,11 @@ type CompletionItem struct {
 }
 
 func NewCompletionItem(content string, taskIDs ...string) *CompletionItem {
+	baseItem := NewBaseItem(ItemTypeCompletion)
+	baseItem.Operation = OperationAdd
+
 	return &CompletionItem{
-		BaseItem: NewBaseItem(ItemTypeCompletion),
+		BaseItem: baseItem,
 
 		Content: content,
 		Status:  CompletionStatusSuccess,

@@ -48,7 +48,7 @@ func ManagerFromReader(reader io.ReadWriter) (*Manager, error) {
 			return nil, fmt.Errorf("failed to parse item number %d: %w", itemNumber, err)
 		}
 
-		if err := manager.AddItem(item); err != nil {
+		if err := manager.HandleItem(item); err != nil {
 			return nil, fmt.Errorf("failed to add iten number %d: %w", itemNumber, err)
 		}
 
@@ -135,6 +135,10 @@ func (m *Manager) UpdateItem(item *ItemUnion) error {
 
 	m.items = append(m.items, item)
 	m.updated[item.ID()] = len(m.items) - 1
+
+	if err := m.writeItem(item); err != nil {
+		return err
+	}
 
 	return nil
 }
