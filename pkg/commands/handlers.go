@@ -266,10 +266,10 @@ func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	var systemMessage, historyMessage string
 
 	if p.Enabled {
-		systemMessage = prompts.PlanningSystem().Markdown()
+		systemMessage = prompts.PlanningSystemPrompt().Markdown()
 		historyMessage = "Entering planning mode."
 	} else {
-		systemMessage = prompts.WorkSystem().Markdown()
+		systemMessage = prompts.WorkSystemPrompt().Markdown()
 		historyMessage = "Exiting planning mode."
 	}
 
@@ -525,10 +525,10 @@ func (r *ReviewHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	var systemMessage, historyMessage string
 
 	if r.Enabled {
-		systemMessage = prompts.ReviewSystem().Markdown()
+		systemMessage = prompts.ReviewSystemPrompt().Markdown()
 		historyMessage = "Entering review mode."
 	} else {
-		systemMessage = prompts.WorkSystem().Markdown()
+		systemMessage = prompts.WorkSystemPrompt().Markdown()
 		historyMessage = "Exiting review mode."
 	}
 

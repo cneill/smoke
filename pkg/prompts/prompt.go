@@ -1,74 +1,14 @@
+// Package prompts contains prompts used to interact with the LLMs, such as the overall system prompt that describes how
+// the model should respond to questions or requests for code changes.
 package prompts
 
 import (
-	"encoding/json"
-	"fmt"
-	"slices"
 	"strings"
 )
 
-// TODO: split markdown from JSON
-type Prompt interface {
-	Name() string
-	Markdown() string
-	JSONMap() map[string]any
-	JSONString() (string, error)
-}
-
-func NewSectionsPrompt(name string, opts ...PromptOpt) (Prompt, error) {
-	sectionKeys := orderedSections()
-
-	newPrompt := &sectionsPrompt{
-		name:        name,
-		sectionKeys: sectionKeys,
-		sections:    make([]Section, len(sectionKeys)),
-	}
-
-	var optErr error
-
-	for idx, opt := range opts {
-		newPrompt, optErr = opt(newPrompt)
-		if optErr != nil {
-			return nil, fmt.Errorf("error with option at index %d: %w", idx, optErr)
-		}
-	}
-
-	return newPrompt, nil
-}
-
-type PromptOpt func(*sectionsPrompt) (*sectionsPrompt, error)
-
-func WithSection(name SectionType, items ...string) PromptOpt {
-	return func(prompt *sectionsPrompt) (*sectionsPrompt, error) {
-		idx := slices.Index(prompt.sectionKeys, name)
-		if idx == -1 {
-			return nil, fmt.Errorf("unknown section name: %q", name)
-		}
-
-		if section := prompt.sections[idx]; len(section) > 0 {
-			return nil, fmt.Errorf("section %q is already populated", name)
-		}
-
-		prompt.sections[idx] = items
-
-		return prompt, nil
-	}
-}
-
-type Section []string
-
+// SectionType defines the canonical section names used when composing prompts.
+// Order is defined by orderedSections() below.
 type SectionType string
-
-func (s SectionType) JSONKey() string {
-	var result string
-
-	for word := range strings.SplitSeq(string(s), " ") {
-		result += strings.ToLower(word)
-		result += "_"
-	}
-
-	return strings.TrimSuffix(result, "_")
-}
 
 // order inspired by Anthropic - https://x.com/mattpocockuk/status/1958179930262356032/photo/1
 const (
@@ -97,59 +37,154 @@ func orderedSections() []SectionType {
 	}
 }
 
-type sectionsPrompt struct {
-	name string
-	// We keep the keys and sections as separate arrays here to ensure the ordering stays consistent. A map would be
-	// randomized, defeating the point.
-	sectionKeys []SectionType
-	sections    []Section
+// Node is a content element in a section. Renderers will walk these nodes.
+type Node interface {
+	isNode()
 }
 
-func (s *sectionsPrompt) Name() string { return s.name }
-
-func (s *sectionsPrompt) Markdown() string {
-	builder := &strings.Builder{}
-
-	for sectionIdx, sectionHeading := range s.sectionKeys {
-		if len(s.sections[sectionIdx]) == 0 {
-			continue
-		}
-
-		builder.WriteString("## ")
-		builder.WriteString(string(sectionHeading))
-		builder.WriteString("\n\n")
-
-		for _, sectionItem := range s.sections[sectionIdx] {
-			builder.WriteString(" * ")
-			builder.WriteString(sectionItem)
-			builder.WriteByte('\n')
-		}
-
-		builder.WriteByte('\n')
-	}
-
-	return builder.String()
+// Text represents a paragraph or sentence.
+type Text struct {
+	Content string
 }
 
-func (s *sectionsPrompt) JSONMap() map[string]any {
-	result := map[string]any{}
+func (*Text) isNode() {}
 
-	for sectionIdx, sectionHeading := range s.sectionKeys {
-		if sections := s.sections[sectionIdx]; len(sections) > 0 {
-			result[sectionHeading.JSONKey()] = sections
-		}
-	}
-
-	return result
+// Heading is an intra-section heading. Level 1 renders as ###, level 2 as ####, etc.
+type Heading struct {
+	Level int
+	Text  string
 }
 
-func (s *sectionsPrompt) JSONString() (string, error) {
-	jsonMap := s.JSONMap()
+func (*Heading) isNode() {}
 
-	jsonBytes, err := json.Marshal(jsonMap)
-	if err != nil {
-		return "", fmt.Errorf("invalid JSON: %w", err)
+// CodeBlock is a fenced code block with an optional language hint.
+type CodeBlock struct {
+	Lang string
+	Code string
+}
+
+func (*CodeBlock) isNode() {}
+
+// ListItem is an item in a BulletList, which may contain nested children.
+type ListItem struct {
+	Text     string
+	Children []ListItem
+}
+
+// BulletList is a list of items, possibly nested.
+type BulletList struct {
+	Items []ListItem
+}
+
+func (*BulletList) isNode() {}
+
+// Section groups nodes under a SectionType.
+type Section struct {
+	Type  SectionType
+	Nodes []Node
+}
+
+// Prompt is a complete prompt with ordered sections.
+type Prompt struct {
+	Name     string
+	sections map[SectionType]*Section
+	order    []SectionType
+}
+
+// NewPrompt creates an empty prompt with canonical section ordering.
+func NewPrompt(name string) *Prompt {
+	return &Prompt{
+		Name:     name,
+		sections: make(map[SectionType]*Section),
+		order:    orderedSections(),
+	}
+}
+
+// Section returns the section for the given type, creating it if needed.
+func (p *Prompt) Section(sectionType SectionType) *Section {
+	if section, ok := p.sections[sectionType]; ok {
+		return section
 	}
 
-	return string(jsonBytes), nil
+	section := &Section{Type: sectionType}
+	p.sections[sectionType] = section
+
+	return section
+}
+
+// Clone returns a deep copy of the prompt and its sections/nodes.
+func (p *Prompt) Clone() *Prompt {
+	cp := &Prompt{
+		Name:     p.Name,
+		sections: make(map[SectionType]*Section, len(p.sections)),
+		order:    append([]SectionType(nil), p.order...),
+	}
+
+	for sectionType, section := range p.sections {
+		cp.sections[sectionType] = cloneSection(section)
+	}
+
+	return cp
+}
+
+func (p *Prompt) Markdown() string {
+	renderer := MarkdownRenderer{}
+	return renderer.Render(p)
+}
+
+func (p *Prompt) JSON() string {
+	renderer := JSONRenderer{}
+	return renderer.RenderString(p)
+}
+
+func cloneSection(section *Section) *Section {
+	if section == nil {
+		return nil
+	}
+
+	out := &Section{Type: section.Type}
+	for _, node := range section.Nodes {
+		out.Nodes = append(out.Nodes, cloneNode(node))
+	}
+
+	return out
+}
+
+func cloneNode(node Node) Node {
+	switch value := node.(type) {
+	case *Text:
+		cloned := *value
+		return &cloned
+	case *Heading:
+		cloned := *value
+		return &cloned
+	case *CodeBlock:
+		cloned := *value
+		return &cloned
+	case *BulletList:
+		items := cloneListItems(value.Items)
+		return &BulletList{Items: items}
+	default:
+		return node
+	}
+}
+
+func cloneListItems(items []ListItem) []ListItem {
+	if len(items) == 0 {
+		return nil
+	}
+
+	out := make([]ListItem, len(items))
+	for i := range items {
+		out[i].Text = items[i].Text
+		out[i].Children = cloneListItems(items[i].Children)
+	}
+
+	return out
+}
+
+// snakeCase converts a section name into snake_case for JSON keys.
+func snakeCase(s string) string {
+	lower := strings.ToLower(s)
+	return strings.ReplaceAll(lower, " ", "_")
 }

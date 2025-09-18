@@ -177,7 +177,7 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 		smoke.WithConfig(loadedConfig),
 		smoke.WithDebug(cmd.Bool(FlagDebug)),
 		smoke.WithProjectPath(projectPath),
-		smoke.WithSessionInfo(sessionName, prompts.WorkSystem().Markdown()),
+		smoke.WithSessionInfo(sessionName, prompts.WorkSystemPrompt().Markdown()),
 		smoke.WithLLMConfig(llmConfig),
 	}
 
