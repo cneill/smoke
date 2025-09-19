@@ -127,16 +127,19 @@ func (d *DDGTool) getResults(body io.Reader) ([]ddgResult, error) {
 
 		aTag := rawResult.Find(".result__title .result__a").First()
 		title := aTag.Text()
+
 		href, ok := aTag.Attr("href")
 		if !ok {
 			slog.Warn("got result item without an href attribute...", "idx", resultIdx, "title", title)
 			continue
 		}
 
-		// Links come back with some funky redirect formatting that looks like e.g. this when JSON-escaped
-		// //duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.thetexastasty.com%2Faround%2Dtown%2Faustin%2Fbest%2Dsushi%2Din%2Daustin%2F\\u0026rut=abc6008f580ac8d5fd52d7d87628fe411ab71c611cd05e3fd7d508165656f956
+		// Links come back with some funky redirect formatting that looks like e.g. this when JSON-escaped:
+		// //duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.thetexastasty.com%2Faround%2Dtown%2Faustin%2Fbest%2Dsushi%2Din%2D
+		// austin%2F\\u0026rut=abc6008f580ac8d5fd52d7d87628fe411ab71c611cd05e3fd7d508165656f956
 		if cleaned, found := strings.CutPrefix(href, ddgLinkPrefix); found {
 			cleaned = strings.Split(cleaned, "&")[0]
+
 			unescaped, err := url.QueryUnescape(cleaned)
 			if err != nil {
 				slog.Error("failed to unescape DDG result link", "idx", resultIdx, "raw", href, "cleaned", cleaned)

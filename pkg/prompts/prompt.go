@@ -1,74 +1,15 @@
+// Package prompts contains prompts used to interact with the LLMs, such as the overall system prompt that describes how
+// the model should respond to questions or requests for code changes.
 package prompts
 
 import (
-	"encoding/json"
-	"fmt"
-	"slices"
+	"io"
 	"strings"
 )
 
-// TODO: split markdown from JSON
-type Prompt interface {
-	Name() string
-	Markdown() string
-	JSONMap() map[string]any
-	JSONString() (string, error)
-}
-
-func NewSectionsPrompt(name string, opts ...PromptOpt) (Prompt, error) {
-	sectionKeys := orderedSections()
-
-	newPrompt := &sectionsPrompt{
-		name:        name,
-		sectionKeys: sectionKeys,
-		sections:    make([]Section, len(sectionKeys)),
-	}
-
-	var optErr error
-
-	for idx, opt := range opts {
-		newPrompt, optErr = opt(newPrompt)
-		if optErr != nil {
-			return nil, fmt.Errorf("error with option at index %d: %w", idx, optErr)
-		}
-	}
-
-	return newPrompt, nil
-}
-
-type PromptOpt func(*sectionsPrompt) (*sectionsPrompt, error)
-
-func WithSection(name SectionType, items ...string) PromptOpt {
-	return func(prompt *sectionsPrompt) (*sectionsPrompt, error) {
-		idx := slices.Index(prompt.sectionKeys, name)
-		if idx == -1 {
-			return nil, fmt.Errorf("unknown section name: %q", name)
-		}
-
-		if section := prompt.sections[idx]; len(section) > 0 {
-			return nil, fmt.Errorf("section %q is already populated", name)
-		}
-
-		prompt.sections[idx] = items
-
-		return prompt, nil
-	}
-}
-
-type Section []string
-
+// SectionType defines the canonical section names used when composing prompts.
+// Order is defined by orderedSections() below.
 type SectionType string
-
-func (s SectionType) JSONKey() string {
-	var result string
-
-	for word := range strings.SplitSeq(string(s), " ") {
-		result += strings.ToLower(word)
-		result += "_"
-	}
-
-	return strings.TrimSuffix(result, "_")
-}
 
 // order inspired by Anthropic - https://x.com/mattpocockuk/status/1958179930262356032/photo/1
 const (
@@ -97,59 +38,224 @@ func orderedSections() []SectionType {
 	}
 }
 
-type sectionsPrompt struct {
-	name string
-	// We keep the keys and sections as separate arrays here to ensure the ordering stays consistent. A map would be
-	// randomized, defeating the point.
-	sectionKeys []SectionType
-	sections    []Section
+// Node is a content element in a section. Renderers will walk these nodes.
+type Node interface {
+	Clone() Node
+	RenderMarkdown(builder *strings.Builder, depth int)
+	// TODO: handle JSON
 }
 
-func (s *sectionsPrompt) Name() string { return s.name }
+type Nodes []Node
 
-func (s *sectionsPrompt) Markdown() string {
-	builder := &strings.Builder{}
-
-	for sectionIdx, sectionHeading := range s.sectionKeys {
-		if len(s.sections[sectionIdx]) == 0 {
-			continue
-		}
-
-		builder.WriteString("## ")
-		builder.WriteString(string(sectionHeading))
-		builder.WriteString("\n\n")
-
-		for _, sectionItem := range s.sections[sectionIdx] {
-			builder.WriteString(" * ")
-			builder.WriteString(sectionItem)
-			builder.WriteByte('\n')
-		}
-
-		builder.WriteByte('\n')
-	}
-
-	return builder.String()
-}
-
-func (s *sectionsPrompt) JSONMap() map[string]any {
-	result := map[string]any{}
-
-	for sectionIdx, sectionHeading := range s.sectionKeys {
-		if sections := s.sections[sectionIdx]; len(sections) > 0 {
-			result[sectionHeading.JSONKey()] = sections
-		}
+func (n Nodes) Clone() Nodes {
+	result := make(Nodes, len(n))
+	for i := range n {
+		result[i] = n[i].Clone()
 	}
 
 	return result
 }
 
-func (s *sectionsPrompt) JSONString() (string, error) {
-	jsonMap := s.JSONMap()
+type Writer interface {
+	io.StringWriter
+}
 
-	jsonBytes, err := json.Marshal(jsonMap)
-	if err != nil {
-		return "", fmt.Errorf("invalid JSON: %w", err)
+// Text represents a paragraph or sentence.
+type Text struct {
+	Content string
+}
+
+func (t *Text) Clone() Node {
+	temp := *t
+	return &temp
+}
+
+func (t *Text) RenderMarkdown(builder *strings.Builder, _ int) {
+	builder.WriteString(t.Content)
+	builder.WriteString("\n\n")
+}
+
+// Heading is an intra-section heading. Level 1 renders as ###, level 2 as ####, etc.
+type Heading struct {
+	Level int
+	Text  string
+}
+
+func (h *Heading) Clone() Node {
+	temp := *h
+	return &temp
+}
+
+func (h *Heading) RenderMarkdown(builder *strings.Builder, _ int) {
+	level := max(1, h.Level)
+	// Section headings use '##'; nested headings start at '###' for level 1
+	hashCount := min(6, 2+level)
+	builder.WriteString(strings.Repeat("#", hashCount))
+	builder.WriteString(" ")
+	builder.WriteString(h.Text)
+	builder.WriteString("\n\n")
+}
+
+// CodeBlock is a fenced code block with an optional language hint.
+type CodeBlock struct {
+	Lang string
+	Code string
+}
+
+func (c *CodeBlock) Clone() Node {
+	temp := *c
+	return &temp
+}
+
+func (c *CodeBlock) RenderMarkdown(builder *strings.Builder, _ int) {
+	builder.WriteString("```")
+
+	if c.Lang != "" {
+		builder.WriteString(c.Lang)
 	}
 
-	return string(jsonBytes), nil
+	builder.WriteString("\n")
+	builder.WriteString(c.Code)
+
+	if !strings.HasSuffix(c.Code, "\n") {
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("```\n\n")
+}
+
+// ListItem is an item in a BulletList, which may contain nested children.
+type ListItem struct {
+	Text     string
+	Children ListItems
+}
+
+type ListItems []ListItem
+
+func (l ListItems) Clone() ListItems {
+	if len(l) == 0 {
+		return nil
+	}
+
+	out := make(ListItems, len(l))
+	for i := range l {
+		out[i].Text = l[i].Text
+		out[i].Children = l[i].Children.Clone()
+	}
+
+	return out
+}
+
+func (l ListItems) RenderMarkdown(builder *strings.Builder, depth int) {
+	for _, item := range l {
+		indent := strings.Repeat(" ", depth*4)
+		builder.WriteString(indent)
+		builder.WriteString("* ")
+		builder.WriteString(item.Text)
+		builder.WriteString("\n")
+
+		if len(item.Children) > 0 {
+			item.Children.RenderMarkdown(builder, depth+1)
+		}
+	}
+}
+
+// BulletList is a list of items, possibly nested.
+type BulletList struct {
+	Items ListItems
+}
+
+func (b *BulletList) Clone() Node {
+	return &BulletList{Items: b.Items.Clone()}
+}
+
+func (b *BulletList) RenderMarkdown(builder *strings.Builder, depth int) {
+	b.Items.RenderMarkdown(builder, depth)
+	builder.WriteString("\n")
+}
+
+// Section groups nodes under a SectionType.
+type Section struct {
+	Type  SectionType
+	Nodes Nodes
+}
+
+func (s *Section) Clone() *Section {
+	if s == nil {
+		return nil
+	}
+
+	return &Section{Type: s.Type, Nodes: s.Nodes.Clone()}
+}
+
+// Prompt is a complete prompt with ordered sections.
+type Prompt struct {
+	Name     string
+	sections map[SectionType]*Section
+	order    []SectionType
+}
+
+// NewPrompt creates an empty prompt with canonical section ordering.
+func NewPrompt(name string) *Prompt {
+	return &Prompt{
+		Name:     name,
+		sections: make(map[SectionType]*Section),
+		order:    orderedSections(),
+	}
+}
+
+// Section returns the section for the given type, creating it if needed.
+func (p *Prompt) Section(sectionType SectionType) *Section {
+	if section, ok := p.sections[sectionType]; ok {
+		return section
+	}
+
+	section := &Section{Type: sectionType}
+	p.sections[sectionType] = section
+
+	return section
+}
+
+// Clone returns a deep copy of the prompt and its sections/nodes.
+func (p *Prompt) Clone() *Prompt {
+	cp := &Prompt{
+		Name:     p.Name,
+		sections: make(map[SectionType]*Section, len(p.sections)),
+		order:    append([]SectionType(nil), p.order...),
+	}
+
+	for sectionType, section := range p.sections {
+		cp.sections[sectionType] = cloneSection(section)
+	}
+
+	return cp
+}
+
+func (p *Prompt) Markdown() string {
+	renderer := MarkdownRenderer{}
+	return renderer.Render(p)
+}
+
+func (p *Prompt) JSON() string {
+	renderer := JSONRenderer{}
+	return renderer.RenderString(p)
+}
+
+func cloneSection(section *Section) *Section {
+	if section == nil {
+		return nil
+	}
+
+	out := &Section{Type: section.Type}
+	for _, node := range section.Nodes {
+		out.Nodes = append(out.Nodes, node.Clone())
+	}
+
+	return out
+}
+
+// snakeCase converts a section name into snake_case for JSON keys.
+func snakeCase(s string) string {
+	lower := strings.ToLower(s)
+	return strings.ReplaceAll(lower, " ", "_")
 }

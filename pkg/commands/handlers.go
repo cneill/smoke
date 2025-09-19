@@ -266,26 +266,18 @@ func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	var systemMessage, historyMessage string
 
 	if p.Enabled {
-		planSystem, err := prompts.PlanningSystem()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get system prompt: %w", err)
-		}
-
-		systemMessage = planSystem.Markdown()
+		systemMessage = prompts.PlanningSystemPrompt().Markdown()
 		historyMessage = "Entering planning mode."
 	} else {
-		workSystem, err := prompts.WorkSystem()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get system prompt: %w", err)
-		}
-
-		systemMessage = workSystem.Markdown()
+		systemMessage = prompts.WorkSystemPrompt().Markdown()
 		historyMessage = "Exiting planning mode."
 	}
 
-	session.SetSystemMessage(systemMessage)
+	if err := session.SetSystemMessage(systemMessage); err != nil {
+		return nil, fmt.Errorf("failed to set system message for planning mode: %w", err)
+	}
 
-	update := ReviewModeMessage{
+	update := PlanningModeMessage{
 		PromptCommand: p.promptCommand,
 		Enabled:       p.Enabled,
 		Message:       historyMessage,
@@ -533,24 +525,16 @@ func (r *ReviewHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	var systemMessage, historyMessage string
 
 	if r.Enabled {
-		reviewSystem, err := prompts.ReviewSystem()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get system prompt: %w", err)
-		}
-
-		systemMessage = reviewSystem.Markdown()
+		systemMessage = prompts.ReviewSystemPrompt().Markdown()
 		historyMessage = "Entering review mode."
 	} else {
-		workSystem, err := prompts.WorkSystem()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get system prompt: %w", err)
-		}
-
-		systemMessage = workSystem.Markdown()
+		systemMessage = prompts.WorkSystemPrompt().Markdown()
 		historyMessage = "Exiting review mode."
 	}
 
-	session.SetSystemMessage(systemMessage)
+	if err := session.SetSystemMessage(systemMessage); err != nil {
+		return nil, fmt.Errorf("failed to set system message for review mode: %w", err)
+	}
 
 	update := ReviewModeMessage{
 		PromptCommand: r.promptCommand,
@@ -634,26 +618,33 @@ func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	managerOpts := &tools.ManagerOpts{
 		ProjectPath:      session.Tools.ProjectPath,
 		SessionName:      sessionName,
-		ToolInitializers: []tools.Initializer{},
-		WithPlanManager:  false,
+		ToolInitializers: []tools.Initializer{tools.NewPlanReadTool},
+		WithPlanManager:  true,
 	}
 
 	toolManager, err := tools.NewManager(managerOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize tools manager: %w", err)
+		return nil, fmt.Errorf("failed to initialize tools manager for summarization: %w", err)
 	}
 
-	newSession := &llms.Session{
-		Name:          sessionName,
-		SystemMessage: session.SystemMessage,
-		Messages:      filtered,
-		CreatedAt:     time.Now(),
-		Tools:         toolManager,
+	newSession, err := llms.NewSession(&llms.SessionOpts{
+		Name:            sessionName,
+		SystemMessage:   session.SystemMessage,
+		SystemAsMessage: session.SystemAsMessage,
+		Tools:           toolManager,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)
 	}
 
-	userMsg := llms.SimpleMessage(llms.RoleUser, prompts.Summarize)
-	if err := newSession.AddMessage(userMsg); err != nil {
-		return nil, fmt.Errorf("failed to add summarization prompt: %w", err)
+	systemMessage := prompts.SummarizeSystemPrompt(filtered...).Markdown()
+	if err := newSession.SetSystemMessage(systemMessage); err != nil {
+		return nil, fmt.Errorf("failed to set new system message: %w", err)
+	}
+
+	userMessage := llms.SimpleMessage(llms.RoleUser, "Please proceed to summarizing the provided messages.")
+	if err := newSession.AddMessage(userMessage); err != nil {
+		return nil, fmt.Errorf("failed to add user summarization message: %w", err)
 	}
 
 	send := SendSessionMessage{

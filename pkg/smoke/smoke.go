@@ -177,6 +177,9 @@ func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
 			}
 		}
 
+		// TODO: NEED TO ALLOW FOR TOOL CALLS!!!!
+		slog.Debug("GOT RESPONSE FROM COMMAND MESSAGE", "message", response)
+
 		if err := msg.Session.AddMessage(response); err != nil {
 			return SendCommandMessageResponseMessage{
 				OriginalMessage: msg,
@@ -305,7 +308,6 @@ func (s *Smoke) SetMode(mode Mode) {
 	switch mode {
 	case ModePlanning, ModeReview:
 		enabledTools = tools.PlanningTools()
-		// TODO: update system prompt for planning mode?
 	case ModeNormal:
 		enabledTools = tools.AllTools()
 	}
