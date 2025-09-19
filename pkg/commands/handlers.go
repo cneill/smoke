@@ -277,7 +277,7 @@ func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		return nil, fmt.Errorf("failed to set system message for planning mode: %w", err)
 	}
 
-	update := ReviewModeMessage{
+	update := PlanningModeMessage{
 		PromptCommand: p.promptCommand,
 		Enabled:       p.Enabled,
 		Message:       historyMessage,

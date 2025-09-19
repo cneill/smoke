@@ -177,6 +177,9 @@ func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
 			}
 		}
 
+		// TODO: NEED TO ALLOW FOR TOOL CALLS!!!!
+		slog.Debug("GOT RESPONSE FROM COMMAND MESSAGE", "message", response)
+
 		if err := msg.Session.AddMessage(response); err != nil {
 			return SendCommandMessageResponseMessage{
 				OriginalMessage: msg,
