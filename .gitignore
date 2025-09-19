@@ -1,6 +1,7 @@
 cmd/smoke/smoke
 cmd/tooltest/tooltest
-cmd/prompttest/prompttest
+cmd/mcptest
+cmd/prompttest
 logs/
 *.log
 *_plan.md
