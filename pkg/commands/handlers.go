@@ -628,23 +628,24 @@ func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	newSession, err := llms.NewSession(&llms.SessionOpts{
-		Name:          sessionName,
-		SystemMessage: session.SystemMessage,
-		Tools:         toolManager,
+		Name:            sessionName,
+		SystemMessage:   session.SystemMessage,
+		SystemAsMessage: session.SystemAsMessage,
+		Tools:           toolManager,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)
 	}
 
-	// newSession := &llms.Session{
-	// 	Name:          sessionName,
-	// 	SystemMessage: session.SystemMessage,
-	// 	Messages:      filtered,
-	// 	CreatedAt:     time.Now(),
-	// 	Tools:         toolManager,
-	// }
+	systemMessage := prompts.SummarizeSystemPrompt(filtered...).Markdown()
+	if err := newSession.SetSystemMessage(systemMessage); err != nil {
+		return nil, fmt.Errorf("failed to set new system message: %w", err)
+	}
 
-	// newSession.SetSystemMessage(prompts.SummarizeSystem(filtered...).Markdown())
+	userMessage := llms.SimpleMessage(llms.RoleUser, "Please proceed to summarizing the provided messages.")
+	if err := newSession.AddMessage(userMessage); err != nil {
+		return nil, fmt.Errorf("failed to add user summarization message: %w", err)
+	}
 
 	send := SendSessionMessage{
 		PromptCommand:    s.promptCommand,
