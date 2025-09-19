@@ -31,7 +31,7 @@ func (b *Builder) Prepend(t SectionType, nodes ...Node) *Builder {
 
 // Replace sets the nodes for a section.
 func (b *Builder) Replace(t SectionType, nodes ...Node) *Builder {
-	b.p.sections[t] = &Section{Type: t, Nodes: append(Nodes(nil), nodes...)}
+	b.p.sections[t] = &Section{Type: t, Nodes: append(Nodes(nil), Nodes(nodes).Clone()...)}
 	return b
 }
 
