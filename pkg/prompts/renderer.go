@@ -22,7 +22,7 @@ func (MarkdownRenderer) Render(p *Prompt) string {
 		builder.WriteString("\n\n")
 
 		for _, node := range sec.Nodes {
-			renderMarkdownNode(builder, node, 0)
+			node.RenderMarkdown(builder, 0)
 		}
 
 		// Separate sections
@@ -30,60 +30,6 @@ func (MarkdownRenderer) Render(p *Prompt) string {
 	}
 
 	return builder.String()
-}
-
-func renderMarkdownNode(builder *strings.Builder, n Node, depth int) {
-	switch value := n.(type) {
-	case *Text:
-		builder.WriteString(value.Content)
-		builder.WriteString("\n\n")
-
-	case *Heading:
-		level := max(1, value.Level)
-		// Section headings use '##'; nested headings start at '###' for level 1
-		hashCount := min(6, 2+level)
-		builder.WriteString(strings.Repeat("#", hashCount))
-		builder.WriteByte(' ')
-		builder.WriteString(value.Text)
-		builder.WriteString("\n\n")
-
-	case *CodeBlock:
-		builder.WriteString("```")
-
-		if value.Lang != "" {
-			builder.WriteString(value.Lang)
-		}
-
-		builder.WriteString("\n")
-		builder.WriteString(value.Code)
-
-		if !strings.HasSuffix(value.Code, "\n") {
-			builder.WriteString("\n")
-		}
-
-		builder.WriteString("```\n\n")
-
-	case *BulletList:
-		renderMarkdownList(builder, value.Items, depth)
-		builder.WriteString("\n")
-
-	default:
-		// unknown node; ignore
-	}
-}
-
-func renderMarkdownList(builder *strings.Builder, items []ListItem, depth int) {
-	for _, it := range items {
-		indent := strings.Repeat(" ", depth*4)
-		builder.WriteString(indent)
-		builder.WriteString("* ")
-		builder.WriteString(it.Text)
-		builder.WriteString("\n")
-
-		if len(it.Children) > 0 {
-			renderMarkdownList(builder, it.Children, depth+1)
-		}
-	}
 }
 
 // JSONRenderer renders a Prompt to a JSON-friendly map, plus convenience to get a string.

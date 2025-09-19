@@ -3,6 +3,7 @@
 package prompts
 
 import (
+	"io"
 	"strings"
 )
 
@@ -39,7 +40,24 @@ func orderedSections() []SectionType {
 
 // Node is a content element in a section. Renderers will walk these nodes.
 type Node interface {
-	isNode()
+	Clone() Node
+	RenderMarkdown(builder *strings.Builder, depth int)
+	// TODO: handle JSON
+}
+
+type Nodes []Node
+
+func (n Nodes) Clone() Nodes {
+	result := make(Nodes, len(n))
+	for i := range n {
+		result[i] = n[i].Clone()
+	}
+
+	return result
+}
+
+type Writer interface {
+	io.StringWriter
 }
 
 // Text represents a paragraph or sentence.
@@ -47,7 +65,15 @@ type Text struct {
 	Content string
 }
 
-func (*Text) isNode() {}
+func (t *Text) Clone() Node {
+	temp := *t
+	return &temp
+}
+
+func (t *Text) RenderMarkdown(builder *strings.Builder, _ int) {
+	builder.WriteString(t.Content)
+	builder.WriteString("\n\n")
+}
 
 // Heading is an intra-section heading. Level 1 renders as ###, level 2 as ####, etc.
 type Heading struct {
@@ -55,7 +81,20 @@ type Heading struct {
 	Text  string
 }
 
-func (*Heading) isNode() {}
+func (h *Heading) Clone() Node {
+	temp := *h
+	return &temp
+}
+
+func (h *Heading) RenderMarkdown(builder *strings.Builder, _ int) {
+	level := max(1, h.Level)
+	// Section headings use '##'; nested headings start at '###' for level 1
+	hashCount := min(6, 2+level)
+	builder.WriteString(strings.Repeat("#", hashCount))
+	builder.WriteString(" ")
+	builder.WriteString(h.Text)
+	builder.WriteString("\n\n")
+}
 
 // CodeBlock is a fenced code block with an optional language hint.
 type CodeBlock struct {
@@ -63,25 +102,90 @@ type CodeBlock struct {
 	Code string
 }
 
-func (*CodeBlock) isNode() {}
+func (c *CodeBlock) Clone() Node {
+	temp := *c
+	return &temp
+}
+
+func (c *CodeBlock) RenderMarkdown(builder *strings.Builder, _ int) {
+	builder.WriteString("```")
+
+	if c.Lang != "" {
+		builder.WriteString(c.Lang)
+	}
+
+	builder.WriteString("\n")
+	builder.WriteString(c.Code)
+
+	if !strings.HasSuffix(c.Code, "\n") {
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("```\n\n")
+}
 
 // ListItem is an item in a BulletList, which may contain nested children.
 type ListItem struct {
 	Text     string
-	Children []ListItem
+	Children ListItems
+}
+
+type ListItems []ListItem
+
+func (l ListItems) Clone() ListItems {
+	if len(l) == 0 {
+		return nil
+	}
+
+	out := make(ListItems, len(l))
+	for i := range l {
+		out[i].Text = l[i].Text
+		out[i].Children = l[i].Children.Clone()
+	}
+
+	return out
+}
+
+func (l ListItems) RenderMarkdown(builder *strings.Builder, depth int) {
+	for _, item := range l {
+		indent := strings.Repeat(" ", depth*4)
+		builder.WriteString(indent)
+		builder.WriteString("* ")
+		builder.WriteString(item.Text)
+		builder.WriteString("\n")
+
+		if len(item.Children) > 0 {
+			item.Children.RenderMarkdown(builder, depth+1)
+		}
+	}
 }
 
 // BulletList is a list of items, possibly nested.
 type BulletList struct {
-	Items []ListItem
+	Items ListItems
 }
 
-func (*BulletList) isNode() {}
+func (b *BulletList) Clone() Node {
+	return &BulletList{Items: b.Items.Clone()}
+}
+
+func (b *BulletList) RenderMarkdown(builder *strings.Builder, depth int) {
+	b.Items.RenderMarkdown(builder, depth)
+	builder.WriteString("\n")
+}
 
 // Section groups nodes under a SectionType.
 type Section struct {
 	Type  SectionType
-	Nodes []Node
+	Nodes Nodes
+}
+
+func (s *Section) Clone() *Section {
+	if s == nil {
+		return nil
+	}
+
+	return &Section{Type: s.Type, Nodes: s.Nodes.Clone()}
 }
 
 // Prompt is a complete prompt with ordered sections.
@@ -144,40 +248,7 @@ func cloneSection(section *Section) *Section {
 
 	out := &Section{Type: section.Type}
 	for _, node := range section.Nodes {
-		out.Nodes = append(out.Nodes, cloneNode(node))
-	}
-
-	return out
-}
-
-func cloneNode(node Node) Node {
-	switch value := node.(type) {
-	case *Text:
-		cloned := *value
-		return &cloned
-	case *Heading:
-		cloned := *value
-		return &cloned
-	case *CodeBlock:
-		cloned := *value
-		return &cloned
-	case *BulletList:
-		items := cloneListItems(value.Items)
-		return &BulletList{Items: items}
-	default:
-		return node
-	}
-}
-
-func cloneListItems(items []ListItem) []ListItem {
-	if len(items) == 0 {
-		return nil
-	}
-
-	out := make([]ListItem, len(items))
-	for i := range items {
-		out[i].Text = items[i].Text
-		out[i].Children = cloneListItems(items[i].Children)
+		out.Nodes = append(out.Nodes, node.Clone())
 	}
 
 	return out

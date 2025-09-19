@@ -24,14 +24,14 @@ func (b *Builder) Add(t SectionType, nodes ...Node) *Builder {
 // Prepend adds nodes to the beginning of a section.
 func (b *Builder) Prepend(t SectionType, nodes ...Node) *Builder {
 	s := b.p.Section(t)
-	s.Nodes = append(append([]Node(nil), nodes...), s.Nodes...)
+	s.Nodes = append(append(Nodes(nil), nodes...), s.Nodes...)
 
 	return b
 }
 
 // Replace sets the nodes for a section.
 func (b *Builder) Replace(t SectionType, nodes ...Node) *Builder {
-	b.p.sections[t] = &Section{Type: t, Nodes: append([]Node(nil), nodes...)}
+	b.p.sections[t] = &Section{Type: t, Nodes: append(Nodes(nil), nodes...)}
 	return b
 }
 
@@ -101,7 +101,7 @@ const (
 
 type Preset struct {
 	Name     string
-	Sections map[SectionType][]Node
+	Sections map[SectionType]Nodes
 }
 
 func (b *Builder) ApplyPreset(preset Preset, strategy MergeStrategy) *Builder {
@@ -110,7 +110,7 @@ func (b *Builder) ApplyPreset(preset Preset, strategy MergeStrategy) *Builder {
 
 		switch strategy {
 		case Replace:
-			b.p.sections[sectionType] = &Section{Type: sectionType, Nodes: cloneNodes(nodes)}
+			b.p.sections[sectionType] = &Section{Type: sectionType, Nodes: nodes.Clone()}
 		case SkipExisting:
 			if ok && len(existing.Nodes) > 0 {
 				continue
@@ -122,23 +122,10 @@ func (b *Builder) ApplyPreset(preset Preset, strategy MergeStrategy) *Builder {
 				existing = &Section{Type: sectionType}
 			}
 
-			existing.Nodes = append(existing.Nodes, cloneNodes(nodes)...)
+			existing.Nodes = append(existing.Nodes, nodes.Clone()...)
 			b.p.sections[sectionType] = existing
 		}
 	}
 
 	return b
-}
-
-func cloneNodes(nodes []Node) []Node {
-	if len(nodes) == 0 {
-		return nil
-	}
-
-	out := make([]Node, len(nodes))
-	for i, n := range nodes {
-		out[i] = cloneNode(n)
-	}
-
-	return out
 }
