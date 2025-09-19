@@ -7,11 +7,21 @@ import (
 )
 
 func main() {
-	prompt := prompts.WorkSystemPrompt()
+	printPrompts := []*prompts.Prompt{
+		prompts.WorkSystemPrompt(),
+		prompts.PlanningSystemPrompt(),
+		prompts.ReviewSystemPrompt(),
+		prompts.SummarizeSystemPrompt(),
+	}
 
-	md := prompt.Markdown()
-	fmt.Println(md)
+	for _, prompt := range printPrompts {
+		fmt.Println("================================================")
+		fmt.Println(prompt.Name)
+		fmt.Println("================================================")
+		md := prompt.Markdown()
+		fmt.Println(md)
 
-	json := prompt.JSON()
-	fmt.Println(json)
+		json := prompt.JSON()
+		fmt.Println(json)
+	}
 }
