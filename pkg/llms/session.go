@@ -123,7 +123,7 @@ func (s *Session) LastByRole(role Role) *Message {
 	s.messageMutex.RLock()
 	defer s.messageMutex.RUnlock()
 
-	for i := len(s.Messages) - 1; i > 0; i-- {
+	for i := len(s.Messages) - 1; i >= 0; i-- {
 		if s.Messages[i].Role == role {
 			return s.Messages[i]
 		}

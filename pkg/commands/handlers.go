@@ -467,7 +467,7 @@ func (i *InfoHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 	info := "**Session name:** " + name + "\n\n"
 	info += fmt.Sprintf("**Messages:** user %d, assistant %d, tool call %d\n\n",
-		messageCount.UserMessages, messageCount.UserMessages, messageCount.UserMessages)
+		messageCount.UserMessages, messageCount.AssistantMessages, messageCount.ToolCallMessages)
 	info += fmt.Sprintf("**Tokens:** input %d, output %d, total %d\n\n", inputTokens, outputTokens, totalTokens)
 	info += fmt.Sprintf("**Duration:** %s\n\n", duration)
 	info += fmt.Sprintf("**Tools available:** %s\n\n", strings.Join(toolNames, ", "))
