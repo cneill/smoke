@@ -3,9 +3,11 @@ package input
 type ResizeMessage struct{}
 
 type UserMessage struct {
-	Content string
+	SourceID string
+	Content  string
 }
 
 type CancelUserMessage struct {
-	Err error
+	SourceID string
+	Err      error
 }

@@ -17,9 +17,10 @@ import (
 )
 
 const (
-	black    = lipgloss.Color("#000000")
-	orange   = lipgloss.Color("#cc4400")
-	darkgray = lipgloss.Color("#333333")
+	black        = lipgloss.Color("#000000")
+	orange       = lipgloss.Color("#cc4400")
+	darkgray     = lipgloss.Color("#333333")
+	MainSourceID = "MAIN" // TODO: this is a hack, but no other IDs exist right now; would change w/ e.g. tabs
 )
 
 type Opts struct {
@@ -78,6 +79,8 @@ type Model struct {
 	inputTokens              int64
 	outputTokens             int64
 
+	// Manages the full history of text submissions (LLM messages, prompt commands, etc) by the user for history
+	// scrolling purposes *only*
 	userHistory      []string
 	userHistoryIndex *int
 }
@@ -449,7 +452,8 @@ func (m *Model) handleWaitingKey(msg tea.KeyMsg) tea.Cmd {
 		m.waiting = false
 
 		return wrapMsg(CancelUserMessage{
-			Err: fmt.Errorf("user aborted request"),
+			SourceID: MainSourceID,
+			Err:      fmt.Errorf("user aborted request"),
 		})
 	}
 
@@ -506,7 +510,8 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 	}
 
 	return wrapMsg(UserMessage{
-		Content: content,
+		SourceID: MainSourceID,
+		Content:  content,
 	})
 }
 

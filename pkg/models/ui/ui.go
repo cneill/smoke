@@ -292,30 +292,30 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 		m.input.SetWaiting(true),
 	}
 
-	slog.Debug("got user message", "message", llmMessage)
+	// slog.Debug("got user message", "message", llmMessage)
 
 	// var sendMessage tea.Cmd
 
-	if m.smoke.ShouldStream() {
-		m.chunkChan = make(chan *llms.Message)
-
-		cmd, err := m.smoke.SendUserMessageStreaming(llmMessage, m.chunkChan)
-		if err != nil {
-			return updateHistory(err)
-		}
-
-		commands = append(commands, cmd)
-		commands = append(commands, m.chunkListener())
-	} else {
-		cmd, err := m.smoke.SendUserMessage(llmMessage)
-		if err != nil {
-			return updateHistory(err)
-		}
-
-		if cmd != nil {
-			commands = append(commands, cmd)
-		}
-	}
+	// if m.smoke.ShouldStream() {
+	// 	m.chunkChan = make(chan *llms.Message)
+	//
+	// 	cmd, err := m.smoke.SendUserMessageStreaming(llmMessage, m.chunkChan)
+	// 	if err != nil {
+	// 		return updateHistory(err)
+	// 	}
+	//
+	// 	commands = append(commands, cmd)
+	// 	commands = append(commands, m.chunkListener())
+	// } else {
+	// 	cmd, err := m.smoke.SendUserMessage(llmMessage)
+	// 	if err != nil {
+	// 		return updateHistory(err)
+	// 	}
+	//
+	// 	if cmd != nil {
+	// 		commands = append(commands, cmd)
+	// 	}
+	// }
 
 	return tea.Batch(commands...)
 }

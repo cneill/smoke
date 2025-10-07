@@ -21,11 +21,15 @@ type Message struct {
 	Error   error  `json:"error,omitempty"`
 
 	// ToolsCalled contains the names of tools the assistant requested to use.
-	ToolsCalled []string `json:"tools_called,omitempty"`
+	// ToolsCalled []string `json:"tools_called,omitempty"`
 	// ToolCallInfo contains the raw representation of the tool call information from the assistant.
 	// TODO: hide this in JSON marshalling?
-	ToolCallInfo any `json:"tool_call_info,omitempty,omitzero"`
+	// ToolCallInfo any `json:"tool_call_info,omitempty,omitzero"`
 
+	// Assistant-side: Tool calls from the LLM
+	ToolCalls ToolCalls `json:"tool_calls,omitempty"`
+
+	// Tool-side: results from tool calls
 	// ToolCallID is the ID associated with the assistant's tool use request.
 	ToolCallID string `json:"tool_call_id,omitempty"` // TODO: Should this be a []string?
 	// ToolCallArgs are the arguments provided by the assistant to the specified tool.
@@ -35,13 +39,13 @@ type Message struct {
 	LLMInfo *LLMInfo `json:"llm_info,omitempty"`
 
 	// IsStreamed tells us whether this response was streamed from the LLM provider. Defaults to false.
-	IsStreamed bool `json:"is_streamed"`
+	// IsStreamed bool `json:"is_streamed"`
 	// IsInitial signals that this is the FIRST streamed message which will be updated subsequently.
-	IsInitial bool `json:"is_initial"`
+	// IsInitial bool `json:"is_initial"`
 	// IsChunk tells us whether this message is a full one or just a chunk that has been streamed from the provider.
-	IsChunk bool `json:"is_chunk"`
+	// IsChunk bool `json:"is_chunk"`
 	// IsFinalized tells us whether this streamed message has all its chunks.
-	IsFinalized bool `json:"is_finalized"`
+	// IsFinalized bool `json:"is_finalized"`
 }
 
 func NewMessage(opts ...MessageOpt) *Message {
@@ -73,10 +77,10 @@ func (m *Message) OK() error {
 		return fmt.Errorf("message is missing ID")
 	case m.Role == "":
 		return fmt.Errorf("message is missing role")
-	case m.IsStreamed && !m.IsInitial && !m.IsChunk && !m.IsFinalized:
-		return fmt.Errorf("message is marked as streamed but without other details")
-	case m.IsChunk && m.IsFinalized:
-		return fmt.Errorf("message is marked as chunk AND final - must be one or the other")
+		// case m.IsStreamed && !m.IsInitial && !m.IsChunk && !m.IsFinalized:
+		// 	return fmt.Errorf("message is marked as streamed but without other details")
+		// case m.IsChunk && m.IsFinalized:
+		// 	return fmt.Errorf("message is marked as chunk AND final - must be one or the other")
 	}
 
 	return nil
@@ -84,20 +88,21 @@ func (m *Message) OK() error {
 
 func (m *Message) Clone() *Message {
 	newMessage := Message{
-		ID:           m.ID,
-		Added:        m.Added,
-		Updated:      m.Updated,
-		Role:         m.Role,
-		Content:      m.Content,
-		Error:        m.Error,
-		ToolsCalled:  append([]string{}, m.ToolsCalled...),
-		ToolCallInfo: m.ToolCallInfo, // TODO: need to clone this?
+		ID:        m.ID,
+		Added:     m.Added,
+		Updated:   m.Updated,
+		Role:      m.Role,
+		Content:   m.Content,
+		Error:     m.Error,
+		ToolCalls: m.ToolCalls.Clone(),
+		// ToolsCalled:  append([]string{}, m.ToolsCalled...),
+		// ToolCallInfo: m.ToolCallInfo, // TODO: need to clone this?
 		ToolCallID:   m.ToolCallID,
 		ToolCallArgs: maps.Clone(m.ToolCallArgs),
-		IsStreamed:   m.IsStreamed,
-		IsInitial:    m.IsInitial,
-		IsChunk:      m.IsChunk,
-		IsFinalized:  m.IsFinalized,
+		// IsStreamed:   m.IsStreamed,
+		// IsInitial:    m.IsInitial,
+		// IsChunk:      m.IsChunk,
+		// IsFinalized:  m.IsFinalized,
 	}
 
 	if m.LLMInfo != nil {
@@ -122,7 +127,9 @@ func (m *Message) Update(opts ...MessageOpt) *Message {
 	return clone
 }
 
-func (m *Message) HasToolCalls() bool { return len(m.ToolsCalled) > 0 }
+func (m *Message) HasToolCalls() bool {
+	return len(m.ToolCalls) > 0
+}
 
 func (m *Message) LogValue() slog.Value {
 	attrs := []slog.Attr{
@@ -132,22 +139,23 @@ func (m *Message) LogValue() slog.Value {
 		slog.Bool("has_tool_calls", m.HasToolCalls()),
 	}
 
-	if m.HasToolCalls() {
-		toolCallAttrs := []slog.Attr{
-			slog.String("tools_called", strings.Join(m.ToolsCalled, ",")),
-			slog.String("tool_call_id", m.ToolCallID),
-		}
-
-		if m.ToolCallInfo != nil {
-			toolCallAttrs = append(toolCallAttrs, slog.Any("call_info", m.ToolCallInfo))
-		}
-
-		if m.ToolCallArgs != nil {
-			toolCallAttrs = append(toolCallAttrs, slog.Any("args", m.ToolCallArgs))
-		}
-
-		attrs = append(attrs, slog.GroupAttrs("tool_calls", toolCallAttrs...))
-	}
+	// TODO: flesh out tool calls
+	// if m.HasToolCalls() {
+	// 	toolCallAttrs := []slog.Attr{
+	// 		slog.String("tools_called", strings.Join(m.ToolsCalled, ",")),
+	// 		slog.String("tool_call_id", m.ToolCallID),
+	// 	}
+	//
+	// 	if m.ToolCallInfo != nil {
+	// 		toolCallAttrs = append(toolCallAttrs, slog.Any("call_info", m.ToolCallInfo))
+	// 	}
+	//
+	// 	if m.ToolCallArgs != nil {
+	// 		toolCallAttrs = append(toolCallAttrs, slog.Any("args", m.ToolCallArgs))
+	// 	}
+	//
+	// 	attrs = append(attrs, slog.GroupAttrs("tool_calls", toolCallAttrs...))
+	// }
 
 	if m.Error != nil {
 		attrs = append(attrs, slog.String("error", m.Error.Error()))
@@ -157,15 +165,15 @@ func (m *Message) LogValue() slog.Value {
 		attrs = append(attrs, slog.Any("llm_info", m.LLMInfo))
 	}
 
-	if m.IsStreamed {
-		streamAttrs := []slog.Attr{
-			slog.Bool("is_initial", m.IsInitial),
-			slog.Bool("is_chunk", m.IsChunk),
-			slog.Bool("is_finalized", m.IsFinalized),
-		}
-
-		attrs = append(attrs, slog.GroupAttrs("streaming", streamAttrs...))
-	}
+	// if m.IsStreamed {
+	// 	streamAttrs := []slog.Attr{
+	// 		slog.Bool("is_initial", m.IsInitial),
+	// 		slog.Bool("is_chunk", m.IsChunk),
+	// 		slog.Bool("is_finalized", m.IsFinalized),
+	// 	}
+	//
+	// 	attrs = append(attrs, slog.GroupAttrs("streaming", streamAttrs...))
+	// }
 
 	attrs = append(attrs, slog.String("content", m.Content))
 
@@ -181,7 +189,7 @@ func (m *Message) ToMarkdown() string {
 	if !m.HasToolCalls() {
 		body = m.Content
 	} else {
-		body = fmt.Sprintf("**Tools called:** `%s`\n", strings.Join(m.ToolsCalled, ", "))
+		body = fmt.Sprintf("**Tools called:** `%s`\n", strings.Join(m.ToolCalls.Names(), ", "))
 		if m.ToolCallArgs != nil {
 			body += fmt.Sprintf("**Tool call args:** `%s`\n", m.ToolCallArgs.String())
 		}
@@ -217,16 +225,23 @@ func WithRole(role Role) MessageOpt {
 	}
 }
 
-func WithToolsCalled(toolNames ...string) MessageOpt {
-	return func(message *Message) *Message {
-		message.ToolsCalled = toolNames
-		return message
-	}
-}
+// func WithToolsCalled(toolNames ...string) MessageOpt {
+// 	return func(message *Message) *Message {
+// 		message.ToolsCalled = toolNames
+// 		return message
+// 	}
+// }
 
-func WithToolCallInfo(toolCallInfo any) MessageOpt {
+// func WithToolCallInfo(toolCallInfo any) MessageOpt {
+// 	return func(message *Message) *Message {
+// 		message.ToolCallInfo = toolCallInfo
+// 		return message
+// 	}
+// }
+
+func WithToolCalls(toolCalls ...ToolCall) MessageOpt {
 	return func(message *Message) *Message {
-		message.ToolCallInfo = toolCallInfo
+		message.ToolCalls = toolCalls
 		return message
 	}
 }
@@ -259,26 +274,26 @@ func WithLLMInfo(info *LLMInfo) MessageOpt {
 	}
 }
 
-func WithIsStreamed(isStreamed bool) MessageOpt {
-	return func(message *Message) *Message {
-		message.IsStreamed = isStreamed
-		return message
-	}
-}
+// func WithIsStreamed(isStreamed bool) MessageOpt {
+// 	return func(message *Message) *Message {
+// 		message.IsStreamed = isStreamed
+// 		return message
+// 	}
+// }
 
-func WithIsInitial(isInitial bool) MessageOpt {
-	return func(message *Message) *Message {
-		message.IsInitial = isInitial
-		return message
-	}
-}
+// func WithIsInitial(isInitial bool) MessageOpt {
+// 	return func(message *Message) *Message {
+// 		message.IsInitial = isInitial
+// 		return message
+// 	}
+// }
 
-func WithIsChunk(isChunk bool) MessageOpt {
-	return func(message *Message) *Message {
-		message.IsChunk = isChunk
-		return message
-	}
-}
+// func WithIsChunk(isChunk bool) MessageOpt {
+// 	return func(message *Message) *Message {
+// 		message.IsChunk = isChunk
+// 		return message
+// 	}
+// }
 
 func WithChunkContent(content string) MessageOpt {
 	return func(message *Message) *Message {
@@ -288,12 +303,12 @@ func WithChunkContent(content string) MessageOpt {
 	}
 }
 
-func WithIsFinalized(isFinalized bool) MessageOpt {
-	return func(message *Message) *Message {
-		message.IsFinalized = isFinalized
-		return message
-	}
-}
+// func WithIsFinalized(isFinalized bool) MessageOpt {
+// 	return func(message *Message) *Message {
+// 		message.IsFinalized = isFinalized
+// 		return message
+// 	}
+// }
 
 const idChars = "abcdef0123456789"
 

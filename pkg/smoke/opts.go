@@ -77,7 +77,11 @@ func WithSessionInfo(name, systemPrompt string) OptFunc {
 			return nil, fmt.Errorf("failed to initialize session: %w", err)
 		}
 
-		smoke.session = session
+		smoke.sessionMutex.Lock()
+		defer smoke.sessionMutex.Unlock()
+
+		smoke.mainSessionName = name
+		smoke.sessions[name] = session
 
 		return smoke, nil
 	}
