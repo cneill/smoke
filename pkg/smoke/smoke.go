@@ -102,56 +102,54 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 
 	conversation := s.llm.StartConversation(context.TODO(), session)
 
-	for event := range conversation.Events() {
-		switch event := event.(type) {
-		case llms.EventDone:
-			return nil, nil
-		case llms.EventError:
-			return nil, fmt.Errorf("conversation error: %w", event.Err)
-		case llms.EventFinalMessage:
-		case llms.EventTextDelta:
-		case llms.EventToolCallResults:
-			// TODO: need this?
-		case llms.EventToolCallsRequested:
-			for _, toolCall := range event.Calls {
-				var content string
-
-				output, err := session.Tools.CallTool(context.TODO(), toolCall.Name, toolCall.Args)
-				if err != nil {
-					slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
-					toolCallErr := fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
-					content = toolCallErr.Error()
+	handle := func() tea.Msg {
+		eventsChan := conversation.Events()
+		for event := range eventsChan {
+			switch event := event.(type) {
+			case llms.EventDone:
+				return nil
+			case llms.EventError:
+				return AssistantResponseMessage{
+					Err: fmt.Errorf("conversation error: %w", event.Err),
 				}
+			case llms.EventFinalMessage:
+				return AssistantResponseMessage{
+					Message: event.Message,
+				}
+			case llms.EventTextDelta:
+			case llms.EventToolCallResults:
+				// TODO: need this?
+			case llms.EventToolCallsRequested:
+				for _, toolCall := range event.Calls {
+					var content string
 
-				content = output
+					output, err := session.Tools.CallTool(context.TODO(), toolCall.Name, toolCall.Args)
+					if err != nil {
+						slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
+						toolCallErr := fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
+						content = toolCallErr.Error()
+					} else {
+						content = output
+					}
 
-				resultsMsg := llms.NewMessage(
-					llms.WithRole(llms.RoleTool),
-					llms.WithToolCalls(toolCall),
-					llms.WithContent(content),
-				)
+					resultsMsg := llms.NewMessage(
+						llms.WithRole(llms.RoleTool),
+						llms.WithToolCalls(toolCall),
+						llms.WithContent(content),
+					)
 
-				session.AddMessage(resultsMsg)
+					session.AddMessage(resultsMsg)
 
-				conversation.Continue(context.TODO())
-
-				// 		toolCallResultMsg := c.newMessage(
-				// 			llms.WithRole(llms.RoleTool),
-				// 			// llms.WithIsChunk(false),
-				// 			// llms.WithIsStreamed(false),
-				// 			llms.WithToolCallID(toolCall.OfFunction.ID),
-				// 			llms.WithToolCallArgs(args),
-				// 			llms.WithToolsCalled(toolCall.OfFunction.Function.Name),
-				// 			llms.WithContent(content),
-				// 			llms.WithError(err),
-				// 		)
-
+					conversation.Continue(context.TODO())
+				}
+			case llms.EventUsageUpdate:
 			}
-		case llms.EventUsageUpdate:
 		}
+
+		return nil
 	}
 
-	return nil, nil
+	return handle, nil
 }
 
 // SendUserMessage appends 'msg' to the current [*llms.Session], invokes the [llms.LLM] to send that session to the
