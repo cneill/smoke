@@ -150,3 +150,11 @@ func WithMCPClient(client *mcp.CommandClient) OptFunc {
 		return smoke, nil
 	}
 }
+
+// WithTeaEmitter allows us to inject messages straight into Bubbletea's event loop rather than round-tripping.
+func WithTeaEmitter(emitter TeaEmitter) OptFunc {
+	return func(smoke *Smoke) (*Smoke, error) {
+		smoke.teaEmitter = emitter
+		return smoke, nil
+	}
+}

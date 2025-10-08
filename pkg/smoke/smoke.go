@@ -19,6 +19,8 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 )
 
+type TeaEmitter func(tea.Msg)
+
 // Smoke manages the overall state of the application, including the project path we're working in, the [*llms.Session]
 // we're currently interacting with, the [*tools.Manager] which provides the LLM tool calling affordances, the
 // [*commands.Manager] that handles prompt commands from the user, and the actual [llms.LLM] that we're interacting
@@ -32,6 +34,8 @@ type Smoke struct {
 	mainSessionName string
 	sessions        map[string]*llms.Session
 	sessionMutex    sync.RWMutex
+
+	teaEmitter TeaEmitter
 
 	commands          *commands.Manager
 	llmConfig         *llms.Config
@@ -65,10 +69,10 @@ func New(opts ...OptFunc) (*Smoke, error) {
 	smoke := &Smoke{}
 
 	var optErr error
-	for _, opt := range opts {
+	for i, opt := range opts {
 		smoke, optErr = opt(smoke)
 		if optErr != nil {
-			return nil, fmt.Errorf("%w: %w", ErrOptions, optErr)
+			return nil, fmt.Errorf("%w (%d): %w", ErrOptions, i, optErr)
 		}
 	}
 
@@ -93,12 +97,38 @@ func New(opts ...OptFunc) (*Smoke, error) {
 	return smoke, nil
 }
 
+func (s *Smoke) Update(opts ...OptFunc) (*Smoke, error) {
+	var (
+		smoke  *Smoke
+		optErr error
+	)
+
+	for i, opt := range opts {
+		smoke, optErr = opt(s)
+		if optErr != nil {
+			return nil, fmt.Errorf("%w (%d): %w", ErrOptions, i, optErr)
+		}
+	}
+
+	if err := smoke.OK(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrOptions, err)
+	}
+
+	// TODO: if opts start cloning Smoke with each iteration, will need to update 's'
+
+	return smoke, nil
+}
+
 func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 	// TODO: for now, we just assume MAIN source and route to the session with the name defined by the user; in the
 	// future, this may have to change.
 	s.sessionMutex.RLock()
 	session := s.sessions[s.mainSessionName]
 	s.sessionMutex.RUnlock()
+
+	if err := session.AddMessage(msg); err != nil {
+		return nil, fmt.Errorf("failed to add user message to session: %w", err)
+	}
 
 	conversation := s.llm.StartConversation(context.TODO(), session)
 

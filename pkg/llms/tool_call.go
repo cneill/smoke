@@ -11,14 +11,16 @@ type ToolCall struct {
 type ToolCalls []ToolCall
 
 func (t ToolCalls) Clone() ToolCalls {
-	// TODO: actually clone!!!
-	return t
+	cloned := make(ToolCalls, len(t))
+	copy(cloned, t)
+
+	return cloned
 }
 
 func (t ToolCalls) Names() []string {
 	names := make([]string, len(t))
-	for _, call := range t {
-		names = append(names, call.Name)
+	for i, call := range t {
+		names[i] = call.Name
 	}
 
 	return names

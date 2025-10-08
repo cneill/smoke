@@ -66,6 +66,7 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 		continueChan: make(chan struct{}),
 		session:      session, // TODO: read-only view
 		client:       c.client,
+		config:       c.config,
 	}
 
 	return conv

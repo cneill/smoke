@@ -62,6 +62,9 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 	p := tea.NewProgram(uiModel, tea.WithReportFocus(), tea.WithMouseCellMotion())
 
+	// Give Smoke the ability to send messages directly into the bubbletea event loop.
+	smokeInstance.Update(smoke.WithTeaEmitter(p.Send))
+
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("app error: %w", err)
 	}
