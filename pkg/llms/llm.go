@@ -18,7 +18,7 @@ const (
 type LLM interface {
 	LLMInfo() *LLMInfo
 	StartConversation(ctx context.Context, session *Session) Conversation
-	// RequiresSessionSystem() bool
+	RequiresSessionSystem() bool
 	// SendSession(ctx context.Context, s *Session) (*Message, error)
 	// HandleToolCalls(ctx context.Context, msg *Message, s *Session) ([]*Message, error)
 }

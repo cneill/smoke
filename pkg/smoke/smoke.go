@@ -56,7 +56,7 @@ func (s *Smoke) OK() error {
 	switch {
 	case s.projectPath == "":
 		return fmt.Errorf("no project path set")
-	case s.sessions == nil:
+	case s.getMainSession() == nil:
 		return fmt.Errorf("no session info set")
 	case s.llmConfig == nil || s.llm == nil:
 		return fmt.Errorf("no LLM config set")
@@ -192,14 +192,15 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 
 					resultsMsg := llms.NewMessage(
 						llms.WithRole(llms.RoleTool),
-						llms.WithToolCalls(toolCall),
+						llms.WithToolCallID(toolCall.ID),
+						llms.WithToolCallArgs(toolCall.Args),
 						llms.WithContent(content),
 					)
 
 					session.AddMessage(resultsMsg)
-
-					conversation.Continue(context.TODO())
 				}
+
+				conversation.Continue(context.TODO())
 			case llms.EventUsageUpdate:
 				session.UpdateUsage(event.InputTokens, event.OutputTokens)
 			}
@@ -493,9 +494,11 @@ func (s *Smoke) getMainSession() *llms.Session {
 	s.sessionMutex.RLock()
 	defer s.sessionMutex.RUnlock()
 
-	session := s.sessions[s.mainSessionName]
+	if session, ok := s.sessions[s.mainSessionName]; ok {
+		return session
+	}
 
-	return session
+	return nil
 }
 
 func (s *Smoke) getMCPTools() (tools.Tools, error) {

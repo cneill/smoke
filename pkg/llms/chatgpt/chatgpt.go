@@ -9,7 +9,6 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/openai/openai-go/v2"
 	"github.com/openai/openai-go/v2/option"
-	"github.com/openai/openai-go/v2/packages/ssestream"
 )
 
 type ChatGPT struct {
@@ -308,41 +307,41 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 // 	return results
 // }
 
-func (c *ChatGPT) handleStreamingResponse(
-	stream *ssestream.Stream[openai.ChatCompletionChunk], msg *llms.Message, chunkChan chan<- *llms.Message,
-) (openai.ChatCompletionAccumulator, error) {
-	accumulator := openai.ChatCompletionAccumulator{}
-
-	for stream.Next() {
-		chunk := stream.Current()
-		accumulator.AddChunk(chunk)
-
-		if _, ok := accumulator.JustFinishedContent(); ok {
-			c.logger.Debug("got end of content",
-				"current_delta", chunk.Choices[0].Delta.Content,
-				"finish_reason", chunk.Choices[0].FinishReason)
-		}
-
-		if _, ok := accumulator.JustFinishedToolCall(); ok {
-			c.logger.Debug("got end of tool call info",
-				"current_delta", chunk.Choices[0].Delta.Content,
-				"tool_calls", accumulator.Choices[0].Message.ToolCalls)
-		}
-
-		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
-			return accumulator, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
-		}
-
-		msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
-
-		chunkChan <- msg
-
-		msg = msg.Update(llms.WithIsInitial(false))
-	}
-
-	if err := stream.Err(); err != nil {
-		return accumulator, fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
-	}
-
-	return accumulator, nil
-}
+// func (c *ChatGPT) handleStreamingResponse(
+// 	stream *ssestream.Stream[openai.ChatCompletionChunk], msg *llms.Message, chunkChan chan<- *llms.Message,
+// ) (openai.ChatCompletionAccumulator, error) {
+// 	accumulator := openai.ChatCompletionAccumulator{}
+//
+// 	for stream.Next() {
+// 		chunk := stream.Current()
+// 		accumulator.AddChunk(chunk)
+//
+// 		if _, ok := accumulator.JustFinishedContent(); ok {
+// 			c.logger.Debug("got end of content",
+// 				"current_delta", chunk.Choices[0].Delta.Content,
+// 				"finish_reason", chunk.Choices[0].FinishReason)
+// 		}
+//
+// 		if _, ok := accumulator.JustFinishedToolCall(); ok {
+// 			c.logger.Debug("got end of tool call info",
+// 				"current_delta", chunk.Choices[0].Delta.Content,
+// 				"tool_calls", accumulator.Choices[0].Message.ToolCalls)
+// 		}
+//
+// 		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
+// 			return accumulator, fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+// 		}
+//
+// 		msg = msg.Update(llms.WithChunkContent(chunk.Choices[0].Delta.Content))
+//
+// 		chunkChan <- msg
+//
+// 		msg = msg.Update(llms.WithIsInitial(false))
+// 	}
+//
+// 	if err := stream.Err(); err != nil {
+// 		return accumulator, fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
+// 	}
+//
+// 	return accumulator, nil
+// }

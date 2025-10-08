@@ -103,7 +103,7 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 			return nil, fmt.Errorf("LLM config: %w", err)
 		}
 
-		if smoke.session == nil {
+		if smoke.getMainSession() == nil {
 			return nil, fmt.Errorf("must set session info before LLM config")
 		}
 
@@ -130,9 +130,11 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 		}
 
 		// Update the session with a system message if needed by this provider
+		// TODO: HANDLE THIS IN A TIDIER WAY - STICK IT IN THE LLM PROVIDER?
 		if llm.RequiresSessionSystem() {
-			smoke.session.SystemAsMessage = true
-			if err := smoke.session.SetSystemMessage(smoke.session.SystemMessage); err != nil {
+			session := smoke.getMainSession()
+			session.SystemAsMessage = true
+			if err := session.SetSystemMessage(session.SystemMessage); err != nil {
 				return nil, fmt.Errorf("failed to update session system prompt: %w", err)
 			}
 		}

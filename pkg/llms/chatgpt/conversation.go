@@ -113,6 +113,10 @@ func (c *conversation) send() error {
 		c.emit(llms.EventToolCallsRequested{
 			Calls: toolCalls,
 		})
+
+		if err := c.waitForContinue(); err != nil {
+			return fmt.Errorf("error while waiting: %w", err)
+		}
 	} else {
 		c.emit(llms.EventFinalMessage{
 			Message: c.newMessage(
