@@ -137,7 +137,10 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
 		return fmt.Errorf("failed to add user message to main session: %w", err)
 	}
 
-	conversation := s.llm.StartConversation(context.TODO(), session)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conversation := s.llm.StartConversation(ctx, session)
 	s.conversationMutex.Lock()
 	// TODO: support other conversations
 	s.conversations[s.mainSessionName] = conversation
@@ -149,9 +152,6 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
 		}
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	wg := sync.WaitGroup{}
 	wg.Go(func() {
 		s.conversationLoop(ctx, session, conversation)
@@ -162,6 +162,9 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
 
 func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, conversation llms.Conversation) {
 	eventsChan := conversation.Events()
+
+	// TODO: smoke message type for returning an error tea.Msg to the UI for things that aren't conversation related,
+	// instead of slog.Error()?
 
 	for {
 		select {
@@ -186,6 +189,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				})
 			case llms.EventTextDelta:
 				// TODO: debounce?
+				// TODO: need to attach an ID to this so history log can be updated
 				s.teaEmitter(AssistantTextDelta{
 					Text: event.Text,
 				})
