@@ -11,7 +11,7 @@ type EventTextDelta struct {
 func (e EventTextDelta) isEvent() {}
 
 type EventToolCallsRequested struct {
-	Calls []ToolCall
+	Message *Message
 }
 
 func (e EventToolCallsRequested) isEvent() {}

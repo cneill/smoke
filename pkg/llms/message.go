@@ -77,10 +77,8 @@ func (m *Message) OK() error {
 		return fmt.Errorf("message is missing ID")
 	case m.Role == "":
 		return fmt.Errorf("message is missing role")
-		// case m.IsStreamed && !m.IsInitial && !m.IsChunk && !m.IsFinalized:
-		// 	return fmt.Errorf("message is marked as streamed but without other details")
-		// case m.IsChunk && m.IsFinalized:
-		// 	return fmt.Errorf("message is marked as chunk AND final - must be one or the other")
+	case m.Role == RoleTool && len(m.ToolCalls) == 0:
+		return fmt.Errorf("message with %q role is missing tool call information", RoleTool)
 	}
 
 	return nil
@@ -95,14 +93,6 @@ func (m *Message) Clone() *Message {
 		Content:   m.Content,
 		Error:     m.Error,
 		ToolCalls: m.ToolCalls.Clone(),
-		// ToolsCalled:  append([]string{}, m.ToolsCalled...),
-		// ToolCallInfo: m.ToolCallInfo, // TODO: need to clone this?
-		// ToolCallID:   m.ToolCallID,
-		// ToolCallArgs: maps.Clone(m.ToolCallArgs),
-		// IsStreamed:   m.IsStreamed,
-		// IsInitial:    m.IsInitial,
-		// IsChunk:      m.IsChunk,
-		// IsFinalized:  m.IsFinalized,
 	}
 
 	if m.LLMInfo != nil {

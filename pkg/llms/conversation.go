@@ -7,5 +7,5 @@ type Conversation interface {
 	Events() <-chan Event
 	Cancel(err error)
 	Continue(ctx context.Context) error
-	Close() error
+	Close()
 }

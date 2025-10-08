@@ -15,7 +15,7 @@ const maxIterations = 1024
 
 type conversation struct {
 	id           string
-	ctx          context.Context // TODO: this is frowned-upon... accept and return contexts?
+	stream       bool
 	cancel       context.CancelCauseFunc
 	eventChan    chan llms.Event
 	continueChan chan struct{}
@@ -42,14 +42,11 @@ func (c *conversation) Continue(ctx context.Context) error {
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("conversation context error: %w", ctx.Err())
-	case <-c.ctx.Done():
-		return fmt.Errorf("continuation context error: %w", c.ctx.Err())
 	}
 }
 
-func (c *conversation) Close() error {
+func (c *conversation) Close() {
 	c.cancel(nil)
-	return nil
 }
 
 func (c *conversation) llmInfo() *llms.LLMInfo {
@@ -57,95 +54,6 @@ func (c *conversation) llmInfo() *llms.LLMInfo {
 		Type:      llms.LLMTypeChatGPT,
 		ModelName: c.config.Model,
 	}
-}
-
-func (c *conversation) run() {
-	defer close(c.eventChan)
-
-	for range maxIterations {
-		if err := c.send(); err != nil {
-			c.eventChan <- llms.EventError{
-				Err: fmt.Errorf("failed to send message: %w", err),
-			}
-		}
-
-		if !c.hasPendingToolCalls {
-			break
-		}
-
-		if err := c.waitForContinue(); err != nil {
-			c.eventChan <- llms.EventError{
-				Err: fmt.Errorf("failed while waiting for tool call results: %w", err),
-			}
-		}
-	}
-
-	select {
-	case c.eventChan <- llms.EventDone{}:
-	case <-c.ctx.Done():
-	}
-}
-
-func (c *conversation) send() error {
-	options := openai.ChatCompletionNewParams{
-		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
-		Messages:            c.getSessionMessages(c.session),
-		Model:               c.config.Model,
-		N:                   openai.Int(1),
-		Tools:               c.completionTools(c.session),
-		Temperature:         openai.Float(c.config.Temperature),
-	}
-
-	result, err := c.client.Chat.Completions.New(c.ctx, options, option.WithMaxRetries(5))
-	if err != nil {
-		return fmt.Errorf("%w: %w", llms.ErrCompletion, err)
-	}
-
-	c.emit(llms.EventUsageUpdate{
-		InputTokens:  result.Usage.PromptTokens,
-		OutputTokens: result.Usage.CompletionTokens,
-	})
-
-	slog.Debug("token usage", "prompt", result.Usage.PromptTokens, "completion", result.Usage.CompletionTokens)
-
-	if len(result.Choices) == 0 {
-		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
-	}
-
-	if refusal := result.Choices[0].Message.Refusal; refusal != "" {
-		return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
-	}
-
-	response := result.Choices[0].Message
-
-	if response.ToParam().OfAssistant == nil {
-		return fmt.Errorf("%w: no assistant message", llms.ErrEmptyResponse)
-	}
-
-	// We convert this ToParam() because it's the only way to get streaming responses to work...
-	// TODO: need this here?
-	toolCalls, err := c.vendorToolCallsToGeneric(response.ToParam().OfAssistant.ToolCalls...)
-	if err != nil {
-		return fmt.Errorf("failed to handle assistant tool calls: %w", err)
-	}
-
-	if len(toolCalls) > 0 {
-		c.hasPendingToolCalls = true
-		c.emit(llms.EventToolCallsRequested{
-			Calls: toolCalls,
-		})
-	} else {
-		c.hasPendingToolCalls = false
-		c.emit(llms.EventFinalMessage{
-			Message: c.newMessage(
-				llms.WithID(result.ID),
-				llms.WithRole(llms.RoleAssistant),
-				llms.WithContent(response.Content),
-			),
-		})
-	}
-
-	return nil
 }
 
 func (c *conversation) newMessage(opts ...llms.MessageOpt) *llms.Message {
@@ -160,6 +68,138 @@ func (c *conversation) newMessage(opts ...llms.MessageOpt) *llms.Message {
 	return msg
 }
 
+func (c *conversation) run(ctx context.Context) {
+	defer close(c.eventChan)
+
+	for range maxIterations {
+		if c.stream {
+			if err := c.sendStream(ctx); err != nil {
+				c.eventChan <- llms.EventError{
+					Err: fmt.Errorf("failed to send message (streaming): %w", err),
+				}
+			}
+		} else {
+			if err := c.sendNoStream(ctx); err != nil {
+				c.eventChan <- llms.EventError{
+					Err: fmt.Errorf("failed to send message (non-streaming): %w", err),
+				}
+			}
+		}
+
+		if !c.hasPendingToolCalls {
+			break
+		}
+
+		if err := c.waitForContinue(ctx); err != nil {
+			c.eventChan <- llms.EventError{
+				Err: fmt.Errorf("failed while waiting for tool call results: %w", err),
+			}
+		}
+	}
+
+	select {
+	case c.eventChan <- llms.EventDone{}:
+	case <-ctx.Done():
+		slog.Debug("context cancelled before sending done event", "error", ctx.Err())
+	}
+}
+
+func (c *conversation) sendNoStream(ctx context.Context) error {
+	options := c.getNewCompletionParams()
+
+	result, err := c.client.Chat.Completions.New(ctx, options, option.WithMaxRetries(5))
+	if err != nil {
+		return fmt.Errorf("%w: %w", llms.ErrCompletion, err)
+	}
+
+	c.emit(ctx, llms.EventUsageUpdate{
+		InputTokens:  result.Usage.PromptTokens,
+		OutputTokens: result.Usage.CompletionTokens,
+	})
+
+	if len(result.Choices) == 0 {
+		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
+	}
+
+	if refusal := result.Choices[0].Message.Refusal; refusal != "" {
+		return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+	}
+
+	response := result.Choices[0].Message
+
+	if err := c.handleResponse(ctx, result.ID, response); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *conversation) sendStream(ctx context.Context) error {
+	options := c.getNewCompletionParams()
+
+	stream := c.client.Chat.Completions.NewStreaming(ctx, options, option.WithMaxRetries(5))
+	defer stream.Close()
+
+	accumulator := openai.ChatCompletionAccumulator{}
+
+	for stream.Next() {
+		chunk := stream.Current()
+		accumulator.AddChunk(chunk)
+
+		if _, ok := accumulator.JustFinishedContent(); ok {
+			slog.Debug("got end of content",
+				"current_delta", chunk.Choices[0].Delta.Content,
+				"finish_reason", chunk.Choices[0].FinishReason)
+		}
+
+		if _, ok := accumulator.JustFinishedToolCall(); ok {
+			slog.Debug("got end of tool call info",
+				"current_delta", chunk.Choices[0].Delta.Content,
+				"tool_calls", accumulator.Choices[0].Message.ToolCalls)
+		}
+
+		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
+			return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+		}
+
+		c.emit(ctx, llms.EventTextDelta{
+			Text: chunk.Choices[0].Delta.Content,
+		})
+	}
+
+	if err := stream.Err(); err != nil {
+		return fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
+	}
+
+	c.emit(ctx, llms.EventUsageUpdate{
+		InputTokens:  accumulator.Usage.PromptTokens,
+		OutputTokens: accumulator.Usage.CompletionTokens,
+	})
+
+	if len(accumulator.Choices) == 0 {
+		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
+	}
+
+	response := accumulator.Choices[0].Message
+
+	if err := c.handleResponse(ctx, accumulator.ID, response); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *conversation) getNewCompletionParams() openai.ChatCompletionNewParams {
+	return openai.ChatCompletionNewParams{
+		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
+		Messages:            c.getSessionMessages(c.session),
+		Model:               c.config.Model,
+		N:                   openai.Int(1),
+		Tools:               c.completionTools(c.session),
+		Temperature:         openai.Float(c.config.Temperature),
+	}
+}
+
 // getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation
 // history.
 func (c *conversation) getSessionMessages(session *llms.Session) []openai.ChatCompletionMessageParamUnion {
@@ -171,7 +211,7 @@ func (c *conversation) getSessionMessages(session *llms.Session) []openai.ChatCo
 			assistantMsg := openai.AssistantMessage(msg.Content)
 
 			if msg.HasToolCalls() {
-				assistantMsg.OfAssistant.ToolCalls = c.genericToolCallsToVendor(msg.ToolCalls...)
+				assistantMsg.OfAssistant.ToolCalls = c.genericToolCallsToProvider(msg.ToolCalls...)
 			}
 
 			results[num] = assistantMsg
@@ -194,7 +234,7 @@ func (c *conversation) getSessionMessages(session *llms.Session) []openai.ChatCo
 	return results
 }
 
-func (c *conversation) vendorToolCallsToGeneric(toolCalls ...openai.ChatCompletionMessageToolCallUnionParam) (llms.ToolCalls, error) {
+func (c *conversation) providerToolCallsToGeneric(toolCalls ...openai.ChatCompletionMessageToolCallUnionParam) (llms.ToolCalls, error) {
 	results := make(llms.ToolCalls, len(toolCalls))
 
 	for callNum, toolCall := range toolCalls {
@@ -220,7 +260,7 @@ func (c *conversation) vendorToolCallsToGeneric(toolCalls ...openai.ChatCompleti
 	return results, nil
 }
 
-func (c *conversation) genericToolCallsToVendor(toolCalls ...llms.ToolCall) []openai.ChatCompletionMessageToolCallUnionParam {
+func (c *conversation) genericToolCallsToProvider(toolCalls ...llms.ToolCall) []openai.ChatCompletionMessageToolCallUnionParam {
 	results := make([]openai.ChatCompletionMessageToolCallUnionParam, len(toolCalls))
 
 	for i, toolCall := range toolCalls {
@@ -266,20 +306,55 @@ func (c *conversation) completionTools(session *llms.Session) []openai.ChatCompl
 	return results
 }
 
-func (c *conversation) waitForContinue() error {
+func (c *conversation) handleResponse(ctx context.Context, id string, response openai.ChatCompletionMessage) error {
+	if response.ToParam().OfAssistant == nil {
+		return fmt.Errorf("%w: no assistant message", llms.ErrEmptyResponse)
+	}
+
+	// We convert this ToParam() because it's the only way to get streaming responses to work...
+	toolCalls, err := c.providerToolCallsToGeneric(response.ToParam().OfAssistant.ToolCalls...)
+	if err != nil {
+		return fmt.Errorf("failed to handle assistant tool calls: %w", err)
+	}
+
+	msg := c.newMessage(
+		llms.WithID(id),
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithContent(response.Content),
+	)
+
+	if len(toolCalls) > 0 {
+		c.hasPendingToolCalls = true
+		msg = msg.Update(llms.WithToolCalls(toolCalls...))
+
+		c.emit(ctx, llms.EventToolCallsRequested{
+			Message: msg,
+		})
+	} else {
+		c.hasPendingToolCalls = false
+		c.emit(ctx, llms.EventFinalMessage{
+			Message: msg,
+		})
+	}
+
+	return nil
+}
+
+func (c *conversation) waitForContinue(ctx context.Context) error {
 	select {
 	case <-c.continueChan:
 		return nil
-	case <-c.ctx.Done():
-		return fmt.Errorf("context error while waiting for continue: %w", c.ctx.Err())
+	case <-ctx.Done():
+		return fmt.Errorf("context error while waiting for continue: %w", ctx.Err())
 	}
 }
 
-func (c *conversation) emit(e llms.Event) bool {
+// func (c *conversation) emit(ctx context.Context, e llms.Event) bool {
+func (c *conversation) emit(ctx context.Context, e llms.Event) {
 	select {
 	case c.eventChan <- e:
-		return true
-	case <-c.ctx.Done():
-		return false
+		// return true
+	case <-ctx.Done():
+		// return false
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/openai/openai-go/v2"
@@ -59,7 +60,8 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 	newCtx, cancel := context.WithCancelCause(ctx)
 
 	conv := &conversation{
-		ctx:          newCtx,
+		id:           session.Name,
+		stream:       c.shouldStream(),
 		cancel:       cancel,
 		eventChan:    make(chan llms.Event),
 		continueChan: make(chan struct{}),
@@ -68,9 +70,14 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 		config:       c.config,
 	}
 
-	go conv.run()
+	go conv.run(newCtx)
 
 	return conv
+}
+
+func (c *ChatGPT) shouldStream() bool {
+	// GPT-5 requires photo ID verification for streaming...
+	return !strings.Contains(c.config.Model, "gpt-5")
 }
 
 // func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {

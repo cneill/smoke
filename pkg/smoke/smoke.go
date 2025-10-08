@@ -147,9 +147,7 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
 	s.conversationMutex.Unlock()
 
 	defer func() {
-		if err := conversation.Close(); err != nil {
-			slog.Error("failed to close conversation", "id", conversation.ID(), "err", err)
-		}
+		conversation.Close()
 	}()
 
 	wg := sync.WaitGroup{}
@@ -164,7 +162,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 	eventsChan := conversation.Events()
 
 	// TODO: smoke message type for returning an error tea.Msg to the UI for things that aren't conversation related,
-	// instead of slog.Error()?
+	// instead of slog.Error()? Channel?
 
 	for {
 		select {
@@ -184,6 +182,10 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 					Err: fmt.Errorf("conversation error: %w", event.Err),
 				})
 			case llms.EventFinalMessage:
+				if err := session.AddMessage(event.Message); err != nil {
+					slog.Error("failed to add assistant message to session", "error", err)
+				}
+
 				s.teaEmitter(AssistantResponseMessage{
 					Message: event.Message,
 				})
@@ -196,7 +198,11 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 			case llms.EventToolCallResults:
 				// TODO: need this?
 			case llms.EventToolCallsRequested:
-				for _, toolCall := range event.Calls {
+				if err := session.AddMessage(event.Message); err != nil {
+					slog.Error("failed to add assistant tool call message to session", "error", err)
+				}
+
+				for _, toolCall := range event.Message.ToolCalls {
 					var content string
 
 					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
@@ -215,7 +221,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 					)
 
 					if err := session.AddMessage(resultsMsg); err != nil {
-						slog.Error("failed to add message to session", "error", err)
+						slog.Error("failed to add tool call result message to session", "error", err)
 					}
 				}
 
