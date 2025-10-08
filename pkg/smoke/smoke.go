@@ -131,22 +131,50 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 	}
 
 	conversation := s.llm.StartConversation(context.TODO(), session)
+	defer func() {
+		if err := conversation.Close(); err != nil {
+			slog.Error("failed to close conversation", "id", conversation.ID(), "err", err)
+		}
+	}()
 
-	handle := func() tea.Msg {
-		eventsChan := conversation.Events()
-		for event := range eventsChan {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	wg := sync.WaitGroup{}
+	wg.Go(func() {
+		s.conversationLoop(ctx, session, conversation)
+	})
+
+	return nil, nil
+}
+
+func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, conversation llms.Conversation) {
+	eventsChan := conversation.Events()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-eventsChan:
+			if !ok {
+				return
+			}
+
 			switch event := event.(type) {
 			case llms.EventDone:
-				return nil
+				break
 			case llms.EventError:
-				return AssistantResponseMessage{
+				s.teaEmitter(AssistantResponseMessage{
 					Err: fmt.Errorf("conversation error: %w", event.Err),
-				}
+				})
 			case llms.EventFinalMessage:
-				return AssistantResponseMessage{
+				s.teaEmitter(AssistantResponseMessage{
 					Message: event.Message,
-				}
+				})
 			case llms.EventTextDelta:
+				// TODO: debounce?
+				s.teaEmitter(AssistantTextDelta{
+					Text: event.Text,
+				})
 			case llms.EventToolCallResults:
 				// TODO: need this?
 			case llms.EventToolCallsRequested:
@@ -173,13 +201,11 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 					conversation.Continue(context.TODO())
 				}
 			case llms.EventUsageUpdate:
+				session.UpdateUsage(event.InputTokens, event.OutputTokens)
 			}
+
 		}
-
-		return nil
 	}
-
-	return handle, nil
 }
 
 // SendUserMessage appends 'msg' to the current [*llms.Session], invokes the [llms.LLM] to send that session to the
@@ -381,7 +407,9 @@ func (s *Smoke) CancelUserMessage(err error) {
 
 // GetMessages returns the set of all [*llms.Message] attached to the current [*llms.Session]
 func (s *Smoke) GetMessages() []*llms.Message {
-	return s.session.Messages
+	// TODO: read-only copies?
+	// TODO: reference different sessions?
+	return s.getMainSession().Messages
 }
 
 // SetSession overwrites the current [*llms.Session].
@@ -393,7 +421,11 @@ func (s *Smoke) SetSession(newSession *llms.Session) error {
 	// 	}
 	// }
 
-	s.session = newSession
+	// TODO: set different sessions?
+	s.sessionMutex.Lock()
+	defer s.sessionMutex.Unlock()
+
+	s.sessions[s.mainSessionName] = newSession
 
 	return nil
 }
@@ -410,19 +442,19 @@ func (s *Smoke) SetMode(mode Mode) {
 		enabledTools = tools.AllTools()
 	}
 
-	s.session.Tools.InitTools(enabledTools...)
+	s.getMainSession().Tools.InitTools(enabledTools...)
 
 	mcpTools, err := s.getMCPTools()
 	if err != nil {
 		slog.Error("failed to list MCP tools", "error", err)
 	}
 
-	s.session.Tools.AddTools(mcpTools...)
+	s.getMainSession().Tools.AddTools(mcpTools...)
 }
 
 // HandleCommand invokes a prompt command provided by the user.
 func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error) {
-	cmd, err := s.commands.HandleCommand(s.session, msg)
+	cmd, err := s.commands.HandleCommand(s.getMainSession(), msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute command %q: %w", msg.Command, err)
 	}
@@ -436,7 +468,7 @@ func (s *Smoke) CommandCompleter() func(string) []string {
 
 // TODO: this feels wrong...
 func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedreturns
-	return s.session.Usage()
+	return s.getMainSession().Usage()
 }
 
 func (s *Smoke) ShouldStream() bool {
@@ -455,6 +487,15 @@ func (s *Smoke) ShouldStream() bool {
 
 	// TODO: fix this!!
 	return false
+}
+
+func (s *Smoke) getMainSession() *llms.Session {
+	s.sessionMutex.RLock()
+	defer s.sessionMutex.RUnlock()
+
+	session := s.sessions[s.mainSessionName]
+
+	return session
 }
 
 func (s *Smoke) getMCPTools() (tools.Tools, error) {

@@ -11,10 +11,8 @@ type AssistantResponseMessage struct {
 	Err     error
 }
 
-func (a AssistantResponseMessage) Cmd() tea.Cmd {
-	return func() tea.Msg {
-		return a
-	}
+type AssistantTextDelta struct {
+	Text string
 }
 
 type ToolCallResponseMessage struct {
@@ -22,15 +20,15 @@ type ToolCallResponseMessage struct {
 	Err      error
 }
 
-func (t ToolCallResponseMessage) Cmd() tea.Cmd {
-	return func() tea.Msg {
-		return t
-	}
-}
-
 // TODO: better name
 type SendCommandMessageResponseMessage struct {
 	OriginalMessage commands.SendSessionMessage
 	Session         *llms.Session
 	Err             error
+}
+
+func MsgToCmd(msg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		return msg
+	}
 }

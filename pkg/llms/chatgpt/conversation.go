@@ -35,6 +35,10 @@ func (c *conversation) Events() <-chan llms.Event {
 	return c.eventChan
 }
 
+func (c *conversation) Cancel() {
+	c.cancel()
+}
+
 func (c *conversation) Continue(ctx context.Context) error {
 	select {
 	case c.continueChan <- struct{}{}:
