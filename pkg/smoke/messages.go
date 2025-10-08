@@ -16,8 +16,8 @@ type AssistantTextDelta struct {
 }
 
 type ToolCallResponseMessage struct {
-	Message *llms.Message
-	Err     error
+	Messages []*llms.Message
+	Err      error
 }
 
 // TODO: better name

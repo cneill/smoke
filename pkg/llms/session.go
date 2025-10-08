@@ -2,6 +2,7 @@ package llms
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -123,13 +124,35 @@ func (s *Session) LastByRole(role Role) *Message {
 	s.messageMutex.RLock()
 	defer s.messageMutex.RUnlock()
 
-	for i := len(s.Messages) - 1; i >= 0; i-- {
-		if s.Messages[i].Role == role {
-			return s.Messages[i]
+	for idx := len(s.Messages) - 1; idx >= 0; idx-- {
+		if s.Messages[idx].Role == role {
+			return s.Messages[idx]
 		}
 	}
 
 	return nil
+}
+
+// LastRunByRole returns the "run" of the most recent messages from the specified Role, or nil if there are none.
+func (s *Session) LastRunByRole(role Role) []*Message {
+	s.messageMutex.RLock()
+	defer s.messageMutex.RUnlock()
+
+	results := make([]*Message, 0, len(s.Messages))
+
+	for idx := len(s.Messages) - 1; idx >= 0; idx-- {
+		if len(results) > 0 && s.Messages[idx].Role != role {
+			break
+		}
+
+		if s.Messages[idx].Role == role {
+			results = append(results, s.Messages[idx])
+		}
+	}
+
+	slices.Reverse(results)
+
+	return results
 }
 
 func (s *Session) Last() *Message {

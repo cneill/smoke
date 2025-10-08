@@ -181,6 +181,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				s.teaEmitter(AssistantResponseMessage{
 					Err: fmt.Errorf("conversation error: %w", event.Err),
 				})
+				conversation.Cancel(event.Err)
 			case llms.EventFinalMessage:
 				if err := session.AddMessage(event.Message); err != nil {
 					slog.Error("failed to add assistant message to session", "error", err)
@@ -196,10 +197,13 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 					Text: event.Text,
 				})
 			case llms.EventToolCallResults:
-				// TODO: need this?
+				s.teaEmitter(ToolCallResponseMessage{
+					Messages: event.Messages,
+				})
 			case llms.EventToolCallsRequested:
 				if err := session.AddMessage(event.Message); err != nil {
 					slog.Error("failed to add assistant tool call message to session", "error", err)
+					conversation.Cancel(err)
 				}
 
 				for _, toolCall := range event.Message.ToolCalls {
@@ -222,6 +226,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 
 					if err := session.AddMessage(resultsMsg); err != nil {
 						slog.Error("failed to add tool call result message to session", "error", err)
+						conversation.Cancel(err)
 					}
 				}
 
@@ -474,14 +479,16 @@ func (s *Smoke) SetMode(mode Mode) {
 		enabledTools = tools.AllTools()
 	}
 
-	s.getMainSession().Tools.InitTools(enabledTools...)
+	session := s.getMainSession()
+
+	session.Tools.InitTools(enabledTools...)
 
 	mcpTools, err := s.getMCPTools()
 	if err != nil {
 		slog.Error("failed to list MCP tools", "error", err)
 	}
 
-	s.getMainSession().Tools.AddTools(mcpTools...)
+	session.Tools.AddTools(mcpTools...)
 }
 
 // HandleCommand invokes a prompt command provided by the user.
@@ -503,23 +510,23 @@ func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedr
 	return s.getMainSession().Usage()
 }
 
-func (s *Smoke) ShouldStream() bool {
-	// TODO: additional toggle switch for this behavior from CLI flags / env vars / config file
-
-	// GPT-5 requires org verification with a photo ID
-	// if s.llm.LLMInfo().Type == llms.LLMTypeChatGPT {
-	// 	if strings.Contains(s.llm.LLMInfo().ModelName, "gpt-5") {
-	// 		return false
-	// 	}
-	// }
-	//
-	// _, ok := s.llm.(llms.StreamingLLM)
-	//
-	// return ok
-
-	// TODO: fix this!!
-	return false
-}
+// func (s *Smoke) ShouldStream() bool {
+// 	// TODO: additional toggle switch for this behavior from CLI flags / env vars / config file
+//
+// 	// GPT-5 requires org verification with a photo ID
+// 	// if s.llm.LLMInfo().Type == llms.LLMTypeChatGPT {
+// 	// 	if strings.Contains(s.llm.LLMInfo().ModelName, "gpt-5") {
+// 	// 		return false
+// 	// 	}
+// 	// }
+// 	//
+// 	// _, ok := s.llm.(llms.StreamingLLM)
+// 	//
+// 	// return ok
+//
+// 	// TODO: fix this!!
+// 	return false
+// }
 
 func (s *Smoke) getMainSession() *llms.Session {
 	s.sessionMutex.RLock()

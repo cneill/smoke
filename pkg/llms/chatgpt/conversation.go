@@ -11,7 +11,7 @@ import (
 	"github.com/openai/openai-go/v2/option"
 )
 
-const maxIterations = 1024
+const maxIterations = 2048
 
 type conversation struct {
 	id           string
@@ -74,15 +74,15 @@ func (c *conversation) run(ctx context.Context) {
 	for range maxIterations {
 		if c.stream {
 			if err := c.sendStream(ctx); err != nil {
-				c.eventChan <- llms.EventError{
+				c.emit(ctx, llms.EventError{
 					Err: fmt.Errorf("failed to send message (streaming): %w", err),
-				}
+				})
 			}
 		} else {
 			if err := c.sendNoStream(ctx); err != nil {
-				c.eventChan <- llms.EventError{
+				c.emit(ctx, llms.EventError{
 					Err: fmt.Errorf("failed to send message (non-streaming): %w", err),
-				}
+				})
 			}
 		}
 
@@ -91,10 +91,17 @@ func (c *conversation) run(ctx context.Context) {
 		}
 
 		if err := c.waitForContinue(ctx); err != nil {
-			c.eventChan <- llms.EventError{
+			c.emit(ctx, llms.EventError{
 				Err: fmt.Errorf("failed while waiting for tool call results: %w", err),
-			}
+			})
 		}
+
+		// TODO: this COULD return unrelated runs if Smoke messes up - need to check this?
+		callMessages := c.session.LastRunByRole(llms.RoleTool)
+
+		c.emit(ctx, llms.EventToolCallResults{
+			Messages: callMessages,
+		})
 	}
 
 	select {
@@ -146,6 +153,7 @@ func (c *conversation) sendStream(ctx context.Context) error {
 		chunk := stream.Current()
 		accumulator.AddChunk(chunk)
 
+		// TODO: need either of these "JustFinishedX" checks?
 		if _, ok := accumulator.JustFinishedContent(); ok {
 			slog.Debug("got end of content",
 				"current_delta", chunk.Choices[0].Delta.Content,
