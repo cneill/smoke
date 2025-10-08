@@ -312,29 +312,10 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 	if response.Err != nil {
 		commands = append(commands, updateHistory(response.Err))
 	} else {
-		commands = append(commands, updateHistory(response.Message))
+		for _, message := range response.Messages {
+			commands = append(commands, updateHistory(message))
+		}
 	}
-
-	// for i, msg := range response.Messages {
-	// 	slog.Debug("got tool call response", "message_num", i, "message", msg)
-	// }
-	//
-	// if response.Err != nil {
-	// 	commands = append(commands, updateHistory(response.Err))
-	// } else if response.Messages != nil {
-	// 	for _, message := range response.Messages {
-	// 		commands = append(commands, updateHistory(message))
-	// 	}
-	//
-	// 	cmd, err := m.smoke.HandleToolCallResults(response.Messages)
-	// 	if err != nil {
-	// 		return updateHistory(err)
-	// 	}
-	//
-	// 	if cmd != nil {
-	// 		commands = append(commands, cmd)
-	// 	}
-	// }
 
 	return tea.Batch(commands...)
 }
