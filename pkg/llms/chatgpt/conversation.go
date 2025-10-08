@@ -162,7 +162,12 @@ func (c *conversation) getSessionMessages(session *llms.Session) []openai.ChatCo
 		case llms.RoleUser:
 			results[num] = openai.UserMessage(msg.Content)
 		case llms.RoleTool:
-			results[num] = openai.ToolMessage(msg.Content, msg.ToolCallID)
+			if n := len(msg.ToolCalls); n > 1 {
+				slog.Warn("more than one tool call referenced in message with tool role; skipping", "num", n, "names", msg.ToolCalls.Names())
+				continue
+			}
+
+			results[num] = openai.ToolMessage(msg.Content, msg.ToolCalls[0].ID)
 		case llms.RoleUnknown:
 			slog.Warn("got message with unknown role", "message", msg.Content)
 		}

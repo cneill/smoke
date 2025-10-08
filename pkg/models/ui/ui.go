@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/commands"
@@ -214,10 +213,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			cmds = append(cmds, updateHistory(msg))
 		}
-	case commands.SendSessionMessage:
-		if cmd := m.smoke.SendCommandMessage(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
+	// case commands.SendSessionMessage:
+	// 	if cmd := m.smoke.SendCommandMessage(msg); cmd != nil {
+	// 		cmds = append(cmds, cmd)
+	// 	}
 	case smoke.AssistantResponseMessage:
 		if msg.Err != nil {
 			cmds = append(cmds, updateHistory(msg.Err))
@@ -230,10 +229,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else if cmd := m.handleToolCallResponse(msg); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
-	case smoke.SendCommandMessageResponseMessage:
-		if cmd := m.handleSendCommandMessage(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
+		// case smoke.SendCommandMessageResponseMessage:
+		// 	if cmd := m.handleSendCommandMessage(msg); cmd != nil {
+		// 		cmds = append(cmds, cmd)
+		// 	}
 	}
 
 	return m, tea.Batch(cmds...)
@@ -258,32 +257,32 @@ func (m *Model) resize(msg tea.Msg) {
 	}
 }
 
-func (m *Model) chunkListener() tea.Cmd {
-	return func() tea.Msg {
-		if m.chunkChan == nil {
-			return nil
-			// return m.input.SetWaiting(false)
-		}
-
-		// TODO: make this configurable? remove?
-		timer := time.NewTimer(time.Second * 60)
-		select {
-		case msg, ok := <-m.chunkChan:
-			if !ok {
-				m.chunkChan = nil
-				return nil
-				// return m.input.SetWaiting(false)
-			}
-
-			return smoke.AssistantResponseMessage{
-				Message: msg,
-			}
-		case <-timer.C:
-			// return tea.Batch(updateHistory(fmt.Errorf("timed out waiting for next chunk")), m.input.SetWaiting(false))
-			return updateHistory(fmt.Errorf("timed out waiting for next chunk"))
-		}
-	}
-}
+// func (m *Model) chunkListener() tea.Cmd {
+// 	return func() tea.Msg {
+// 		if m.chunkChan == nil {
+// 			return nil
+// 			// return m.input.SetWaiting(false)
+// 		}
+//
+// 		// TODO: make this configurable? remove?
+// 		timer := time.NewTimer(time.Second * 60)
+// 		select {
+// 		case msg, ok := <-m.chunkChan:
+// 			if !ok {
+// 				m.chunkChan = nil
+// 				return nil
+// 				// return m.input.SetWaiting(false)
+// 			}
+//
+// 			return smoke.AssistantResponseMessage{
+// 				Message: msg,
+// 			}
+// 		case <-timer.C:
+// 			// return tea.Batch(updateHistory(fmt.Errorf("timed out waiting for next chunk")), m.input.SetWaiting(false))
+// 			return updateHistory(fmt.Errorf("timed out waiting for next chunk"))
+// 		}
+// 	}
+// }
 
 func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 	llmMessage := llms.SimpleMessage(llms.RoleUser, msg.Content)
@@ -291,6 +290,13 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 		updateHistory(llmMessage),
 		m.input.SetWaiting(true),
 	}
+
+	cmd, err := m.smoke.HandleUserMessage(llmMessage)
+	if err != nil {
+		return updateHistory(err)
+	}
+
+	commands = append(commands, cmd)
 
 	// slog.Debug("got user message", "message", llmMessage)
 
@@ -326,29 +332,31 @@ func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage)
 	}
 
 	// Make sure we don't log a bunch of fragments as streamed messages come in
-	if !response.Message.IsChunk || response.Message.IsFinalized {
-		slog.Debug("got assistant message", "message", response.Message)
-	}
+	// if !response.Message.IsChunk || response.Message.IsFinalized {
+	// 	slog.Debug("got assistant message", "message", response.Message)
+	// }
 
 	// update the usage based on the latest response
-	m.input.UpdateUsage(m.smoke.GetUsage())
+	// m.input.UpdateUsage(m.smoke.GetUsage())
 
-	switch {
-	case response.Message.IsStreamed && !response.Message.IsFinalized:
-		commands = append(commands, m.chunkListener())
-	case (!response.Message.IsStreamed || response.Message.IsFinalized) && !response.Message.HasToolCalls():
-		m.input.SetWaiting(false)
-	}
+	// switch {
+	// case response.Message.IsStreamed && !response.Message.IsFinalized:
+	// 	commands = append(commands, m.chunkListener())
+	// case (!response.Message.IsStreamed || response.Message.IsFinalized) && !response.Message.HasToolCalls():
+	// 	m.input.SetWaiting(false)
+	// }
 
-	if response.Message.HasToolCalls() && (!response.Message.IsStreamed || response.Message.IsFinalized) {
-		cmd, err := m.smoke.HandleAssistantToolCalls(response.Message)
-		if err != nil {
-			m.input.SetWaiting(false)
-			return updateHistory(err)
-		}
+	m.input.SetWaiting(false)
 
-		commands = append(commands, cmd)
-	}
+	// if response.Message.HasToolCalls() && (!response.Message.IsStreamed || response.Message.IsFinalized) {
+	// 	cmd, err := m.smoke.HandleAssistantToolCalls(response.Message)
+	// 	if err != nil {
+	// 		m.input.SetWaiting(false)
+	// 		return updateHistory(err)
+	// 	}
+	//
+	// 	commands = append(commands, cmd)
+	// }
 
 	return tea.Batch(commands...)
 }
@@ -356,37 +364,43 @@ func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage)
 func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) tea.Cmd {
 	commands := []tea.Cmd{}
 
-	for i, msg := range response.Messages {
-		slog.Debug("got tool call response", "message_num", i, "message", msg)
-	}
-
 	if response.Err != nil {
 		commands = append(commands, updateHistory(response.Err))
-	} else if response.Messages != nil {
-		for _, message := range response.Messages {
-			commands = append(commands, updateHistory(message))
-		}
-
-		cmd, err := m.smoke.HandleToolCallResults(response.Messages)
-		if err != nil {
-			return updateHistory(err)
-		}
-
-		if cmd != nil {
-			commands = append(commands, cmd)
-		}
+	} else {
+		commands = append(commands, updateHistory(response.Message))
 	}
+
+	// for i, msg := range response.Messages {
+	// 	slog.Debug("got tool call response", "message_num", i, "message", msg)
+	// }
+	//
+	// if response.Err != nil {
+	// 	commands = append(commands, updateHistory(response.Err))
+	// } else if response.Messages != nil {
+	// 	for _, message := range response.Messages {
+	// 		commands = append(commands, updateHistory(message))
+	// 	}
+	//
+	// 	cmd, err := m.smoke.HandleToolCallResults(response.Messages)
+	// 	if err != nil {
+	// 		return updateHistory(err)
+	// 	}
+	//
+	// 	if cmd != nil {
+	// 		commands = append(commands, cmd)
+	// 	}
+	// }
 
 	return tea.Batch(commands...)
 }
 
-func (m *Model) handleSendCommandMessage(msg smoke.SendCommandMessageResponseMessage) tea.Cmd {
-	if msg.Err != nil {
-		return updateHistory(fmt.Errorf("error sending LLM message from command: %w", msg.Err))
-	}
-
-	return m.smoke.HandleCommandMessageResponse(msg)
-}
+// func (m *Model) handleSendCommandMessage(msg smoke.SendCommandMessageResponseMessage) tea.Cmd {
+// 	if msg.Err != nil {
+// 		return updateHistory(fmt.Errorf("error sending LLM message from command: %w", msg.Err))
+// 	}
+//
+// 	return m.smoke.HandleCommandMessageResponse(msg)
+// }
 
 func updateHistory(msg any) tea.Cmd {
 	return func() tea.Msg {

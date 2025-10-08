@@ -9,8 +9,6 @@ import (
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/llms/chatgpt"
-	"github.com/cneill/smoke/pkg/llms/claude"
-	"github.com/cneill/smoke/pkg/llms/grok"
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/tools"
 )
@@ -117,10 +115,10 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 		switch config.Provider {
 		case llms.LLMTypeChatGPT:
 			llm, err = chatgpt.New(config)
-		case llms.LLMTypeClaude:
-			llm, err = claude.New(config)
-		case llms.LLMTypeGrok:
-			llm, err = grok.New(config)
+		// case llms.LLMTypeClaude:
+		// 	llm, err = claude.New(config)
+		// case llms.LLMTypeGrok:
+		// 	llm, err = grok.New(config)
 		default:
 			err = fmt.Errorf("unknown provider: %s", config.Provider)
 		}
@@ -133,6 +131,7 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 		// TODO: HANDLE THIS IN A TIDIER WAY - STICK IT IN THE LLM PROVIDER?
 		if llm.RequiresSessionSystem() {
 			session := smoke.getMainSession()
+
 			session.SystemAsMessage = true
 			if err := session.SetSystemMessage(session.SystemMessage); err != nil {
 				return nil, fmt.Errorf("failed to update session system prompt: %w", err)

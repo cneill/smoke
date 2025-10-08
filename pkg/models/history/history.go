@@ -244,17 +244,20 @@ func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
 			Foreground(lipgloss.Color("#00af00"))
 		info.useMarkdown = true
 
-		if len(msg.ToolsCalled) > 0 {
-			info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolsCalled, ", "))
+		// TODO: render each of these with their arguments
+		if msg.HasToolCalls() {
+			info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolCalls.Names(), ", "))
 		}
 	case llms.RoleTool:
 		info.title = "🔧 Tool"
 		info.titleStyle = info.titleStyle.
 			Foreground(lipgloss.Color("#00afaf"))
 
-		if len(msg.ToolsCalled) > 0 {
-			info.content = fmt.Sprintf("\nTool call args: %s\n", msg.ToolCallArgs.String()) + info.content
-			info.content = fmt.Sprintf("\nTools called: %s\n", strings.Join(msg.ToolsCalled, ", ")) + info.content
+		if msg.HasToolCalls() {
+			// This should only ever have 1 tool call result, but we'll check just in case...
+			for _, toolCall := range msg.ToolCalls {
+				info.content += fmt.Sprintf("\nTool call to %q with args: %s", toolCall.Name, toolCall.Args.String())
+			}
 		}
 	case llms.RoleSystem:
 		info.title = "🖥️ System"

@@ -3,12 +3,9 @@ package llms
 import (
 	"fmt"
 	"log/slog"
-	"maps"
 	"math/rand/v2"
 	"strings"
 	"time"
-
-	"github.com/cneill/smoke/pkg/tools"
 )
 
 type Message struct {
@@ -27,13 +24,16 @@ type Message struct {
 	// ToolCallInfo any `json:"tool_call_info,omitempty,omitzero"`
 
 	// Assistant-side: Tool calls from the LLM
+
+	// ToolCalls holds all tool calls made by the provider in Assistant messages and the details of the (one) original
+	// Assistant call for Tool messages.
 	ToolCalls ToolCalls `json:"tool_calls,omitempty"`
 
 	// Tool-side: results from tool calls
 	// ToolCallID is the ID associated with the assistant's tool use request.
-	ToolCallID string `json:"tool_call_id,omitempty"` // TODO: Should this be a []string?
+	// ToolCallID string `json:"tool_call_id,omitempty"` // TODO: Should this be a []string?
 	// ToolCallArgs are the arguments provided by the assistant to the specified tool.
-	ToolCallArgs tools.Args `json:"tool_call_args,omitempty"`
+	// ToolCallArgs tools.Args `json:"tool_call_args,omitempty"`
 
 	// LLMInfo contains details about the LLM that generated the assistant message
 	LLMInfo *LLMInfo `json:"llm_info,omitempty"`
@@ -97,8 +97,8 @@ func (m *Message) Clone() *Message {
 		ToolCalls: m.ToolCalls.Clone(),
 		// ToolsCalled:  append([]string{}, m.ToolsCalled...),
 		// ToolCallInfo: m.ToolCallInfo, // TODO: need to clone this?
-		ToolCallID:   m.ToolCallID,
-		ToolCallArgs: maps.Clone(m.ToolCallArgs),
+		// ToolCallID:   m.ToolCallID,
+		// ToolCallArgs: maps.Clone(m.ToolCallArgs),
 		// IsStreamed:   m.IsStreamed,
 		// IsInitial:    m.IsInitial,
 		// IsChunk:      m.IsChunk,
@@ -181,25 +181,29 @@ func (m *Message) LogValue() slog.Value {
 }
 
 func (m *Message) ToMarkdown() string {
-	header := fmt.Sprintf("# %s\n*(%s)*\n\n", m.Role, m.Added.Format(time.RFC1123))
-	footer := "\n\n----\n"
+	builder := &strings.Builder{}
 
-	var body string
+	// header
+	fmt.Fprintf(builder, "# %s\n*(%s)*\n\n", m.Role, m.Added.Format(time.RFC1123))
 
-	if !m.HasToolCalls() {
-		body = m.Content
-	} else {
-		body = fmt.Sprintf("**Tools called:** `%s`\n", strings.Join(m.ToolCalls.Names(), ", "))
-		if m.ToolCallArgs != nil {
-			body += fmt.Sprintf("**Tool call args:** `%s`\n", m.ToolCallArgs.String())
+	// print the details of each tool call, if any
+	if m.HasToolCalls() {
+		for _, toolCall := range m.ToolCalls {
+			fmt.Fprintf(builder, "**Tool called:** `%s`\n", toolCall.Name)
+			fmt.Fprintf(builder, "**Args:** `%s`\n", toolCall.Args.String())
 		}
 
 		if m.Content != "" {
-			body += fmt.Sprintf("**Content:**\n\n%s\n", m.Content)
+			fmt.Fprintf(builder, "**Content:**\n\n%s\n", m.Content)
 		}
+	} else {
+		builder.WriteString(m.Content)
 	}
 
-	return header + body + footer
+	// footer
+	builder.WriteString("\n\n----\n")
+
+	return builder.String()
 }
 
 type MessageOpt func(message *Message) *Message
@@ -246,19 +250,19 @@ func WithToolCalls(toolCalls ...ToolCall) MessageOpt {
 	}
 }
 
-func WithToolCallID(toolCallID string) MessageOpt {
-	return func(message *Message) *Message {
-		message.ToolCallID = toolCallID
-		return message
-	}
-}
-
-func WithToolCallArgs(args tools.Args) MessageOpt {
-	return func(message *Message) *Message {
-		message.ToolCallArgs = args
-		return message
-	}
-}
+// func WithToolCallID(toolCallID string) MessageOpt {
+// 	return func(message *Message) *Message {
+// 		message.ToolCallID = toolCallID
+// 		return message
+// 	}
+// }
+//
+// func WithToolCallArgs(args tools.Args) MessageOpt {
+// 	return func(message *Message) *Message {
+// 		message.ToolCallArgs = args
+// 		return message
+// 	}
+// }
 
 func WithError(err error) MessageOpt {
 	return func(message *Message) *Message {

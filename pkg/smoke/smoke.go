@@ -122,12 +122,13 @@ func (s *Smoke) Update(opts ...OptFunc) (*Smoke, error) {
 func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 	// TODO: for now, we just assume MAIN source and route to the session with the name defined by the user; in the
 	// future, this may have to change.
-	s.sessionMutex.RLock()
-	session := s.sessions[s.mainSessionName]
-	s.sessionMutex.RUnlock()
+	session := s.getMainSession()
+	if session == nil {
+		return nil, fmt.Errorf("failed to get main session")
+	}
 
 	if err := session.AddMessage(msg); err != nil {
-		return nil, fmt.Errorf("failed to add user message to session: %w", err)
+		return nil, fmt.Errorf("failed to add user message to main session: %w", err)
 	}
 
 	conversation := s.llm.StartConversation(context.TODO(), session)
@@ -192,8 +193,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 
 					resultsMsg := llms.NewMessage(
 						llms.WithRole(llms.RoleTool),
-						llms.WithToolCallID(toolCall.ID),
-						llms.WithToolCallArgs(toolCall.Args),
+						llms.WithToolCalls(toolCall),
 						llms.WithContent(content),
 					)
 
