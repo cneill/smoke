@@ -3,9 +3,9 @@ package llms
 import "github.com/cneill/smoke/pkg/tools"
 
 type ToolCall struct {
-	ID   string
-	Name string
-	Args tools.Args
+	ID   string     `json:"id"`
+	Name string     `json:"name"`
+	Args tools.Args `json:"args"`
 }
 
 type ToolCalls []ToolCall
