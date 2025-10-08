@@ -257,33 +257,6 @@ func (m *Model) resize(msg tea.Msg) {
 	}
 }
 
-// func (m *Model) chunkListener() tea.Cmd {
-// 	return func() tea.Msg {
-// 		if m.chunkChan == nil {
-// 			return nil
-// 			// return m.input.SetWaiting(false)
-// 		}
-//
-// 		// TODO: make this configurable? remove?
-// 		timer := time.NewTimer(time.Second * 60)
-// 		select {
-// 		case msg, ok := <-m.chunkChan:
-// 			if !ok {
-// 				m.chunkChan = nil
-// 				return nil
-// 				// return m.input.SetWaiting(false)
-// 			}
-//
-// 			return smoke.AssistantResponseMessage{
-// 				Message: msg,
-// 			}
-// 		case <-timer.C:
-// 			// return tea.Batch(updateHistory(fmt.Errorf("timed out waiting for next chunk")), m.input.SetWaiting(false))
-// 			return updateHistory(fmt.Errorf("timed out waiting for next chunk"))
-// 		}
-// 	}
-// }
-
 func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 	llmMessage := llms.SimpleMessage(llms.RoleUser, msg.Content)
 	commands := []tea.Cmd{
@@ -291,37 +264,9 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 		m.input.SetWaiting(true),
 	}
 
-	cmd, err := m.smoke.HandleUserMessage(llmMessage)
-	if err != nil {
+	if err := m.smoke.HandleUserMessage(llmMessage); err != nil {
 		return updateHistory(err)
 	}
-
-	commands = append(commands, cmd)
-
-	// slog.Debug("got user message", "message", llmMessage)
-
-	// var sendMessage tea.Cmd
-
-	// if m.smoke.ShouldStream() {
-	// 	m.chunkChan = make(chan *llms.Message)
-	//
-	// 	cmd, err := m.smoke.SendUserMessageStreaming(llmMessage, m.chunkChan)
-	// 	if err != nil {
-	// 		return updateHistory(err)
-	// 	}
-	//
-	// 	commands = append(commands, cmd)
-	// 	commands = append(commands, m.chunkListener())
-	// } else {
-	// 	cmd, err := m.smoke.SendUserMessage(llmMessage)
-	// 	if err != nil {
-	// 		return updateHistory(err)
-	// 	}
-	//
-	// 	if cmd != nil {
-	// 		commands = append(commands, cmd)
-	// 	}
-	// }
 
 	return tea.Batch(commands...)
 }

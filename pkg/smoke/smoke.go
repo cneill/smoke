@@ -35,13 +35,16 @@ type Smoke struct {
 	sessions        map[string]*llms.Session
 	sessionMutex    sync.RWMutex
 
+	conversations     map[string]llms.Conversation
+	conversationMutex sync.RWMutex
+
 	teaEmitter TeaEmitter
 
-	commands          *commands.Manager
-	llmConfig         *llms.Config
-	llm               llms.LLM
-	userMessageCancel context.CancelCauseFunc
-	mcpClients        []*mcp.CommandClient
+	commands  *commands.Manager
+	llmConfig *llms.Config
+	llm       llms.LLM
+	// userMessageCancel context.CancelCauseFunc
+	mcpClients []*mcp.CommandClient
 }
 
 type Mode string
@@ -66,7 +69,10 @@ func (s *Smoke) OK() error {
 }
 
 func New(opts ...OptFunc) (*Smoke, error) {
-	smoke := &Smoke{}
+	smoke := &Smoke{
+		sessions:      map[string]*llms.Session{},
+		conversations: map[string]llms.Conversation{},
+	}
 
 	var optErr error
 	for i, opt := range opts {
@@ -119,19 +125,24 @@ func (s *Smoke) Update(opts ...OptFunc) (*Smoke, error) {
 	return smoke, nil
 }
 
-func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
+func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
 	// TODO: for now, we just assume MAIN source and route to the session with the name defined by the user; in the
 	// future, this may have to change.
 	session := s.getMainSession()
 	if session == nil {
-		return nil, fmt.Errorf("failed to get main session")
+		return fmt.Errorf("failed to get main session")
 	}
 
 	if err := session.AddMessage(msg); err != nil {
-		return nil, fmt.Errorf("failed to add user message to main session: %w", err)
+		return fmt.Errorf("failed to add user message to main session: %w", err)
 	}
 
 	conversation := s.llm.StartConversation(context.TODO(), session)
+	s.conversationMutex.Lock()
+	// TODO: support other conversations
+	s.conversations[s.mainSessionName] = conversation
+	s.conversationMutex.Unlock()
+
 	defer func() {
 		if err := conversation.Close(); err != nil {
 			slog.Error("failed to close conversation", "id", conversation.ID(), "err", err)
@@ -146,11 +157,12 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 		s.conversationLoop(ctx, session, conversation)
 	})
 
-	return nil, nil
+	return nil
 }
 
 func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, conversation llms.Conversation) {
 	eventsChan := conversation.Events()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -162,8 +174,9 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 
 			switch event := event.(type) {
 			case llms.EventDone:
-				break
+				return
 			case llms.EventError:
+				slog.Error("conversation error", "error", event.Err)
 				s.teaEmitter(AssistantResponseMessage{
 					Err: fmt.Errorf("conversation error: %w", event.Err),
 				})
@@ -182,7 +195,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				for _, toolCall := range event.Calls {
 					var content string
 
-					output, err := session.Tools.CallTool(context.TODO(), toolCall.Name, toolCall.Args)
+					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
 					if err != nil {
 						slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
 						toolCallErr := fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
@@ -197,14 +210,18 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 						llms.WithContent(content),
 					)
 
-					session.AddMessage(resultsMsg)
+					if err := session.AddMessage(resultsMsg); err != nil {
+						slog.Error("failed to add message to session", "error", err)
+					}
 				}
 
-				conversation.Continue(context.TODO())
+				if err := conversation.Continue(ctx); err != nil {
+					slog.Error("errored out while waiting for continue", "error", err)
+					return
+				}
 			case llms.EventUsageUpdate:
 				session.UpdateUsage(event.InputTokens, event.OutputTokens)
 			}
-
 		}
 	}
 }
@@ -340,10 +357,14 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 
 // CancelUserMessage can be triggered by the user pressing the escape key while waiting for an assistant response.
 func (s *Smoke) CancelUserMessage(err error) {
-	if s.userMessageCancel != nil {
-		s.userMessageCancel(err)
-		s.userMessageCancel = nil
+	s.conversationMutex.Lock()
+	defer s.conversationMutex.Unlock()
+
+	if conv, ok := s.conversations[s.mainSessionName]; ok {
+		conv.Cancel(err)
 	}
+
+	delete(s.conversations, s.mainSessionName)
 }
 
 // HandleAssistantToolCalls invokes the [llms.LLM] to execute any tools called within the last assistant message and

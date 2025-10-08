@@ -11,15 +11,45 @@ import (
 	"github.com/openai/openai-go/v2/option"
 )
 
+const maxIterations = 1024
+
 type conversation struct {
 	id           string
 	ctx          context.Context // TODO: this is frowned-upon... accept and return contexts?
-	cancel       context.CancelFunc
+	cancel       context.CancelCauseFunc
 	eventChan    chan llms.Event
 	continueChan chan struct{}
 	session      *llms.Session // TODO: read-only snapshot of Session as provided by Smoke
 	client       openai.Client
 	config       *llms.Config
+
+	hasPendingToolCalls bool
+}
+
+func (c *conversation) ID() string { return c.id }
+
+func (c *conversation) Events() <-chan llms.Event {
+	return c.eventChan
+}
+
+func (c *conversation) Cancel(err error) {
+	c.cancel(err)
+}
+
+func (c *conversation) Continue(ctx context.Context) error {
+	select {
+	case c.continueChan <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("conversation context error: %w", ctx.Err())
+	case <-c.ctx.Done():
+		return fmt.Errorf("continuation context error: %w", c.ctx.Err())
+	}
+}
+
+func (c *conversation) Close() error {
+	c.cancel(nil)
+	return nil
 }
 
 func (c *conversation) llmInfo() *llms.LLMInfo {
@@ -29,36 +59,26 @@ func (c *conversation) llmInfo() *llms.LLMInfo {
 	}
 }
 
-func (c *conversation) ID() string { return c.id }
-
-func (c *conversation) Events() <-chan llms.Event {
-	return c.eventChan
-}
-
-func (c *conversation) Cancel() {
-	c.cancel()
-}
-
-func (c *conversation) Continue(ctx context.Context) error {
-	select {
-	case c.continueChan <- struct{}{}:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-c.ctx.Done():
-		return c.ctx.Err()
-	}
-}
-
-func (c *conversation) Close() error {
-	c.cancel()
-	return nil
-}
-
 func (c *conversation) run() {
 	defer close(c.eventChan)
 
-	// do the thing
+	for range maxIterations {
+		if err := c.send(); err != nil {
+			c.eventChan <- llms.EventError{
+				Err: fmt.Errorf("failed to send message: %w", err),
+			}
+		}
+
+		if !c.hasPendingToolCalls {
+			break
+		}
+
+		if err := c.waitForContinue(); err != nil {
+			c.eventChan <- llms.EventError{
+				Err: fmt.Errorf("failed while waiting for tool call results: %w", err),
+			}
+		}
+	}
 
 	select {
 	case c.eventChan <- llms.EventDone{}:
@@ -110,14 +130,12 @@ func (c *conversation) send() error {
 	}
 
 	if len(toolCalls) > 0 {
+		c.hasPendingToolCalls = true
 		c.emit(llms.EventToolCallsRequested{
 			Calls: toolCalls,
 		})
-
-		if err := c.waitForContinue(); err != nil {
-			return fmt.Errorf("error while waiting: %w", err)
-		}
 	} else {
+		c.hasPendingToolCalls = false
 		c.emit(llms.EventFinalMessage{
 			Message: c.newMessage(
 				llms.WithID(result.ID),
@@ -179,19 +197,20 @@ func (c *conversation) getSessionMessages(session *llms.Session) []openai.ChatCo
 func (c *conversation) vendorToolCallsToGeneric(toolCalls ...openai.ChatCompletionMessageToolCallUnionParam) (llms.ToolCalls, error) {
 	results := make(llms.ToolCalls, len(toolCalls))
 
-	for i, toolCall := range toolCalls {
+	for callNum, toolCall := range toolCalls {
 		if toolCall.OfFunction == nil {
 			tcType := toolCall.GetType()
 			return nil, fmt.Errorf("got a tool call of type other than function: %s", *tcType)
 		}
 
 		name := toolCall.OfFunction.Function.Name
+
 		args, err := c.session.Tools.GetArgs(name, []byte(toolCall.OfFunction.Function.Arguments))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", name, err)
 		}
 
-		results[i] = llms.ToolCall{
+		results[callNum] = llms.ToolCall{
 			ID:   toolCall.OfFunction.ID,
 			Name: name,
 			Args: args,
@@ -252,7 +271,7 @@ func (c *conversation) waitForContinue() error {
 	case <-c.continueChan:
 		return nil
 	case <-c.ctx.Done():
-		return c.ctx.Err()
+		return fmt.Errorf("context error while waiting for continue: %w", c.ctx.Err())
 	}
 }
 

@@ -56,7 +56,7 @@ func (c *ChatGPT) LLMInfo() *llms.LLMInfo {
 func (c *ChatGPT) RequiresSessionSystem() bool { return true }
 
 func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) llms.Conversation {
-	newCtx, cancel := context.WithCancel(ctx)
+	newCtx, cancel := context.WithCancelCause(ctx)
 
 	conv := &conversation{
 		ctx:          newCtx,
@@ -67,6 +67,8 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 		client:       c.client,
 		config:       c.config,
 	}
+
+	go conv.run()
 
 	return conv
 }
