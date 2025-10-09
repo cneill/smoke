@@ -254,9 +254,12 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 		m.input.SetWaiting(true),
 	}
 
-	if err := m.smoke.HandleUserMessage(llmMessage); err != nil {
+	cmd, err := m.smoke.HandleUserMessage(llmMessage)
+	if err != nil {
 		return updateHistory(err)
 	}
+
+	commands = append(commands, cmd)
 
 	return tea.Batch(commands...)
 }

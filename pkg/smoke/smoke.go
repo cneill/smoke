@@ -124,20 +124,22 @@ func (s *Smoke) Update(opts ...OptFunc) (*Smoke, error) {
 	return smoke, nil
 }
 
-func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
+func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 	// TODO: for now, we just assume MAIN source and route to the session with the name defined by the user; in the
 	// future, this may have to change.
 	session := s.getMainSession()
 	if session == nil {
-		return fmt.Errorf("failed to get main session")
+		return nil, fmt.Errorf("failed to get main session")
 	}
 
 	if err := session.AddMessage(msg); err != nil {
-		return fmt.Errorf("failed to add user message to main session: %w", err)
+		return nil, fmt.Errorf("failed to add user message to main session: %w", err)
 	}
 
 	// ctx, cancel := context.WithCancel(context.Background())
 	// defer cancel()
+
+	slog.Debug("Starting conversation...")
 
 	// conversation := s.llm.StartConversation(ctx, session)
 	conversation := s.llm.StartConversation(context.Background(), session)
@@ -146,17 +148,25 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
 	s.conversations[s.mainSessionName] = conversation
 	s.conversationMutex.Unlock()
 
-	defer func() {
-		conversation.Close()
-	}()
+	handler := func() tea.Msg {
+		defer func() {
+			slog.Debug("Closing conversation")
+			conversation.Close()
+		}()
 
-	wg := sync.WaitGroup{}
-	wg.Go(func() {
-		// s.conversationLoop(ctx, session, conversation)
-		s.conversationLoop(context.Background(), session, conversation)
-	})
+		wg := sync.WaitGroup{}
+		wg.Go(func() {
+			slog.Debug("Starting conversation loop...")
+			// s.conversationLoop(ctx, session, conversation)
+			s.conversationLoop(context.Background(), session, conversation)
+		})
 
-	return nil
+		wg.Wait()
+
+		return nil
+	}
+
+	return handler, nil
 }
 
 func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, conversation llms.Conversation) {
@@ -185,6 +195,8 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 					Err: fmt.Errorf("conversation error: %w", event.Err),
 				})
 				conversation.Cancel(event.Err)
+
+				return
 			case llms.EventFinalMessage:
 				pendingMessage = nil
 
@@ -199,10 +211,12 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				})
 			case llms.EventTextDelta:
 				// TODO: debounce?
+				// TODO: this seems slightly gross to do here...
 				if pendingMessage == nil {
 					pendingMessage = llms.NewMessage(
 						llms.WithRole(llms.RoleAssistant),
 						llms.WithID(event.ID),
+						llms.WithLLMInfo(s.llm.LLMInfo()),
 						llms.WithContent(event.Text),
 					)
 				} else {
