@@ -171,6 +171,7 @@ func (c *conversation) sendStream(ctx context.Context) error {
 		}
 
 		c.emit(ctx, llms.EventTextDelta{
+			ID:   accumulator.ID,
 			Text: chunk.Choices[0].Delta.Content,
 		})
 	}

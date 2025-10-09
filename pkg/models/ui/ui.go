@@ -218,21 +218,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// 		cmds = append(cmds, cmd)
 	// 	}
 	case smoke.AssistantResponseMessage:
-		if msg.Err != nil {
-			cmds = append(cmds, updateHistory(msg.Err))
-		} else if cmd := m.handleAssistantResponse(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
+		cmds = append(cmds, m.handleAssistantResponse(msg))
+	case smoke.AssistantUpdatedStreamMessage:
+		cmds = append(cmds, m.handleAssistantUpdatedStream(msg))
 	case smoke.ToolCallResponseMessage:
-		if msg.Err != nil {
-			cmds = append(cmds, updateHistory(msg.Err))
-		} else if cmd := m.handleToolCallResponse(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
-		// case smoke.SendCommandMessageResponseMessage:
-		// 	if cmd := m.handleSendCommandMessage(msg); cmd != nil {
-		// 		cmds = append(cmds, cmd)
-		// 	}
+		cmds = append(cmds, m.handleToolCallResponse(msg))
 	}
 
 	return m, tea.Batch(cmds...)
@@ -273,37 +263,21 @@ func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
 
 func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage) tea.Cmd {
 	commands := []tea.Cmd{
-		updateHistory(response.Message),
+		m.input.SetWaiting(false),
 	}
 
-	// Make sure we don't log a bunch of fragments as streamed messages come in
-	// if !response.Message.IsChunk || response.Message.IsFinalized {
-	// 	slog.Debug("got assistant message", "message", response.Message)
-	// }
-
-	// update the usage based on the latest response
-	// m.input.UpdateUsage(m.smoke.GetUsage())
-
-	// switch {
-	// case response.Message.IsStreamed && !response.Message.IsFinalized:
-	// 	commands = append(commands, m.chunkListener())
-	// case (!response.Message.IsStreamed || response.Message.IsFinalized) && !response.Message.HasToolCalls():
-	// 	m.input.SetWaiting(false)
-	// }
-
-	m.input.SetWaiting(false)
-
-	// if response.Message.HasToolCalls() && (!response.Message.IsStreamed || response.Message.IsFinalized) {
-	// 	cmd, err := m.smoke.HandleAssistantToolCalls(response.Message)
-	// 	if err != nil {
-	// 		m.input.SetWaiting(false)
-	// 		return updateHistory(err)
-	// 	}
-	//
-	// 	commands = append(commands, cmd)
-	// }
+	if response.Err != nil {
+		commands = append(commands, updateHistory(response.Err))
+	} else {
+		commands = append(commands, updateHistory(response.Message))
+	}
 
 	return tea.Batch(commands...)
+}
+
+func (m *Model) handleAssistantUpdatedStream(response smoke.AssistantUpdatedStreamMessage) tea.Cmd {
+	// TODO: more?
+	return updateHistory(response.Message)
 }
 
 func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) tea.Cmd {
@@ -328,6 +302,8 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 // 	return m.smoke.HandleCommandMessageResponse(msg)
 // }
 
+// updateHistory is a helper function that takes any item and returns a tea.Cmd that will add it to the history
+// viewport.
 func updateHistory(msg any) tea.Cmd {
 	return func() tea.Msg {
 		return history.ContentUpdate{

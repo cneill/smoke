@@ -40,10 +40,9 @@ type Smoke struct {
 
 	teaEmitter TeaEmitter
 
-	commands  *commands.Manager
-	llmConfig *llms.Config
-	llm       llms.LLM
-	// userMessageCancel context.CancelCauseFunc
+	commands   *commands.Manager
+	llmConfig  *llms.Config
+	llm        llms.LLM
 	mcpClients []*mcp.CommandClient
 }
 
@@ -137,10 +136,11 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
 		return fmt.Errorf("failed to add user message to main session: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
 
-	conversation := s.llm.StartConversation(ctx, session)
+	// conversation := s.llm.StartConversation(ctx, session)
+	conversation := s.llm.StartConversation(context.Background(), session)
 	s.conversationMutex.Lock()
 	// TODO: support other conversations
 	s.conversations[s.mainSessionName] = conversation
@@ -152,7 +152,8 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) error {
 
 	wg := sync.WaitGroup{}
 	wg.Go(func() {
-		s.conversationLoop(ctx, session, conversation)
+		// s.conversationLoop(ctx, session, conversation)
+		s.conversationLoop(context.Background(), session, conversation)
 	})
 
 	return nil
@@ -163,6 +164,8 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 
 	// TODO: smoke message type for returning an error tea.Msg to the UI for things that aren't conversation related,
 	// instead of slog.Error()? Channel?
+
+	var pendingMessage *llms.Message
 
 	for {
 		select {
@@ -183,18 +186,33 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				})
 				conversation.Cancel(event.Err)
 			case llms.EventFinalMessage:
+				pendingMessage = nil
+
 				if err := session.AddMessage(event.Message); err != nil {
 					slog.Error("failed to add assistant message to session", "error", err)
 				}
+
+				slog.Debug("Got final assistant message", "message", event.Message)
 
 				s.teaEmitter(AssistantResponseMessage{
 					Message: event.Message,
 				})
 			case llms.EventTextDelta:
 				// TODO: debounce?
-				// TODO: need to attach an ID to this so history log can be updated
-				s.teaEmitter(AssistantTextDelta{
-					Text: event.Text,
+				if pendingMessage == nil {
+					pendingMessage = llms.NewMessage(
+						llms.WithRole(llms.RoleAssistant),
+						llms.WithID(event.ID),
+						llms.WithContent(event.Text),
+					)
+				} else {
+					pendingMessage = pendingMessage.Update(
+						llms.WithChunkContent(event.Text),
+					)
+				}
+
+				s.teaEmitter(AssistantUpdatedStreamMessage{
+					Message: pendingMessage,
 				})
 			case llms.EventToolCallResults:
 				s.teaEmitter(ToolCallResponseMessage{

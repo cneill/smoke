@@ -11,8 +11,9 @@ type AssistantResponseMessage struct {
 	Err     error
 }
 
-type AssistantTextDelta struct {
-	Text string
+// TODO: need this?
+type AssistantUpdatedStreamMessage struct {
+	Message *llms.Message
 }
 
 type ToolCallResponseMessage struct {

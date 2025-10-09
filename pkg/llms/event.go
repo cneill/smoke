@@ -5,6 +5,7 @@ type Event interface {
 }
 
 type EventTextDelta struct {
+	ID   string
 	Text string
 }
 
