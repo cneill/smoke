@@ -132,11 +132,11 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 		return nil, fmt.Errorf("failed to get main session")
 	}
 
+	slog.Debug("Handling user message", "message", msg)
+
 	if err := session.AddMessage(msg); err != nil {
 		return nil, fmt.Errorf("failed to add user message to main session: %w", err)
 	}
-
-	slog.Debug("Starting conversation...")
 
 	conversation := s.llm.StartConversation(context.Background(), session)
 	s.conversationMutex.Lock()
@@ -152,7 +152,7 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 
 		wg := sync.WaitGroup{}
 		wg.Go(func() {
-			slog.Debug("Starting conversation loop...")
+			slog.Debug("Starting conversation event-listening loop")
 			s.conversationLoop(context.Background(), session, conversation)
 		})
 
@@ -388,7 +388,7 @@ func (s *Smoke) SetMode(mode Mode) {
 func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error) {
 	cmd, err := s.commands.HandleCommand(s.getMainSession(), msg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute command %q: %w", msg.Command, err)
+		return nil, fmt.Errorf("failed to execute prompt command %q: %w", msg.Command, err)
 	}
 
 	return cmd, nil

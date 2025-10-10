@@ -103,7 +103,7 @@ func (e *EditHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		Description:   "last assistant message",
 	}
 
-	return req.Cmd(), nil
+	return MsgToCmd(req), nil
 }
 
 // CommandExit closes the program.
@@ -170,7 +170,7 @@ func (e *ExportHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		Message:       "Exported session to file " + e.Path + " in JSON format.",
 	}
 
-	return update.Cmd(), nil
+	return MsgToCmd(update), nil
 }
 
 // CommandLoad loads a session from a JSON file and replaces the current session with it.
@@ -221,7 +221,7 @@ func (l *LoadHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		ResetHistory:  true,
 	}
 
-	return update.Cmd(), nil
+	return MsgToCmd(update), nil
 }
 
 // CommandPlan prevents the model from making changes to files other than the plan file.
@@ -284,7 +284,7 @@ func (p *PlanHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		Session:       session,
 	}
 
-	return update.Cmd(), nil
+	return MsgToCmd(update), nil
 }
 
 // CommandSave saves the current session to a Markdown file
@@ -336,7 +336,7 @@ func (r *RunHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		Message:       updateMsg,
 	}
 
-	return update.Cmd(), nil
+	return MsgToCmd(update), nil
 }
 
 // CommandSave saves the current session to a Markdown file
@@ -382,7 +382,7 @@ func (s *SaveHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		Message:       "Saved session to file " + s.Path + " in Markdown format.",
 	}
 
-	return update.Cmd(), nil
+	return MsgToCmd(update), nil
 }
 
 // CommandSession allows the user to modify the current session:
@@ -437,7 +437,7 @@ func (s *SessionHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		ResetHistory:  s.Command == sessionClear,
 	}
 
-	return update.Cmd(), nil
+	return MsgToCmd(update), nil
 }
 
 // CommandInfo displays information about the current session.
@@ -480,7 +480,7 @@ func (i *InfoHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		Message:       info,
 	}
 
-	return update.Cmd(), nil
+	return MsgToCmd(update), nil
 }
 
 // CommandReview asks the model to review the code referenced by the user for red flags
@@ -543,7 +543,7 @@ func (r *ReviewHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		Session:       session,
 	}
 
-	return update.Cmd(), nil
+	return MsgToCmd(update), nil
 }
 
 // CommandSummarize summarizes the session history and writes it to a JSON file in the format that can be loaded as a
@@ -612,13 +612,15 @@ func NewSummarizeHandler(msg PromptCommandMessage) (Command, error) {
 }
 
 func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
+	// TODO: make a read-only view of messages...
 	filtered := s.filterMessages(session.Messages)
 	sessionName := session.Name + "_summary"
+	systemMessage := prompts.SummarizeSystemPrompt(filtered...).Markdown()
 
 	managerOpts := &tools.ManagerOpts{
 		ProjectPath:      session.Tools.ProjectPath,
 		SessionName:      sessionName,
-		ToolInitializers: []tools.Initializer{tools.NewPlanReadTool},
+		ToolInitializers: tools.SummarizeTools(),
 		WithPlanManager:  true,
 	}
 
@@ -629,7 +631,7 @@ func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 
 	newSession, err := llms.NewSession(&llms.SessionOpts{
 		Name:            sessionName,
-		SystemMessage:   session.SystemMessage,
+		SystemMessage:   systemMessage,
 		SystemAsMessage: session.SystemAsMessage,
 		Tools:           toolManager,
 	})
@@ -637,14 +639,9 @@ func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)
 	}
 
-	systemMessage := prompts.SummarizeSystemPrompt(filtered...).Markdown()
-	if err := newSession.SetSystemMessage(systemMessage); err != nil {
-		return nil, fmt.Errorf("failed to set new system message: %w", err)
-	}
-
 	userMessage := llms.SimpleMessage(llms.RoleUser, "Please proceed to summarizing the provided messages.")
 	if err := newSession.AddMessage(userMessage); err != nil {
-		return nil, fmt.Errorf("failed to add user summarization message: %w", err)
+		return nil, fmt.Errorf("failed to add user summarization message to summarization session: %w", err)
 	}
 
 	send := SendSessionMessage{
@@ -653,7 +650,7 @@ func (s *SummarizeHandler) Run(session *llms.Session) (tea.Cmd, error) {
 		Session:          newSession,
 	}
 
-	return send.Cmd(), nil
+	return MsgToCmd(send), nil
 }
 
 func (s *SummarizeHandler) filterMessages(messages []*llms.Message) []*llms.Message { //nolint:cyclop

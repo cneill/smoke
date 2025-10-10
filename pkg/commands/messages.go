@@ -5,15 +5,23 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 )
 
+type Message interface {
+	isCommandMessage()
+}
+
 // PromptCommandMessage contains the details of a prompt command sent by the user. It is not validated in advance.
 type PromptCommandMessage struct {
 	Command string
 	Args    []string
 }
 
+func (p PromptCommandMessage) isCommandMessage() {}
+
 type ErrorMessage struct {
 	Err error
 }
+
+func (e ErrorMessage) isCommandMessage() {}
 
 // HistoryUpdateMessage is used to send a message back from the prompt command handler to update the history UI.
 type HistoryUpdateMessage struct {
@@ -21,12 +29,7 @@ type HistoryUpdateMessage struct {
 	Message       string
 }
 
-// Cmd returns a tea.Cmd to update the history.
-func (h HistoryUpdateMessage) Cmd() tea.Cmd {
-	return func() tea.Msg {
-		return h
-	}
-}
+func (h HistoryUpdateMessage) isCommandMessage() {}
 
 // SessionUpdateMessage is used by a prompt command to update the session used by Smoke
 type SessionUpdateMessage struct {
@@ -36,12 +39,7 @@ type SessionUpdateMessage struct {
 	Message       string
 }
 
-// Cmd returns a tea.Cmd to update the session.
-func (s SessionUpdateMessage) Cmd() tea.Cmd {
-	return func() tea.Msg {
-		return s
-	}
-}
+func (s SessionUpdateMessage) isCommandMessage() {}
 
 // TODO: have a single mode message that returns a session update message in a tea.Batch
 
@@ -53,12 +51,7 @@ type PlanningModeMessage struct {
 	Session       *llms.Session
 }
 
-// Cmd returns a tea.Cmd to enable or disable planning mode.
-func (p PlanningModeMessage) Cmd() tea.Cmd {
-	return func() tea.Msg {
-		return p
-	}
-}
+func (p PlanningModeMessage) isCommandMessage() {}
 
 // ReviewModeMessage signals to Smoke to either enable or disable review mode.
 type ReviewModeMessage struct {
@@ -68,12 +61,7 @@ type ReviewModeMessage struct {
 	Session       *llms.Session
 }
 
-// Cmd returns a tea.Cmd to enable or disable review mode.
-func (r ReviewModeMessage) Cmd() tea.Cmd {
-	return func() tea.Msg {
-		return r
-	}
-}
+func (r ReviewModeMessage) isCommandMessage() {}
 
 // EditRequestMessage asks the UI to open a given file path in an editor, suspending the TUI.
 type EditRequestMessage struct {
@@ -84,10 +72,7 @@ type EditRequestMessage struct {
 	Description   string
 }
 
-// Cmd returns a tea.Cmd to send this message.
-func (e EditRequestMessage) Cmd() tea.Cmd {
-	return func() tea.Msg { return e }
-}
+func (e EditRequestMessage) isCommandMessage() {}
 
 // EditResultMessage reports the result of trying to open the editor for a given path.
 type EditResultMessage struct {
@@ -96,10 +81,7 @@ type EditResultMessage struct {
 	Err error
 }
 
-// Cmd returns a tea.Cmd to send this message.
-func (e EditResultMessage) Cmd() tea.Cmd {
-	return func() tea.Msg { return e }
-}
+func (e EditResultMessage) isCommandMessage() {}
 
 // SendSession is used to send a session to an LLM and get the response asynchronously.
 type SendSessionMessage struct {
@@ -108,8 +90,10 @@ type SendSessionMessage struct {
 	Session          *llms.Session
 }
 
-func (s SendSessionMessage) Cmd() tea.Cmd {
+func (s SendSessionMessage) isCommandMessage() {}
+
+func MsgToCmd(msg any) tea.Cmd {
 	return func() tea.Msg {
-		return s
+		return msg
 	}
 }
