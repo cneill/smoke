@@ -136,12 +136,8 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 		return nil, fmt.Errorf("failed to add user message to main session: %w", err)
 	}
 
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
-
 	slog.Debug("Starting conversation...")
 
-	// conversation := s.llm.StartConversation(ctx, session)
 	conversation := s.llm.StartConversation(context.Background(), session)
 	s.conversationMutex.Lock()
 	// TODO: support other conversations
@@ -157,7 +153,6 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 		wg := sync.WaitGroup{}
 		wg.Go(func() {
 			slog.Debug("Starting conversation loop...")
-			// s.conversationLoop(ctx, session, conversation)
 			s.conversationLoop(context.Background(), session, conversation)
 		})
 
@@ -279,86 +274,6 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 	}
 }
 
-// SendUserMessage appends 'msg' to the current [*llms.Session], invokes the [llms.LLM] to send that session to the
-// provider, then adds the response to the session as well.
-// func (s *Smoke) SendUserMessage(msg *llms.Message) (tea.Cmd, error) {
-// 	if err := s.session.AddMessage(msg); err != nil {
-// 		return nil, fmt.Errorf("failed to add user message: %w", err)
-// 	}
-//
-// 	send := func() tea.Msg {
-// 		// TODO: WithTimeout?
-// 		ctx, cancel := context.WithCancelCause(context.Background())
-//
-// 		defer func() {
-// 			cancel(nil)
-//
-// 			s.userMessageCancel = nil
-// 		}()
-// 		// TODO: handle multiple requests in-flight
-// 		s.userMessageCancel = cancel
-//
-// 		response, err := s.llm.SendSession(ctx, s.session)
-// 		if err != nil {
-// 			if errors.Is(err, context.Canceled) {
-// 				return AssistantResponseMessage{Err: fmt.Errorf("%w: %w", err, context.Cause(ctx))}
-// 			}
-//
-// 			return AssistantResponseMessage{Err: fmt.Errorf("failed to send session with user message: %w", err)}
-// 		}
-//
-// 		if err := s.session.AddMessage(response); err != nil {
-// 			return AssistantResponseMessage{Err: fmt.Errorf("failed to add assistant response message: %w", err)}
-// 		}
-//
-// 		return AssistantResponseMessage{Message: response}
-// 	}
-//
-// 	return send, nil
-// }
-
-// func (s *Smoke) SendUserMessageStreaming(msg *llms.Message, chunkChan chan *llms.Message) (tea.Cmd, error) {
-// 	llm, ok := s.llm.(llms.StreamingLLM)
-// 	if !ok {
-// 		return nil, fmt.Errorf("streaming is not supported by this LLM (%s, %s)", s.llmConfig.Provider, s.llmConfig.Model)
-// 	}
-//
-// 	if err := s.session.AddMessage(msg); err != nil {
-// 		return nil, fmt.Errorf("failed to add user message: %w", err)
-// 	}
-//
-// 	send := func() tea.Msg {
-// 		slog.Debug("sending session, starting streaming")
-//
-// 		// TODO: WithTimeout?
-// 		ctx, cancel := context.WithCancelCause(context.Background())
-// 		s.userMessageCancel = cancel
-//
-// 		defer func() {
-// 			cancel(nil)
-//
-// 			s.userMessageCancel = nil
-// 		}()
-//
-// 		response, err := llm.SendSessionStreaming(ctx, s.session, chunkChan)
-// 		if err != nil {
-// 			if errors.Is(err, context.Canceled) {
-// 				return AssistantResponseMessage{Err: fmt.Errorf("%w: %w", err, context.Cause(ctx))}
-// 			}
-//
-// 			return AssistantResponseMessage{Err: fmt.Errorf("failed to send session with user message: %w", err)}
-// 		}
-//
-// 		if err := s.session.AddMessage(response); err != nil {
-// 			return AssistantResponseMessage{Err: fmt.Errorf("failed to add assistant response message: %w", err)}
-// 		}
-//
-// 		return AssistantResponseMessage{Message: response}
-// 	}
-//
-// 	return send, nil
-// }
-
 // SendCommandMessage sends a session to the LLM when triggered by a prompt command.
 // TODO: better name
 // func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
@@ -419,66 +334,6 @@ func (s *Smoke) CancelUserMessage(err error) {
 
 	delete(s.conversations, s.mainSessionName)
 }
-
-// HandleAssistantToolCalls invokes the [llms.LLM] to execute any tools called within the last assistant message and
-// returns the resulting [*llms.Message] objects.
-// func (s *Smoke) HandleAssistantToolCalls(msg *llms.Message) (tea.Cmd, error) {
-// 	if !msg.HasToolCalls() {
-// 		return nil, llms.ErrNoToolCalls
-// 	}
-//
-// 	handle := func() tea.Msg {
-// 		results, err := s.llm.HandleToolCalls(context.Background(), msg, s.session)
-// 		if err != nil {
-// 			return ToolCallResponseMessage{Err: fmt.Errorf("error handling tool calls: %w", err)}
-// 		}
-//
-// 		return ToolCallResponseMessage{Messages: results}
-// 	}
-//
-// 	return handle, nil
-// }
-
-// HandleToolCallResults receives the slice of [*llms.Message] resulting from one or more tool calls by the [llms.LLM],
-// adds these to the current [*llms.Session], and sends the session to the provider. It then appends the response to the
-// current session.
-// func (s *Smoke) HandleToolCallResults(messages []*llms.Message) (tea.Cmd, error) {
-// 	for i, message := range messages {
-// 		if err := s.session.AddMessage(message); err != nil {
-// 			return nil, fmt.Errorf("failed to add message for tool call %d: %w", i, err)
-// 		}
-// 	}
-//
-// 	handle := func() tea.Msg {
-// 		ctx, cancel := context.WithCancelCause(context.Background())
-//
-// 		defer func() {
-// 			cancel(nil)
-//
-// 			s.userMessageCancel = nil
-// 		}()
-//
-// 		s.userMessageCancel = cancel
-//
-// 		// TODO: combine SendUserMessage + this in a more coherent way?
-// 		response, err := s.llm.SendSession(ctx, s.session)
-// 		if err != nil {
-// 			if errors.Is(err, context.Canceled) {
-// 				return AssistantResponseMessage{Err: fmt.Errorf("%w: %w", err, context.Cause(ctx))}
-// 			}
-//
-// 			return AssistantResponseMessage{Err: fmt.Errorf("failed to send session with tool call results: %w", err)}
-// 		}
-//
-// 		if err := s.session.AddMessage(response); err != nil {
-// 			return AssistantResponseMessage{Err: fmt.Errorf("failed to add assistant response to tool call: %w", err)}
-// 		}
-//
-// 		return AssistantResponseMessage{Message: response}
-// 	}
-//
-// 	return handle, nil
-// }
 
 // GetMessages returns the set of all [*llms.Message] attached to the current [*llms.Session]
 func (s *Smoke) GetMessages() []*llms.Message {
@@ -547,24 +402,6 @@ func (s *Smoke) CommandCompleter() func(string) []string {
 func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedreturns
 	return s.getMainSession().Usage()
 }
-
-// func (s *Smoke) ShouldStream() bool {
-// 	// TODO: additional toggle switch for this behavior from CLI flags / env vars / config file
-//
-// 	// GPT-5 requires org verification with a photo ID
-// 	// if s.llm.LLMInfo().Type == llms.LLMTypeChatGPT {
-// 	// 	if strings.Contains(s.llm.LLMInfo().ModelName, "gpt-5") {
-// 	// 		return false
-// 	// 	}
-// 	// }
-// 	//
-// 	// _, ok := s.llm.(llms.StreamingLLM)
-// 	//
-// 	// return ok
-//
-// 	// TODO: fix this!!
-// 	return false
-// }
 
 func (s *Smoke) getMainSession() *llms.Session {
 	s.sessionMutex.RLock()
