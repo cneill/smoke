@@ -58,6 +58,25 @@ func (c *conversation) newMessage(opts ...llms.MessageOpt) *llms.Message {
 	return msg
 }
 
+func (c *conversation) waitForContinue(ctx context.Context) error {
+	select {
+	case <-c.continueChan:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("context error while waiting for continue: %w", ctx.Err())
+	}
+}
+
+// func (c *conversation) emit(ctx context.Context, e llms.Event) bool {
+func (c *conversation) emit(ctx context.Context, e llms.Event) {
+	select {
+	case c.eventChan <- e:
+		// return true
+	case <-ctx.Done():
+		// return false
+	}
+}
+
 func (c *conversation) run(ctx context.Context) {
 	defer close(c.eventChan)
 
@@ -337,23 +356,4 @@ func (c *conversation) handleResponse(ctx context.Context, id string, response o
 	}
 
 	return nil
-}
-
-func (c *conversation) waitForContinue(ctx context.Context) error {
-	select {
-	case <-c.continueChan:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("context error while waiting for continue: %w", ctx.Err())
-	}
-}
-
-// func (c *conversation) emit(ctx context.Context, e llms.Event) bool {
-func (c *conversation) emit(ctx context.Context, e llms.Event) {
-	select {
-	case c.eventChan <- e:
-		// return true
-	case <-ctx.Done():
-		// return false
-	}
 }

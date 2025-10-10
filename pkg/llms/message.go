@@ -17,35 +17,12 @@ type Message struct {
 	Content string `json:"content,omitempty"`
 	Error   error  `json:"error,omitempty"`
 
-	// ToolsCalled contains the names of tools the assistant requested to use.
-	// ToolsCalled []string `json:"tools_called,omitempty"`
-	// ToolCallInfo contains the raw representation of the tool call information from the assistant.
-	// TODO: hide this in JSON marshalling?
-	// ToolCallInfo any `json:"tool_call_info,omitempty,omitzero"`
-
-	// Assistant-side: Tool calls from the LLM
-
 	// ToolCalls holds all tool calls made by the provider in Assistant messages and the details of the (one) original
 	// Assistant call for Tool messages.
 	ToolCalls ToolCalls `json:"tool_calls,omitempty"`
 
-	// Tool-side: results from tool calls
-	// ToolCallID is the ID associated with the assistant's tool use request.
-	// ToolCallID string `json:"tool_call_id,omitempty"` // TODO: Should this be a []string?
-	// ToolCallArgs are the arguments provided by the assistant to the specified tool.
-	// ToolCallArgs tools.Args `json:"tool_call_args,omitempty"`
-
 	// LLMInfo contains details about the LLM that generated the assistant message
 	LLMInfo *LLMInfo `json:"llm_info,omitempty"`
-
-	// IsStreamed tells us whether this response was streamed from the LLM provider. Defaults to false.
-	// IsStreamed bool `json:"is_streamed"`
-	// IsInitial signals that this is the FIRST streamed message which will be updated subsequently.
-	// IsInitial bool `json:"is_initial"`
-	// IsChunk tells us whether this message is a full one or just a chunk that has been streamed from the provider.
-	// IsChunk bool `json:"is_chunk"`
-	// IsFinalized tells us whether this streamed message has all its chunks.
-	// IsFinalized bool `json:"is_finalized"`
 }
 
 func NewMessage(opts ...MessageOpt) *Message {
@@ -219,40 +196,12 @@ func WithRole(role Role) MessageOpt {
 	}
 }
 
-// func WithToolsCalled(toolNames ...string) MessageOpt {
-// 	return func(message *Message) *Message {
-// 		message.ToolsCalled = toolNames
-// 		return message
-// 	}
-// }
-
-// func WithToolCallInfo(toolCallInfo any) MessageOpt {
-// 	return func(message *Message) *Message {
-// 		message.ToolCallInfo = toolCallInfo
-// 		return message
-// 	}
-// }
-
 func WithToolCalls(toolCalls ...ToolCall) MessageOpt {
 	return func(message *Message) *Message {
 		message.ToolCalls = toolCalls
 		return message
 	}
 }
-
-// func WithToolCallID(toolCallID string) MessageOpt {
-// 	return func(message *Message) *Message {
-// 		message.ToolCallID = toolCallID
-// 		return message
-// 	}
-// }
-//
-// func WithToolCallArgs(args tools.Args) MessageOpt {
-// 	return func(message *Message) *Message {
-// 		message.ToolCallArgs = args
-// 		return message
-// 	}
-// }
 
 func WithError(err error) MessageOpt {
 	return func(message *Message) *Message {
@@ -268,27 +217,6 @@ func WithLLMInfo(info *LLMInfo) MessageOpt {
 	}
 }
 
-// func WithIsStreamed(isStreamed bool) MessageOpt {
-// 	return func(message *Message) *Message {
-// 		message.IsStreamed = isStreamed
-// 		return message
-// 	}
-// }
-
-// func WithIsInitial(isInitial bool) MessageOpt {
-// 	return func(message *Message) *Message {
-// 		message.IsInitial = isInitial
-// 		return message
-// 	}
-// }
-
-// func WithIsChunk(isChunk bool) MessageOpt {
-// 	return func(message *Message) *Message {
-// 		message.IsChunk = isChunk
-// 		return message
-// 	}
-// }
-
 func WithChunkContent(content string) MessageOpt {
 	return func(message *Message) *Message {
 		// TODO: mutex?
@@ -296,13 +224,6 @@ func WithChunkContent(content string) MessageOpt {
 		return message
 	}
 }
-
-// func WithIsFinalized(isFinalized bool) MessageOpt {
-// 	return func(message *Message) *Message {
-// 		message.IsFinalized = isFinalized
-// 		return message
-// 	}
-// }
 
 const idChars = "abcdef0123456789"
 
