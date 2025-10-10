@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/llms/chatgpt"
+	"github.com/cneill/smoke/pkg/providers/chatgpt"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 )

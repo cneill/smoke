@@ -8,10 +8,10 @@ import (
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/llms/chatgpt"
-	"github.com/cneill/smoke/pkg/llms/claude"
-	"github.com/cneill/smoke/pkg/llms/grok"
 	"github.com/cneill/smoke/pkg/mcp"
+	"github.com/cneill/smoke/pkg/providers/chatgpt"
+	"github.com/cneill/smoke/pkg/providers/claude"
+	"github.com/cneill/smoke/pkg/providers/grok"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
