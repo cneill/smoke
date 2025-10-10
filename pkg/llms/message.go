@@ -106,23 +106,9 @@ func (m *Message) LogValue() slog.Value {
 		slog.Bool("has_tool_calls", m.HasToolCalls()),
 	}
 
-	// TODO: flesh out tool calls
-	// if m.HasToolCalls() {
-	// 	toolCallAttrs := []slog.Attr{
-	// 		slog.String("tools_called", strings.Join(m.ToolsCalled, ",")),
-	// 		slog.String("tool_call_id", m.ToolCallID),
-	// 	}
-	//
-	// 	if m.ToolCallInfo != nil {
-	// 		toolCallAttrs = append(toolCallAttrs, slog.Any("call_info", m.ToolCallInfo))
-	// 	}
-	//
-	// 	if m.ToolCallArgs != nil {
-	// 		toolCallAttrs = append(toolCallAttrs, slog.Any("args", m.ToolCallArgs))
-	// 	}
-	//
-	// 	attrs = append(attrs, slog.GroupAttrs("tool_calls", toolCallAttrs...))
-	// }
+	if m.HasToolCalls() {
+		attrs = append(attrs, slog.Any("tool_calls", m.ToolCalls))
+	}
 
 	if m.Error != nil {
 		attrs = append(attrs, slog.String("error", m.Error.Error()))
@@ -131,16 +117,6 @@ func (m *Message) LogValue() slog.Value {
 	if m.LLMInfo != nil {
 		attrs = append(attrs, slog.Any("llm_info", m.LLMInfo))
 	}
-
-	// if m.IsStreamed {
-	// 	streamAttrs := []slog.Attr{
-	// 		slog.Bool("is_initial", m.IsInitial),
-	// 		slog.Bool("is_chunk", m.IsChunk),
-	// 		slog.Bool("is_finalized", m.IsFinalized),
-	// 	}
-	//
-	// 	attrs = append(attrs, slog.GroupAttrs("streaming", streamAttrs...))
-	// }
 
 	attrs = append(attrs, slog.String("content", m.Content))
 

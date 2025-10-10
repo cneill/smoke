@@ -19,14 +19,7 @@ type LLM interface {
 	LLMInfo() *LLMInfo
 	StartConversation(ctx context.Context, session *Session) Conversation
 	RequiresSessionSystem() bool
-	// SendSession(ctx context.Context, s *Session) (*Message, error)
-	// HandleToolCalls(ctx context.Context, msg *Message, s *Session) ([]*Message, error)
 }
-
-// type StreamingLLM interface {
-// 	LLM
-// 	SendSessionStreaming(ctx context.Context, s *Session, chunkChan chan<- *Message) (*Message, error)
-// }
 
 type Initializer func(config *Config) (LLM, error)
 

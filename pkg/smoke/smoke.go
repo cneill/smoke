@@ -260,6 +260,8 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 						slog.Error("failed to add tool call result message to session", "error", err)
 						conversation.Cancel(err)
 					}
+
+					slog.Debug("Got assistant tool call message", "message", event.Message)
 				}
 
 				if err := conversation.Continue(ctx); err != nil {
