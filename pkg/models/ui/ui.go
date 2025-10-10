@@ -40,8 +40,6 @@ type Model struct {
 	banner  *banner.Model
 	history *history.Model
 	input   *input.Model
-
-	chunkChan chan (*llms.Message)
 }
 
 func New(opts *Opts) (*Model, error) {

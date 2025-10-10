@@ -73,10 +73,8 @@ func (m *Message) Clone() *Message {
 	}
 
 	if m.LLMInfo != nil {
-		newMessage.LLMInfo = &LLMInfo{
-			Type:      m.LLMInfo.Type,
-			ModelName: m.LLMInfo.ModelName,
-		}
+		temp := *m.LLMInfo
+		newMessage.LLMInfo = &temp
 	}
 
 	return &newMessage

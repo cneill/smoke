@@ -76,18 +76,6 @@ func (a Args) String() string {
 	return string(argBytes)
 }
 
-// PrettyString gives a string representation of [Args] for use in the history viewport.
-// func (a Args) PrettyString() string {
-// 	resultBuilder := &strings.Builder{}
-// 	for key, val := range a {
-// 		fmt.Fprintf(resultBuilder, "%s=%v, ", key, val)
-// 	}
-//
-// 	result := strings.TrimSuffix(resultBuilder.String(), ", ")
-//
-// 	return result
-// }
-
 // GetString checks whether the argument matching 'key' is either a string or a [fmt.Stringer] and returns the string
 // value if applicable, or nil if it is undefined or of another tpye.
 func (a Args) GetString(key string) *string {
