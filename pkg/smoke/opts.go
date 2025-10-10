@@ -10,6 +10,7 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/llms/chatgpt"
 	"github.com/cneill/smoke/pkg/llms/claude"
+	"github.com/cneill/smoke/pkg/llms/grok"
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/tools"
 )
@@ -118,8 +119,8 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 			llm, err = chatgpt.New(config)
 		case llms.LLMTypeClaude:
 			llm, err = claude.New(config)
-		// case llms.LLMTypeGrok:
-		// 	llm, err = grok.New(config)
+		case llms.LLMTypeGrok:
+			llm, err = grok.New(config)
 		default:
 			err = fmt.Errorf("unknown provider: %s", config.Provider)
 		}

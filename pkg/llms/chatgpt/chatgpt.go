@@ -4,7 +4,6 @@ package chatgpt
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"github.com/cneill/smoke/pkg/llms"
@@ -13,9 +12,8 @@ import (
 )
 
 type ChatGPT struct {
-	config *llms.Config
-	logger *slog.Logger
-	client openai.Client
+	Config *llms.Config
+	Client openai.Client
 }
 
 func configOK(config *llms.Config) error {
@@ -40,9 +38,8 @@ func New(config *llms.Config) (llms.LLM, error) {
 	)
 
 	chatGPT := &ChatGPT{
-		config: config,
-		logger: slog.Default().WithGroup(llms.LLMTypeChatGPT),
-		client: client,
+		Config: config,
+		Client: client,
 	}
 
 	return chatGPT, nil
@@ -51,7 +48,7 @@ func New(config *llms.Config) (llms.LLM, error) {
 func (c *ChatGPT) LLMInfo() *llms.LLMInfo {
 	return &llms.LLMInfo{
 		Type:      llms.LLMTypeChatGPT,
-		ModelName: c.config.Model,
+		ModelName: c.Config.Model,
 	}
 }
 func (c *ChatGPT) RequiresSessionSystem() bool { return true }
@@ -67,8 +64,8 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 		continueChan: make(chan struct{}),
 		session:      session, // TODO: read-only view
 		llmInfo:      c.LLMInfo(),
-		client:       c.client,
-		config:       c.config,
+		client:       c.Client,
+		config:       c.Config,
 	}
 
 	go conv.run(newCtx)
@@ -78,7 +75,7 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 
 func (c *ChatGPT) shouldStream() bool {
 	// GPT-5 requires photo ID verification for streaming...
-	return !strings.Contains(c.config.Model, "gpt-5")
+	return !strings.Contains(c.Config.Model, "gpt-5")
 }
 
 // func (c *ChatGPT) SendSession(ctx context.Context, session *llms.Session) (*llms.Message, error) {
