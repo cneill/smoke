@@ -221,6 +221,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.handleAssistantResponse(msg))
 	case smoke.AssistantUpdatedStreamMessage:
 		cmds = append(cmds, m.handleAssistantUpdatedStream(msg))
+	case smoke.UsageUpdateMessage:
+		slog.Debug("GOT USAGE UPDATE", "input_tokens", msg.InputTokens, "output_tokens", msg.OutputTokens)
+		m.input.UpdateUsage(msg.InputTokens, msg.OutputTokens)
 	case smoke.ToolCallResponseMessage:
 		cmds = append(cmds, m.handleToolCallResponse(msg))
 	}

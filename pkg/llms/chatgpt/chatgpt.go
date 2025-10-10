@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/openai/openai-go/v2"
-	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/option"
 )
 
 type ChatGPT struct {
@@ -66,6 +66,7 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 		eventChan:    make(chan llms.Event),
 		continueChan: make(chan struct{}),
 		session:      session, // TODO: read-only view
+		llmInfo:      c.LLMInfo(),
 		client:       c.client,
 		config:       c.config,
 	}

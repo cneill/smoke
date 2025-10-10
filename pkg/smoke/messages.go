@@ -11,9 +11,13 @@ type AssistantResponseMessage struct {
 	Err     error
 }
 
-// TODO: need this?
 type AssistantUpdatedStreamMessage struct {
 	Message *llms.Message
+}
+
+type UsageUpdateMessage struct {
+	InputTokens  int64
+	OutputTokens int64
 }
 
 type ToolCallResponseMessage struct {

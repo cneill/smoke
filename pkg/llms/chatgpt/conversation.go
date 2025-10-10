@@ -7,8 +7,8 @@ import (
 
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/openai/openai-go/v2"
-	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/option"
 )
 
 const maxIterations = 2048
@@ -20,6 +20,7 @@ type conversation struct {
 	eventChan    chan llms.Event
 	continueChan chan struct{}
 	session      *llms.Session // TODO: read-only snapshot of Session as provided by Smoke
+	llmInfo      *llms.LLMInfo
 	client       openai.Client
 	config       *llms.Config
 
@@ -28,13 +29,9 @@ type conversation struct {
 
 func (c *conversation) ID() string { return c.id }
 
-func (c *conversation) Events() <-chan llms.Event {
-	return c.eventChan
-}
+func (c *conversation) Events() <-chan llms.Event { return c.eventChan }
 
-func (c *conversation) Cancel(err error) {
-	c.cancel(err)
-}
+func (c *conversation) Cancel(err error) { c.cancel(err) }
 
 func (c *conversation) Continue(ctx context.Context) error {
 	select {
@@ -49,16 +46,9 @@ func (c *conversation) Close() {
 	c.cancel(nil)
 }
 
-func (c *conversation) llmInfo() *llms.LLMInfo {
-	return &llms.LLMInfo{
-		Type:      llms.LLMTypeChatGPT,
-		ModelName: c.config.Model,
-	}
-}
-
 func (c *conversation) newMessage(opts ...llms.MessageOpt) *llms.Message {
 	msg := llms.NewMessage(
-		llms.WithLLMInfo(c.llmInfo()),
+		llms.WithLLMInfo(c.llmInfo),
 	)
 
 	for _, opt := range opts {
