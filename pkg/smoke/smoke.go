@@ -85,6 +85,8 @@ func New(opts ...OptFunc) (*Smoke, error) {
 		return nil, fmt.Errorf("%w: %w", ErrOptions, err)
 	}
 
+	smoke.setupCommands()
+
 	// Once we've set up the session / etc, add MCP tools as well, if any
 	mcpTools, err := smoke.getMCPTools()
 	if err != nil {
@@ -385,7 +387,7 @@ func (s *Smoke) SetMode(mode Mode) {
 }
 
 // HandleCommand invokes a prompt command provided by the user.
-func (s *Smoke) HandleCommand(msg commands.PromptCommandMessage) (tea.Cmd, error) {
+func (s *Smoke) HandleCommand(msg commands.PromptMessage) (tea.Cmd, error) {
 	cmd, err := s.commands.HandleCommand(s.getMainSession(), msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute prompt command %q: %w", msg.Command, err)

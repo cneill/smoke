@@ -529,7 +529,7 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 		args = fields[1:]
 	}
 
-	return wrapMsg(commands.PromptCommandMessage{
+	return wrapMsg(commands.PromptMessage{
 		Command: cmdName,
 		Args:    args,
 	})

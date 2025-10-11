@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLog_AddMessage_Chunked(t *testing.T) {
+func TestLog_AddMessage_Update(t *testing.T) {
 	t.Parallel()
 
 	id := "testID"
@@ -19,13 +19,16 @@ func TestLog_AddMessage_Chunked(t *testing.T) {
 	baseOpts := []llms.MessageOpt{
 		llms.WithID(id),
 		llms.WithRole(llms.RoleUser),
-		llms.WithIsStreamed(true),
+	}
+
+	newMessage := func(opts ...llms.MessageOpt) *llms.Message {
+		return llms.NewMessage(append(baseOpts, opts...)...)
 	}
 
 	messages := []*llms.Message{
-		llms.NewMessage(append(baseOpts, llms.WithContent("hello"), llms.WithIsInitial(true), llms.WithIsChunk(true))...),
-		llms.NewMessage(append(baseOpts, llms.WithContent("hello there"), llms.WithIsChunk(true))...),
-		llms.NewMessage(append(baseOpts, llms.WithContent("hello there, beautiful"), llms.WithIsFinalized(true))...),
+		newMessage(llms.WithContent("hello")),
+		newMessage(llms.WithContent("hello there")),
+		newMessage(llms.WithContent("hello there, beautiful")),
 	}
 
 	for _, message := range messages {
@@ -43,27 +46,15 @@ func TestLog_AddMessage_Chunked(t *testing.T) {
 	assert.Equal(t, id, llmMsg.ID)
 	assert.Equal(t, "hello there, beautiful", llmMsg.Content)
 
-	log.AddMessage(
-		llms.NewMessage(append(baseOpts, llms.WithContent("hello there invalid"), llms.WithIsChunk(true))...),
-	)
-
-	// make sure we didn't modify the finalized message
-	assert.Len(t, resultMsgs, 2)
-
-	currentLLMMessage, ok := resultMsgs[0].(*llms.Message)
-	assert.True(t, ok)
-	assert.Equal(t, id, currentLLMMessage.ID)
-	assert.Equal(t, "hello there, beautiful", currentLLMMessage.Content)
+	_, isErr := resultMsgs[1].(error)
+	assert.True(t, isErr)
 
 	log.AddMessage(
 		llms.NewMessage(
 			llms.WithID("unknown"),
-			llms.WithIsStreamed(true),
-			llms.WithIsChunk(true),
 			llms.WithContent("unknown id"),
 		),
 	)
 
-	// make sure we threw away the chunk message with an unknown ID
-	assert.Len(t, resultMsgs, 2)
+	assert.Len(t, log.Messages(), 3)
 }

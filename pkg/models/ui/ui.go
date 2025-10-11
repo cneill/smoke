@@ -228,7 +228,7 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {
-	case commands.PromptCommandMessage:
+	case commands.PromptMessage:
 		cmd, err := m.smoke.HandleCommand(msg)
 		if err != nil {
 			cmds = append(cmds, updateHistory(err))

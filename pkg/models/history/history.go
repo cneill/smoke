@@ -283,14 +283,14 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 		info.useMarkdown = true
 
 	case commands.SessionUpdateMessage:
-		switch msg.PromptCommand.Command {
+		switch msg.PromptMessage.Command {
 		case commands.CommandSession:
 			info.title = "Started new session"
 		case commands.CommandLoad:
 			sessionFile := "<unknown>"
 
-			if len(msg.PromptCommand.Args) > 0 {
-				sessionFile = msg.PromptCommand.Args[0]
+			if len(msg.PromptMessage.Args) > 0 {
+				sessionFile = msg.PromptMessage.Args[0]
 			}
 
 			info.title = "Loaded session from file " + sessionFile

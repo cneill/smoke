@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/mcp"
@@ -18,7 +17,7 @@ import (
 // OptFunc is used to configure aspects of Smoke.
 type OptFunc func(smoke *Smoke) (*Smoke, error)
 
-// WithProjectPath sets the directory we'll work from, and configures the tools and commands managers.
+// WithProjectPath sets the directory we'll work from.
 func WithProjectPath(path string) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		absPath, err := filepath.Abs(path)
@@ -36,7 +35,6 @@ func WithProjectPath(path string) OptFunc {
 		}
 
 		smoke.projectPath = absPath
-		smoke.commands = commands.NewManager(absPath)
 
 		return smoke, nil
 	}
