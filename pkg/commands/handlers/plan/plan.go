@@ -18,6 +18,8 @@ const Name = "plan"
 // ModeMessage signals to Smoke to either enable or disable planning mode.
 // TODO: have a single mode message that returns a session update message in a tea.Batch
 type ModeMessage struct {
+	commands.MessageType
+
 	PromptMessage commands.PromptMessage
 	Enabled       bool
 	Message       string

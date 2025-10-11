@@ -13,6 +13,10 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/commands/handlers/load"
+	"github.com/cneill/smoke/pkg/commands/handlers/plan"
+	"github.com/cneill/smoke/pkg/commands/handlers/review"
+	"github.com/cneill/smoke/pkg/commands/handlers/session"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/wordwrap"
@@ -205,7 +209,7 @@ func (m *Model) logContent() string {
 		switch item := item.(type) {
 		case *llms.Message:
 			info = renderLLMMessage(item, info)
-		case commands.HistoryUpdateMessage, commands.SessionUpdateMessage, commands.PlanningModeMessage, commands.ReviewModeMessage:
+		case commands.HistoryUpdateMessage, commands.SessionUpdateMessage, plan.ModeMessage, review.ModeMessage:
 			info = renderCommandMessage(item, info)
 
 		case error:
@@ -275,7 +279,7 @@ func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
 func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 	switch msg := msg.(type) {
 	case commands.HistoryUpdateMessage:
-		info.title = msg.PromptCommand.Command + " command result"
+		info.title = msg.PromptMessage.Command + " command result"
 		info.titleStyle = info.titleStyle.
 			Foreground(lipgloss.Color("#dd9911"))
 		info.content = msg.Message
@@ -284,9 +288,9 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 
 	case commands.SessionUpdateMessage:
 		switch msg.PromptMessage.Command {
-		case commands.CommandSession:
+		case session.Name:
 			info.title = "Started new session"
-		case commands.CommandLoad:
+		case load.Name:
 			sessionFile := "<unknown>"
 
 			if len(msg.PromptMessage.Args) > 0 {
@@ -302,7 +306,7 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 			Foreground(lipgloss.Color("#ffffff"))
 		info.content = msg.Message
 
-	case commands.PlanningModeMessage:
+	case plan.ModeMessage:
 		if msg.Enabled {
 			info.titleStyle = info.titleStyle.
 				Foreground(lipgloss.Color("#550011"))
@@ -315,7 +319,7 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 		info.subtitle = msg.Message
 
 		// TODO: handle mode messages more elegantly
-	case commands.ReviewModeMessage:
+	case review.ModeMessage:
 		if msg.Enabled {
 			info.titleStyle = info.titleStyle.
 				Foreground(lipgloss.Color("#550011"))

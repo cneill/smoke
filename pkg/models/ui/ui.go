@@ -12,6 +12,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/commands/handlers/edit"
+	"github.com/cneill/smoke/pkg/commands/handlers/plan"
+	"github.com/cneill/smoke/pkg/commands/handlers/review"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
@@ -263,7 +266,7 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 			cmds = append(cmds, resetHistory)
 		}
 
-	case commands.PlanningModeMessage:
+	case plan.ModeMessage:
 		if err := m.smoke.SetSession(msg.Session); err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for planning mode switch: %w", err)))
 			break
@@ -278,7 +281,7 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 		cmds = append(cmds, updateHistory(msg))
 		// TODO: do away with these separate mode messages, unify them with session update message?
 
-	case commands.ReviewModeMessage:
+	case review.ModeMessage:
 		if err := m.smoke.SetSession(msg.Session); err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for review mode switch: %w", err)))
 			break
@@ -292,25 +295,25 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 
 		cmds = append(cmds, updateHistory(msg))
 
-	case commands.EditRequestMessage:
+	case edit.RequestMessage:
 		slog.Debug("got request to open temp file in editor", "file_path", msg.Path, "description", msg.Description, "editor", msg.Editor)
 
 		execCmd := exec.CommandContext(context.TODO(), msg.Editor, msg.Path) //nolint:gosec // Already sanitized
 		teaCmd := tea.ExecProcess(execCmd, func(err error) tea.Msg {
-			return commands.EditResultMessage{
-				EditRequestMessage: msg,
-				Err:                err,
+			return edit.ResultMessage{
+				RequestMessage: msg,
+				Err:            err,
 			}
 		})
 
 		cmds = append(cmds, teaCmd)
 
-	case commands.EditResultMessage:
+	case edit.ResultMessage:
 		if msg.Err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("edit failed: %w", msg.Err)))
 		} else {
 			msg := commands.HistoryUpdateMessage{
-				PromptCommand: msg.PromptCommand,
+				PromptMessage: msg.PromptMessage,
 				Message:       "Opened file " + msg.Path + " with " + msg.Editor,
 			}
 
