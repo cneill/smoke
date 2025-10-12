@@ -4,10 +4,13 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 )
 
+// Message is a simple interface to identify all messages that originate from prompt commands.
 type Message interface {
 	isCommandMessage()
 }
 
+// MessageType is a helper type that implements Message so that individual message structs in other packages can
+// be identified as commands.Message.
 type MessageType struct{}
 
 func (m MessageType) isCommandMessage() {}

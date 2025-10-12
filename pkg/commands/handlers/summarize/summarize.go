@@ -13,8 +13,6 @@ import (
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/prompts"
-	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
@@ -26,6 +24,13 @@ const (
 	summarizeBefore = "before"
 	summarizeAfter  = "after"
 )
+
+type SessionSummarizeMessage struct {
+	commands.MessageType
+
+	PromptMessage    commands.PromptMessage
+	OriginalMessages []*llms.Message
+}
 
 type Summarize struct {
 	PromptMessage commands.PromptMessage
@@ -82,45 +87,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 func (s *Summarize) Name() string { return Name }
 
 func (s *Summarize) Run(session *llms.Session) (tea.Cmd, error) {
-	// TODO: make a read-only view of messages...
+	// TODO: make a read-only view of messages...?
 	filtered := s.filterMessages(session.Messages)
-	sessionName := session.Name + "_summary"
-	systemMessage := prompts.SummarizeSystemPrompt(filtered...).Markdown()
-
-	managerOpts := &tools.ManagerOpts{
-		ProjectPath:      session.Tools.ProjectPath,
-		SessionName:      sessionName,
-		ToolInitializers: tools.SummarizeTools(),
-		WithPlanManager:  true,
-	}
-
-	toolManager, err := tools.NewManager(managerOpts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize tools manager for summarization: %w", err)
-	}
-
-	newSession, err := llms.NewSession(&llms.SessionOpts{
-		Name:            sessionName,
-		SystemMessage:   systemMessage,
-		SystemAsMessage: session.SystemAsMessage,
-		Tools:           toolManager,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)
-	}
-
-	userMessage := llms.SimpleMessage(llms.RoleUser, "Please proceed to summarizing the provided messages.")
-	if err := newSession.AddMessage(userMessage); err != nil {
-		return nil, fmt.Errorf("failed to add user summarization message to summarization session: %w", err)
-	}
-
-	send := commands.SendSessionMessage{
+	msg := SessionSummarizeMessage{
 		PromptMessage:    s.PromptMessage,
 		OriginalMessages: filtered,
-		Session:          newSession,
 	}
 
-	return uimsg.MsgToCmd(send), nil
+	return uimsg.MsgToCmd(msg), nil
 }
 
 func (s *Summarize) filterMessages(messages []*llms.Message) []*llms.Message { //nolint:cyclop

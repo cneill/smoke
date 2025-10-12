@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/mattn/go-runewidth"
 )
@@ -451,7 +452,7 @@ func (m *Model) handleWaitingKey(msg tea.KeyMsg) tea.Cmd {
 	if msg.Type == tea.KeyEsc {
 		m.waiting = false
 
-		return wrapMsg(CancelUserMessage{
+		return uimsg.MsgToCmd(CancelUserMessage{
 			SourceID: MainSourceID,
 			Err:      fmt.Errorf("user aborted request"),
 		})
@@ -509,7 +510,7 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 		return m.handlePromptCommand(content)
 	}
 
-	return wrapMsg(UserMessage{
+	return uimsg.MsgToCmd(UserMessage{
 		SourceID: MainSourceID,
 		Content:  content,
 	})
@@ -529,14 +530,8 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 		args = fields[1:]
 	}
 
-	return wrapMsg(commands.PromptMessage{
+	return uimsg.MsgToCmd(commands.PromptMessage{
 		Command: cmdName,
 		Args:    args,
 	})
-}
-
-func wrapMsg(msg tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		return msg
-	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/edit"
 	"github.com/cneill/smoke/pkg/commands/handlers/plan"
 	"github.com/cneill/smoke/pkg/commands/handlers/review"
+	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
@@ -231,6 +232,7 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {
+	// This is the message we receive from the input model to execute a prompt command.
 	case commands.PromptMessage:
 		cmd, err := m.smoke.HandleCommand(msg)
 		if err != nil {
@@ -320,22 +322,17 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 			cmds = append(cmds, updateHistory(msg))
 		}
 
-		// case commands.SendSessionMessage:
-		// 	if cmd := m.smoke.SendCommandMessage(msg); cmd != nil {
-		// 		cmds = append(cmds, cmd)
-		// 	}
+	case summarize.SessionSummarizeMessage:
+		cmd, err := m.smoke.HandleSummarizeMessage(msg)
+		if err != nil {
+			cmds = append(cmds, updateHistory(err))
+		} else {
+			cmds = append(cmds, cmd)
+		}
 	}
 
 	return tea.Batch(cmds...)
 }
-
-// func (m *Model) handleSendCommandMessage(msg smoke.SendCommandMessageResponseMessage) tea.Cmd {
-// 	if msg.Err != nil {
-// 		return updateHistory(fmt.Errorf("error sending LLM message from command: %w", msg.Err))
-// 	}
-//
-// 	return m.smoke.HandleCommandMessageResponse(msg)
-// }
 
 // updateHistory is a helper function that takes any item and returns a tea.Cmd that will add it to the history
 // viewport.
