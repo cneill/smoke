@@ -101,7 +101,7 @@ func WorkSystemPrompt() *Prompt {
 }
 
 // ReviewSystemPrompt builds the review system prompt using the new builder/AST.
-func ReviewSystemPrompt() *Prompt { //nolint:funlen
+func ReviewSystemPrompt() *Prompt {
 	builder := NewBuilder("review_system")
 	builder.ApplyPreset(SystemPreset(), Append)
 

@@ -183,7 +183,7 @@ func TestManagerCompletionTracking(t *testing.T) {
 	assert.Equal(t, plan.CompletionStatusSuccess, completed[task1ID])
 }
 
-func TestManagerHandleInvalidItems(t *testing.T) {
+func TestManagerHandleInvalidItems(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tests := []struct {
