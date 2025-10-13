@@ -33,9 +33,10 @@ type Smoke struct {
 	mode        Mode
 	projectPath string
 
-	mainSessionName string
-	sessions        map[string]*llms.Session
-	sessionMutex    sync.RWMutex
+	mainSessionName  string
+	mainSystemPrompt string
+	sessions         map[string]*llms.Session
+	sessionMutex     sync.RWMutex
 
 	conversations     map[string]llms.Conversation
 	conversationMutex sync.RWMutex
@@ -60,9 +61,11 @@ func (s *Smoke) OK() error {
 	switch {
 	case s.projectPath == "":
 		return fmt.Errorf("no project path set")
-	case s.getMainSession() == nil:
-		return fmt.Errorf("no session info set")
-	case s.llmConfig == nil || s.llm == nil:
+	case s.mainSessionName == "":
+		return fmt.Errorf("no main session name set")
+	case s.mainSystemPrompt == "":
+		return fmt.Errorf("no main system prompt set")
+	case s.llmConfig == nil:
 		return fmt.Errorf("no LLM config set")
 	}
 
@@ -71,6 +74,7 @@ func (s *Smoke) OK() error {
 
 func New(opts ...OptFunc) (*Smoke, error) {
 	smoke := &Smoke{
+		mode:          ModeNormal,
 		sessions:      map[string]*llms.Session{},
 		conversations: map[string]llms.Conversation{},
 	}
@@ -83,25 +87,9 @@ func New(opts ...OptFunc) (*Smoke, error) {
 		}
 	}
 
-	if err := smoke.OK(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrOptions, err)
+	if err := smoke.setup(); err != nil {
+		return nil, fmt.Errorf("smoke setup failed: %w", err)
 	}
-
-	smoke.setupCommands()
-
-	// Once we've set up the session / etc, add MCP tools as well, if any
-	mcpTools, err := smoke.getMCPTools()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list MCP tools: %w", err)
-	}
-
-	smoke.sessionMutex.RLock()
-	session := smoke.sessions[smoke.mainSessionName]
-	smoke.sessionMutex.RUnlock()
-
-	session.Tools.AddTools(mcpTools...)
-
-	// smoke.session.Tools.AddTools(mcpTools...)
 
 	return smoke, nil
 }
@@ -119,8 +107,8 @@ func (s *Smoke) Update(opts ...OptFunc) (*Smoke, error) {
 		}
 	}
 
-	if err := smoke.OK(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrOptions, err)
+	if err := smoke.setup(); err != nil {
+		return nil, fmt.Errorf("smoke setup failed: %w", err)
 	}
 
 	// TODO: if opts start cloning Smoke with each iteration, will need to update 's'
@@ -285,11 +273,12 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 	sessionName := mainSession.Name + "_summary"
 	systemMessage := prompts.SummarizeSystemPrompt(msg.OriginalMessages...).Markdown()
 
+	// TODO: THIS IS BORKED BECAUSE IT TRIES TO CREATE A PLAN FILE FOR THE _NEW_ SESSION NAME
 	managerOpts := &tools.ManagerOpts{
 		ProjectPath:      s.projectPath,
 		SessionName:      sessionName,
 		ToolInitializers: tools.SummarizeTools(),
-		WithPlanManager:  true,
+		WithPlanManager:  false,
 	}
 
 	toolManager, err := tools.NewManager(managerOpts)
@@ -540,6 +529,9 @@ func (s *Smoke) SetMode(mode Mode) {
 		enabledTools = tools.PlanningTools()
 	case ModeNormal:
 		enabledTools = tools.AllTools()
+	default:
+		// TODO: don't panic
+		panic(fmt.Errorf("tried to set smoke to unknown mode %q", mode))
 	}
 
 	session := s.getMainSession()
@@ -588,7 +580,7 @@ func (s *Smoke) getMCPTools() (tools.Tools, error) {
 	results := tools.Tools{}
 
 	for _, mcpClient := range s.mcpClients {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 
 		var (
