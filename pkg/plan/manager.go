@@ -4,9 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -36,6 +40,49 @@ func NewManager(writer io.Writer) *Manager {
 	}
 }
 
+// ManagerFromPath manages the file system aspects of loading/creating a new plan file. Must supply an absolute path
+// here.
+func ManagerFromPath(path string) (*Manager, error) {
+	var manager *Manager
+
+	if !filepath.IsAbs(path) {
+		return nil, fmt.Errorf("plan file %q is not an absolute path", path)
+	}
+
+	_, statErr := os.Stat(path)
+	switch {
+	case statErr != nil && !errors.Is(statErr, fs.ErrNotExist):
+		return nil, fmt.Errorf("error opening existing plan file %q: %w", path, statErr)
+	case errors.Is(statErr, fs.ErrNotExist):
+		planFile, openErr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		if openErr != nil {
+			return nil, fmt.Errorf("failed to create plan file %q: %w", path, openErr)
+		}
+
+		slog.Debug("created new plan file", "path", path)
+
+		manager = NewManager(planFile)
+	default:
+		planFile, openErr := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0o644)
+		if openErr != nil {
+			return nil, fmt.Errorf("failed to open plan file %q: %w", path, openErr)
+		}
+
+		fromReader, readErr := ManagerFromReader(planFile)
+		if readErr != nil {
+			return nil, fmt.Errorf("failed to read existing plan file: %w", readErr)
+		}
+
+		slog.Debug("opened and parsed existing plan file", "path", path)
+
+		manager = fromReader
+	}
+
+	return manager, nil
+}
+
+// ManagerFromReader takes an [io.ReadWriter] and creates a Manager from its existing contents, then returns it ready
+// for writing.
 func ManagerFromReader(reader io.ReadWriter) (*Manager, error) {
 	manager := NewManager(reader)
 	manager.IsWriting = false

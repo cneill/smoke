@@ -9,13 +9,15 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/export"
 	"github.com/cneill/smoke/pkg/commands/handlers/info"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
-	"github.com/cneill/smoke/pkg/commands/handlers/plan"
+	planhandler "github.com/cneill/smoke/pkg/commands/handlers/plan"
 	"github.com/cneill/smoke/pkg/commands/handlers/review"
 	"github.com/cneill/smoke/pkg/commands/handlers/run"
 	"github.com/cneill/smoke/pkg/commands/handlers/save"
 	"github.com/cneill/smoke/pkg/commands/handlers/session"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
+	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/providers/chatgpt"
 	"github.com/cneill/smoke/pkg/providers/claude"
 	"github.com/cneill/smoke/pkg/providers/grok"
@@ -25,6 +27,10 @@ import (
 func (s *Smoke) setup() error {
 	if err := s.OK(); err != nil {
 		return fmt.Errorf("%w: %w", ErrOptions, err)
+	}
+
+	if err := s.setupPlanManager(); err != nil {
+		return fmt.Errorf("failed to set up plan manager for smoke: %w", err)
 	}
 
 	if err := s.setupSession(); err != nil {
@@ -40,12 +46,31 @@ func (s *Smoke) setup() error {
 	return nil
 }
 
+func (s *Smoke) setupPlanManager() error {
+	// TODO: better way of setting this name...
+	planFileName := s.mainSessionName + "_plan.json"
+
+	relPath, err := fs.GetRelativePath(s.projectPath, planFileName)
+	if err != nil {
+		return fmt.Errorf("invalid session plan file path (%s): %w", planFileName, err)
+	}
+
+	planManager, err := plan.ManagerFromPath(relPath)
+	if err != nil {
+		return fmt.Errorf("failed to set up plan manager: %w", err)
+	}
+
+	s.planManager = planManager
+
+	return nil
+}
+
 func (s *Smoke) setupSession() error {
 	toolOpts := &tools.ManagerOpts{
 		ProjectPath:      s.projectPath,
 		SessionName:      s.mainSessionName,
 		ToolInitializers: tools.AllTools(),
-		WithPlanManager:  true,
+		PlanManager:      s.planManager,
 	}
 
 	toolManager, err := tools.NewManager(toolOpts)
@@ -82,17 +107,17 @@ func (s *Smoke) setupCommands() {
 	s.commands = commands.NewManager(s.projectPath)
 
 	commands := map[string]commands.Initializer{
-		edit.Name:      edit.New,
-		exit.Name:      exit.New,
-		export.Name:    export.New,
-		info.Name:      info.New,
-		load.Name:      load.New,
-		plan.Name:      plan.New,
-		review.Name:    review.New,
-		run.Name:       run.New,
-		save.Name:      save.New,
-		session.Name:   session.New,
-		summarize.Name: summarize.New,
+		edit.Name:        edit.New,
+		exit.Name:        exit.New,
+		export.Name:      export.New,
+		info.Name:        info.New,
+		load.Name:        load.New,
+		planhandler.Name: planhandler.New,
+		review.Name:      review.New,
+		run.Name:         run.New,
+		save.Name:        save.New,
+		session.Name:     session.New,
+		summarize.Name:   summarize.New,
 	}
 
 	for commandName, initializer := range commands {

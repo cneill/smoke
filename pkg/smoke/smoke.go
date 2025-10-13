@@ -17,6 +17,7 @@ import (
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/mcp"
+	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/tools"
 )
@@ -32,6 +33,8 @@ type Smoke struct {
 	debug       bool
 	mode        Mode
 	projectPath string
+
+	planManager *plan.Manager
 
 	mainSessionName  string
 	mainSystemPrompt string
@@ -278,7 +281,7 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 		ProjectPath:      s.projectPath,
 		SessionName:      sessionName,
 		ToolInitializers: tools.SummarizeTools(),
-		WithPlanManager:  false,
+		PlanManager:      s.planManager,
 	}
 
 	toolManager, err := tools.NewManager(managerOpts)
@@ -432,55 +435,6 @@ func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSumm
 		}
 	}
 }
-
-// SendCommandMessage sends a session to the LLM when triggered by a prompt command.
-// TODO: better name
-// func (s *Smoke) SendCommandMessage(msg commands.SendSessionMessage) tea.Cmd {
-// 	send := func() tea.Msg {
-// 		// TODO: add a context.Context here - can't use the global userMessageCancel
-// 		response, err := s.llm.SendSession(context.TODO(), msg.Session)
-// 		if err != nil {
-// 			return SendCommandMessageResponseMessage{
-// 				OriginalMessage: msg,
-// 				Err:             fmt.Errorf("failed to send session with user message: %w", err),
-// 			}
-// 		}
-//
-// 		// TODO: NEED TO ALLOW FOR TOOL CALLS!!!!
-// 		slog.Debug("GOT RESPONSE FROM COMMAND MESSAGE", "message", response)
-//
-// 		if err := msg.Session.AddMessage(response); err != nil {
-// 			return SendCommandMessageResponseMessage{
-// 				OriginalMessage: msg,
-// 				Err:             fmt.Errorf("failed to add assistant response from command run: %w", err),
-// 			}
-// 		}
-//
-// 		return SendCommandMessageResponseMessage{
-// 			OriginalMessage: msg,
-// 			Session:         msg.Session,
-// 		}
-// 	}
-//
-// 	return send
-// }
-
-// func (s *Smoke) HandleCommandMessageResponse(msg SendCommandMessageResponseMessage) tea.Cmd {
-// 	// TODO: handle stuff other than summaries; include full details of original command msg/etc
-// 	last := msg.Session.LastByRole(llms.RoleAssistant)
-// 	slog.Debug("WE GOT A SUMMARY", "summary", last.Content, "original_message", msg.OriginalMessage)
-//
-// 	if len(msg.OriginalMessage.OriginalMessages) > 0 {
-// 		s.session.ReplaceMessages(msg.OriginalMessage.OriginalMessages, []*llms.Message{last})
-// 	}
-//
-// 	return commands.SessionUpdateMessage{
-// 		PromptCommand: msg.OriginalMessage.PromptCommand,
-// 		Session:       s.session,
-// 		ResetHistory:  true,
-// 		Message:       "Summarizing messages",
-// 	}.Cmd()
-// }
 
 // CancelUserMessage can be triggered by the user pressing the escape key while waiting for an assistant response.
 func (s *Smoke) CancelUserMessage(err error) {
