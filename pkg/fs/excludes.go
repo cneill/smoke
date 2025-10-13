@@ -202,7 +202,7 @@ func getExcludesFilePaths(projectPath string) []string {
 		results = append(results, filepath.Join(home, smokeIgnore))
 	}
 
-	// $XDG_CONFIG_HOME/.config/smoke/ignore OR $HOME/.config/smoke/ignore
+	// $XDG_CONFIG_HOME/smoke/ignore OR $HOME/.config/smoke/ignore
 	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
 		results = append(results, filepath.Join(xdgConfig, "smoke", "ignore"))
 	} else if home != "" {
