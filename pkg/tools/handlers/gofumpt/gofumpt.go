@@ -1,4 +1,4 @@
-package tools
+package gofumpt
 
 import (
 	"bytes"
@@ -10,75 +10,79 @@ import (
 	"time"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	GoFumptPath = "path"
+	Name      = "gofumpt"
+	ParamPath = "path"
 )
 
-type GoFumptTool struct {
+type GoFumpt struct {
 	ProjectPath string
 }
 
-func NewGoFumptTool(projectPath, _ string) Tool {
-	return &GoFumptTool{ProjectPath: projectPath}
+func NewGoFumptTool(projectPath, _ string) tools.Tool {
+	// TODO: allow for error here, and bail if we can't find the gofumpt binary on the system. Log an error but don't
+	// crash everything.
+	return &GoFumpt{ProjectPath: projectPath}
 }
 
-func (g *GoFumptTool) Name() string { return ToolGoFumpt }
-func (g *GoFumptTool) Description() string {
-	examples := CollectExamples(g.Examples()...)
+func (g *GoFumpt) Name() string { return Name }
+func (g *GoFumpt) Description() string {
+	examples := tools.CollectExamples(g.Examples()...)
 
 	return fmt.Sprintf(
 		"Runs the gofumpt formatter against the file/directory specified in %q, or the whole project directory if "+
 			"not specified. Changes are written in place (-w) and the list of files formatted is returned (-l).%s",
-		GoFumptPath, examples,
+		ParamPath, examples,
 	)
 }
 
-func (g *GoFumptTool) Examples() Examples {
-	return Examples{
+func (g *GoFumpt) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: "Format the entire repository",
-			Args:        Args{},
+			Args:        tools.Args{},
 		},
 		{
 			Description: `Format the "pkg/tools" directory specifically`,
-			Args:        Args{GoFumptPath: "pkg/tools"},
+			Args:        tools.Args{ParamPath: "pkg/tools"},
 		},
 	}
 }
 
-func (g *GoFumptTool) Params() Params {
-	return Params{
+func (g *GoFumpt) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         GoFumptPath,
+			Key:         ParamPath,
 			Description: "The path of the directory/file to format",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    false,
 		},
 	}
 }
 
-func (g *GoFumptTool) Run(ctx context.Context, args Args) (string, error) {
+func (g *GoFumpt) Run(ctx context.Context, args tools.Args) (string, error) {
 	targetPath := g.ProjectPath
 
 	if _, err := exec.LookPath("gofumpt"); err != nil {
 		slog.Error("gofumpt not found on the system", "error", err)
-		return "", fmt.Errorf("%w: gofumpt not found on the system", ErrFileSystem)
+		return "", fmt.Errorf("%w: gofumpt not found on the system", tools.ErrFileSystem)
 	}
 
 	// path is optional
-	if path := args.GetString(GoFumptPath); path != nil {
+	if path := args.GetString(ParamPath); path != nil {
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		targetPath = relPath
 	}
 
 	if _, err := os.Stat(targetPath); err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %q: %w", ErrFileSystem, targetPath, err)
+		return "", fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, targetPath, err)
 	}
 
 	stdout := &bytes.Buffer{}
@@ -94,7 +98,7 @@ func (g *GoFumptTool) Run(ctx context.Context, args Args) (string, error) {
 
 	if err := cmd.Run(); err != nil {
 		slog.Error("error from gofumpt", "target_path", targetPath, "error", err, "stderr", stderr.String())
-		return "", fmt.Errorf("%w: gofumpt: %s", ErrCommandExecution, stderr.String())
+		return "", fmt.Errorf("%w: gofumpt: %s", tools.ErrCommandExecution, stderr.String())
 	}
 
 	return stdout.String(), nil

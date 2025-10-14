@@ -60,7 +60,7 @@ func AllTools() []Initializer {
 		// NewDDGTool,
 		NewGitDiffTool,
 		// NewGoASTTool,
-		NewGoFumptTool,
+		// NewGoFumptTool,
 		NewGoImportsTool,
 		NewGoLintTool,
 		// NewGoTestTool,

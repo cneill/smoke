@@ -29,6 +29,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools/handlers/listfiles"
 	"github.com/cneill/smoke/pkg/tools/handlers/mkdir"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
+	"github.com/golangci/golangci-lint/pkg/golinters/gofumpt"
 )
 
 func (s *Smoke) setup() error {
@@ -201,6 +202,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 func (s *Smoke) normalModeTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		gofumpt.New,
 		gotest.New,
 		grep.New,
 		listfiles.New,
