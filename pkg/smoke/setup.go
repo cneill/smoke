@@ -10,7 +10,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/help"
 	"github.com/cneill/smoke/pkg/commands/handlers/info"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
-	planhandler "github.com/cneill/smoke/pkg/commands/handlers/plan"
+	plancmd "github.com/cneill/smoke/pkg/commands/handlers/plan"
 	"github.com/cneill/smoke/pkg/commands/handlers/review"
 	"github.com/cneill/smoke/pkg/commands/handlers/run"
 	"github.com/cneill/smoke/pkg/commands/handlers/save"
@@ -24,6 +24,8 @@ import (
 	"github.com/cneill/smoke/pkg/providers/grok"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers/ddg"
+	"github.com/cneill/smoke/pkg/tools/handlers/gotest"
+	"github.com/cneill/smoke/pkg/tools/handlers/grep"
 	"github.com/cneill/smoke/pkg/tools/handlers/listfiles"
 	"github.com/cneill/smoke/pkg/tools/handlers/mkdir"
 )
@@ -142,18 +144,18 @@ func (s *Smoke) setupCommands() {
 	s.commands = commands.NewManager(s.projectPath)
 
 	commands := map[string]commands.Initializer{
-		edit.Name:        edit.New,
-		exit.Name:        exit.New,
-		export.Name:      export.New,
-		help.Name:        help.New(s.commands),
-		info.Name:        info.New,
-		load.Name:        load.New,
-		planhandler.Name: planhandler.New,
-		review.Name:      review.New,
-		run.Name:         run.New,
-		save.Name:        save.New,
-		session.Name:     session.New,
-		summarize.Name:   summarize.New,
+		edit.Name:      edit.New,
+		exit.Name:      exit.New,
+		export.Name:    export.New,
+		help.Name:      help.New(s.commands),
+		info.Name:      info.New,
+		load.Name:      load.New,
+		plancmd.Name:   plancmd.New,
+		review.Name:    review.New,
+		run.Name:       run.New,
+		save.Name:      save.New,
+		session.Name:   session.New,
+		summarize.Name: summarize.New,
 	}
 
 	for commandName, initializer := range commands {
@@ -198,6 +200,8 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 func (s *Smoke) normalModeTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		gotest.New,
+		grep.New,
 		listfiles.New,
 		mkdir.New,
 	}
@@ -206,10 +210,16 @@ func (s *Smoke) normalModeTools() []tools.Initializer {
 func (s *Smoke) planningModeTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		gotest.New,
+		grep.New,
 		listfiles.New,
 	}
 }
 
 func (s *Smoke) reviewModeTools() []tools.Initializer {
-	return []tools.Initializer{}
+	return []tools.Initializer{
+		gotest.New,
+		grep.New,
+		listfiles.New,
+	}
 }

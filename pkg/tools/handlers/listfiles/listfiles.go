@@ -13,7 +13,7 @@ import (
 
 const (
 	Name      = "list_files"
-	PathParam = "path"
+	ParamPath = "path"
 )
 
 type ListFiles struct {
@@ -29,14 +29,14 @@ func (l *ListFiles) Description() string {
 	examples := tools.CollectExamples(l.Examples()...)
 
 	return fmt.Sprintf("List files in the directory %q recursively, with file mode + size info.%s",
-		PathParam, examples)
+		ParamPath, examples)
 }
 
 func (l *ListFiles) Examples() tools.Examples {
 	return tools.Examples{
 		{
 			Description: `List all files in the "pkg/models" directory recursively`,
-			Args:        tools.Args{PathParam: "pkg/models"},
+			Args:        tools.Args{ParamPath: "pkg/models"},
 		},
 	}
 }
@@ -44,7 +44,7 @@ func (l *ListFiles) Examples() tools.Examples {
 func (l *ListFiles) Params() tools.Params {
 	return tools.Params{
 		{
-			Key:         PathParam,
+			Key:         ParamPath,
 			Description: "The path to the directory where you want to list files",
 			Type:        "string",
 			Required:    true,
@@ -54,7 +54,7 @@ func (l *ListFiles) Params() tools.Params {
 
 // Run expects a directory 'dir' that exists within ProjectPath ("." for top-level listing).
 func (l *ListFiles) Run(_ context.Context, args tools.Args) (string, error) {
-	path := args.GetString(PathParam)
+	path := args.GetString(ParamPath)
 	if path == nil {
 		return "", fmt.Errorf("no path supplied")
 	}

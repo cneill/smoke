@@ -18,7 +18,7 @@ import (
 
 const (
 	Name       = "duck_duck_go"
-	QueryParam = "query"
+	ParamQuery = "query"
 
 	ddgLinkPrefix = "//duckduckgo.com/l/?uddg="
 )
@@ -56,7 +56,7 @@ func (d *DDG) Description() string {
 
 	return fmt.Sprintf(
 		"Retrieve one page of results from the DuckDuckGo search engine based on the query supplied in %q.%s",
-		QueryParam, examples)
+		ParamQuery, examples)
 }
 
 func (d *DDG) Examples() tools.Examples {
@@ -64,7 +64,7 @@ func (d *DDG) Examples() tools.Examples {
 		{
 			Description: `Search for the string "HTML"`,
 			Args: tools.Args{
-				QueryParam: "HTML",
+				ParamQuery: "HTML",
 			},
 		},
 	}
@@ -73,7 +73,7 @@ func (d *DDG) Examples() tools.Examples {
 func (d *DDG) Params() tools.Params {
 	return tools.Params{
 		{
-			Key:         QueryParam,
+			Key:         ParamQuery,
 			Description: "The query to search DuckDuckGo for",
 			Type:        tools.ParamTypeString,
 			Required:    true,
@@ -82,7 +82,7 @@ func (d *DDG) Params() tools.Params {
 }
 
 func (d *DDG) Run(ctx context.Context, args tools.Args) (string, error) {
-	query := args.GetString(QueryParam)
+	query := args.GetString(ParamQuery)
 	if query == nil {
 		return "", fmt.Errorf("no query supplied")
 	}
