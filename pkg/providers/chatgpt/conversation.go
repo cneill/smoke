@@ -183,11 +183,6 @@ func (c *conversation) sendStream(ctx context.Context) error {
 			ID:   accumulator.ID,
 			Text: chunk.Choices[0].Delta.Content,
 		})
-
-		c.emit(ctx, llms.EventUsageUpdate{
-			InputTokens:  chunk.Usage.PromptTokens,
-			OutputTokens: chunk.Usage.CompletionTokens,
-		})
 	}
 
 	if err := stream.Err(); err != nil {
@@ -197,6 +192,11 @@ func (c *conversation) sendStream(ctx context.Context) error {
 	if len(accumulator.Choices) == 0 {
 		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
 	}
+
+	c.emit(ctx, llms.EventUsageUpdate{
+		InputTokens:  accumulator.Usage.PromptTokens,
+		OutputTokens: accumulator.Usage.CompletionTokens,
+	})
 
 	response := accumulator.Choices[0].Message
 
