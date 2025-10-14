@@ -58,7 +58,7 @@ func AllTools() []Initializer {
 	return []Initializer{
 		// NewCreateDirectoryTool,
 		// NewDDGTool,
-		NewGitDiffTool,
+		// NewGitDiffTool,
 		// NewGoASTTool,
 		// NewGoFumptTool,
 		// NewGoImportsTool,
@@ -80,7 +80,7 @@ func AllTools() []Initializer {
 func PlanningTools() []Initializer {
 	return []Initializer{
 		// NewDDGTool,
-		NewGitDiffTool,
+		// NewGitDiffTool,
 		// NewGoASTTool,
 		// NewGoLintTool,
 		// NewGoTestTool,

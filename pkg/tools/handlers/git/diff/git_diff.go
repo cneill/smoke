@@ -1,4 +1,4 @@
-package tools
+package gitdiff
 
 import (
 	"context"
@@ -8,71 +8,74 @@ import (
 	"time"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	GitDiffStat = "stat"
-	GitDiffPath = "path"
+	Name = "git_diff"
+
+	ParamStat = "stat"
+	ParamPath = "path"
 )
 
-type GitDiffTool struct {
+type GitDiff struct {
 	ProjectPath string
 }
 
-func NewGitDiffTool(projectPath, _ string) Tool {
-	return &GitDiffTool{ProjectPath: projectPath}
+func New(projectPath, _ string) tools.Tool {
+	return &GitDiff{ProjectPath: projectPath}
 }
 
-func (g *GitDiffTool) Name() string { return ToolGitDiff }
-func (g *GitDiffTool) Description() string {
-	examples := CollectExamples(g.Examples()...)
+func (g *GitDiff) Name() string { return Name }
+func (g *GitDiff) Description() string {
+	examples := tools.CollectExamples(g.Examples()...)
 
 	return fmt.Sprintf("Check the git diff in the ProjectPath. Optionally, provide %q as true to include basic "+
 		"statistics. Optionally, specify %q to diff a specific file/directory.%s",
-		GitDiffStat, GitDiffPath, examples)
+		ParamStat, ParamPath, examples)
 }
 
-func (g *GitDiffTool) Examples() Examples {
-	return Examples{
+func (g *GitDiff) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: `Get stats about the diff of the whole repository`,
-			Args:        Args{GitDiffStat: true},
+			Args:        tools.Args{ParamStat: true},
 		},
 		{
 			Description: `Diff the "pkg/main.go" file specifically.`,
-			Args:        Args{GitDiffPath: "pkg/main.go"},
+			Args:        tools.Args{ParamPath: "pkg/main.go"},
 		},
 	}
 }
 
-func (g *GitDiffTool) Params() Params {
-	return Params{
+func (g *GitDiff) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         GitDiffStat,
+			Key:         ParamStat,
 			Description: "Provide basic statistics about the git diff",
-			Type:        ParamTypeBoolean,
+			Type:        tools.ParamTypeBoolean,
 			Required:    false,
 		},
 		{
-			Key:         GitDiffPath,
+			Key:         ParamPath,
 			Description: "Diff a specific file/directory",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    false,
 		},
 	}
 }
 
-func (g *GitDiffTool) Run(ctx context.Context, args Args) (string, error) {
+func (g *GitDiff) Run(ctx context.Context, args tools.Args) (string, error) {
 	fullPath := g.ProjectPath
 
-	if path := args.GetString(GitDiffPath); path != nil && *path != "" {
+	if path := args.GetString(ParamPath); path != nil && *path != "" {
 		if strings.ContainsAny(*path, "`$%&;[](){}| ") {
-			return "", fmt.Errorf("%w: path contained invalid characters that might allow command execution", ErrArguments)
+			return "", fmt.Errorf("%w: path contained invalid characters that might allow command execution", tools.ErrArguments)
 		}
 
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		fullPath = relPath
@@ -83,7 +86,7 @@ func (g *GitDiffTool) Run(ctx context.Context, args Args) (string, error) {
 		"--no-color",
 	}
 
-	if stat := args.GetBool(GitDiffStat); stat != nil && *stat {
+	if stat := args.GetBool(ParamStat); stat != nil && *stat {
 		params = append(params, "--stat")
 	}
 

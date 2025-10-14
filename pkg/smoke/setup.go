@@ -24,6 +24,7 @@ import (
 	"github.com/cneill/smoke/pkg/providers/grok"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers/ddg"
+	gitdiff "github.com/cneill/smoke/pkg/tools/handlers/git/diff"
 	"github.com/cneill/smoke/pkg/tools/handlers/gofumpt"
 	"github.com/cneill/smoke/pkg/tools/handlers/goimports"
 	"github.com/cneill/smoke/pkg/tools/handlers/golint"
@@ -210,6 +211,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 func (s *Smoke) normalModeTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		gitdiff.New,
 		gofumpt.New,
 		goimports.New,
 		golint.New,
@@ -228,6 +230,7 @@ func (s *Smoke) normalModeTools() []tools.Initializer {
 func (s *Smoke) planningModeTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		gitdiff.New,
 		golint.New,
 		gotest.New,
 		grep.New,
@@ -242,6 +245,7 @@ func (s *Smoke) planningModeTools() []tools.Initializer {
 func (s *Smoke) reviewModeTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		gitdiff.New,
 		golint.New,
 		gotest.New,
 		grep.New,
