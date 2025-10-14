@@ -26,6 +26,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools/handlers/ddg"
 	"github.com/cneill/smoke/pkg/tools/handlers/gofumpt"
 	"github.com/cneill/smoke/pkg/tools/handlers/goimports"
+	"github.com/cneill/smoke/pkg/tools/handlers/golint"
 	"github.com/cneill/smoke/pkg/tools/handlers/gotest"
 	"github.com/cneill/smoke/pkg/tools/handlers/grep"
 	"github.com/cneill/smoke/pkg/tools/handlers/listfiles"
@@ -36,6 +37,8 @@ import (
 	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
 )
+
+// TODO: move command / tool handler imports to their "handlers" packages?
 
 func (s *Smoke) setup() error {
 	if err := s.OK(); err != nil {
@@ -209,6 +212,7 @@ func (s *Smoke) normalModeTools() []tools.Initializer {
 		ddg.New,
 		gofumpt.New,
 		goimports.New,
+		golint.New,
 		gotest.New,
 		grep.New,
 		listfiles.New,
@@ -224,6 +228,7 @@ func (s *Smoke) normalModeTools() []tools.Initializer {
 func (s *Smoke) planningModeTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		golint.New,
 		gotest.New,
 		grep.New,
 		listfiles.New,
@@ -237,6 +242,7 @@ func (s *Smoke) planningModeTools() []tools.Initializer {
 func (s *Smoke) reviewModeTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		golint.New,
 		gotest.New,
 		grep.New,
 		listfiles.New,
