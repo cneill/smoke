@@ -28,6 +28,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools/handlers/grep"
 	"github.com/cneill/smoke/pkg/tools/handlers/listfiles"
 	"github.com/cneill/smoke/pkg/tools/handlers/mkdir"
+	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
 )
 
 func (s *Smoke) setup() error {
@@ -204,6 +205,7 @@ func (s *Smoke) normalModeTools() []tools.Initializer {
 		grep.New,
 		listfiles.New,
 		mkdir.New,
+		writefile.New,
 	}
 }
 

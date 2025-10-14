@@ -73,7 +73,7 @@ func AllTools() []Initializer {
 		NewReadFileTool,
 		NewReplaceLinesTool,
 		// NewSummarizeHistoryTool,
-		NewWriteFileTool,
+		// NewWriteFileTool,
 	}
 }
 
