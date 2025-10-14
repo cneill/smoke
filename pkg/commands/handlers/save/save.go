@@ -56,6 +56,9 @@ func (s *Save) Run(session *llms.Session) (tea.Cmd, error) {
 		PromptMessage: s.PromptMessage,
 		Message:       "Saved session to file " + s.Path + " in Markdown format.",
 	}
-
 	return uimsg.MsgToCmd(update), nil
+}
+
+func (s *Save) Help() string {
+	return "Saves the current session to a Markdown file. Usage: /save [path]"
 }

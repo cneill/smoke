@@ -55,6 +55,9 @@ func (e *Export) Run(session *llms.Session) (tea.Cmd, error) {
 		PromptMessage: e.PromptMessage,
 		Message:       "Exported session to file " + e.Path + " in JSON format.",
 	}
-
 	return uimsg.MsgToCmd(update), nil
+}
+
+func (e *Export) Help() string {
+	return "Exports the current session to a JSON file for loading later. Usage: /export [path]"
 }

@@ -32,6 +32,11 @@ type Plan struct {
 }
 
 func New(msg commands.PromptMessage) (commands.Command, error) {
+	// Handle help generation separately
+	if len(msg.Args) == 1 && msg.Args[0] == "help" {
+		return &Plan{PromptMessage: msg}, nil
+	}
+
 	handler := &Plan{
 		PromptMessage: msg,
 	}
@@ -81,6 +86,9 @@ func (p *Plan) Run(session *llms.Session) (tea.Cmd, error) {
 		Message:       historyMessage,
 		Session:       session,
 	}
-
 	return uimsg.MsgToCmd(update), nil
+}
+
+func (p *Plan) Help() string {
+	return "Toggles or sets planning mode. Usage: /plan [on|off]"
 }

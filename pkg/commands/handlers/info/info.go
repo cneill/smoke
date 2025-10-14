@@ -54,3 +54,7 @@ func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
 
 	return uimsg.MsgToCmd(update), nil
 }
+
+func (i *Info) Help() string {
+	return "Displays detailed information about the current session, including messages, tokens, and tools."
+}

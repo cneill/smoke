@@ -56,3 +56,9 @@ type ErrorMessage struct {
 
 	Err error
 }
+
+type HelpMessage struct {
+	MessageType
+
+	Text string
+}

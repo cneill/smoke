@@ -22,6 +22,11 @@ type Run struct {
 }
 
 func New(msg commands.PromptMessage) (commands.Command, error) {
+	// Handle help generation separately
+	if len(msg.Args) == 1 && msg.Args[0] == "help" {
+		return &Run{PromptMessage: msg}, nil
+	}
+
 	if len(msg.Args) < 2 {
 		return nil, fmt.Errorf("must supply tool name and arguments as JSON string")
 	}
@@ -59,6 +64,9 @@ func (r *Run) Run(session *llms.Session) (tea.Cmd, error) {
 		PromptMessage: r.PromptMessage,
 		Message:       updateMsg,
 	}
-
 	return uimsg.MsgToCmd(update), nil
+}
+
+func (r *Run) Help() string {
+	return "Runs a tool with specified arguments. Usage: /run <tool_name> <args_json>"
 }

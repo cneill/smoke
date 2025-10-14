@@ -41,6 +41,11 @@ type Summarize struct {
 }
 
 func New(msg commands.PromptMessage) (commands.Command, error) {
+	// Handle help generation separately
+	if len(msg.Args) == 1 && msg.Args[0] == "help" {
+		return &Summarize{PromptMessage: msg}, nil
+	}
+
 	handler := &Summarize{
 		PromptMessage: msg,
 		Scope:         summarizeEntire,
@@ -95,6 +100,10 @@ func (s *Summarize) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(msg), nil
+}
+
+func (s *Summarize) Help() string {
+	return "Asks the LLM to summarize part or all of the message history. Usage: /summarize [--first N | --last N | --before TIME | --after TIME]"
 }
 
 func (s *Summarize) filterMessages(messages []*llms.Message) []*llms.Message { //nolint:cyclop

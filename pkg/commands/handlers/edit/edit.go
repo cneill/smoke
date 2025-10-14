@@ -45,6 +45,11 @@ type Edit struct {
 }
 
 func New(msg commands.PromptMessage) (commands.Command, error) {
+	// Handle help generation separately
+	if len(msg.Args) == 1 && msg.Args[0] == "help" {
+		return &Edit{PromptMessage: msg}, nil
+	}
+
 	handler := &Edit{
 		PromptMessage: msg,
 		Target:        editAll,
@@ -114,4 +119,8 @@ func (e *Edit) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(req), nil
+}
+
+func (e *Edit) Help() string {
+	return "Opens the conversation history or the last assistant message in your editor. Usage: /edit [last|all]"
 }

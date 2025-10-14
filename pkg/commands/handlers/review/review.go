@@ -32,6 +32,11 @@ type Review struct {
 }
 
 func New(msg commands.PromptMessage) (commands.Command, error) {
+	// Handle help generation separately
+	if len(msg.Args) == 1 && msg.Args[0] == "help" {
+		return &Review{PromptMessage: msg}, nil
+	}
+
 	handler := &Review{
 		PromptMessage: msg,
 	}
@@ -81,6 +86,9 @@ func (r *Review) Run(session *llms.Session) (tea.Cmd, error) {
 		Message:       historyMessage,
 		Session:       session,
 	}
-
 	return uimsg.MsgToCmd(update), nil
+}
+
+func (r *Review) Help() string {
+	return "Enables or disables review mode, where the model checks for code issues. Usage: /review [on|off]"
 }

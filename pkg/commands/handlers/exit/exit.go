@@ -27,3 +27,5 @@ func (e *Exit) Name() string { return Name }
 func (e *Exit) Run(_ *llms.Session) (tea.Cmd, error) {
 	return tea.Quit, nil
 }
+
+func (e *Exit) Help() string { return "Exits the program." }

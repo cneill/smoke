@@ -7,6 +7,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/edit"
 	"github.com/cneill/smoke/pkg/commands/handlers/exit"
 	"github.com/cneill/smoke/pkg/commands/handlers/export"
+	"github.com/cneill/smoke/pkg/commands/handlers/help"
 	"github.com/cneill/smoke/pkg/commands/handlers/info"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
 	planhandler "github.com/cneill/smoke/pkg/commands/handlers/plan"
@@ -110,6 +111,7 @@ func (s *Smoke) setupCommands() {
 		edit.Name:        edit.New,
 		exit.Name:        exit.New,
 		export.Name:      export.New,
+		help.Name:        help.New(s.commands),
 		info.Name:        info.New,
 		load.Name:        load.New,
 		planhandler.Name: planhandler.New,

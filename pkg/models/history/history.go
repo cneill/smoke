@@ -209,7 +209,7 @@ func (m *Model) logContent() string {
 		switch item := item.(type) {
 		case *llms.Message:
 			info = renderLLMMessage(item, info)
-		case commands.HistoryUpdateMessage, commands.SessionUpdateMessage, plan.ModeMessage, review.ModeMessage:
+		case commands.Message:
 			info = renderCommandMessage(item, info)
 
 		case error:
@@ -276,7 +276,7 @@ func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
 	return info
 }
 
-func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
+func renderCommandMessage(msg commands.Message, info bubbleInfo) bubbleInfo {
 	switch msg := msg.(type) {
 	case commands.HistoryUpdateMessage:
 		info.title = msg.PromptMessage.Command + " command result"

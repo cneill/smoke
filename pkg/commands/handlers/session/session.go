@@ -26,6 +26,11 @@ type Session struct {
 }
 
 func New(msg commands.PromptMessage) (commands.Command, error) {
+	// Handle help generation separately
+	if len(msg.Args) == 1 && msg.Args[0] == "help" {
+		return &Session{PromptMessage: msg}, nil
+	}
+
 	if len(msg.Args) < 1 || (msg.Args[0] != sessionNew && msg.Args[0] != sessionClear) {
 		return nil, fmt.Errorf("must supply either %q or %q argument", sessionNew, sessionClear)
 	}
@@ -65,4 +70,8 @@ func (s *Session) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
+}
+
+func (s *Session) Help() string {
+	return "Create a new session and optionally replace the existing history in the terminal (with 'clear'). Usage: /session <new|clear>"
 }

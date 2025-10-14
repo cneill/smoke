@@ -22,6 +22,11 @@ type Load struct {
 }
 
 func New(msg commands.PromptMessage) (commands.Command, error) {
+	// Handle help generation separately
+	if len(msg.Args) == 1 && msg.Args[0] == "help" {
+		return &Load{PromptMessage: msg}, nil
+	}
+
 	if len(msg.Args) == 0 {
 		return nil, fmt.Errorf("%w: missing path", commands.ErrArguments)
 	}
@@ -63,4 +68,8 @@ func (l *Load) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
+}
+
+func (l *Load) Help() string {
+	return "Loads a session from a JSON file and replaces the current session. Usage: /load <path>"
 }
