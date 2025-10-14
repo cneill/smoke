@@ -60,9 +60,14 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to set up UI: %w", err)
 	}
 
-	p := tea.NewProgram(uiModel, tea.WithReportFocus(), tea.WithMouseCellMotion())
+	program := tea.NewProgram(uiModel, tea.WithReportFocus(), tea.WithMouseCellMotion())
 
-	if _, err := p.Run(); err != nil {
+	// Give Smoke the ability to send messages directly into the bubbletea event loop.
+	if _, err := smokeInstance.Update(smoke.WithTeaEmitter(program.Send)); err != nil { //nolint:contextcheck // TODO: revisit this?
+		return fmt.Errorf("failed to update smoke controller with bubbletea emitter: %w", err)
+	}
+
+	if _, err := program.Run(); err != nil {
 		return fmt.Errorf("app error: %w", err)
 	}
 

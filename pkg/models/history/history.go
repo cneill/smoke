@@ -13,6 +13,10 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/commands/handlers/load"
+	"github.com/cneill/smoke/pkg/commands/handlers/plan"
+	"github.com/cneill/smoke/pkg/commands/handlers/review"
+	"github.com/cneill/smoke/pkg/commands/handlers/session"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/wordwrap"
@@ -205,7 +209,7 @@ func (m *Model) logContent() string {
 		switch item := item.(type) {
 		case *llms.Message:
 			info = renderLLMMessage(item, info)
-		case commands.HistoryUpdateMessage, commands.SessionUpdateMessage, commands.PlanningModeMessage, commands.ReviewModeMessage:
+		case commands.HistoryUpdateMessage, commands.SessionUpdateMessage, plan.ModeMessage, review.ModeMessage:
 			info = renderCommandMessage(item, info)
 
 		case error:
@@ -244,17 +248,20 @@ func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
 			Foreground(lipgloss.Color("#00af00"))
 		info.useMarkdown = true
 
-		if len(msg.ToolsCalled) > 0 {
-			info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolsCalled, ", "))
+		// TODO: render each of these with their arguments
+		if msg.HasToolCalls() {
+			info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolCalls.Names(), ", "))
 		}
 	case llms.RoleTool:
 		info.title = "🔧 Tool"
 		info.titleStyle = info.titleStyle.
 			Foreground(lipgloss.Color("#00afaf"))
 
-		if len(msg.ToolsCalled) > 0 {
-			info.content = fmt.Sprintf("\nTool call args: %s\n", msg.ToolCallArgs.String()) + info.content
-			info.content = fmt.Sprintf("\nTools called: %s\n", strings.Join(msg.ToolsCalled, ", ")) + info.content
+		if msg.HasToolCalls() {
+			// This should only ever have 1 tool call result, but we'll check just in case...
+			for _, toolCall := range msg.ToolCalls {
+				info.content += fmt.Sprintf("\nTool call to %q with args: %s", toolCall.Name, toolCall.Args.String())
+			}
 		}
 	case llms.RoleSystem:
 		info.title = "🖥️ System"
@@ -272,7 +279,7 @@ func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
 func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 	switch msg := msg.(type) {
 	case commands.HistoryUpdateMessage:
-		info.title = msg.PromptCommand.Command + " command result"
+		info.title = msg.PromptMessage.Command + " command result"
 		info.titleStyle = info.titleStyle.
 			Foreground(lipgloss.Color("#dd9911"))
 		info.content = msg.Message
@@ -280,14 +287,14 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 		info.useMarkdown = true
 
 	case commands.SessionUpdateMessage:
-		switch msg.PromptCommand.Command {
-		case commands.CommandSession:
+		switch msg.PromptMessage.Command {
+		case session.Name:
 			info.title = "Started new session"
-		case commands.CommandLoad:
+		case load.Name:
 			sessionFile := "<unknown>"
 
-			if len(msg.PromptCommand.Args) > 0 {
-				sessionFile = msg.PromptCommand.Args[0]
+			if len(msg.PromptMessage.Args) > 0 {
+				sessionFile = msg.PromptMessage.Args[0]
 			}
 
 			info.title = "Loaded session from file " + sessionFile
@@ -299,7 +306,7 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 			Foreground(lipgloss.Color("#ffffff"))
 		info.content = msg.Message
 
-	case commands.PlanningModeMessage:
+	case plan.ModeMessage:
 		if msg.Enabled {
 			info.titleStyle = info.titleStyle.
 				Foreground(lipgloss.Color("#550011"))
@@ -312,7 +319,7 @@ func renderCommandMessage(msg any, info bubbleInfo) bubbleInfo {
 		info.subtitle = msg.Message
 
 		// TODO: handle mode messages more elegantly
-	case commands.ReviewModeMessage:
+	case review.ModeMessage:
 		if msg.Enabled {
 			info.titleStyle = info.titleStyle.
 				Foreground(lipgloss.Color("#550011"))

@@ -1,7 +1,6 @@
 package history
 
 import (
-	"log/slog"
 	"sync"
 
 	"github.com/cneill/smoke/pkg/llms"
@@ -33,36 +32,22 @@ func (l *Log) AddMessage(message any) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	// If we have:
-	// - a non-LLM message (e.g. error)
-	// - an LLM message that wasn't streamed (thus inherently final)
-	// - a streamed LLM message that is marked as "initial" (with other chunks with the same ID to come)
-	//
-	// Add it directly to the log and return.
+	// If we have a non-LLM message (e.g. error), add it directly to the log and return.
 	llmMessage, ok := message.(*llms.Message)
-	if !ok || !llmMessage.IsStreamed || llmMessage.IsInitial {
+	if !ok {
 		l.log = append(l.log, message)
-		slog.Debug("added message to log", "message", message)
-
 		return
 	}
 
-	msgIdx, logMsg := l.llmMessageIndexByID(llmMessage.ID)
+	// If we don't recognize the ID of this message, append it to the log and return.
+	msgIdx := l.llmMessageIndexByID(llmMessage.ID)
 	if msgIdx == -1 {
-		slog.Error("got a streamed LLM message we couldn't account for", "message", message)
+		l.log = append(l.log, message)
 		return
 	}
 
-	if logMsg.IsFinalized {
-		slog.Error("tried to modify finalized log message", "message", logMsg)
-		return
-	}
-
-	if llmMessage.IsFinalized {
-		l.log[msgIdx] = llmMessage
-	} else {
-		l.log[msgIdx] = logMsg.Update(llms.WithContent(llmMessage.Content))
-	}
+	// If this message ID already exists in the log, overwrite it.
+	l.log[msgIdx] = llmMessage
 }
 
 func (l *Log) RefreshLog(log []any) {
@@ -72,7 +57,7 @@ func (l *Log) RefreshLog(log []any) {
 	l.log = log
 }
 
-func (l *Log) llmMessageIndexByID(id string) (int, *llms.Message) {
+func (l *Log) llmMessageIndexByID(id string) int {
 	for logIdx := len(l.log) - 1; logIdx >= 0; logIdx-- {
 		logMessage, ok := l.log[logIdx].(*llms.Message)
 		if !ok {
@@ -80,9 +65,9 @@ func (l *Log) llmMessageIndexByID(id string) (int, *llms.Message) {
 		}
 
 		if logMessage.ID == id {
-			return logIdx, logMessage
+			return logIdx
 		}
 	}
 
-	return -1, nil
+	return -1
 }

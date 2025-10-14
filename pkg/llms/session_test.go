@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSession_ReplaceMessages(t *testing.T) { //nolint:funlen
+func TestSession_ReplaceMessages(t *testing.T) {
 	t.Parallel()
 
 	message1 := llms.NewMessage(llms.WithID("id-1"))

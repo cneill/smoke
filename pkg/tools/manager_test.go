@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/tools"
 
 	"github.com/stretchr/testify/assert"
@@ -31,11 +32,15 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	absPath, err := filepath.Abs(".")
 	require.NoError(t, err)
 
+	planFilePath := filepath.Join(t.TempDir(), "plan_file.json")
+	planManager, err := plan.ManagerFromPath(planFilePath)
+	require.NoError(t, err)
+
 	opts := &tools.ManagerOpts{
 		ProjectPath:      absPath,
 		SessionName:      "test",
 		ToolInitializers: tools.AllTools(),
-		WithPlanManager:  true,
+		PlanManager:      planManager,
 	}
 
 	manager, err := tools.NewManager(opts)

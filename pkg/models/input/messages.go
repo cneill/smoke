@@ -1,11 +1,23 @@
 package input
 
+type Message interface {
+	isInputMessage()
+}
+
 type ResizeMessage struct{}
 
+func (r ResizeMessage) isInputMessage() {}
+
 type UserMessage struct {
-	Content string
+	SourceID string
+	Content  string
 }
 
+func (u UserMessage) isInputMessage() {}
+
 type CancelUserMessage struct {
-	Err error
+	SourceID string
+	Err      error
 }
+
+func (c CancelUserMessage) isInputMessage() {}

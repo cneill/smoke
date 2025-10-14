@@ -17,22 +17,16 @@ type Manager struct {
 }
 
 func NewManager(projectPath string) *Manager {
-	return &Manager{
+	manager := &Manager{
 		ProjectPath: projectPath,
-		Commands: map[string]Initializer{
-			CommandEdit:      NewEditHandler,
-			CommandExit:      NewExitHandler,
-			CommandExport:    NewExportHandler,
-			CommandInfo:      NewInfoHandler,
-			CommandLoad:      NewLoadHandler,
-			CommandPlan:      NewPlanHandler,
-			CommandReview:    NewReviewHandler,
-			CommandRun:       NewRunHandler,
-			CommandSave:      NewSaveHandler,
-			CommandSession:   NewSessionHandler,
-			CommandSummarize: NewSummarizeHandler,
-		},
+		Commands:    map[string]Initializer{},
 	}
+
+	return manager
+}
+
+func (m *Manager) Register(name string, initializer Initializer) {
+	m.Commands[name] = initializer
 }
 
 func (m *Manager) CommandNames() []string {
@@ -62,7 +56,7 @@ func (m *Manager) Completer() func(string) []string {
 	}
 }
 
-func (m *Manager) HandleCommand(session *llms.Session, msg PromptCommandMessage) (tea.Cmd, error) {
+func (m *Manager) HandleCommand(session *llms.Session, msg PromptMessage) (tea.Cmd, error) {
 	initializer, ok := m.Commands[msg.Command]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrUnknownCommand, msg.Command)

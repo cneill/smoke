@@ -12,14 +12,16 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/mattn/go-runewidth"
 )
 
 const (
-	black    = lipgloss.Color("#000000")
-	orange   = lipgloss.Color("#cc4400")
-	darkgray = lipgloss.Color("#333333")
+	black        = lipgloss.Color("#000000")
+	orange       = lipgloss.Color("#cc4400")
+	darkgray     = lipgloss.Color("#333333")
+	MainSourceID = "MAIN" // TODO: this is a hack, but no other IDs exist right now; would change w/ e.g. tabs
 )
 
 type Opts struct {
@@ -78,6 +80,8 @@ type Model struct {
 	inputTokens              int64
 	outputTokens             int64
 
+	// Manages the full history of text submissions (LLM messages, prompt commands, etc) by the user for history
+	// scrolling purposes *only*
 	userHistory      []string
 	userHistoryIndex *int
 }
@@ -448,8 +452,9 @@ func (m *Model) handleWaitingKey(msg tea.KeyMsg) tea.Cmd {
 	if msg.Type == tea.KeyEsc {
 		m.waiting = false
 
-		return wrapMsg(CancelUserMessage{
-			Err: fmt.Errorf("user aborted request"),
+		return uimsg.MsgToCmd(CancelUserMessage{
+			SourceID: MainSourceID,
+			Err:      fmt.Errorf("user aborted request"),
 		})
 	}
 
@@ -505,8 +510,9 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 		return m.handlePromptCommand(content)
 	}
 
-	return wrapMsg(UserMessage{
-		Content: content,
+	return uimsg.MsgToCmd(UserMessage{
+		SourceID: MainSourceID,
+		Content:  content,
 	})
 }
 
@@ -524,14 +530,8 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 		args = fields[1:]
 	}
 
-	return wrapMsg(commands.PromptCommandMessage{
+	return uimsg.MsgToCmd(commands.PromptMessage{
 		Command: cmdName,
 		Args:    args,
 	})
-}
-
-func wrapMsg(msg tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		return msg
-	}
 }

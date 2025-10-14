@@ -246,7 +246,7 @@ func TestArgs_GetFloat64(t *testing.T) { //nolint:funlen
 	}
 }
 
-func TestArgs_GetBool(t *testing.T) { //nolint:funlen
+func TestArgs_GetBool(t *testing.T) {
 	t.Parallel()
 
 	boolPtr := func(input bool) *bool {

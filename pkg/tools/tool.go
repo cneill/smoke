@@ -94,3 +94,9 @@ func PlanningTools() []Initializer {
 		// NewSummarizeHistoryTool,
 	}
 }
+
+func SummarizeTools() []Initializer {
+	return []Initializer{
+		NewPlanReadTool,
+	}
+}

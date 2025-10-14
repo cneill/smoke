@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/log"
+	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -23,11 +25,21 @@ func run() error {
 		return fmt.Errorf("path error: %w", err)
 	}
 
+	planPath, err := fs.GetRelativePath(absPath, "test_session_plan.json")
+	if err != nil {
+		return fmt.Errorf("failed to get plan file path: %w", err)
+	}
+
+	planManager, err := plan.ManagerFromPath(planPath)
+	if err != nil {
+		return fmt.Errorf("failed to set up plan manager: %w", err)
+	}
+
 	opts := &tools.ManagerOpts{
 		ProjectPath:      absPath,
 		SessionName:      "test_session",
 		ToolInitializers: tools.AllTools(),
-		WithPlanManager:  true,
+		PlanManager:      planManager,
 	}
 
 	toolManager, err := tools.NewManager(opts)

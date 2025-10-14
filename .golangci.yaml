@@ -21,6 +21,9 @@ linters:
     forbidigo:
       forbid:
         - pattern: ^print.*$
+    funlen:
+      lines: 80
+      ignore-comments: true
     gosec:
       config:
         G302: "0644"

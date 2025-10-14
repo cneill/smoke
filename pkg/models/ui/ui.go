@@ -9,10 +9,13 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/commands/handlers/edit"
+	"github.com/cneill/smoke/pkg/commands/handlers/plan"
+	"github.com/cneill/smoke/pkg/commands/handlers/review"
+	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
@@ -41,8 +44,6 @@ type Model struct {
 	banner  *banner.Model
 	history *history.Model
 	input   *input.Model
-
-	chunkChan chan (*llms.Message)
 }
 
 func New(opts *Opts) (*Model, error) {
@@ -118,28 +119,131 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg, input.ResizeMessage:
-		m.resize(msg)
+	case tea.WindowSizeMsg:
+		lineHeight := m.input.LineHeight()
+		m.history.Resize(msg.Width, msg.Height-(lineHeight+1)) // +1 for the border
+		m.input.Resize(msg.Width, lineHeight)
+
+		// m.resize(msg)
 	case tea.KeyMsg:
 		switch msg.Type { //nolint:exhaustive,gocritic
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		}
+	case input.Message:
+		cmds = append(cmds, m.handleInputMessage(msg))
+	case commands.Message:
+		cmds = append(cmds, m.handleCommandMessage(msg))
+	case smoke.Message:
+		cmds = append(cmds, m.handleSmokeMessage(msg))
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) View() string {
+	return fmt.Sprintf("%s%s%s", m.history.View(), gap, m.input.View())
+}
+
+// Handle messages coming from the input bubbletea model.
+func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
+	cmds := []tea.Cmd{}
+
+	switch msg := msg.(type) {
+	case input.ResizeMessage:
+		lineHeight := m.input.LineHeight()
+		delta := lineHeight - m.input.GetHeight() // how many lines did we resize by
+		width := m.history.GetWidth()
+		m.history.Resize(width, m.history.GetHeight()-delta)
+		m.input.Resize(width, lineHeight)
+
 	case input.UserMessage:
-		if cmd := m.handleUserMessage(msg); cmd != nil {
-			cmds = append(cmds, cmd)
+		llmMessage := llms.SimpleMessage(llms.RoleUser, msg.Content)
+		cmds = append(cmds, updateHistory(llmMessage))
+		cmds = append(cmds, m.input.SetWaiting(true))
+
+		cmd, err := m.smoke.HandleUserMessage(llmMessage)
+		if err != nil {
+			return updateHistory(err)
 		}
+
+		cmds = append(cmds, cmd)
+
 	case input.CancelUserMessage:
 		m.smoke.CancelUserMessage(msg.Err)
-	case commands.PromptCommandMessage:
+	}
+
+	return tea.Batch(cmds...)
+}
+
+// Handle messages coming from the main Smoke controller.
+func (m *Model) handleSmokeMessage(msg smoke.Message) tea.Cmd {
+	cmds := []tea.Cmd{}
+
+	switch msg := msg.(type) {
+	case smoke.AssistantResponseMessage:
+		cmds = append(cmds, m.handleAssistantResponse(msg))
+	case smoke.AssistantUpdatedStreamMessage:
+		cmds = append(cmds, m.handleAssistantUpdatedStream(msg))
+	case smoke.UsageUpdateMessage:
+		slog.Debug("Usage update", "input_tokens", msg.InputTokens, "output_tokens", msg.OutputTokens)
+		m.input.UpdateUsage(msg.InputTokens, msg.OutputTokens)
+	case smoke.ToolCallResponseMessage:
+		cmds = append(cmds, m.handleToolCallResponse(msg))
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage) tea.Cmd {
+	commands := []tea.Cmd{
+		m.input.SetWaiting(false),
+	}
+
+	if response.Err != nil {
+		commands = append(commands, updateHistory(response.Err))
+	} else {
+		commands = append(commands, updateHistory(response.Message))
+	}
+
+	return tea.Batch(commands...)
+}
+
+func (m *Model) handleAssistantUpdatedStream(response smoke.AssistantUpdatedStreamMessage) tea.Cmd {
+	return updateHistory(response.Message)
+}
+
+func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) tea.Cmd {
+	commands := []tea.Cmd{}
+
+	if response.Err != nil {
+		commands = append(commands, updateHistory(response.Err))
+	} else {
+		for _, message := range response.Messages {
+			commands = append(commands, updateHistory(message))
+		}
+	}
+
+	return tea.Batch(commands...)
+}
+
+// Handle messages from prompt command handlers.
+func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
+	cmds := []tea.Cmd{}
+
+	switch msg := msg.(type) {
+	// This is the message we receive from the input model to execute a prompt command.
+	case commands.PromptMessage:
 		cmd, err := m.smoke.HandleCommand(msg)
 		if err != nil {
 			cmds = append(cmds, updateHistory(err))
 		} else if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
+
 	case commands.HistoryUpdateMessage:
 		cmds = append(cmds, updateHistory(msg))
+
 	case commands.SessionUpdateMessage:
 		if err := m.smoke.SetSession(msg.Session); err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session: %w", err)))
@@ -163,7 +267,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			cmds = append(cmds, resetHistory)
 		}
-	case commands.PlanningModeMessage:
+
+	case plan.ModeMessage:
 		if err := m.smoke.SetSession(msg.Session); err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for planning mode switch: %w", err)))
 			break
@@ -177,7 +282,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		cmds = append(cmds, updateHistory(msg))
 		// TODO: do away with these separate mode messages, unify them with session update message?
-	case commands.ReviewModeMessage:
+
+	case review.ModeMessage:
 		if err := m.smoke.SetSession(msg.Session); err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for review mode switch: %w", err)))
 			break
@@ -190,204 +296,46 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		cmds = append(cmds, updateHistory(msg))
-	case commands.EditRequestMessage:
+
+	case edit.RequestMessage:
 		slog.Debug("got request to open temp file in editor", "file_path", msg.Path, "description", msg.Description, "editor", msg.Editor)
 
 		execCmd := exec.CommandContext(context.TODO(), msg.Editor, msg.Path) //nolint:gosec // Already sanitized
 		teaCmd := tea.ExecProcess(execCmd, func(err error) tea.Msg {
-			return commands.EditResultMessage{
-				EditRequestMessage: msg,
-				Err:                err,
+			return edit.ResultMessage{
+				RequestMessage: msg,
+				Err:            err,
 			}
 		})
 
 		cmds = append(cmds, teaCmd)
 
-	case commands.EditResultMessage:
+	case edit.ResultMessage:
 		if msg.Err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("edit failed: %w", msg.Err)))
 		} else {
 			msg := commands.HistoryUpdateMessage{
-				PromptCommand: msg.PromptCommand,
+				PromptMessage: msg.PromptMessage,
 				Message:       "Opened file " + msg.Path + " with " + msg.Editor,
 			}
 
 			cmds = append(cmds, updateHistory(msg))
 		}
-	case commands.SendSessionMessage:
-		if cmd := m.smoke.SendCommandMessage(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
-	case smoke.AssistantResponseMessage:
-		if msg.Err != nil {
-			cmds = append(cmds, updateHistory(msg.Err))
-		} else if cmd := m.handleAssistantResponse(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
-	case smoke.ToolCallResponseMessage:
-		if msg.Err != nil {
-			cmds = append(cmds, updateHistory(msg.Err))
-		} else if cmd := m.handleToolCallResponse(msg); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
-	case smoke.SendCommandMessageResponseMessage:
-		if cmd := m.handleSendCommandMessage(msg); cmd != nil {
+
+	case summarize.SessionSummarizeMessage:
+		cmd, err := m.smoke.HandleSummarizeMessage(msg)
+		if err != nil {
+			cmds = append(cmds, updateHistory(err))
+		} else {
 			cmds = append(cmds, cmd)
 		}
 	}
 
-	return m, tea.Batch(cmds...)
+	return tea.Batch(cmds...)
 }
 
-func (m *Model) View() string {
-	return fmt.Sprintf("%s%s%s", m.history.View(), gap, m.input.View())
-}
-
-func (m *Model) resize(msg tea.Msg) {
-	lineHeight := m.input.LineHeight()
-
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.history.Resize(msg.Width, msg.Height-(lineHeight+1)) // +1 for the border
-		m.input.Resize(msg.Width, lineHeight)
-	case input.ResizeMessage:
-		delta := lineHeight - m.input.GetHeight() // how many lines did we resize by
-		width := m.history.GetWidth()
-		m.history.Resize(width, m.history.GetHeight()-delta)
-		m.input.Resize(width, lineHeight)
-	}
-}
-
-func (m *Model) chunkListener() tea.Cmd {
-	return func() tea.Msg {
-		if m.chunkChan == nil {
-			return nil
-			// return m.input.SetWaiting(false)
-		}
-
-		// TODO: make this configurable? remove?
-		timer := time.NewTimer(time.Second * 60)
-		select {
-		case msg, ok := <-m.chunkChan:
-			if !ok {
-				m.chunkChan = nil
-				return nil
-				// return m.input.SetWaiting(false)
-			}
-
-			return smoke.AssistantResponseMessage{
-				Message: msg,
-			}
-		case <-timer.C:
-			// return tea.Batch(updateHistory(fmt.Errorf("timed out waiting for next chunk")), m.input.SetWaiting(false))
-			return updateHistory(fmt.Errorf("timed out waiting for next chunk"))
-		}
-	}
-}
-
-func (m *Model) handleUserMessage(msg input.UserMessage) tea.Cmd {
-	llmMessage := llms.SimpleMessage(llms.RoleUser, msg.Content)
-	commands := []tea.Cmd{
-		updateHistory(llmMessage),
-		m.input.SetWaiting(true),
-	}
-
-	slog.Debug("got user message", "message", llmMessage)
-
-	// var sendMessage tea.Cmd
-
-	if m.smoke.ShouldStream() {
-		m.chunkChan = make(chan *llms.Message)
-
-		cmd, err := m.smoke.SendUserMessageStreaming(llmMessage, m.chunkChan)
-		if err != nil {
-			return updateHistory(err)
-		}
-
-		commands = append(commands, cmd)
-		commands = append(commands, m.chunkListener())
-	} else {
-		cmd, err := m.smoke.SendUserMessage(llmMessage)
-		if err != nil {
-			return updateHistory(err)
-		}
-
-		if cmd != nil {
-			commands = append(commands, cmd)
-		}
-	}
-
-	return tea.Batch(commands...)
-}
-
-func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage) tea.Cmd {
-	commands := []tea.Cmd{
-		updateHistory(response.Message),
-	}
-
-	// Make sure we don't log a bunch of fragments as streamed messages come in
-	if !response.Message.IsChunk || response.Message.IsFinalized {
-		slog.Debug("got assistant message", "message", response.Message)
-	}
-
-	// update the usage based on the latest response
-	m.input.UpdateUsage(m.smoke.GetUsage())
-
-	switch {
-	case response.Message.IsStreamed && !response.Message.IsFinalized:
-		commands = append(commands, m.chunkListener())
-	case (!response.Message.IsStreamed || response.Message.IsFinalized) && !response.Message.HasToolCalls():
-		m.input.SetWaiting(false)
-	}
-
-	if response.Message.HasToolCalls() && (!response.Message.IsStreamed || response.Message.IsFinalized) {
-		cmd, err := m.smoke.HandleAssistantToolCalls(response.Message)
-		if err != nil {
-			m.input.SetWaiting(false)
-			return updateHistory(err)
-		}
-
-		commands = append(commands, cmd)
-	}
-
-	return tea.Batch(commands...)
-}
-
-func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) tea.Cmd {
-	commands := []tea.Cmd{}
-
-	for i, msg := range response.Messages {
-		slog.Debug("got tool call response", "message_num", i, "message", msg)
-	}
-
-	if response.Err != nil {
-		commands = append(commands, updateHistory(response.Err))
-	} else if response.Messages != nil {
-		for _, message := range response.Messages {
-			commands = append(commands, updateHistory(message))
-		}
-
-		cmd, err := m.smoke.HandleToolCallResults(response.Messages)
-		if err != nil {
-			return updateHistory(err)
-		}
-
-		if cmd != nil {
-			commands = append(commands, cmd)
-		}
-	}
-
-	return tea.Batch(commands...)
-}
-
-func (m *Model) handleSendCommandMessage(msg smoke.SendCommandMessageResponseMessage) tea.Cmd {
-	if msg.Err != nil {
-		return updateHistory(fmt.Errorf("error sending LLM message from command: %w", msg.Err))
-	}
-
-	return m.smoke.HandleCommandMessageResponse(msg)
-}
-
+// updateHistory is a helper function that takes any item and returns a tea.Cmd that will add it to the history
+// viewport.
 func updateHistory(msg any) tea.Cmd {
 	return func() tea.Msg {
 		return history.ContentUpdate{
