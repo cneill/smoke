@@ -38,6 +38,7 @@ func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
 	toolNames := session.Tools.GetTools().Names()
 
 	info := "**Session name:** " + name + "\n\n"
+	info += fmt.Sprintf("**Mode:** %s\n\n", session.GetMode())
 	info += fmt.Sprintf("**Messages:** user %d, assistant %d, tool call %d\n\n",
 		messageCount.UserMessages, messageCount.AssistantMessages, messageCount.ToolCallMessages)
 	info += fmt.Sprintf("**Tokens:** input %d, output %d, total %d\n\n", inputTokens, outputTokens, totalTokens)

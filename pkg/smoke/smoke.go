@@ -31,7 +31,6 @@ type TeaEmitter func(tea.Msg)
 type Smoke struct {
 	config      *config.Config
 	debug       bool
-	mode        Mode
 	projectPath string
 
 	planManager *plan.Manager
@@ -52,14 +51,6 @@ type Smoke struct {
 	mcpClients []*mcp.CommandClient
 }
 
-type Mode string
-
-const (
-	ModeNormal   = "normal"
-	ModePlanning = "planning"
-	ModeReview   = "review"
-)
-
 func (s *Smoke) OK() error {
 	switch {
 	case s.projectPath == "":
@@ -77,7 +68,6 @@ func (s *Smoke) OK() error {
 
 func New(opts ...OptFunc) (*Smoke, error) {
 	smoke := &Smoke{
-		mode:          ModeNormal,
 		sessions:      map[string]*llms.Session{},
 		conversations: map[string]llms.Conversation{},
 	}
@@ -474,22 +464,21 @@ func (s *Smoke) SetSession(newSession *llms.Session) error {
 	return nil
 }
 
-func (s *Smoke) SetMode(mode Mode) {
-	s.mode = mode
+func (s *Smoke) SetMode(mode llms.Mode) {
+	session := s.getMainSession()
+	session.SetMode(mode)
 
 	var enabledTools []tools.Initializer
 
 	switch mode {
-	case ModePlanning, ModeReview:
+	case llms.ModePlanning, llms.ModeReview:
 		enabledTools = tools.PlanningTools()
-	case ModeNormal:
+	case llms.ModeNormal:
 		enabledTools = tools.AllTools()
 	default:
 		// TODO: don't panic
 		panic(fmt.Errorf("tried to set smoke to unknown mode %q", mode))
 	}
-
-	session := s.getMainSession()
 
 	session.Tools.InitTools(enabledTools...)
 
@@ -534,6 +523,8 @@ func (s *Smoke) getMainSession() *llms.Session {
 func (s *Smoke) getMCPTools() (tools.Tools, error) {
 	results := tools.Tools{}
 
+	session := s.getMainSession()
+
 	for _, mcpClient := range s.mcpClients {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
@@ -543,10 +534,10 @@ func (s *Smoke) getMCPTools() (tools.Tools, error) {
 			err      error
 		)
 
-		switch s.mode {
-		case ModePlanning, ModeReview:
+		switch session.GetMode() {
+		case llms.ModePlanning, llms.ModeReview:
 			mcpTools, err = mcpClient.PlanTools(ctx)
-		case ModeNormal:
+		case llms.ModeNormal:
 			mcpTools, err = mcpClient.Tools(ctx)
 		}
 

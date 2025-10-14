@@ -275,9 +275,9 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 		}
 
 		if msg.Enabled {
-			m.smoke.SetMode(smoke.ModePlanning)
+			m.smoke.SetMode(llms.ModePlanning)
 		} else {
-			m.smoke.SetMode(smoke.ModeNormal)
+			m.smoke.SetMode(llms.ModeNormal)
 		}
 
 		cmds = append(cmds, updateHistory(msg))
@@ -290,9 +290,9 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 		}
 
 		if msg.Enabled {
-			m.smoke.SetMode(smoke.ModeReview)
+			m.smoke.SetMode(llms.ModeReview)
 		} else {
-			m.smoke.SetMode(smoke.ModeNormal)
+			m.smoke.SetMode(llms.ModeNormal)
 		}
 
 		cmds = append(cmds, updateHistory(msg))

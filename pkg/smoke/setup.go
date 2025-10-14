@@ -34,15 +34,19 @@ func (s *Smoke) setup() error {
 		return fmt.Errorf("failed to set up plan manager for smoke: %w", err)
 	}
 
+	if err := s.setupLLM(); err != nil {
+		return fmt.Errorf("failed to set up LLM: %w", err)
+	}
+
 	if err := s.setupSession(); err != nil {
 		return fmt.Errorf("failed to set up main smoke session: %w", err)
 	}
 
-	s.setupCommands()
-
-	if err := s.setupLLM(); err != nil {
-		return fmt.Errorf("failed to set up LLM: %w", err)
+	if err := s.setupMCP(); err != nil {
+		return fmt.Errorf("failed to set up MCP servers: %w", err)
 	}
+
+	s.setupCommands()
 
 	return nil
 }
@@ -66,6 +70,32 @@ func (s *Smoke) setupPlanManager() error {
 	return nil
 }
 
+func (s *Smoke) setupLLM() error {
+	var (
+		llm llms.LLM
+		err error
+	)
+
+	switch s.llmConfig.Provider {
+	case llms.LLMTypeChatGPT:
+		llm, err = chatgpt.New(s.llmConfig)
+	case llms.LLMTypeClaude:
+		llm, err = claude.New(s.llmConfig)
+	case llms.LLMTypeGrok:
+		llm, err = grok.New(s.llmConfig)
+	default:
+		err = fmt.Errorf("unknown provider: %s", s.llmConfig.Provider)
+	}
+
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrOptions, err)
+	}
+
+	s.llm = llm
+
+	return nil
+}
+
 func (s *Smoke) setupSession() error {
 	toolOpts := &tools.ManagerOpts{
 		ProjectPath:      s.projectPath,
@@ -80,26 +110,34 @@ func (s *Smoke) setupSession() error {
 	}
 
 	session, err := llms.NewSession(&llms.SessionOpts{
-		Name:          s.mainSessionName,
-		SystemMessage: s.mainSystemPrompt,
-		Tools:         toolManager,
+		Name:            s.mainSessionName,
+		SystemMessage:   s.mainSystemPrompt,
+		Tools:           toolManager,
+		SystemAsMessage: s.llm.RequiresSessionSystem(),
+		Mode:            llms.ModeNormal,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to initialize main smoke session: %w", err)
 	}
 
+	s.sessionMutex.Lock()
+	defer s.sessionMutex.Unlock()
+
+	s.sessions[s.mainSessionName] = session
+
+	return nil
+}
+
+func (s *Smoke) setupMCP() error {
 	// Once we've set up the session / etc, add MCP tools as well, if any
 	mcpTools, err := s.getMCPTools()
 	if err != nil {
 		return fmt.Errorf("failed to list MCP tools: %w", err)
 	}
 
+	session := s.getMainSession()
+
 	session.Tools.AddTools(mcpTools...)
-
-	s.sessionMutex.Lock()
-	defer s.sessionMutex.Unlock()
-
-	s.sessions[s.mainSessionName] = session
 
 	return nil
 }
@@ -125,41 +163,4 @@ func (s *Smoke) setupCommands() {
 	for commandName, initializer := range commands {
 		s.commands.Register(commandName, initializer)
 	}
-}
-
-func (s *Smoke) setupLLM() error {
-	var (
-		llm llms.LLM
-		err error
-	)
-
-	switch s.llmConfig.Provider {
-	case llms.LLMTypeChatGPT:
-		llm, err = chatgpt.New(s.llmConfig)
-	case llms.LLMTypeClaude:
-		llm, err = claude.New(s.llmConfig)
-	case llms.LLMTypeGrok:
-		llm, err = grok.New(s.llmConfig)
-	default:
-		err = fmt.Errorf("unknown provider: %s", s.llmConfig.Provider)
-	}
-
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrOptions, err)
-	}
-
-	// Update the session with a system message if needed by this provider
-	// TODO: HANDLE THIS IN A TIDIER WAY - STICK IT IN THE LLM PROVIDER?
-	if llm.RequiresSessionSystem() {
-		session := s.getMainSession()
-
-		session.SystemAsMessage = true
-		if err := session.SetSystemMessage(session.SystemMessage); err != nil {
-			return fmt.Errorf("failed to update main session system prompt: %w", err)
-		}
-	}
-
-	s.llm = llm
-
-	return nil
 }

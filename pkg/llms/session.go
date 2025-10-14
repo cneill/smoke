@@ -23,6 +23,8 @@ type Session struct {
 	usageMutex   sync.RWMutex `json:"-"`
 	InputTokens  int64        `json:"input_tokens"`
 	OutputTokens int64        `json:"output_tokens"`
+
+	mode Mode `json:"-"`
 }
 
 type SessionOpts struct {
@@ -30,6 +32,7 @@ type SessionOpts struct {
 	SystemMessage   string
 	SystemAsMessage bool
 	Tools           *tools.Manager
+	Mode            Mode
 }
 
 func (s *SessionOpts) OK() error {
@@ -40,6 +43,8 @@ func (s *SessionOpts) OK() error {
 		return fmt.Errorf("missing system message")
 	case s.Tools == nil:
 		return fmt.Errorf("missing tools manager")
+	case s.Mode == "":
+		return fmt.Errorf("missing mode")
 	}
 
 	return nil
@@ -62,6 +67,8 @@ func NewSession(opts *SessionOpts) (*Session, error) {
 
 		messageMutex: sync.RWMutex{},
 		usageMutex:   sync.RWMutex{},
+
+		mode: opts.Mode,
 	}
 
 	if err := session.SetSystemMessage(opts.SystemMessage); err != nil {
@@ -247,6 +254,12 @@ func (s *Session) ReplaceMessages(searches, replacements []*Message) {
 
 	s.Messages = newMessages
 }
+
+func (s *Session) SetMode(mode Mode) {
+	s.mode = mode
+}
+
+func (s *Session) GetMode() Mode { return s.mode }
 
 func (s *Session) Teardown() error {
 	if s.Tools != nil {
