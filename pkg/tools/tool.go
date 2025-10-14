@@ -71,7 +71,7 @@ func AllTools() []Initializer {
 		// NewPlanReadTool,
 		// NewPlanUpdateTool,
 		// NewReadFileTool,
-		NewReplaceLinesTool,
+		// NewReplaceLinesTool,
 		// NewSummarizeHistoryTool,
 		// NewWriteFileTool,
 	}

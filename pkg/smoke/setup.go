@@ -37,6 +37,7 @@ import (
 	planread "github.com/cneill/smoke/pkg/tools/handlers/plan/read"
 	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
 	"github.com/cneill/smoke/pkg/tools/handlers/readfile"
+	"github.com/cneill/smoke/pkg/tools/handlers/replacelines"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
 )
 
@@ -225,6 +226,7 @@ func (s *Smoke) normalModeTools() []tools.Initializer {
 		planread.New,
 		planupdate.New,
 		readfile.New,
+		replacelines.New,
 		writefile.New,
 	}
 }
