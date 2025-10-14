@@ -128,11 +128,6 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 		return fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
-	c.emit(ctx, llms.EventUsageUpdate{
-		InputTokens:  result.Usage.PromptTokens,
-		OutputTokens: result.Usage.CompletionTokens,
-	})
-
 	if len(result.Choices) == 0 {
 		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
 	}
@@ -140,6 +135,11 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 	if refusal := result.Choices[0].Message.Refusal; refusal != "" {
 		return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
 	}
+
+	c.emit(ctx, llms.EventUsageUpdate{
+		InputTokens:  result.Usage.PromptTokens,
+		OutputTokens: result.Usage.CompletionTokens,
+	})
 
 	response := result.Choices[0].Message
 
@@ -183,16 +183,16 @@ func (c *conversation) sendStream(ctx context.Context) error {
 			ID:   accumulator.ID,
 			Text: chunk.Choices[0].Delta.Content,
 		})
+
+		c.emit(ctx, llms.EventUsageUpdate{
+			InputTokens:  chunk.Usage.PromptTokens,
+			OutputTokens: chunk.Usage.CompletionTokens,
+		})
 	}
 
 	if err := stream.Err(); err != nil {
 		return fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
 	}
-
-	c.emit(ctx, llms.EventUsageUpdate{
-		InputTokens:  accumulator.Usage.PromptTokens,
-		OutputTokens: accumulator.Usage.CompletionTokens,
-	})
 
 	if len(accumulator.Choices) == 0 {
 		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
