@@ -245,7 +245,7 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 				content = "[no output]" // can't be empty?
 			}
 
-			results[num] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCalls[0].ID, content, msg.Error != nil))
+			results[num] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCalls[0].ID, content, msg.Error != ""))
 
 		case llms.RoleUnknown:
 			slog.Warn("got message with unknown role", "message", msg.Content)

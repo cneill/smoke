@@ -15,7 +15,7 @@ type Message struct {
 
 	Role    Role   `json:"role"`
 	Content string `json:"content,omitempty"`
-	Error   error  `json:"error,omitempty"`
+	Error   string `json:"error,omitempty"`
 
 	// ToolCalls holds all tool calls made by the provider in Assistant messages and the details of the (one) original
 	// Assistant call for Tool messages.
@@ -108,8 +108,8 @@ func (m *Message) LogValue() slog.Value {
 		attrs = append(attrs, slog.Any("tool_calls", m.ToolCalls))
 	}
 
-	if m.Error != nil {
-		attrs = append(attrs, slog.String("error", m.Error.Error()))
+	if m.Error != "" {
+		attrs = append(attrs, slog.String("error", m.Error))
 	}
 
 	if m.LLMInfo != nil {
@@ -179,7 +179,7 @@ func WithToolCalls(toolCalls ...ToolCall) MessageOpt {
 
 func WithError(err error) MessageOpt {
 	return func(message *Message) *Message {
-		message.Error = err
+		message.Error = err.Error()
 		return message
 	}
 }
