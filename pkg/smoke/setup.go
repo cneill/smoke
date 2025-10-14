@@ -23,6 +23,9 @@ import (
 	"github.com/cneill/smoke/pkg/providers/claude"
 	"github.com/cneill/smoke/pkg/providers/grok"
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers/ddg"
+	"github.com/cneill/smoke/pkg/tools/handlers/listfiles"
+	"github.com/cneill/smoke/pkg/tools/handlers/mkdir"
 )
 
 func (s *Smoke) setup() error {
@@ -97,16 +100,9 @@ func (s *Smoke) setupLLM() error {
 }
 
 func (s *Smoke) setupSession() error {
-	toolOpts := &tools.ManagerOpts{
-		ProjectPath:      s.projectPath,
-		SessionName:      s.mainSessionName,
-		ToolInitializers: tools.AllTools(),
-		PlanManager:      s.planManager,
-	}
-
-	toolManager, err := tools.NewManager(toolOpts)
+	toolManager, err := s.setupToolsManager()
 	if err != nil {
-		return fmt.Errorf("failed to initialize tools manager for main smoke session: %w", err)
+		return fmt.Errorf("failed to set up tools manager for main smoke session: %w", err)
 	}
 
 	session, err := llms.NewSession(&llms.SessionOpts{
@@ -163,4 +159,57 @@ func (s *Smoke) setupCommands() {
 	for commandName, initializer := range commands {
 		s.commands.Register(commandName, initializer)
 	}
+}
+
+func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
+	var (
+		initList []tools.Initializer
+		session  = s.getMainSession()
+	)
+
+	if session != nil {
+		switch session.GetMode() {
+		case llms.ModeNormal:
+			initList = s.normalModeTools()
+		case llms.ModePlanning:
+			initList = s.planningModeTools()
+		case llms.ModeReview:
+			initList = s.reviewModeTools()
+		}
+	} else {
+		initList = s.normalModeTools()
+	}
+
+	toolOpts := &tools.ManagerOpts{
+		ProjectPath:      s.projectPath,
+		SessionName:      s.mainSessionName,
+		ToolInitializers: initList,
+		PlanManager:      s.planManager,
+	}
+
+	toolManager, err := tools.NewManager(toolOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize tools manager for main smoke session: %w", err)
+	}
+
+	return toolManager, nil
+}
+
+func (s *Smoke) normalModeTools() []tools.Initializer {
+	return []tools.Initializer{
+		ddg.New,
+		listfiles.New,
+		mkdir.New,
+	}
+}
+
+func (s *Smoke) planningModeTools() []tools.Initializer {
+	return []tools.Initializer{
+		ddg.New,
+		listfiles.New,
+	}
+}
+
+func (s *Smoke) reviewModeTools() []tools.Initializer {
+	return []tools.Initializer{}
 }
