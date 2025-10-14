@@ -36,6 +36,7 @@ import (
 	plancompletion "github.com/cneill/smoke/pkg/tools/handlers/plan/completion"
 	planread "github.com/cneill/smoke/pkg/tools/handlers/plan/read"
 	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
+	"github.com/cneill/smoke/pkg/tools/handlers/readfile"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
 )
 
@@ -223,6 +224,7 @@ func (s *Smoke) normalModeTools() []tools.Initializer {
 		plancompletion.New,
 		planread.New,
 		planupdate.New,
+		readfile.New,
 		writefile.New,
 	}
 }
@@ -239,6 +241,7 @@ func (s *Smoke) planningModeTools() []tools.Initializer {
 		plancompletion.New,
 		planread.New,
 		planupdate.New,
+		readfile.New,
 	}
 }
 
@@ -254,6 +257,7 @@ func (s *Smoke) reviewModeTools() []tools.Initializer {
 		plancompletion.New, // TODO: ?
 		planread.New,
 		planupdate.New,
+		readfile.New,
 	}
 }
 

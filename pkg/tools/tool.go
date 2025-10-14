@@ -70,7 +70,7 @@ func AllTools() []Initializer {
 		// NewPlanCompletionTool,
 		// NewPlanReadTool,
 		// NewPlanUpdateTool,
-		NewReadFileTool,
+		// NewReadFileTool,
 		NewReplaceLinesTool,
 		// NewSummarizeHistoryTool,
 		// NewWriteFileTool,
@@ -90,7 +90,7 @@ func PlanningTools() []Initializer {
 		// NewPlanCompletionTool,
 		// NewPlanReadTool,
 		// NewPlanUpdateTool,
-		NewReadFileTool,
+		// NewReadFileTool,
 		// NewSummarizeHistoryTool,
 	}
 }
