@@ -66,10 +66,10 @@ func AllTools() []Initializer {
 		// NewGoTestTool,
 		// NewGrepTool,
 		// NewListFilesTool,
-		NewPlanAddTool,
-		NewPlanCompletionTool,
-		NewPlanReadTool,
-		NewPlanUpdateTool,
+		// NewPlanAddTool,
+		// NewPlanCompletionTool,
+		// NewPlanReadTool,
+		// NewPlanUpdateTool,
 		NewReadFileTool,
 		NewReplaceLinesTool,
 		// NewSummarizeHistoryTool,
@@ -86,10 +86,10 @@ func PlanningTools() []Initializer {
 		// NewGoTestTool,
 		// NewGrepTool,
 		// NewListFilesTool,
-		NewPlanAddTool,
-		NewPlanCompletionTool,
-		NewPlanReadTool,
-		NewPlanUpdateTool,
+		// NewPlanAddTool,
+		// NewPlanCompletionTool,
+		// NewPlanReadTool,
+		// NewPlanUpdateTool,
 		NewReadFileTool,
 		// NewSummarizeHistoryTool,
 	}
@@ -97,6 +97,6 @@ func PlanningTools() []Initializer {
 
 func SummarizeTools() []Initializer {
 	return []Initializer{
-		NewPlanReadTool,
+		// NewPlanReadTool,
 	}
 }

@@ -22,7 +22,7 @@ type GoFumpt struct {
 	ProjectPath string
 }
 
-func NewGoFumptTool(projectPath, _ string) tools.Tool {
+func New(projectPath, _ string) tools.Tool {
 	// TODO: allow for error here, and bail if we can't find the gofumpt binary on the system. Log an error but don't
 	// crash everything.
 	return &GoFumpt{ProjectPath: projectPath}

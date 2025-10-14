@@ -24,13 +24,17 @@ import (
 	"github.com/cneill/smoke/pkg/providers/grok"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers/ddg"
+	"github.com/cneill/smoke/pkg/tools/handlers/gofumpt"
+	"github.com/cneill/smoke/pkg/tools/handlers/goimports"
 	"github.com/cneill/smoke/pkg/tools/handlers/gotest"
 	"github.com/cneill/smoke/pkg/tools/handlers/grep"
 	"github.com/cneill/smoke/pkg/tools/handlers/listfiles"
 	"github.com/cneill/smoke/pkg/tools/handlers/mkdir"
+	planadd "github.com/cneill/smoke/pkg/tools/handlers/plan/add"
+	plancompletion "github.com/cneill/smoke/pkg/tools/handlers/plan/completion"
+	planread "github.com/cneill/smoke/pkg/tools/handlers/plan/read"
+	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
-	"github.com/golangci/golangci-lint/pkg/golinters/gofumpt"
-	"github.com/golangci/golangci-lint/pkg/golinters/goimports"
 )
 
 func (s *Smoke) setup() error {
@@ -209,6 +213,10 @@ func (s *Smoke) normalModeTools() []tools.Initializer {
 		grep.New,
 		listfiles.New,
 		mkdir.New,
+		planadd.New,
+		plancompletion.New,
+		planread.New,
+		planupdate.New,
 		writefile.New,
 	}
 }
@@ -219,13 +227,28 @@ func (s *Smoke) planningModeTools() []tools.Initializer {
 		gotest.New,
 		grep.New,
 		listfiles.New,
+		planadd.New,
+		plancompletion.New,
+		planread.New,
+		planupdate.New,
 	}
 }
 
 func (s *Smoke) reviewModeTools() []tools.Initializer {
 	return []tools.Initializer{
+		ddg.New,
 		gotest.New,
 		grep.New,
 		listfiles.New,
+		planadd.New,
+		plancompletion.New, // TODO: ?
+		planread.New,
+		planupdate.New,
+	}
+}
+
+func (s *Smoke) summarizeTools() []tools.Initializer {
+	return []tools.Initializer{
+		planread.New,
 	}
 }
