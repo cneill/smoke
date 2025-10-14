@@ -43,7 +43,7 @@ func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
 	info += fmt.Sprintf("**Tokens:** input %d, output %d, total %d\n\n", inputTokens, outputTokens, totalTokens)
 	info += fmt.Sprintf("**Duration:** %s\n\n", duration)
 	info += fmt.Sprintf("**Tools available:** %s\n\n", strings.Join(toolNames, ", "))
-	info += fmt.Sprintf("\n**System message:**\n```json\n%s\n```\n\n", session.SystemMessage)
+	info += fmt.Sprintf("\n**System message:**\n\n%s\n\n", session.SystemMessage)
 
 	// TODO: ability to get information not contained in the session object
 
