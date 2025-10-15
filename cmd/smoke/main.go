@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -17,62 +18,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func setup() *cli.Command {
-	return &cli.Command{
-		Name: "smoke",
-		Description: "An agentic coding assistant primarily focused on the Go programming language. It only works on " +
-			"one directory at a time, and requires that directory to contain a .git subdirectory.",
-		Usage:   "Smoke 'em if you got 'em.",
-		Flags:   flags(),
-		Action:  run,
-		Version: "v0.0.1", // TODO: dynamic
-	}
-}
-
-func run(ctx context.Context, cmd *cli.Command) error {
-	if err := validate(cmd); err != nil {
-		return fmt.Errorf("flag validation error: %w", err)
-	}
-
-	logFile, err := setupLogFile(cmd)
-	if err != nil {
-		return fmt.Errorf("failed to set up log file: %w", err)
-	}
-
-	defer func() {
-		if err := logFile.Close(); err != nil {
-			fmt.Printf("failed to close log file: %v\n", err)
-		}
-	}()
-
-	smokeInstance, err := getSmokeInstance(ctx, cmd)
-	if err != nil {
-		return fmt.Errorf("failed to set up smoke controller: %w", err)
-	}
-
-	// Run the Bubbletea loop
-	uiOpts := &ui.Opts{
-		Smoke: smokeInstance,
-	}
-
-	uiModel, err := ui.New(uiOpts)
-	if err != nil {
-		return fmt.Errorf("failed to set up UI: %w", err)
-	}
-
-	program := tea.NewProgram(uiModel, tea.WithReportFocus(), tea.WithMouseCellMotion())
-
-	// Give Smoke the ability to send messages directly into the bubbletea event loop.
-	if _, err := smokeInstance.Update(smoke.WithTeaEmitter(program.Send)); err != nil { //nolint:contextcheck // TODO: revisit this?
-		return fmt.Errorf("failed to update smoke controller with bubbletea emitter: %w", err)
-	}
-
-	if _, err := program.Run(); err != nil {
-		return fmt.Errorf("app error: %w", err)
-	}
-
-	return nil
-}
+var ErrInit = errors.New("initialization")
 
 func validate(cmd *cli.Command) error {
 	provider := cmd.String(FlagProvider)
@@ -205,10 +151,76 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 	return smokeInstance, nil
 }
 
-func main() {
-	command := setup()
+func run(ctx context.Context, cmd *cli.Command) error {
+	if err := validate(cmd); err != nil {
+		return fmt.Errorf("%w: flag validation error: %w", ErrInit, err)
+	}
 
-	if err := command.Run(context.TODO(), os.Args); err != nil {
-		panic(fmt.Errorf("run error: %w", err))
+	logFile, err := setupLogFile(cmd)
+	if err != nil {
+		return fmt.Errorf("%w: failed to set up log file: %w", ErrInit, err)
+	}
+
+	defer func() {
+		if err := logFile.Close(); err != nil {
+			fmt.Printf("failed to close log file: %v\n", err)
+		}
+	}()
+
+	smokeInstance, err := getSmokeInstance(ctx, cmd)
+	if err != nil {
+		return fmt.Errorf("%w: failed to set up smoke controller: %w", ErrInit, err)
+	}
+
+	// Run the Bubbletea loop
+	uiOpts := &ui.Opts{
+		Smoke: smokeInstance,
+	}
+
+	uiModel, err := ui.New(uiOpts)
+	if err != nil {
+		return fmt.Errorf("%w: failed to set up UI: %w", ErrInit, err)
+	}
+
+	program := tea.NewProgram(uiModel, tea.WithReportFocus(), tea.WithMouseCellMotion())
+
+	// Give Smoke the ability to send messages directly into the bubbletea event loop.
+	if _, err := smokeInstance.Update(smoke.WithTeaEmitter(program.Send)); err != nil { //nolint:contextcheck // TODO: revisit this?
+		return fmt.Errorf("%w: failed to update smoke controller with bubbletea emitter: %w", ErrInit, err)
+	}
+
+	if _, err := program.Run(); err != nil {
+		return fmt.Errorf("app error: %w", err)
+	}
+
+	return nil
+}
+
+func main() {
+	command := &cli.Command{
+		Name: "smoke",
+		Description: "An agentic coding assistant primarily focused on the Go programming language. It only works on " +
+			"one directory at a time, and requires that directory to contain a .git subdirectory.",
+		Usage:  "Smoke 'em if you got 'em.",
+		Flags:  flags(),
+		Action: run,
+		OnUsageError: func(_ context.Context, cmd *cli.Command, err error, _isSubcommand bool) error {
+			if err := cli.ShowAppHelp(cmd); err != nil {
+				return fmt.Errorf("%w: %w", ErrInit, err)
+			}
+
+			return fmt.Errorf("%w: %w", ErrInit, err)
+		},
+		Version: "v0.0.1", // TODO: dynamic
+	}
+
+	err := command.Run(context.TODO(), os.Args)
+	if err != nil {
+		if errors.Is(err, ErrInit) {
+			fmt.Printf("error: %v\n", err)
+			os.Exit(1)
+		}
+
+		panic(fmt.Errorf("error: run: %w", err))
 	}
 }
