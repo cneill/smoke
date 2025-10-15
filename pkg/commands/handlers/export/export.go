@@ -35,6 +35,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (e *Export) Name() string { return Name }
 
+func (e *Export) Help() string {
+	return "Exports the current session to a JSON file for loading later."
+}
+
+func (e *Export) Usage() string {
+	return "/export [path]"
+}
+
 func (e *Export) Run(session *llms.Session) (tea.Cmd, error) {
 	if e.Path == "" {
 		e.Path = fmt.Sprintf("%s_%s.json", session.Name, time.Now().Format(time.DateTime))
@@ -57,8 +65,4 @@ func (e *Export) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
-}
-
-func (e *Export) Help() string {
-	return "Exports the current session to a JSON file for loading later. Usage: /export [path]"
 }

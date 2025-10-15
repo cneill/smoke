@@ -42,6 +42,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (r *Run) Name() string { return Name }
 
+func (r *Run) Help() string {
+	return "Runs a tool with specified arguments."
+}
+
+func (r *Run) Usage() string {
+	return "/run <tool_name> <args_json>"
+}
+
 func (r *Run) Run(session *llms.Session) (tea.Cmd, error) {
 	args, err := session.Tools.GetArgs(r.ToolName, []byte(r.RawArgs))
 	if err != nil {
@@ -66,8 +74,4 @@ func (r *Run) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
-}
-
-func (r *Run) Help() string {
-	return "Runs a tool with specified arguments. Usage: /run <tool_name> <args_json>"
 }

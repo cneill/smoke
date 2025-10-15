@@ -65,6 +65,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (p *Plan) Name() string { return Name }
 
+func (p *Plan) Help() string {
+	return "Toggles or sets planning mode."
+}
+
+func (p *Plan) Usage() string {
+	return "/plan [on|off]"
+}
+
 func (p *Plan) Run(session *llms.Session) (tea.Cmd, error) {
 	var systemMessage, historyMessage string
 
@@ -88,8 +96,4 @@ func (p *Plan) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
-}
-
-func (p *Plan) Help() string {
-	return "Toggles or sets planning mode. Usage: /plan [on|off]"
 }

@@ -45,6 +45,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (s *Session) Name() string { return Name }
 
+func (s *Session) Help() string {
+	return "Create a new session and optionally replace the existing history in the terminal (with 'clear')."
+}
+
+func (s *Session) Usage() string {
+	return "/session <new|clear>"
+}
+
 func (s *Session) Run(session *llms.Session) (tea.Cmd, error) {
 	newSession, err := llms.NewSession(&llms.SessionOpts{
 		Name:          session.Name,
@@ -70,8 +78,4 @@ func (s *Session) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
-}
-
-func (s *Session) Help() string {
-	return "Create a new session and optionally replace the existing history in the terminal (with 'clear'). Usage: /session <new|clear>"
 }

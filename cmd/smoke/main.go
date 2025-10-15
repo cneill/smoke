@@ -204,7 +204,7 @@ func main() {
 		Usage:  "Smoke 'em if you got 'em.",
 		Flags:  flags(),
 		Action: run,
-		OnUsageError: func(_ context.Context, cmd *cli.Command, err error, _isSubcommand bool) error {
+		OnUsageError: func(_ context.Context, _ *cli.Command, err error, _ bool) error {
 			return fmt.Errorf("%w: %w", ErrInit, err)
 		},
 		Version: "v0.0.1", // TODO: dynamic

@@ -36,6 +36,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (s *Save) Name() string { return Name }
 
+func (s *Save) Help() string {
+	return "Saves the current session to a Markdown file."
+}
+
+func (s *Save) Usage() string {
+	return "/save [path]"
+}
+
 func (s *Save) Run(session *llms.Session) (tea.Cmd, error) {
 	if s.Path == "" {
 		s.Path = fmt.Sprintf("%s_%s.md", session.Name, time.Now().Format(time.DateTime))
@@ -58,8 +66,4 @@ func (s *Save) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
-}
-
-func (s *Save) Help() string {
-	return "Saves the current session to a Markdown file. Usage: /save [path]"
 }

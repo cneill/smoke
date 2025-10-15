@@ -69,6 +69,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (e *Edit) Name() string { return Name }
 
+func (e *Edit) Help() string {
+	return "Opens the conversation history or the last assistant message in your editor."
+}
+
+func (e Edit) Usage() string {
+	return "/edit [last|all]"
+}
+
 func (e *Edit) Run(session *llms.Session) (tea.Cmd, error) {
 	var content []byte
 
@@ -119,8 +127,4 @@ func (e *Edit) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(req), nil
-}
-
-func (e *Edit) Help() string {
-	return "Opens the conversation history or the last assistant message in your editor. Usage: /edit [last|all]"
 }

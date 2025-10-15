@@ -41,6 +41,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (l *Load) Name() string { return Name }
 
+func (l *Load) Help() string {
+	return "Loads a session from a JSON file and replaces the current session."
+}
+
+func (l *Load) Usage() string {
+	return "/load <path>"
+}
+
 func (l *Load) Run(session *llms.Session) (tea.Cmd, error) {
 	if l.Path == "" {
 		return nil, fmt.Errorf("%w: must provide a path to a session file", commands.ErrArguments)
@@ -68,8 +76,4 @@ func (l *Load) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
-}
-
-func (l *Load) Help() string {
-	return "Loads a session from a JSON file and replaces the current session. Usage: /load <path>"
 }

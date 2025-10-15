@@ -65,6 +65,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (r *Review) Name() string { return Name }
 
+func (r *Review) Help() string {
+	return "Enables or disables review mode, where the model checks for code issues."
+}
+
+func (r *Review) Usage() string {
+	return "/review [on|off]"
+}
+
 func (r *Review) Run(session *llms.Session) (tea.Cmd, error) {
 	var systemMessage, historyMessage string
 
@@ -88,8 +96,4 @@ func (r *Review) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
-}
-
-func (r *Review) Help() string {
-	return "Enables or disables review mode, where the model checks for code issues. Usage: /review [on|off]"
 }

@@ -32,12 +32,22 @@ func New(initializers map[string]commands.Initializer) commands.Initializer {
 
 func (h *Help) Name() string { return Name }
 
-func (h *Help) Help() string { return "Shows help for all available commands." }
+func (h *Help) Help() string {
+	return "Shows help for all available commands."
+}
+
+func (h *Help) Usage() string {
+	return "/help"
+}
 
 func (h *Help) Run(_ *llms.Session) (tea.Cmd, error) {
-	helps := make([]string, len(h.initializers)+1)
+	helps := make([]string, len(h.initializers))
 
 	idx := 0
+
+	cmdUsage := func(name, help, usage string) string {
+		return fmt.Sprintf("`/%s` - **%s**\n\t* **Usage:** `%s`", name, help, usage)
+	}
 
 	for name, init := range h.initializers {
 		cmd, err := init(commands.PromptMessage{Command: name, Args: []string{"help"}})
@@ -46,11 +56,9 @@ func (h *Help) Run(_ *llms.Session) (tea.Cmd, error) {
 			continue
 		}
 
-		helps[idx] = fmt.Sprintf("/%s - %s", name, cmd.Help())
+		helps[idx] = cmdUsage(name, cmd.Help(), cmd.Usage())
 		idx++
 	}
-
-	helps[idx] = fmt.Sprintf("/%s - %s", h.Name(), h.Help())
 
 	slices.Sort(helps)
 

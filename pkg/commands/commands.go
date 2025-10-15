@@ -9,8 +9,9 @@ import (
 
 type Command interface {
 	Name() string
-	Run(session *llms.Session) (tea.Cmd, error)
 	Help() string
+	Usage() string
+	Run(session *llms.Session) (tea.Cmd, error)
 }
 
 type Initializer func(msg PromptMessage) (Command, error)

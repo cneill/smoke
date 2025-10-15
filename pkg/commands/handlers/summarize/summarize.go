@@ -91,6 +91,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (s *Summarize) Name() string { return Name }
 
+func (s *Summarize) Help() string {
+	return "Asks the LLM to summarize part or all of the message history."
+}
+
+func (s *Summarize) Usage() string {
+	return "/summarize [--first N | --last N | --before TIME | --after TIME]"
+}
+
 func (s *Summarize) Run(session *llms.Session) (tea.Cmd, error) {
 	// TODO: make a read-only view of messages...?
 	filtered := s.filterMessages(session.Messages)
@@ -100,10 +108,6 @@ func (s *Summarize) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(msg), nil
-}
-
-func (s *Summarize) Help() string {
-	return "Asks the LLM to summarize part or all of the message history. Usage: /summarize [--first N | --last N | --before TIME | --after TIME]"
 }
 
 func (s *Summarize) filterMessages(messages []*llms.Message) []*llms.Message { //nolint:cyclop

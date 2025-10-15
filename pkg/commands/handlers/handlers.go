@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"maps"
-
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/edit"
 	"github.com/cneill/smoke/pkg/commands/handlers/exit"
@@ -19,16 +17,7 @@ import (
 )
 
 func AllCommands() map[string]commands.Initializer {
-	primary := PrimaryCommands()
-	helpCmd := help.New(primary)
-	results := maps.Clone(primary)
-	results[help.Name] = helpCmd
-
-	return results
-}
-
-func PrimaryCommands() map[string]commands.Initializer {
-	return map[string]commands.Initializer{
+	initializers := map[string]commands.Initializer{
 		edit.Name:      edit.New,
 		exit.Name:      exit.New,
 		export.Name:    export.New,
@@ -41,4 +30,10 @@ func PrimaryCommands() map[string]commands.Initializer {
 		session.Name:   session.New,
 		summarize.Name: summarize.New,
 	}
+
+	// NOTE: since the map gets updated, help ultimately contains itself
+	helpCmd := help.New(initializers)
+	initializers[help.Name] = helpCmd
+
+	return initializers
 }

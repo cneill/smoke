@@ -29,6 +29,14 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 
 func (i *Info) Name() string { return Name }
 
+func (i *Info) Help() string {
+	return "Displays detailed information about the current session, including messages, tokens, and tools."
+}
+
+func (i *Info) Usage() string {
+	return "/info"
+}
+
 func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
 	name := session.Name
 	messageCount := session.MessageCount()
@@ -54,8 +62,4 @@ func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	return uimsg.MsgToCmd(update), nil
-}
-
-func (i *Info) Help() string {
-	return "Displays detailed information about the current session, including messages, tokens, and tools."
 }
