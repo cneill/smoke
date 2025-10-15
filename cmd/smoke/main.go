@@ -190,7 +190,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if _, err := program.Run(); err != nil {
-		return fmt.Errorf("app error: %w", err)
+		return fmt.Errorf("run: %w", err)
 	}
 
 	return nil
@@ -205,10 +205,6 @@ func main() {
 		Flags:  flags(),
 		Action: run,
 		OnUsageError: func(_ context.Context, cmd *cli.Command, err error, _isSubcommand bool) error {
-			if err := cli.ShowAppHelp(cmd); err != nil {
-				return fmt.Errorf("%w: %w", ErrInit, err)
-			}
-
 			return fmt.Errorf("%w: %w", ErrInit, err)
 		},
 		Version: "v0.0.1", // TODO: dynamic
@@ -217,10 +213,15 @@ func main() {
 	err := command.Run(context.TODO(), os.Args)
 	if err != nil {
 		if errors.Is(err, ErrInit) {
+			if err := cli.ShowAppHelp(command); err != nil {
+				fmt.Printf("error: %v\n", err)
+				os.Exit(1)
+			}
+
 			fmt.Printf("error: %v\n", err)
 			os.Exit(1)
 		}
 
-		panic(fmt.Errorf("error: run: %w", err))
+		panic(fmt.Errorf("error: %w", err))
 	}
 }
