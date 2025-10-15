@@ -11,6 +11,7 @@ import (
 	"github.com/cneill/smoke/pkg/log"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers"
 )
 
 func run() error {
@@ -38,7 +39,7 @@ func run() error {
 	opts := &tools.ManagerOpts{
 		ProjectPath:      absPath,
 		SessionName:      "test_session",
-		ToolInitializers: tools.AllTools(),
+		ToolInitializers: handlers.AllTools(),
 		PlanManager:      planManager,
 	}
 

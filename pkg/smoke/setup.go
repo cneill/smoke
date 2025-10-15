@@ -4,18 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cneill/smoke/pkg/commands"
-	"github.com/cneill/smoke/pkg/commands/handlers/edit"
-	"github.com/cneill/smoke/pkg/commands/handlers/exit"
-	"github.com/cneill/smoke/pkg/commands/handlers/export"
-	"github.com/cneill/smoke/pkg/commands/handlers/help"
-	"github.com/cneill/smoke/pkg/commands/handlers/info"
-	"github.com/cneill/smoke/pkg/commands/handlers/load"
-	plancmd "github.com/cneill/smoke/pkg/commands/handlers/plan"
-	"github.com/cneill/smoke/pkg/commands/handlers/review"
-	"github.com/cneill/smoke/pkg/commands/handlers/run"
-	"github.com/cneill/smoke/pkg/commands/handlers/save"
-	"github.com/cneill/smoke/pkg/commands/handlers/session"
-	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
+	cmdhandlers "github.com/cneill/smoke/pkg/commands/handlers"
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/plan"
@@ -23,25 +12,8 @@ import (
 	"github.com/cneill/smoke/pkg/providers/claude"
 	"github.com/cneill/smoke/pkg/providers/grok"
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/cneill/smoke/pkg/tools/handlers/ddg"
-	gitdiff "github.com/cneill/smoke/pkg/tools/handlers/git/diff"
-	"github.com/cneill/smoke/pkg/tools/handlers/gofumpt"
-	"github.com/cneill/smoke/pkg/tools/handlers/goimports"
-	"github.com/cneill/smoke/pkg/tools/handlers/golint"
-	"github.com/cneill/smoke/pkg/tools/handlers/gotest"
-	"github.com/cneill/smoke/pkg/tools/handlers/grep"
-	"github.com/cneill/smoke/pkg/tools/handlers/listfiles"
-	"github.com/cneill/smoke/pkg/tools/handlers/mkdir"
-	planadd "github.com/cneill/smoke/pkg/tools/handlers/plan/add"
-	plancompletion "github.com/cneill/smoke/pkg/tools/handlers/plan/completion"
-	planread "github.com/cneill/smoke/pkg/tools/handlers/plan/read"
-	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
-	"github.com/cneill/smoke/pkg/tools/handlers/readfile"
-	"github.com/cneill/smoke/pkg/tools/handlers/replacelines"
-	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
+	toolhandlers "github.com/cneill/smoke/pkg/tools/handlers"
 )
-
-// TODO: move command / tool handler imports to their "handlers" packages?
 
 func (s *Smoke) setup() error {
 	if err := s.OK(); err != nil {
@@ -156,22 +128,7 @@ func (s *Smoke) setupMCP() error {
 func (s *Smoke) setupCommands() {
 	s.commands = commands.NewManager(s.projectPath)
 
-	commands := map[string]commands.Initializer{
-		edit.Name:      edit.New,
-		exit.Name:      exit.New,
-		export.Name:    export.New,
-		help.Name:      help.New(s.commands),
-		info.Name:      info.New,
-		load.Name:      load.New,
-		plancmd.Name:   plancmd.New,
-		review.Name:    review.New,
-		run.Name:       run.New,
-		save.Name:      save.New,
-		session.Name:   session.New,
-		summarize.Name: summarize.New,
-	}
-
-	for commandName, initializer := range commands {
+	for commandName, initializer := range cmdhandlers.AllCommands() {
 		s.commands.Register(commandName, initializer)
 	}
 }
@@ -185,14 +142,14 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 	if session != nil {
 		switch session.GetMode() {
 		case llms.ModeNormal:
-			initList = s.normalModeTools()
+			initList = toolhandlers.NormalTools()
 		case llms.ModePlanning:
-			initList = s.planningModeTools()
+			initList = toolhandlers.PlanningTools()
 		case llms.ModeReview:
-			initList = s.reviewModeTools()
+			initList = toolhandlers.ReviewTools()
 		}
 	} else {
-		initList = s.normalModeTools()
+		initList = toolhandlers.NormalTools()
 	}
 
 	toolOpts := &tools.ManagerOpts{
@@ -208,63 +165,4 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 	}
 
 	return toolManager, nil
-}
-
-func (s *Smoke) normalModeTools() []tools.Initializer {
-	return []tools.Initializer{
-		ddg.New,
-		gitdiff.New,
-		gofumpt.New,
-		goimports.New,
-		golint.New,
-		gotest.New,
-		grep.New,
-		listfiles.New,
-		mkdir.New,
-		planadd.New,
-		plancompletion.New,
-		planread.New,
-		planupdate.New,
-		readfile.New,
-		replacelines.New,
-		writefile.New,
-	}
-}
-
-func (s *Smoke) planningModeTools() []tools.Initializer {
-	return []tools.Initializer{
-		ddg.New,
-		gitdiff.New,
-		golint.New,
-		gotest.New,
-		grep.New,
-		listfiles.New,
-		planadd.New,
-		plancompletion.New,
-		planread.New,
-		planupdate.New,
-		readfile.New,
-	}
-}
-
-func (s *Smoke) reviewModeTools() []tools.Initializer {
-	return []tools.Initializer{
-		ddg.New,
-		gitdiff.New,
-		golint.New,
-		gotest.New,
-		grep.New,
-		listfiles.New,
-		planadd.New,
-		plancompletion.New, // TODO: ?
-		planread.New,
-		planupdate.New,
-		readfile.New,
-	}
-}
-
-func (s *Smoke) summarizeTools() []tools.Initializer {
-	return []tools.Initializer{
-		planread.New,
-	}
 }

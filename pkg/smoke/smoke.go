@@ -20,6 +20,7 @@ import (
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers"
 )
 
 type TeaEmitter func(tea.Msg)
@@ -271,7 +272,7 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 	managerOpts := &tools.ManagerOpts{
 		ProjectPath:      s.projectPath,
 		SessionName:      sessionName,
-		ToolInitializers: tools.SummarizeTools(),
+		ToolInitializers: handlers.SummarizeTools(),
 		PlanManager:      s.planManager,
 	}
 
@@ -471,10 +472,12 @@ func (s *Smoke) SetMode(mode llms.Mode) {
 	var enabledTools []tools.Initializer
 
 	switch mode {
-	case llms.ModePlanning, llms.ModeReview:
-		enabledTools = tools.PlanningTools()
+	case llms.ModePlanning:
+		enabledTools = handlers.PlanningTools()
+	case llms.ModeReview:
+		enabledTools = handlers.ReviewTools()
 	case llms.ModeNormal:
-		enabledTools = tools.AllTools()
+		enabledTools = handlers.NormalTools()
 	default:
 		// TODO: don't panic
 		panic(fmt.Errorf("tried to set smoke to unknown mode %q", mode))

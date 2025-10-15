@@ -9,6 +9,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,7 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	opts := &tools.ManagerOpts{
 		ProjectPath:      absPath,
 		SessionName:      "test",
-		ToolInitializers: tools.AllTools(),
+		ToolInitializers: handlers.AllTools(),
 		PlanManager:      planManager,
 	}
 
