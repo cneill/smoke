@@ -147,6 +147,8 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 			initList = toolhandlers.PlanningTools()
 		case llms.ModeReview:
 			initList = toolhandlers.ReviewTools()
+		case llms.ModeSummarize:
+			initList = toolhandlers.SummarizeTools()
 		}
 	} else {
 		initList = toolhandlers.NormalTools()

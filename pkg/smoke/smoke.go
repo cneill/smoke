@@ -286,6 +286,7 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 		SystemMessage:   systemMessage,
 		SystemAsMessage: mainSession.SystemAsMessage, // TODO: check LLM for this? something else?
 		Tools:           toolManager,
+		Mode:            llms.ModeSummarize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)
@@ -359,8 +360,15 @@ func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSumm
 
 				slog.Debug("Got final assistant message in summarization loop", "message", event.Message)
 
-				content := fmt.Sprintf("%s\n\nThis message represents a summary of %d message, updated %s",
-					event.Message.Content, len(msg.OriginalMessages), time.Now())
+				num := len(msg.OriginalMessages)
+
+				pluralized := "message"
+				if num > 1 {
+					pluralized = "messages"
+				}
+
+				content := fmt.Sprintf("%s\n\nThis message represents a summary of %d %s, updated %s",
+					event.Message.Content, num, pluralized, time.Now())
 
 				newMessage := llms.NewMessage(
 					llms.WithRole(llms.RoleUser),
