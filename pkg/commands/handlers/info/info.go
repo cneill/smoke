@@ -17,11 +17,19 @@ const Name = "info"
 
 type Info struct {
 	PromptMessage commands.PromptMessage
+	includeSystem bool
 }
 
 func New(msg commands.PromptMessage) (commands.Command, error) {
 	handler := &Info{
 		PromptMessage: msg,
+	}
+
+	for _, arg := range msg.Args {
+		switch arg {
+		case "--system":
+			handler.includeSystem = true
+		}
 	}
 
 	return handler, nil
@@ -30,11 +38,12 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 func (i *Info) Name() string { return Name }
 
 func (i *Info) Help() string {
-	return "Displays detailed information about the current session, including messages, tokens, and tools."
+	return "Displays detailed information about the current session, including message and token counts, tools, and " +
+		"more. Use --system to include the current system prompt."
 }
 
 func (i *Info) Usage() string {
-	return "/info"
+	return "/info [--system]"
 }
 
 func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
@@ -52,7 +61,10 @@ func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
 	info += fmt.Sprintf("**Tokens:** input %d, output %d, total %d\n\n", inputTokens, outputTokens, totalTokens)
 	info += fmt.Sprintf("**Duration:** %s\n\n", duration)
 	info += fmt.Sprintf("**Tools available:** %s\n\n", strings.Join(toolNames, ", "))
-	info += fmt.Sprintf("\n**System message:**\n\n%s\n\n", session.SystemMessage)
+
+	if i.includeSystem {
+		info += fmt.Sprintf("\n**System message:**\n\n%s\n\n", session.SystemMessage)
+	}
 
 	// TODO: ability to get information not contained in the session object
 
