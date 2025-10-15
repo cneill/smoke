@@ -1,4 +1,4 @@
-package tools
+package readfile
 
 import (
 	"bytes"
@@ -7,87 +7,90 @@ import (
 	"os"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/formatting"
 )
 
 const (
-	ReadFilePath      = "path"
-	ReadFileStartLine = "start_line"
-	ReadFileEndLine   = "end_line"
+	Name = "read_file"
+
+	ParamPath      = "path"
+	ParamStartLine = "start_line"
+	ParamEndLine   = "end_line"
 )
 
-type ReadFileTool struct {
+type ReadFile struct {
 	ProjectPath string
 }
 
-func NewReadFileTool(projectPath, _ string) Tool {
-	return &ReadFileTool{ProjectPath: projectPath}
+func New(projectPath, _ string) tools.Tool {
+	return &ReadFile{ProjectPath: projectPath}
 }
 
-func (r *ReadFileTool) Name() string { return ToolReadFile }
-func (r *ReadFileTool) Description() string {
-	examples := CollectExamples(r.Examples()...)
+func (r *ReadFile) Name() string { return Name }
+func (r *ReadFile) Description() string {
+	examples := tools.CollectExamples(r.Examples()...)
 
 	return fmt.Sprintf("Read the contents of a file. If you just want to read the whole file, don't include %q/%q.%s",
-		ReadFileStartLine, ReadFileEndLine, examples)
+		ParamStartLine, ParamEndLine, examples)
 }
 
-func (r *ReadFileTool) Examples() Examples {
-	return Examples{
+func (r *ReadFile) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: `Read the whole "LICENSE" file in the root of the repository`,
-			Args:        Args{ReadFilePath: "LICENSE"},
+			Args:        tools.Args{ParamPath: "LICENSE"},
 		},
 		{
 			Description: `Read the first 20 lines of the "src/main.go" file`,
-			Args: Args{
-				ReadFilePath:      "src/main.go",
-				ReadFileStartLine: 1,
-				ReadFileEndLine:   20,
+			Args: tools.Args{
+				ParamPath:      "src/main.go",
+				ParamStartLine: 1,
+				ParamEndLine:   20,
 			},
 		},
 		{
 			Description: `Read from line 200 to the end of "data.log"`,
-			Args: Args{
-				ReadFilePath:      "data.log",
-				ReadFileStartLine: 200,
+			Args: tools.Args{
+				ParamPath:      "data.log",
+				ParamStartLine: 200,
 			},
 		},
 	}
 }
 
-func (r *ReadFileTool) Params() Params {
-	return Params{
+func (r *ReadFile) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         ReadFilePath,
+			Key:         ParamPath,
 			Description: "The path of the file to read",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    true,
 		},
 		{
-			Key:         ReadFileStartLine,
+			Key:         ParamStartLine,
 			Description: "The starting line number to read (1 by default)",
-			Type:        ParamTypeNumber,
+			Type:        tools.ParamTypeNumber,
 			Required:    false,
 		},
 		{
-			Key:         ReadFileEndLine,
+			Key:         ParamEndLine,
 			Description: "The last line number to read (end of file by default).",
-			Type:        ParamTypeNumber,
+			Type:        tools.ParamTypeNumber,
 			Required:    false,
 		},
 	}
 }
 
-func (r *ReadFileTool) Run(_ context.Context, args Args) (string, error) { //nolint:cyclop
-	path := args.GetString(ReadFilePath)
+func (r *ReadFile) Run(_ context.Context, args tools.Args) (string, error) { //nolint:cyclop
+	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
+		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
 	fullPath, err := fs.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+		return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
 
 	var (
@@ -95,29 +98,29 @@ func (r *ReadFileTool) Run(_ context.Context, args Args) (string, error) { //nol
 		end   int64 = -1
 	)
 
-	if startArg := args.GetInt64(ReadFileStartLine); startArg != nil {
+	if startArg := args.GetInt64(ParamStartLine); startArg != nil {
 		if *startArg < 1 {
-			return "", fmt.Errorf("%w: %q must be >= 1", ErrArguments, ReadFileStartLine)
+			return "", fmt.Errorf("%w: %q must be >= 1", tools.ErrArguments, ParamStartLine)
 		}
 
 		start = *startArg
 	}
 
-	if endArg := args.GetInt64(ReadFileEndLine); endArg != nil {
+	if endArg := args.GetInt64(ParamEndLine); endArg != nil {
 		if *endArg < 1 {
-			return "", fmt.Errorf("%w: %q must be >= 1", ErrArguments, ReadFileEndLine)
+			return "", fmt.Errorf("%w: %q must be >= 1", tools.ErrArguments, ParamEndLine)
 		}
 
 		end = *endArg
 	}
 
 	if end != -1 && start > end {
-		return "", fmt.Errorf("%w: %q must be <= %q", ErrArguments, ReadFileStartLine, ReadFileEndLine)
+		return "", fmt.Errorf("%w: %q must be <= %q", tools.ErrArguments, ParamStartLine, ParamEndLine)
 	}
 
 	contents, err := os.ReadFile(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, fullPath, err)
+		return "", fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
 	if isBinary(contents) {
@@ -132,7 +135,7 @@ func (r *ReadFileTool) Run(_ context.Context, args Args) (string, error) { //nol
 	}
 
 	if start > numLines {
-		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReadFileStartLine)
+		return "", fmt.Errorf("%w: %q is beyond the end of the file", tools.ErrArguments, ParamStartLine)
 	}
 
 	output := formatting.WithLineNumbers(lines[start-1:end], int(start))

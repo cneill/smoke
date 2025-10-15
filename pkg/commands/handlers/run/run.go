@@ -64,6 +64,7 @@ func (r *Run) Run(session *llms.Session) (tea.Cmd, error) {
 		PromptMessage: r.PromptMessage,
 		Message:       updateMsg,
 	}
+
 	return uimsg.MsgToCmd(update), nil
 }
 

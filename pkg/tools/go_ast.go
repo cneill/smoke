@@ -96,7 +96,7 @@ func (g *GoASTTool) Run(ctx context.Context, args Args) (string, error) {
 	targetPath := g.ProjectPath
 
 	// path is optional
-	if path := args.GetString(GoFumptPath); path != nil {
+	if path := args.GetString(GoASTPath); path != nil {
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)

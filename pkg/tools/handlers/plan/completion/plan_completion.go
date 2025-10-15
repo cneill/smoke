@@ -1,4 +1,4 @@
-package tools
+package plancompletion
 
 import (
 	"context"
@@ -6,30 +6,33 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/plan"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	PlanCompletionTaskIDs = "task_ids"
-	PlanCompletionContent = "content"
-	PlanCompletionStatus  = "status"
+	Name = "plan_completion"
+
+	ParamTaskIDs = "task_ids"
+	ParamContent = "content"
+	ParamStatus  = "status"
 )
 
-type PlanCompletionTool struct {
+type PlanCompletion struct {
 	ProjectPath string
 	SessionName string
 	PlanManager *plan.Manager
 }
 
-func NewPlanCompletionTool(projectPath, sessionName string) Tool {
-	return &PlanCompletionTool{
+func New(projectPath, sessionName string) tools.Tool {
+	return &PlanCompletion{
 		ProjectPath: projectPath,
 		SessionName: sessionName,
 	}
 }
 
-func (p *PlanCompletionTool) Name() string { return ToolPlanCompletion }
-func (p *PlanCompletionTool) Description() string {
-	examples := CollectExamples(p.Examples()...)
+func (p *PlanCompletion) Name() string { return Name }
+func (p *PlanCompletion) Description() string {
+	examples := tools.CollectExamples(p.Examples()...)
 
 	return fmt.Sprintf("Mark tasks as completed by their IDs, with a note explaining the status of these tasks. If "+
 		"you need to completely redefine or remove a task or set of tasks based on user feedback, you can mark them "+
@@ -38,84 +41,84 @@ func (p *PlanCompletionTool) Description() string {
 	)
 }
 
-func (p *PlanCompletionTool) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
+func (p *PlanCompletion) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
 
-func (p *PlanCompletionTool) Examples() Examples {
-	return Examples{
+func (p *PlanCompletion) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: "Mark a single task as completed with default success status.",
-			Args: Args{
-				PlanCompletionTaskIDs: []string{"task_id_1"},
-				PlanCompletionContent: "The Foo() function now returns an error, all call sites are updated to " +
+			Args: tools.Args{
+				ParamTaskIDs: []string{"task_id_1"},
+				ParamContent: "The Foo() function now returns an error, all call sites are updated to " +
 					"account for this, and the relevant tests pass.",
 			},
 		},
 		{
 			Description: "Mark multiple tasks as completed with failed status, explaining that the user has failed " +
 				"to provide all the necessary context to complete the task.",
-			Args: Args{
-				PlanCompletionTaskIDs: []string{"task_id_1", "task_id_2"},
-				PlanCompletionContent: "The tests are failing after making modifications to the Foo() function, but " +
+			Args: tools.Args{
+				ParamTaskIDs: []string{"task_id_1", "task_id_2"},
+				ParamContent: "The tests are failing after making modifications to the Foo() function, but " +
 					"this appears to be due to a missing API key that I don't have access to.",
-				PlanCompletionStatus: string(plan.CompletionStatusFailed),
+				ParamStatus: string(plan.CompletionStatusFailed),
 			},
 		},
 		{
 			Description: fmt.Sprintf("Mark a task and its child subtasks as obsolete after user feedback on the "+
 				"plan. This is essentially equivalent to deleting the task and will ensure that it does not show up "+
 				"in the output of %q.",
-				ToolPlanRead,
+				tools.ToolPlanRead,
 			),
-			Args: Args{
-				PlanCompletionTaskIDs: []string{"task_id_1"},
-				PlanCompletionContent: "The user explained that this task is outside the scope of the current " +
+			Args: tools.Args{
+				ParamTaskIDs: []string{"task_id_1"},
+				ParamContent: "The user explained that this task is outside the scope of the current " +
 					"request and should not be implemented yet.",
-				PlanCompletionStatus: string(plan.CompletionStatusObsolete),
+				ParamStatus: string(plan.CompletionStatusObsolete),
 			},
 		},
 		{
 			Description: "Mark a task as partially completed when some work is done but blocked by external factors",
-			Args: Args{
-				PlanCompletionTaskIDs: []string{"integrate_payment_api"},
-				PlanCompletionContent: "Implemented the payment gateway client and data models, but cannot complete " +
+			Args: tools.Args{
+				ParamTaskIDs: []string{"integrate_payment_api"},
+				ParamContent: "Implemented the payment gateway client and data models, but cannot complete " +
 					"the integration testing because the sandbox environment credentials have not been provided. " +
 					"The code is ready but untested against the actual API.",
-				PlanCompletionStatus: string(plan.CompletionStatusPartial),
+				ParamStatus: string(plan.CompletionStatusPartial),
 			},
 		},
 		{
 			Description: "Complete a parent task and all its subtasks after successfully implementing a feature",
-			Args: Args{
-				PlanCompletionTaskIDs: []string{
+			Args: tools.Args{
+				ParamTaskIDs: []string{
 					"add_user_authentication", "implement_login", "implement_logout", "add_session_management",
 				},
-				PlanCompletionContent: "Successfully implemented the complete authentication system. Login and logout " +
+				ParamContent: "Successfully implemented the complete authentication system. Login and logout " +
 					"endpoints are working correctly with session management. All unit tests pass and integration " +
 					"tests confirm proper authentication flow.",
-				PlanCompletionStatus: string(plan.CompletionStatusSuccess),
+				ParamStatus: string(plan.CompletionStatusSuccess),
 			},
 		},
 	}
 }
 
-func (p *PlanCompletionTool) Params() Params {
-	return Params{
+func (p *PlanCompletion) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         PlanCompletionTaskIDs,
+			Key:         ParamTaskIDs,
 			Description: "The IDs of the tasks to mark as completed",
-			Type:        ParamTypeArray,
-			ItemType:    ParamTypeString,
+			Type:        tools.ParamTypeArray,
+			ItemType:    tools.ParamTypeString,
 			Required:    true,
 		},
 		{
-			Key: PlanCompletionContent,
+			Key: ParamContent,
 			Description: "A brief explanation of why the task is being marked completed, and why this particular " +
 				"completion status was chosen.",
-			Type:     ParamTypeString,
+			Type:     tools.ParamTypeString,
 			Required: true,
 		},
 		{
-			Key: PlanCompletionStatus,
+			Key: ParamStatus,
 			Description: fmt.Sprintf(
 				"The completion status for the tasks. If not provided, defaults to %q. %q means that the task is "+
 					"totally complete based on the user's query. %q means that it is impossible to complete any of "+
@@ -126,9 +129,9 @@ func (p *PlanCompletionTool) Params() Params {
 				plan.CompletionStatusSuccess, plan.CompletionStatusSuccess, plan.CompletionStatusFailed,
 				plan.CompletionStatusPartial, plan.CompletionStatusObsolete,
 			),
-			Type:     ParamTypeString,
+			Type:     tools.ParamTypeString,
 			Required: false,
-			EnumStringValues: ToStrings([]plan.CompletionStatus{
+			EnumStringValues: tools.ToStrings([]plan.CompletionStatus{
 				plan.CompletionStatusSuccess, plan.CompletionStatusFailed, plan.CompletionStatusPartial,
 				plan.CompletionStatusObsolete,
 			}),
@@ -136,21 +139,21 @@ func (p *PlanCompletionTool) Params() Params {
 	}
 }
 
-func (p *PlanCompletionTool) Run(_ context.Context, args Args) (string, error) {
+func (p *PlanCompletion) Run(_ context.Context, args tools.Args) (string, error) {
 	if p.PlanManager == nil {
 		return "", fmt.Errorf("plan manager not set")
 	}
 
-	taskIDs := args.GetStringSlice(PlanCompletionTaskIDs)
+	taskIDs := args.GetStringSlice(ParamTaskIDs)
 	if taskIDs == nil {
-		return "", fmt.Errorf("no task IDs provided")
+		return "", fmt.Errorf("%w: no task IDs provided", tools.ErrArguments)
 	}
 
-	content := args.GetString(PlanCompletionContent)
+	content := args.GetString(ParamContent)
 
 	status := plan.CompletionStatusSuccess
 
-	if statusStr := args.GetString(PlanCompletionStatus); statusStr != nil {
+	if statusStr := args.GetString(ParamStatus); statusStr != nil {
 		status = plan.CompletionStatus(*statusStr)
 	}
 
@@ -158,7 +161,7 @@ func (p *PlanCompletionTool) Run(_ context.Context, args Args) (string, error) {
 	for _, taskID := range taskIDs {
 		item := p.PlanManager.GetItemByID(taskID)
 		if item == nil || item.Type() != plan.ItemTypeTask {
-			return "", fmt.Errorf("no task found with ID %q", taskID)
+			return "", fmt.Errorf("%w: no task found with ID %q", tools.ErrArguments, taskID)
 		}
 	}
 

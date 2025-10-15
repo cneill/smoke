@@ -1,4 +1,4 @@
-package tools_test
+package replacelines_test
 
 import (
 	"io"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers/replacelines"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ import (
 func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 	t.Parallel()
 	tempDir := t.TempDir()
-	rlt := &tools.ReplaceLinesTool{ProjectPath: tempDir}
+	rlt := &replacelines.ReplaceLines{ProjectPath: tempDir}
 
 	tests := []struct {
 		name            string
@@ -43,10 +44,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "all_args_insecure_path",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "../../../../relative_path_test.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   2,
-				tools.ReplaceLinesReplace:   "1",
+				replacelines.ParamPath:      "../../../../relative_path_test.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   2,
+				replacelines.ParamReplace:   "1",
 			},
 			expectedContent: "a\nb\nc",
 			errors:          []error{tools.ErrArguments, fs.ErrInsecureTargetPath},
@@ -55,10 +56,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "all_args_nonexistent_file",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "garbage.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   2,
-				tools.ReplaceLinesReplace:   "test2",
+				replacelines.ParamPath:      "garbage.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   2,
+				replacelines.ParamReplace:   "test2",
 			},
 			expectedContent: "a\nb\nc",
 			errors:          []error{tools.ErrFileSystem},
@@ -67,8 +68,8 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "path_replace_no_start_end",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:    "path_replace_no_start_end_test.txt",
-				tools.ReplaceLinesReplace: "a",
+				replacelines.ParamPath:    "path_replace_no_start_end_test.txt",
+				replacelines.ParamReplace: "a",
 			},
 			expectedContent: "a\nb\nc",
 			errors:          []error{tools.ErrArguments},
@@ -77,9 +78,9 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "all_but_replace",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "all_but_replace_test.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   2,
+				replacelines.ParamPath:      "all_but_replace_test.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   2,
 			},
 			expectedContent: "a\nb\nc",
 			errors:          []error{tools.ErrArguments},
@@ -88,10 +89,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "end_before_start",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "end_before_start_test.txt",
-				tools.ReplaceLinesStartLine: 2,
-				tools.ReplaceLinesEndLine:   1,
-				tools.ReplaceLinesReplace:   "a",
+				replacelines.ParamPath:      "end_before_start_test.txt",
+				replacelines.ParamStartLine: 2,
+				replacelines.ParamEndLine:   1,
+				replacelines.ParamReplace:   "a",
 			},
 			expectedContent: "a\nb\nc",
 			errors:          []error{tools.ErrArguments},
@@ -100,10 +101,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "negative_start",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "negative_start_test.txt",
-				tools.ReplaceLinesStartLine: -1,
-				tools.ReplaceLinesEndLine:   1,
-				tools.ReplaceLinesReplace:   "a",
+				replacelines.ParamPath:      "negative_start_test.txt",
+				replacelines.ParamStartLine: -1,
+				replacelines.ParamEndLine:   1,
+				replacelines.ParamReplace:   "a",
 			},
 			expectedContent: "a\nb\nc",
 			errors:          []error{tools.ErrArguments},
@@ -112,10 +113,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "negative_start_end",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "negative_start_end_test.txt",
-				tools.ReplaceLinesStartLine: -2,
-				tools.ReplaceLinesEndLine:   -1,
-				tools.ReplaceLinesReplace:   "a",
+				replacelines.ParamPath:      "negative_start_end_test.txt",
+				replacelines.ParamStartLine: -2,
+				replacelines.ParamEndLine:   -1,
+				replacelines.ParamReplace:   "a",
 			},
 			expectedContent: "a\nb\nc",
 			errors:          []error{tools.ErrArguments},
@@ -124,10 +125,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "end_beyond_file",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "end_beyond_file_test.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   7,
-				tools.ReplaceLinesReplace:   "a",
+				replacelines.ParamPath:      "end_beyond_file_test.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   7,
+				replacelines.ParamReplace:   "a",
 			},
 			expectedContent: "a\nb\nc",
 			errors:          []error{tools.ErrArguments},
@@ -136,10 +137,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "one_line",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "one_line_test.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   1,
-				tools.ReplaceLinesReplace:   "x\ny\n",
+				replacelines.ParamPath:      "one_line_test.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   1,
+				replacelines.ParamReplace:   "x\ny\n",
 			},
 			expectedContent: "x\ny\nb\nc",
 			errors:          []error{},
@@ -148,10 +149,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "two_lines",
 			initContent: "a\nb\nc\n",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "two_lines_test.txt",
-				tools.ReplaceLinesStartLine: 2,
-				tools.ReplaceLinesEndLine:   3,
-				tools.ReplaceLinesReplace:   "x\ny\n",
+				replacelines.ParamPath:      "two_lines_test.txt",
+				replacelines.ParamStartLine: 2,
+				replacelines.ParamEndLine:   3,
+				replacelines.ParamReplace:   "x\ny\n",
 			},
 			expectedContent: "a\nx\ny\n",
 			errors:          []error{},
@@ -160,10 +161,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "two_lines_with_trailing",
 			initContent: "a\nb\nc\nd\n",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "two_lines_with_trailing_test.txt",
-				tools.ReplaceLinesStartLine: 2,
-				tools.ReplaceLinesEndLine:   3,
-				tools.ReplaceLinesReplace:   "x\ny\n",
+				replacelines.ParamPath:      "two_lines_with_trailing_test.txt",
+				replacelines.ParamStartLine: 2,
+				replacelines.ParamEndLine:   3,
+				replacelines.ParamReplace:   "x\ny\n",
 			},
 			expectedContent: "a\nx\ny\nd\n",
 			errors:          []error{},
@@ -172,10 +173,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "whole_text",
 			initContent: "a\nb\nc\n",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "whole_text_test.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   3,
-				tools.ReplaceLinesReplace:   "x\ny\nz\n",
+				replacelines.ParamPath:      "whole_text_test.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   3,
+				replacelines.ParamReplace:   "x\ny\nz\n",
 			},
 			expectedContent: "x\ny\nz\n",
 			errors:          []error{},
@@ -184,10 +185,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "empty_file_init",
 			initContent: "",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "empty_file_init_test.txt",
-				tools.ReplaceLinesStartLine: 0,
-				tools.ReplaceLinesEndLine:   0,
-				tools.ReplaceLinesReplace:   "a\nb\nc\n",
+				replacelines.ParamPath:      "empty_file_init_test.txt",
+				replacelines.ParamStartLine: 0,
+				replacelines.ParamEndLine:   0,
+				replacelines.ParamReplace:   "a\nb\nc\n",
 			},
 			expectedContent: "a\nb\nc\n",
 			errors:          []error{},
@@ -196,10 +197,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "nonempty_file_init",
 			initContent: "1\n2\n3\n",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "nonempty_file_init_test.txt",
-				tools.ReplaceLinesStartLine: 0,
-				tools.ReplaceLinesEndLine:   0,
-				tools.ReplaceLinesReplace:   "a\nb\nc\n",
+				replacelines.ParamPath:      "nonempty_file_init_test.txt",
+				replacelines.ParamStartLine: 0,
+				replacelines.ParamEndLine:   0,
+				replacelines.ParamReplace:   "a\nb\nc\n",
 			},
 			expectedContent: "a\nb\nc\n1\n2\n3\n",
 			errors:          []error{},
@@ -209,10 +210,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "delete_line",
 			initContent: "a\nb\nc\n",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "delete_line_test.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   1,
-				tools.ReplaceLinesReplace:   "",
+				replacelines.ParamPath:      "delete_line_test.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   1,
+				replacelines.ParamReplace:   "",
 			},
 			expectedContent: "b\nc\n",
 			errors:          []error{},
@@ -221,10 +222,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "delete_lines",
 			initContent: "a\nb\nc\n",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "delete_lines_test.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   2,
-				tools.ReplaceLinesReplace:   "",
+				replacelines.ParamPath:      "delete_lines_test.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   2,
+				replacelines.ParamReplace:   "",
 			},
 			expectedContent: "c\n",
 			errors:          []error{},
@@ -233,10 +234,10 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 			name:        "delete_file",
 			initContent: "a\nb\nc\n",
 			args: tools.Args{
-				tools.ReplaceLinesPath:      "delete_file_test.txt",
-				tools.ReplaceLinesStartLine: 1,
-				tools.ReplaceLinesEndLine:   3,
-				tools.ReplaceLinesReplace:   "",
+				replacelines.ParamPath:      "delete_file_test.txt",
+				replacelines.ParamStartLine: 1,
+				replacelines.ParamEndLine:   3,
+				replacelines.ParamReplace:   "",
 			},
 			expectedContent: "",
 			errors:          []error{},
@@ -282,7 +283,7 @@ func TestReplaceLinesTool_ContextOutput(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tempDir := t.TempDir()
-	rlt := &tools.ReplaceLinesTool{ProjectPath: tempDir}
+	rlt := &replacelines.ReplaceLines{ProjectPath: tempDir}
 	initContent := "line1\nline2\nline3\nline4\n"
 	emptyStr := ""
 
@@ -416,10 +417,10 @@ func TestReplaceLinesTool_ContextOutput(t *testing.T) { //nolint:funlen
 			require.NoError(t, initContentErr, "failed to write initial content %q to file %q: %v", tempPath, initContent, initContentErr)
 
 			args := tools.Args{
-				tools.ReplaceLinesPath:      fileName,
-				tools.ReplaceLinesStartLine: test.startLine,
-				tools.ReplaceLinesEndLine:   test.endLine,
-				tools.ReplaceLinesReplace:   test.replacement,
+				replacelines.ParamPath:      fileName,
+				replacelines.ParamStartLine: test.startLine,
+				replacelines.ParamEndLine:   test.endLine,
+				replacelines.ParamReplace:   test.replacement,
 			}
 
 			output, err := rlt.Run(t.Context(), args)

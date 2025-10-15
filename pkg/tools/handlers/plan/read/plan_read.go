@@ -1,4 +1,4 @@
-package tools
+package planread
 
 import (
 	"context"
@@ -7,33 +7,38 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/plan"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
-type PlanReadTool struct {
+const (
+	Name = "plan_read"
+)
+
+type PlanRead struct {
 	ProjectPath string
 	SessionName string
 	PlanManager *plan.Manager
 }
 
-func NewPlanReadTool(projectPath, sessionName string) Tool {
-	return &PlanReadTool{
+func New(projectPath, sessionName string) tools.Tool {
+	return &PlanRead{
 		ProjectPath: projectPath,
 		SessionName: sessionName,
 	}
 }
 
-func (p *PlanReadTool) Name() string { return ToolPlanRead }
-func (p *PlanReadTool) Description() string {
-	examples := CollectExamples(p.Examples()...)
+func (p *PlanRead) Name() string { return Name }
+func (p *PlanRead) Description() string {
+	examples := tools.CollectExamples(p.Examples()...)
 
 	return "Read the current state of the plan, including all tasks, sub-tasks, dependencies, completions, and " +
 		"contexts." + examples
 }
 
-func (p *PlanReadTool) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
+func (p *PlanRead) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
 
-func (p *PlanReadTool) Examples() Examples {
-	return Examples{
+func (p *PlanRead) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: "Read the full current state of the plan\n\nThe output format shows:\n" +
 				"- Tasks in a hierarchical tree structure with indentation for subtasks\n" +
@@ -42,16 +47,16 @@ func (p *PlanReadTool) Examples() Examples {
 				"- Dependencies listed under tasks that have them\n" +
 				"- Context items associated with each task\n" +
 				"- All contexts listed at the end with their types and owners",
-			Args: Args{},
+			Args: tools.Args{},
 		},
 	}
 }
 
-func (p *PlanReadTool) Params() Params {
-	return Params{}
+func (p *PlanRead) Params() tools.Params {
+	return tools.Params{}
 }
 
-func (p *PlanReadTool) Run(_ context.Context, _ Args) (string, error) {
+func (p *PlanRead) Run(_ context.Context, _ tools.Args) (string, error) {
 	if p.PlanManager == nil {
 		return "", fmt.Errorf("plan manager not set")
 	}

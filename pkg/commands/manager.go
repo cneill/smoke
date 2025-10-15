@@ -76,30 +76,3 @@ func (m *Manager) HandleCommand(session *llms.Session, msg PromptMessage) (tea.C
 
 	return cmd, nil
 }
-
-func (m *Manager) Help() string {
-	helps := make([]string, len(m.Commands))
-
-	idx := 0
-
-	for name, init := range m.Commands {
-		cmd, err := init(PromptMessage{Command: name, Args: []string{"help"}})
-		if err != nil {
-			slog.Error("failed to initialize command for help generation", "command", name, "error", err)
-			continue
-		}
-
-		helps[idx] = fmt.Sprintf("/%s %s", name, cmd.Help())
-		idx++
-	}
-
-	slices.Sort(helps)
-
-	builder := &strings.Builder{}
-
-	for _, help := range helps {
-		fmt.Fprintf(builder, "* %s\n", help)
-	}
-
-	return builder.String()
-}

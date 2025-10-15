@@ -1,4 +1,4 @@
-package tools
+package ddg
 
 import (
 	"context"
@@ -13,20 +13,22 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/cneill/hc/v2"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	DDGQuery = "query"
+	Name       = "duck_duck_go"
+	ParamQuery = "query"
 
 	ddgLinkPrefix = "//duckduckgo.com/l/?uddg="
 )
 
-type DDGTool struct {
+type DDG struct {
 	ProjectPath string
 	hc          *hc.HC
 }
 
-func NewDDGTool(projectPath, _ string) Tool {
+func New(projectPath, _ string) tools.Tool {
 	headers := http.Header{}
 	headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	headers.Set("Accept-Language", "en-US,en;q=0.5")
@@ -42,45 +44,45 @@ func NewDDGTool(projectPath, _ string) Tool {
 		panic(fmt.Errorf("failed to set up HC: %w", err))
 	}
 
-	return &DDGTool{
+	return &DDG{
 		ProjectPath: projectPath,
 		hc:          hc,
 	}
 }
 
-func (d *DDGTool) Name() string { return ToolDDG }
-func (d *DDGTool) Description() string {
-	examples := CollectExamples(d.Examples()...)
+func (d *DDG) Name() string { return Name }
+func (d *DDG) Description() string {
+	examples := tools.CollectExamples(d.Examples()...)
 
 	return fmt.Sprintf(
 		"Retrieve one page of results from the DuckDuckGo search engine based on the query supplied in %q.%s",
-		DDGQuery, examples)
+		ParamQuery, examples)
 }
 
-func (d *DDGTool) Examples() Examples {
-	return Examples{
+func (d *DDG) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: `Search for the string "HTML"`,
-			Args: Args{
-				DDGQuery: "HTML",
+			Args: tools.Args{
+				ParamQuery: "HTML",
 			},
 		},
 	}
 }
 
-func (d *DDGTool) Params() Params {
-	return Params{
+func (d *DDG) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         DDGQuery,
+			Key:         ParamQuery,
 			Description: "The query to search DuckDuckGo for",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    true,
 		},
 	}
 }
 
-func (d *DDGTool) Run(ctx context.Context, args Args) (string, error) {
-	query := args.GetString(DDGQuery)
+func (d *DDG) Run(ctx context.Context, args tools.Args) (string, error) {
+	query := args.GetString(ParamQuery)
 	if query == nil {
 		return "", fmt.Errorf("no query supplied")
 	}
@@ -114,7 +116,7 @@ type ddgResult struct {
 	Snippet string `json:"snippet"`
 }
 
-func (d *DDGTool) getResults(body io.Reader) ([]ddgResult, error) {
+func (d *DDG) getResults(body io.Reader) ([]ddgResult, error) {
 	results := []ddgResult{}
 
 	doc, err := goquery.NewDocumentFromReader(body)

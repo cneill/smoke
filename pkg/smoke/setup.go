@@ -4,18 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cneill/smoke/pkg/commands"
-	"github.com/cneill/smoke/pkg/commands/handlers/edit"
-	"github.com/cneill/smoke/pkg/commands/handlers/exit"
-	"github.com/cneill/smoke/pkg/commands/handlers/export"
-	"github.com/cneill/smoke/pkg/commands/handlers/help"
-	"github.com/cneill/smoke/pkg/commands/handlers/info"
-	"github.com/cneill/smoke/pkg/commands/handlers/load"
-	planhandler "github.com/cneill/smoke/pkg/commands/handlers/plan"
-	"github.com/cneill/smoke/pkg/commands/handlers/review"
-	"github.com/cneill/smoke/pkg/commands/handlers/run"
-	"github.com/cneill/smoke/pkg/commands/handlers/save"
-	"github.com/cneill/smoke/pkg/commands/handlers/session"
-	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
+	cmdhandlers "github.com/cneill/smoke/pkg/commands/handlers"
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/plan"
@@ -23,6 +12,7 @@ import (
 	"github.com/cneill/smoke/pkg/providers/claude"
 	"github.com/cneill/smoke/pkg/providers/grok"
 	"github.com/cneill/smoke/pkg/tools"
+	toolhandlers "github.com/cneill/smoke/pkg/tools/handlers"
 )
 
 func (s *Smoke) setup() error {
@@ -97,16 +87,9 @@ func (s *Smoke) setupLLM() error {
 }
 
 func (s *Smoke) setupSession() error {
-	toolOpts := &tools.ManagerOpts{
-		ProjectPath:      s.projectPath,
-		SessionName:      s.mainSessionName,
-		ToolInitializers: tools.AllTools(),
-		PlanManager:      s.planManager,
-	}
-
-	toolManager, err := tools.NewManager(toolOpts)
+	toolManager, err := s.setupToolsManager()
 	if err != nil {
-		return fmt.Errorf("failed to initialize tools manager for main smoke session: %w", err)
+		return fmt.Errorf("failed to set up tools manager for main smoke session: %w", err)
 	}
 
 	session, err := llms.NewSession(&llms.SessionOpts{
@@ -145,22 +128,41 @@ func (s *Smoke) setupMCP() error {
 func (s *Smoke) setupCommands() {
 	s.commands = commands.NewManager(s.projectPath)
 
-	commands := map[string]commands.Initializer{
-		edit.Name:        edit.New,
-		exit.Name:        exit.New,
-		export.Name:      export.New,
-		help.Name:        help.New(s.commands),
-		info.Name:        info.New,
-		load.Name:        load.New,
-		planhandler.Name: planhandler.New,
-		review.Name:      review.New,
-		run.Name:         run.New,
-		save.Name:        save.New,
-		session.Name:     session.New,
-		summarize.Name:   summarize.New,
-	}
-
-	for commandName, initializer := range commands {
+	for commandName, initializer := range cmdhandlers.AllCommands() {
 		s.commands.Register(commandName, initializer)
 	}
+}
+
+func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
+	var (
+		initList []tools.Initializer
+		session  = s.getMainSession()
+	)
+
+	if session != nil {
+		switch session.GetMode() {
+		case llms.ModeNormal:
+			initList = toolhandlers.NormalTools()
+		case llms.ModePlanning:
+			initList = toolhandlers.PlanningTools()
+		case llms.ModeReview:
+			initList = toolhandlers.ReviewTools()
+		}
+	} else {
+		initList = toolhandlers.NormalTools()
+	}
+
+	toolOpts := &tools.ManagerOpts{
+		ProjectPath:      s.projectPath,
+		SessionName:      s.mainSessionName,
+		ToolInitializers: initList,
+		PlanManager:      s.planManager,
+	}
+
+	toolManager, err := tools.NewManager(toolOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize tools manager for main smoke session: %w", err)
+	}
+
+	return toolManager, nil
 }

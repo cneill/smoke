@@ -1,4 +1,4 @@
-package tools
+package replacelines
 
 import (
 	"bytes"
@@ -8,27 +8,30 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/formatting"
 )
 
 const (
-	ReplaceLinesPath      = "path"
-	ReplaceLinesStartLine = "start_line"
-	ReplaceLinesEndLine   = "end_line"
-	ReplaceLinesReplace   = "replace"
+	Name = "replace_lines"
+
+	ParamPath      = "path"
+	ParamStartLine = "start_line"
+	ParamEndLine   = "end_line"
+	ParamReplace   = "replace"
 )
 
-type ReplaceLinesTool struct {
+type ReplaceLines struct {
 	ProjectPath string
 }
 
-func NewReplaceLinesTool(projectPath, _ string) Tool {
-	return &ReplaceLinesTool{ProjectPath: projectPath}
+func New(projectPath, _ string) tools.Tool {
+	return &ReplaceLines{ProjectPath: projectPath}
 }
 
-func (r *ReplaceLinesTool) Name() string { return ToolReplaceLines }
-func (r *ReplaceLinesTool) Description() string {
-	examples := CollectExamples(r.Examples()...)
+func (r *ReplaceLines) Name() string { return Name }
+func (r *ReplaceLines) Description() string {
+	examples := tools.CollectExamples(r.Examples()...)
 
 	return fmt.Sprintf(
 		"Replace the content between lines %q and %q in the file specified in %q with the contents in %q. Line "+
@@ -36,114 +39,114 @@ func (r *ReplaceLinesTool) Description() string {
 			"If you want to edit an empty file, use %q=0 and %q=0. If you want to replace only some content in a "+
 			"series of lines, be sure to include the old lines' content in %q where necessary, preserving spacing, "+
 			"parentheses, curly braces, etc.%s",
-		ReplaceLinesStartLine, ReplaceLinesEndLine, ReplaceLinesPath, ReplaceLinesReplace,
-		ToolGrep, ToolReadFile,
-		ReplaceLinesStartLine, ReplaceLinesEndLine,
-		ReplaceLinesReplace, examples,
+		ParamStartLine, ParamEndLine, ParamPath, ParamReplace,
+		tools.ToolGrep, tools.ToolReadFile,
+		ParamStartLine, ParamEndLine,
+		ParamReplace, examples,
 	)
 }
 
-func (r *ReplaceLinesTool) Examples() Examples {
-	return Examples{
+func (r *ReplaceLines) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: `Add "hello, world" to the top of the file "empty_file.txt" in the project directory`,
-			Args: Args{
-				ReplaceLinesPath:      "empty_file.txt",
-				ReplaceLinesStartLine: 0,
-				ReplaceLinesEndLine:   0,
-				ReplaceLinesReplace:   "hello, world",
+			Args: tools.Args{
+				ParamPath:      "empty_file.txt",
+				ParamStartLine: 0,
+				ParamEndLine:   0,
+				ParamReplace:   "hello, world",
 			},
 		},
 		{
 			Description: `Delete the first line of "existing_file.txt", turning e.g. "a\nb\nc\n" into "b\nc\n"`,
-			Args: Args{
-				ReplaceLinesPath:      "existing_file.txt",
-				ReplaceLinesStartLine: 1,
-				ReplaceLinesEndLine:   1,
-				ReplaceLinesReplace:   "",
+			Args: tools.Args{
+				ParamPath:      "existing_file.txt",
+				ParamStartLine: 1,
+				ParamEndLine:   1,
+				ParamReplace:   "",
 			},
 		},
 		{
 			Description: `Replace the first 2 lines of "letters.txt", turning e.g. "a\nb\nc\n" into "x\ny\nc\n"`,
-			Args: Args{
-				ReplaceLinesPath:      "letters.txt",
-				ReplaceLinesStartLine: 1,
-				ReplaceLinesEndLine:   2,
-				ReplaceLinesReplace:   "x\ny\n",
+			Args: tools.Args{
+				ParamPath:      "letters.txt",
+				ParamStartLine: 1,
+				ParamEndLine:   2,
+				ParamReplace:   "x\ny\n",
 			},
 		},
 	}
 }
 
-func (r *ReplaceLinesTool) Params() Params {
-	return Params{
+func (r *ReplaceLines) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         ReplaceLinesPath,
+			Key:         ParamPath,
 			Description: "The path of the file where lines will be replaced",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    true,
 		},
 		{
-			Key:         ReplaceLinesStartLine,
-			Description: fmt.Sprintf("The first line to replace with the text in %q", ReplaceLinesReplace),
-			Type:        ParamTypeNumber,
+			Key:         ParamStartLine,
+			Description: fmt.Sprintf("The first line to replace with the text in %q", ParamReplace),
+			Type:        tools.ParamTypeNumber,
 			Required:    true,
 		},
 		{
-			Key:         ReplaceLinesEndLine,
-			Description: fmt.Sprintf("The last line to replace with the text in %q", ReplaceLinesReplace),
-			Type:        ParamTypeNumber,
+			Key:         ParamEndLine,
+			Description: fmt.Sprintf("The last line to replace with the text in %q", ParamReplace),
+			Type:        tools.ParamTypeNumber,
 			Required:    true,
 		},
 		{
-			Key: ReplaceLinesReplace,
+			Key: ParamReplace,
 			Description: fmt.Sprintf(
 				"The string content that will replace the lines specified by the line numbers in %q and %q",
-				ReplaceLinesStartLine, ReplaceLinesEndLine,
+				ParamStartLine, ParamEndLine,
 			),
-			Type:     ParamTypeString,
+			Type:     tools.ParamTypeString,
 			Required: true,
 		},
 	}
 }
 
-func (r *ReplaceLinesTool) Run(_ context.Context, args Args) (string, error) {
-	path := args.GetString(ReplaceLinesPath)
+func (r *ReplaceLines) Run(_ context.Context, args tools.Args) (string, error) {
+	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
+		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
 	fullPath, err := fs.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+		return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
 
-	startLine := args.GetInt(ReplaceLinesStartLine)
-	endLine := args.GetInt(ReplaceLinesEndLine)
-	replace := args.GetString(ReplaceLinesReplace)
+	startLine := args.GetInt(ParamStartLine)
+	endLine := args.GetInt(ParamEndLine)
+	replace := args.GetString(ParamReplace)
 
 	// validate that our args are reasonable
 	switch {
 	case startLine == nil || endLine == nil || replace == nil:
 		return "", fmt.Errorf(
 			"%w: missing %q, %q, or %q",
-			ErrArguments, ReplaceLinesStartLine, ReplaceLinesEndLine, ReplaceLinesReplace,
+			tools.ErrArguments, ParamStartLine, ParamEndLine, ParamReplace,
 		)
 	case *startLine < 0 || *endLine < 0:
-		return "", fmt.Errorf("%w: %q or %q is less than 0", ErrArguments, ReplaceLinesStartLine, ReplaceLinesEndLine)
+		return "", fmt.Errorf("%w: %q or %q is less than 0", tools.ErrArguments, ParamStartLine, ParamEndLine)
 	case *startLine > *endLine:
-		return "", fmt.Errorf("%w: %q is greater than %q", ErrArguments, ReplaceLinesStartLine, ReplaceLinesEndLine)
+		return "", fmt.Errorf("%w: %q is greater than %q", tools.ErrArguments, ParamStartLine, ParamEndLine)
 	}
 
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, *path, err)
+		return "", fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, *path, err)
 	}
 
 	lines := bytes.Split(data, []byte("\n"))
 
 	if *endLine > len(lines) {
-		return "", fmt.Errorf("%w: %q is beyond the end of the file", ErrArguments, ReplaceLinesEndLine)
+		return "", fmt.Errorf("%w: %q is beyond the end of the file", tools.ErrArguments, ParamEndLine)
 	}
 
 	// write the lines before the replace, the contents of the replace, and the untouched lines after it
@@ -174,7 +177,7 @@ func (r *ReplaceLinesTool) Run(_ context.Context, args Args) (string, error) {
 	data = buf.Bytes()
 
 	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
-		return "", fmt.Errorf("%w: failed to write contents to %q: %w", ErrFileSystem, fullPath, err)
+		return "", fmt.Errorf("%w: failed to write contents to %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
 	// Make sure we don't get a fake "line" when the file is now empty
@@ -190,7 +193,7 @@ func (r *ReplaceLinesTool) Run(_ context.Context, args Args) (string, error) {
 }
 
 // calculateContextWindow determines how many lines of context to show before/after the replacement
-func (r *ReplaceLinesTool) calculateContextWindow(originalLinesReplaced, newLinesAdded int) int {
+func (r *ReplaceLines) calculateContextWindow(originalLinesReplaced, newLinesAdded int) int {
 	totalChange := max(originalLinesReplaced, newLinesAdded)
 
 	switch {
@@ -204,7 +207,7 @@ func (r *ReplaceLinesTool) calculateContextWindow(originalLinesReplaced, newLine
 }
 
 // generateContextOutput creates a focused context view around the replacement area
-func (r *ReplaceLinesTool) generateContextOutput(filePath string, startLine, endLine int, replacement string, newLines [][]byte) string {
+func (r *ReplaceLines) generateContextOutput(filePath string, startLine, endLine int, replacement string, newLines [][]byte) string {
 	originalLinesReplaced := endLine - startLine + 1
 	newLinesAdded := len(bytes.Split([]byte(replacement), []byte("\n")))
 
@@ -279,7 +282,7 @@ func (r *ReplaceLinesTool) generateContextOutput(filePath string, startLine, end
 	}
 
 	if len(contextLinesSlice) == 0 {
-		return summary + "\n" + LineSep + "\n(File is now empty)"
+		return summary + "\n" + tools.LineSep + "\n(File is now empty)"
 	}
 
 	contextLineNumbers := fmt.Sprintf("Context (lines %d-%d)", contextStart, contextEnd-1)
@@ -288,5 +291,5 @@ func (r *ReplaceLinesTool) generateContextOutput(filePath string, startLine, end
 	}
 
 	return fmt.Sprintf("%s\n%s\n%s:\n%s",
-		summary, LineSep, contextLineNumbers, string(contextOutput))
+		summary, tools.LineSep, contextLineNumbers, string(contextOutput))
 }

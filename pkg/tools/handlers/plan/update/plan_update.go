@@ -1,4 +1,4 @@
-package tools
+package planupdate
 
 import (
 	"context"
@@ -7,65 +7,68 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/plan"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	PlanUpdateTasks             = "tasks"
-	PlanUpdateTasksContent      = "content"
-	PlanUpdateTasksID           = "id"
-	PlanUpdateTasksParentID     = "parent_id"
-	PlanUpdateTasksDependencies = "dependencies"
+	Name = "plan_update"
 
-	PlanUpdateContext        = "context"
-	PlanUpdateContextType    = "type"
-	PlanUpdateContextContent = "content"
-	PlanUpdateContextID      = "id"
-	PlanUpdateContextOwners  = "owners"
+	ParamTasks             = "tasks"
+	ParamTasksContent      = "content"
+	ParamTasksID           = "id"
+	ParamTasksParentID     = "parent_id"
+	ParamTasksDependencies = "dependencies"
+
+	ParamContext        = "context"
+	ParamContextType    = "type"
+	ParamContextContent = "content"
+	ParamContextID      = "id"
+	ParamContextOwners  = "owners"
 )
 
-type PlanUpdateTool struct {
+type PlanUpdate struct {
 	ProjectPath string
 	SessionName string
 	PlanManager *plan.Manager
 }
 
-func NewPlanUpdateTool(projectPath, sessionName string) Tool {
-	return &PlanUpdateTool{
+func New(projectPath, sessionName string) tools.Tool {
+	return &PlanUpdate{
 		ProjectPath: projectPath,
 		SessionName: sessionName,
 	}
 }
 
-func (p *PlanUpdateTool) Name() string { return ToolPlanUpdate }
-func (p *PlanUpdateTool) Description() string {
-	examples := CollectExamples(p.Examples()...)
+func (p *PlanUpdate) Name() string { return Name }
+func (p *PlanUpdate) Description() string {
+	examples := tools.CollectExamples(p.Examples()...)
 
 	return "Update tasks and items of context that have already been added to the plan by referring to their IDs." +
 		examples
 }
 
-func (p *PlanUpdateTool) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
+func (p *PlanUpdate) SetPlanManager(manager *plan.Manager) { p.PlanManager = manager }
 
-func (p *PlanUpdateTool) Examples() Examples {
-	return Examples{
+func (p *PlanUpdate) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: "Update an existing task",
-			Args: Args{
-				PlanUpdateTasks: []Args{
+			Args: tools.Args{
+				ParamTasks: []tools.Args{
 					{
-						PlanUpdateTasksID:      "DoThing_context",
-						PlanUpdateTasksContent: "Update the DoThing() function to use context.Context instead of context.TODO",
+						ParamTasksID:      "DoThing_context",
+						ParamTasksContent: "Update the DoThing() function to use context.Context instead of context.TODO",
 					},
 				},
 			},
 		},
 		{
 			Description: "Update task dependencies after discovering additional requirements",
-			Args: Args{
-				PlanUpdateTasks: []Args{
+			Args: tools.Args{
+				ParamTasks: []tools.Args{
 					{
-						PlanUpdateTasksID: "deploy_service",
-						PlanUpdateTasksDependencies: []string{
+						ParamTasksID: "deploy_service",
+						ParamTasksDependencies: []string{
 							"create_dockerfile", "setup_kubernetes", "configure_monitoring",
 						},
 					},
@@ -74,26 +77,26 @@ func (p *PlanUpdateTool) Examples() Examples {
 		},
 		{
 			Description: "Update context items including changing type and adding/removing owners",
-			Args: Args{
-				PlanUpdateContext: []Args{
+			Args: tools.Args{
+				ParamContext: []tools.Args{
 					{
-						PlanUpdateContextID:   "api_design_notes",
-						PlanUpdateContextType: plan.ContextTypeDecision,
-						PlanUpdateContextContent: "After team discussion, decided to use REST API instead of GraphQL " +
+						ParamContextID:   "api_design_notes",
+						ParamContextType: plan.ContextTypeDecision,
+						ParamContextContent: "After team discussion, decided to use REST API instead of GraphQL " +
 							"for better caching and simpler client implementation",
-						PlanUpdateContextOwners: []string{"implement_api", "design_api_schema", "create_api_docs"},
+						ParamContextOwners: []string{"implement_api", "design_api_schema", "create_api_docs"},
 					},
 				},
 			},
 		},
 		{
 			Description: "Move a subtask to a different parent task during reorganization",
-			Args: Args{
-				PlanUpdateTasks: []Args{
+			Args: tools.Args{
+				ParamTasks: []tools.Args{
 					{
-						PlanUpdateTasksID:       "validate_user_input",
-						PlanUpdateTasksParentID: "user_service_layer",
-						PlanUpdateTasksContent: "Move input validation from the controller layer to the service " +
+						ParamTasksID:       "validate_user_input",
+						ParamTasksParentID: "user_service_layer",
+						ParamTasksContent: "Move input validation from the controller layer to the service " +
 							"layer for better reusability",
 					},
 				},
@@ -102,76 +105,76 @@ func (p *PlanUpdateTool) Examples() Examples {
 	}
 }
 
-func (p *PlanUpdateTool) Params() Params { //nolint:funlen
-	return Params{
+func (p *PlanUpdate) Params() tools.Params { //nolint:funlen
+	return tools.Params{
 		{
-			Key:         PlanUpdateTasks,
+			Key:         ParamTasks,
 			Description: "An array of 1 or more existing tasks to be updated",
-			Type:        ParamTypeArray,
+			Type:        tools.ParamTypeArray,
 			Required:    false,
-			ItemType:    ParamTypeObject,
-			NestedParams: Params{
+			ItemType:    tools.ParamTypeObject,
+			NestedParams: tools.Params{
 				{
-					Key:         PlanUpdateTasksID,
+					Key:         ParamTasksID,
 					Description: "The identifier for an existing task or sub-task.",
-					Type:        ParamTypeString,
+					Type:        tools.ParamTypeString,
 					Required:    true,
 				},
 				{
-					Key: PlanUpdateTasksContent,
+					Key: ParamTasksContent,
 					Description: "Used to adjust the description of the referenced task. This should be concise, but " +
 						"should describe the task in sufficient detail to allow for implementation even if the " +
 						"conversation is reset.",
-					Type:     ParamTypeString,
+					Type:     tools.ParamTypeString,
 					Required: false,
 				},
 				{
-					Key:         PlanUpdateTasksParentID,
+					Key:         ParamTasksParentID,
 					Description: "Adjust the parent of a task or sub-task by providing the new parent's ID.",
-					Type:        ParamTypeString,
+					Type:        tools.ParamTypeString,
 					Required:    false,
 				},
 				{
-					Key: PlanUpdateTasksDependencies,
+					Key: ParamTasksDependencies,
 					Description: "Update the list of depenendencies on the referenced task or sub-task by providing " +
 						"a full array of the new dependencies.",
-					Type:     ParamTypeArray,
-					ItemType: ParamTypeString,
+					Type:     tools.ParamTypeArray,
+					ItemType: tools.ParamTypeString,
 					Required: false,
 				},
 			},
 		},
 		{
-			Key:         PlanUpdateContext,
+			Key:         ParamContext,
 			Description: "An array of 1 or more existing items of context to be updated",
-			Type:        ParamTypeArray,
+			Type:        tools.ParamTypeArray,
 			Required:    false,
-			ItemType:    ParamTypeObject,
-			NestedParams: Params{
+			ItemType:    tools.ParamTypeObject,
+			NestedParams: tools.Params{
 				{
-					Key:         PlanUpdateContextID,
+					Key:         ParamContextID,
 					Description: "The identifier for an existing piece of context.",
-					Type:        ParamTypeString,
+					Type:        tools.ParamTypeString,
 					Required:    true,
 				},
 				{
-					Key:         PlanUpdateContextContent,
+					Key:         ParamContextContent,
 					Description: "Used to update the content of the referenced piece of context.",
-					Type:        ParamTypeString,
+					Type:        tools.ParamTypeString,
 					Required:    false,
 				},
 				{
-					Key: PlanUpdateContextType,
+					Key: ParamContextType,
 					Description: fmt.Sprintf(
 						"The type of context this represents. %q is a snippet or long section of source code from "+
 							"e.g. the %q tool. %q is a decision made about the design of the solution that will be "+
 							"developed as part of `work_process`. %q is reference material about a 3rd party library"+
 							"or external service. %q is a constraint imposed either by the user or the underlying "+
 							"codebase. %q is something that is commonly used by other similar parts of the code.",
-						plan.ContextTypeCode, ToolReadFile, plan.ContextTypeDecision, plan.ContextTypeReference,
+						plan.ContextTypeCode, tools.ToolReadFile, plan.ContextTypeDecision, plan.ContextTypeReference,
 						plan.ContextTypeConstraint, plan.ContextTypeConvention),
-					Type: ParamTypeString,
-					EnumStringValues: ToStrings([]plan.ContextType{
+					Type: tools.ParamTypeString,
+					EnumStringValues: tools.ToStrings([]plan.ContextType{
 						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeDecision,
 						plan.ContextTypeReference,
 					}),
@@ -179,11 +182,11 @@ func (p *PlanUpdateTool) Params() Params { //nolint:funlen
 				},
 
 				{
-					Key: PlanUpdateContextOwners,
+					Key: ParamContextOwners,
 					Description: "Adjust the owners, or tasks for which this piece of context is relevant, by " +
 						"providing their IDs.",
-					Type:     ParamTypeArray,
-					ItemType: ParamTypeString,
+					Type:     tools.ParamTypeArray,
+					ItemType: tools.ParamTypeString,
 					Required: false,
 				},
 			},
@@ -191,13 +194,13 @@ func (p *PlanUpdateTool) Params() Params { //nolint:funlen
 	}
 }
 
-func (p *PlanUpdateTool) Run(_ context.Context, args Args) (string, error) {
+func (p *PlanUpdate) Run(_ context.Context, args tools.Args) (string, error) {
 	var (
 		taskIDs, contextIDs []string
 		err                 error
 	)
 
-	tasks := args.GetArgsObjectSlice(PlanUpdateTasks)
+	tasks := args.GetArgsObjectSlice(ParamTasks)
 	if tasks != nil {
 		taskIDs, err = p.handleTasks(tasks)
 		if err != nil {
@@ -205,7 +208,7 @@ func (p *PlanUpdateTool) Run(_ context.Context, args Args) (string, error) {
 		}
 	}
 
-	context := args.GetArgsObjectSlice(PlanUpdateContext)
+	context := args.GetArgsObjectSlice(ParamContext)
 	if context != nil {
 		contextIDs, err = p.handleContext(context)
 		if err != nil {
@@ -233,29 +236,29 @@ func (p *PlanUpdateTool) Run(_ context.Context, args Args) (string, error) {
 	return output, nil
 }
 
-func (p *PlanUpdateTool) handleTasks(tasks []Args) ([]string, error) {
+func (p *PlanUpdate) handleTasks(tasks []tools.Args) ([]string, error) {
 	taskIDs := make([]string, len(tasks))
 
 	for taskIdx, rawTask := range tasks {
 		slog.Debug("Updating task details", "num", taskIdx, "task", rawTask)
-		id := rawTask.GetString(PlanUpdateTasksID)
+		id := rawTask.GetString(ParamTasksID)
 
 		existing := p.PlanManager.GetItemByID(*id)
 		if existing == nil {
 			return []string{}, fmt.Errorf("no existing task with the ID %q was found to update", *id)
 		}
 
-		content := rawTask.GetString(PlanUpdateTasksContent)
+		content := rawTask.GetString(ParamTasksContent)
 		if content == nil {
 			content = &existing.TaskItem.Content
 		}
 
-		parentID := rawTask.GetString(PlanUpdateTasksParentID)
+		parentID := rawTask.GetString(ParamTasksParentID)
 		if parentID == nil {
 			parentID = &existing.TaskItem.Parent
 		}
 
-		dependencies := rawTask.GetStringSlice(PlanUpdateTasksDependencies)
+		dependencies := rawTask.GetStringSlice(ParamTasksDependencies)
 		if dependencies == nil {
 			dependencies = append([]string{}, existing.TaskItem.Dependencies...)
 		}
@@ -275,31 +278,31 @@ func (p *PlanUpdateTool) handleTasks(tasks []Args) ([]string, error) {
 	return taskIDs, nil
 }
 
-func (p *PlanUpdateTool) handleContext(context []Args) ([]string, error) {
+func (p *PlanUpdate) handleContext(context []tools.Args) ([]string, error) {
 	contextIDs := make([]string, len(context))
 
 	for contextIdx, rawContext := range context {
 		slog.Debug("Updating context details", "num", contextIdx, "context", rawContext)
 
-		id := rawContext.GetString(PlanUpdateContextID)
+		id := rawContext.GetString(ParamContextID)
 
 		existing := p.PlanManager.GetItemByID(*id)
 		if existing == nil {
 			return []string{}, fmt.Errorf("no existing context item with the ID %q was found to update", *id)
 		}
 
-		contextType := rawContext.GetString(PlanUpdateContextType)
+		contextType := rawContext.GetString(ParamContextType)
 		if contextType == nil {
 			existingType := string(existing.ContextItem.ContextType)
 			contextType = &existingType
 		}
 
-		content := rawContext.GetString(PlanUpdateContextContent)
+		content := rawContext.GetString(ParamContextContent)
 		if content == nil {
 			content = &existing.ContextItem.Content
 		}
 
-		owners := rawContext.GetStringSlice(PlanUpdateContextOwners)
+		owners := rawContext.GetStringSlice(ParamContextOwners)
 		if owners == nil {
 			owners = append([]string{}, existing.ContextItem.Owners...)
 		}

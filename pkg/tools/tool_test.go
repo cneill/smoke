@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -11,7 +12,7 @@ import (
 func TestAllToolDescriptions(t *testing.T) {
 	t.Parallel()
 
-	toolInits := tools.AllTools()
+	toolInits := handlers.AllTools()
 	testTools := make(tools.Tools, len(toolInits))
 
 	for i, toolInit := range toolInits {

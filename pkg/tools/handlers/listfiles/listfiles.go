@@ -1,4 +1,4 @@
-package tools
+package listfiles
 
 import (
 	"context"
@@ -8,41 +8,43 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	ListFilesPath = "path"
+	Name      = "list_files"
+	ParamPath = "path"
 )
 
-type ListFilesTool struct {
+type ListFiles struct {
 	ProjectPath string
 }
 
-func NewListFilesTool(projectPath, _ string) Tool {
-	return &ListFilesTool{ProjectPath: projectPath}
+func New(projectPath, _ string) tools.Tool {
+	return &ListFiles{ProjectPath: projectPath}
 }
 
-func (l *ListFilesTool) Name() string { return ToolListFiles }
-func (l *ListFilesTool) Description() string {
-	examples := CollectExamples(l.Examples()...)
+func (l *ListFiles) Name() string { return Name }
+func (l *ListFiles) Description() string {
+	examples := tools.CollectExamples(l.Examples()...)
 
 	return fmt.Sprintf("List files in the directory %q recursively, with file mode + size info.%s",
-		ListFilesPath, examples)
+		ParamPath, examples)
 }
 
-func (l *ListFilesTool) Examples() Examples {
-	return Examples{
+func (l *ListFiles) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: `List all files in the "pkg/models" directory recursively`,
-			Args:        Args{ListFilesPath: "pkg/models"},
+			Args:        tools.Args{ParamPath: "pkg/models"},
 		},
 	}
 }
 
-func (l *ListFilesTool) Params() Params {
-	return Params{
+func (l *ListFiles) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         ListFilesPath,
+			Key:         ParamPath,
 			Description: "The path to the directory where you want to list files",
 			Type:        "string",
 			Required:    true,
@@ -50,9 +52,9 @@ func (l *ListFilesTool) Params() Params {
 	}
 }
 
-// ListFiles expects a directory 'dir' that exists within ProjectPath.
-func (l *ListFilesTool) Run(_ context.Context, args Args) (string, error) {
-	path := args.GetString(ListFilesPath)
+// Run expects a directory 'dir' that exists within ProjectPath ("." for top-level listing).
+func (l *ListFiles) Run(_ context.Context, args tools.Args) (string, error) {
+	path := args.GetString(ParamPath)
 	if path == nil {
 		return "", fmt.Errorf("no path supplied")
 	}

@@ -1,4 +1,4 @@
-package tools
+package goimports
 
 import (
 	"bytes"
@@ -10,75 +10,78 @@ import (
 	"time"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	GoImportsPath = "path"
+	Name      = "goimports"
+	ParamPath = "path"
 )
 
-type GoImportsTool struct {
+type GoImports struct {
 	ProjectPath string
 }
 
-func NewGoImportsTool(projectPath, _ string) Tool {
-	return &GoImportsTool{ProjectPath: projectPath}
+func New(projectPath, _ string) tools.Tool {
+	// TODO: allow error-return here, return / log error if binary not found, don't crash everything
+	return &GoImports{ProjectPath: projectPath}
 }
 
-func (g *GoImportsTool) Name() string { return ToolGoImports }
-func (g *GoImportsTool) Description() string {
-	examples := CollectExamples(g.Examples()...)
+func (g *GoImports) Name() string { return Name }
+func (g *GoImports) Description() string {
+	examples := tools.CollectExamples(g.Examples()...)
 
 	return fmt.Sprintf("Runs the goimports command to fix imports against the file/directory specified in %q, or the "+
 		"whole project directory if not specified. Changes are written in place (-w) and the list of files formatted "+
 		"is returned (-l).%s",
-		GoImportsPath, examples,
+		ParamPath, examples,
 	)
 }
 
-func (g *GoImportsTool) Examples() Examples {
-	return Examples{
+func (g *GoImports) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: "Run goimports on the entire repository",
-			Args:        Args{},
+			Args:        tools.Args{},
 		},
 		{
 			Description: `Run goimports on the "pkg/tools/file.go" file`,
-			Args:        Args{GoImportsPath: "pkg/tools/file.go"},
+			Args:        tools.Args{ParamPath: "pkg/tools/file.go"},
 		},
 	}
 }
 
-func (g *GoImportsTool) Params() Params {
-	return Params{
+func (g *GoImports) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         GoImportsPath,
+			Key:         ParamPath,
 			Description: "The path of the directory/file to format",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    false,
 		},
 	}
 }
 
-func (g *GoImportsTool) Run(ctx context.Context, args Args) (string, error) {
+func (g *GoImports) Run(ctx context.Context, args tools.Args) (string, error) {
 	targetPath := g.ProjectPath
 
 	if _, err := exec.LookPath("goimports"); err != nil {
 		slog.Error("goimports not found on the system", "error", err)
-		return "", fmt.Errorf("%w: goimports not found on the system", ErrFileSystem)
+		return "", fmt.Errorf("%w: goimports not found on the system", tools.ErrFileSystem)
 	}
 
 	// path is optional
-	if path := args.GetString(GoImportsPath); path != nil {
+	if path := args.GetString(ParamPath); path != nil {
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		targetPath = relPath
 	}
 
 	if _, err := os.Stat(targetPath); err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %q: %w", ErrFileSystem, targetPath, err)
+		return "", fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, targetPath, err)
 	}
 
 	stdout := &bytes.Buffer{}
@@ -94,7 +97,7 @@ func (g *GoImportsTool) Run(ctx context.Context, args Args) (string, error) {
 
 	if err := cmd.Run(); err != nil {
 		slog.Error("error from goimports", "target_path", targetPath, "error", err, "stderr", stderr.String())
-		return "", fmt.Errorf("%w: goimports: %s", ErrCommandExecution, stderr.String())
+		return "", fmt.Errorf("%w: goimports: %s", tools.ErrCommandExecution, stderr.String())
 	}
 
 	return stdout.String(), nil

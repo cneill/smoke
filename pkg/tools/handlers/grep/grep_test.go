@@ -1,4 +1,4 @@
-package tools_test
+package grep_test
 
 import (
 	"errors"
@@ -8,16 +8,17 @@ import (
 	"testing"
 
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers/grep"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGrepTool_Run(t *testing.T) { //nolint:funlen
+func TestGrep_Run(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tempDir := t.TempDir()
-	grepTool := &tools.GrepTool{ProjectPath: tempDir}
+	grepTool := &grep.Grep{ProjectPath: tempDir}
 
 	tests := []struct {
 		name           string
@@ -37,7 +38,7 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "path_no_regex",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepPath: "path_no_regex_test.txt",
+				grep.ParamPath: "path_no_regex_test.txt",
 			},
 			expectedOutput: "",
 			errors:         []error{tools.ErrArguments},
@@ -46,7 +47,7 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "regex_no_path",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex: `\w+`,
+				grep.ParamRegex: `\w+`,
 			},
 			expectedOutput: "",
 			errors:         []error{tools.ErrArguments},
@@ -55,8 +56,8 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "invalid_regex",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex: `(\w`,
-				tools.GrepPath:  "invalid_regex_test.txt",
+				grep.ParamRegex: `(\w`,
+				grep.ParamPath:  "invalid_regex_test.txt",
 			},
 			expectedOutput: "",
 			errors:         []error{tools.ErrArguments},
@@ -65,8 +66,8 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "empty_regex",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex: "",
-				tools.GrepPath:  "empty_regex_test.txt",
+				grep.ParamRegex: "",
+				grep.ParamPath:  "empty_regex_test.txt",
 			},
 			expectedOutput: "",
 			errors:         []error{tools.ErrArguments},
@@ -75,9 +76,9 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "negative_context_lines",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex:        `\w`,
-				tools.GrepPath:         "negative_context_lines.txt",
-				tools.GrepContextLines: -1,
+				grep.ParamRegex:        `\w`,
+				grep.ParamPath:         "negative_context_lines.txt",
+				grep.ParamContextLines: -1,
 			},
 			expectedOutput: "",
 			errors:         []error{tools.ErrArguments},
@@ -87,9 +88,9 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "invalid_context_lines",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex:        `\w`,
-				tools.GrepPath:         "invalid_context_lines_test.txt",
-				tools.GrepContextLines: "garbage",
+				grep.ParamRegex:        `\w`,
+				grep.ParamPath:         "invalid_context_lines_test.txt",
+				grep.ParamContextLines: "garbage",
 			},
 			expectedOutput: "invalid_context_lines_test.txt\n" + tools.LineSep + "\n*1: a\n\n*2: b\n\n*3: c\n\n",
 			errors:         nil,
@@ -98,8 +99,8 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "bad_path",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex: `\w+`,
-				tools.GrepPath:  "random_path.txt",
+				grep.ParamRegex: `\w+`,
+				grep.ParamPath:  "random_path.txt",
 			},
 			expectedOutput: "",
 			errors:         []error{tools.ErrFileSystem},
@@ -108,8 +109,8 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "no_match",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex: `xyz+`,
-				tools.GrepPath:  "no_match_test.txt",
+				grep.ParamRegex: `xyz+`,
+				grep.ParamPath:  "no_match_test.txt",
 			},
 			expectedOutput: "no_match_test.txt\n" + tools.LineSep + "\n",
 			errors:         nil,
@@ -118,8 +119,8 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "multiple_matches",
 			initContent: "a\nb\nc",
 			args: tools.Args{
-				tools.GrepRegex: `[abc]`,
-				tools.GrepPath:  "multiple_matches_test.txt",
+				grep.ParamRegex: `[abc]`,
+				grep.ParamPath:  "multiple_matches_test.txt",
 			},
 			expectedOutput: "multiple_matches_test.txt\n" + tools.LineSep + "\n*1: a\n\n*2: b\n\n*3: c\n\n",
 			errors:         nil,
@@ -128,9 +129,9 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 			name:        "with_context_lines",
 			initContent: "abc\n123\nxyz",
 			args: tools.Args{
-				tools.GrepRegex:        `123`,
-				tools.GrepPath:         "with_context_lines_test.txt",
-				tools.GrepContextLines: 2,
+				grep.ParamRegex:        `123`,
+				grep.ParamPath:         "with_context_lines_test.txt",
+				grep.ParamContextLines: 2,
 			},
 			expectedOutput: "with_context_lines_test.txt\n" + tools.LineSep + "\n1: abc\n*2: 123\n3: xyz\n\n",
 			errors:         nil,
@@ -168,11 +169,11 @@ func TestGrepTool_Run(t *testing.T) { //nolint:funlen
 	}
 }
 
-func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
+func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tempDir := t.TempDir()
-	grepTool := &tools.GrepTool{ProjectPath: tempDir}
+	grepTool := &grep.Grep{ProjectPath: tempDir}
 
 	filePath1 := filepath.Join(tempDir, "file_1.txt")
 	if err := os.WriteFile(filePath1, []byte("abc\n123\nxyz\n"), 0o644); err != nil {
@@ -208,8 +209,8 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "no_match",
 			args: tools.Args{
-				tools.GrepPath:  ".",
-				tools.GrepRegex: "NO_MATCH",
+				grep.ParamPath:  ".",
+				grep.ParamRegex: "NO_MATCH",
 			},
 			expectedOutput: "",
 			errors:         nil,
@@ -217,8 +218,8 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "single_match",
 			args: tools.Args{
-				tools.GrepPath:  "file_2.txt",
-				tools.GrepRegex: "test2",
+				grep.ParamPath:  "file_2.txt",
+				grep.ParamRegex: "test2",
 			},
 			expectedOutput: fmt.Sprintf("file_2.txt\n%s\n*2: test2\n\n", tools.LineSep),
 			errors:         nil,
@@ -226,8 +227,8 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "single_match_multi_file",
 			args: tools.Args{
-				tools.GrepPath:  ".",
-				tools.GrepRegex: "123",
+				grep.ParamPath:  ".",
+				grep.ParamRegex: "123",
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\nsubdir/file_4.txt\n%s\n*1: 123 123\n\n",
@@ -238,8 +239,8 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "single_match_subdir",
 			args: tools.Args{
-				tools.GrepPath:  "subdir",
-				tools.GrepRegex: "test2",
+				grep.ParamPath:  "subdir",
+				grep.ParamRegex: "test2",
 			},
 			expectedOutput: fmt.Sprintf("subdir/file_4.txt\n%s\n*2: test2\n\n", tools.LineSep),
 			errors:         nil,
@@ -247,8 +248,8 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "multi_match_same_line_subdir",
 			args: tools.Args{
-				tools.GrepPath:  "subdir",
-				tools.GrepRegex: "123",
+				grep.ParamPath:  "subdir",
+				grep.ParamRegex: "123",
 			},
 			expectedOutput: fmt.Sprintf("subdir/file_4.txt\n%s\n*1: 123 123\n\n", tools.LineSep),
 			errors:         nil,
@@ -256,8 +257,8 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "multi_match_with_subdir",
 			args: tools.Args{
-				tools.GrepPath:  ".",
-				tools.GrepRegex: `test(\d)?`,
+				grep.ParamPath:  ".",
+				grep.ParamRegex: `test(\d)?`,
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_2.txt\n%s\n*1: test\n\n*2: test2\n\n*3: test3\n\nsubdir/file_4.txt\n%s\n*2: test2\n\n",
@@ -268,8 +269,8 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "multi_match_multi_file",
 			args: tools.Args{
-				tools.GrepPath:  ".",
-				tools.GrepRegex: `1(\d)3`,
+				grep.ParamPath:  ".",
+				grep.ParamRegex: `1(\d)3`,
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\n*4: 193\n\nsubdir/file_4.txt\n%s\n*1: 123 123\n\n",
@@ -280,8 +281,8 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "no_multiline",
 			args: tools.Args{
-				tools.GrepPath:  ".",
-				tools.GrepRegex: "test\ntest2",
+				grep.ParamPath:  ".",
+				grep.ParamRegex: "test\ntest2",
 			},
 			expectedOutput: "",
 			errors:         nil,
@@ -289,9 +290,9 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "multi_match_multi_file_with_context",
 			args: tools.Args{
-				tools.GrepPath:         ".",
-				tools.GrepRegex:        `1(\d)3`,
-				tools.GrepContextLines: 2,
+				grep.ParamPath:         ".",
+				grep.ParamRegex:        `1(\d)3`,
+				grep.ParamContextLines: 2,
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\nfile_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n\n2: 456\n3: 789\n*4: 193\n\n"+
@@ -303,9 +304,9 @@ func TestGrepTool_Run_Directory(t *testing.T) { //nolint:funlen
 		{
 			name: "multi_match_multi_file_with_long_context",
 			args: tools.Args{
-				tools.GrepPath:         ".",
-				tools.GrepRegex:        `1(\d)3`,
-				tools.GrepContextLines: 10,
+				grep.ParamPath:         ".",
+				grep.ParamRegex:        `1(\d)3`,
+				grep.ParamContextLines: 10,
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\n"+

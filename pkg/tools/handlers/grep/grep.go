@@ -1,4 +1,4 @@
-package tools
+package grep
 
 import (
 	"bufio"
@@ -13,103 +13,105 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	GrepPath         = "path"
-	GrepRegex        = "regex"
-	GrepContextLines = "context_lines"
+	Name              = "grep"
+	ParamPath         = "path"
+	ParamRegex        = "regex"
+	ParamContextLines = "context_lines"
 )
 
-type GrepTool struct {
+type Grep struct {
 	ProjectPath string
 }
 
-func NewGrepTool(projectPath, _ string) Tool {
-	return &GrepTool{ProjectPath: projectPath}
+func New(projectPath, _ string) tools.Tool {
+	return &Grep{ProjectPath: projectPath}
 }
 
-func (g *GrepTool) Name() string { return ToolGrep }
-func (g *GrepTool) Description() string {
-	examples := CollectExamples(g.Examples()...)
+func (g *Grep) Name() string { return Name }
+func (g *Grep) Description() string {
+	examples := tools.CollectExamples(g.Examples()...)
 
 	return fmt.Sprintf(`Search a file or directory for a regular expression. Lines matching %q are prefixed with "*", `+
 		"while context lines that do not include matches only include line numbers. Optionally, provide %q for "+
 		"the number of lines of context (default 0, only matched lines). Does not match multi-line regexes.%s",
-		GrepRegex, GrepContextLines, examples,
+		ParamRegex, ParamContextLines, examples,
 	)
 }
 
-func (g *GrepTool) Examples() Examples {
-	return Examples{
+func (g *Grep) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: `Search for the regex "type.*Tool" in the "pkg/tools" directory with no extra context lines.`,
-			Args: Args{
-				GrepPath:  "pkg/tools",
-				GrepRegex: "type.*Tool",
+			Args: tools.Args{
+				ParamPath:  "pkg/tools",
+				ParamRegex: "type.*Tool",
 			},
 		},
 		{
 			Description: `Search for the regex "type.*Client" in the whole repository with 3 lines of context on either side of each match.`,
-			Args: Args{
-				GrepPath:         ".",
-				GrepRegex:        "type.*Client",
-				GrepContextLines: 3,
+			Args: tools.Args{
+				ParamPath:         ".",
+				ParamRegex:        "type.*Client",
+				ParamContextLines: 3,
 			},
 		},
 	}
 }
 
-func (g *GrepTool) Params() Params {
-	return Params{
+func (g *Grep) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         GrepPath,
+			Key:         ParamPath,
 			Description: "The path of the file/directory to search for the regex",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    true,
 		},
 		{
-			Key:         GrepRegex,
+			Key:         ParamRegex,
 			Description: "The regular expression (in Golang regexp syntax) to search for. No multi-line regexes.",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    true,
 		},
 		{
-			Key: GrepContextLines,
+			Key: ParamContextLines,
 			Description: "The number of lines of context to provide around matches. If empty/0, defaults to only " +
 				"returning matched lines",
-			Type:     ParamTypeNumber,
+			Type:     tools.ParamTypeNumber,
 			Required: false,
 		},
 	}
 }
 
-func (g *GrepTool) Run(_ context.Context, args Args) (string, error) {
-	path := args.GetString(GrepPath)
+func (g *Grep) Run(_ context.Context, args tools.Args) (string, error) {
+	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", ErrArguments)
+		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
 	fullPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+		return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
 
-	regex := args.GetString(GrepRegex)
+	regex := args.GetString(ParamRegex)
 	if regex == nil || *regex == "" {
-		return "", fmt.Errorf("%w: no regex or empty regex supplied", ErrArguments)
+		return "", fmt.Errorf("%w: no regex or empty regex supplied", tools.ErrArguments)
 	}
 
 	compiled, err := regexp.Compile(*regex)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to compile regex pattern: %w", ErrArguments, err)
+		return "", fmt.Errorf("%w: failed to compile regex pattern: %w", tools.ErrArguments, err)
 	}
 
 	var contextLines int64
 
-	if contextLinesPtr := args.GetInt64(GrepContextLines); contextLinesPtr != nil {
+	if contextLinesPtr := args.GetInt64(ParamContextLines); contextLinesPtr != nil {
 		if *contextLinesPtr < 0 {
-			return "", fmt.Errorf("%w: %q must be >=0", ErrArguments, GrepContextLines)
+			return "", fmt.Errorf("%w: %q must be >=0", tools.ErrArguments, ParamContextLines)
 		}
 
 		contextLines = *contextLinesPtr
@@ -117,11 +119,11 @@ func (g *GrepTool) Run(_ context.Context, args Args) (string, error) {
 
 	stat, err := os.Stat(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %q: %w", ErrFileSystem, fullPath, err)
+		return "", fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
 	if !stat.Mode().IsRegular() && !stat.IsDir() {
-		return "", fmt.Errorf("%w: invalid file for grep: %q (mode=%s)", ErrFileSystem, fullPath, stat.Mode().String())
+		return "", fmt.Errorf("%w: invalid file for grep: %q (mode=%s)", tools.ErrFileSystem, fullPath, stat.Mode().String())
 	}
 
 	dirResults := map[string][][]string{}
@@ -150,10 +152,11 @@ func (g *GrepTool) Run(_ context.Context, args Args) (string, error) {
 
 		relPath, err := filepath.Rel(g.ProjectPath, filePath)
 		if err != nil {
-			return "", fmt.Errorf("%w: invalid file path %q: %w", ErrFileSystem, filePath, err)
+			return "", fmt.Errorf("%w: invalid file path %q: %w", tools.ErrFileSystem, filePath, err)
 		}
 
-		output += relPath + "\n" + LineSep + "\n"
+		// TODO: move "line separator" elsewhere?
+		output += relPath + "\n" + tools.LineSep + "\n"
 		for _, result := range fileResults {
 			output += strings.Join(result, "\n") + "\n\n"
 		}
@@ -162,10 +165,10 @@ func (g *GrepTool) Run(_ context.Context, args Args) (string, error) {
 	return output, nil
 }
 
-func (g *GrepTool) getFileResults(fullPath string, pattern *regexp.Regexp, contextLines int64) ([][]string, error) {
+func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLines int64) ([][]string, error) {
 	file, err := os.Open(fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to open file %q: %w", ErrFileSystem, fullPath, err)
+		return nil, fmt.Errorf("%w: failed to open file %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 	defer file.Close()
 
@@ -182,7 +185,7 @@ func (g *GrepTool) getFileResults(fullPath string, pattern *regexp.Regexp, conte
 
 	// TODO: test for / fix max line size issue for extremely long lines?
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("%w: failed to read file %q: %w", ErrFileSystem, fullPath, err)
+		return nil, fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
 	for lineNum, line := range lines {
@@ -217,7 +220,7 @@ func (g *GrepTool) getFileResults(fullPath string, pattern *regexp.Regexp, conte
 	return results, nil
 }
 
-func (g *GrepTool) getDirResults(fullPath string, pattern *regexp.Regexp, contextLines int64) (map[string][][]string, error) {
+func (g *Grep) getDirResults(fullPath string, pattern *regexp.Regexp, contextLines int64) (map[string][][]string, error) {
 	results := map[string][][]string{}
 
 	iter, err := fs.ExcludesWalker(g.ProjectPath, fullPath)

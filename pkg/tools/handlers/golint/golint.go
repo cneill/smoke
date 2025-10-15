@@ -1,4 +1,4 @@
-package tools
+package golint
 
 import (
 	"bytes"
@@ -12,45 +12,47 @@ import (
 	"time"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	GoLintPath = "path"
+	Name      = "go_lint"
+	ParamPath = "path"
 )
 
-type GoLintTool struct {
+type GoLint struct {
 	ProjectPath string
 }
 
-func NewGoLintTool(projectPath, _ string) Tool {
-	return &GoLintTool{ProjectPath: projectPath}
+func New(projectPath, _ string) tools.Tool {
+	return &GoLint{ProjectPath: projectPath}
 }
 
-func (g *GoLintTool) Name() string { return ToolGoLint }
-func (g *GoLintTool) Description() string {
-	examples := CollectExamples(g.Examples()...)
+func (g *GoLint) Name() string { return Name }
+func (g *GoLint) Description() string {
+	examples := tools.CollectExamples(g.Examples()...)
 
 	return fmt.Sprintf("Runs the golangci-lint linter against the file/directory specified in %q, or the whole "+
 		"project directory if not specified.%s",
-		GoLintPath, examples,
+		ParamPath, examples,
 	)
 }
 
-func (g *GoLintTool) Examples() Examples {
-	return Examples{
+func (g *GoLint) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: `Lint the "pkg/llms" directory`,
-			Args:        Args{GoLintPath: "pkg/llms"},
+			Args:        tools.Args{ParamPath: "pkg/llms"},
 		},
 	}
 }
 
-func (g *GoLintTool) Params() Params {
-	return Params{
+func (g *GoLint) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         GoLintPath,
+			Key:         ParamPath,
 			Description: "The path of the directory/file to lint",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    false,
 		},
 	}
@@ -95,13 +97,13 @@ type lineRange struct {
 	To   int64 `json:"To"`
 }
 
-func (g *GoLintTool) Run(ctx context.Context, args Args) (string, error) { //nolint:cyclop,funlen
+func (g *GoLint) Run(ctx context.Context, args tools.Args) (string, error) { //nolint:cyclop,funlen
 	targetPath := g.ProjectPath
 	originalPath := g.ProjectPath
 
 	if _, err := exec.LookPath("golangci-lint"); err != nil {
 		slog.Error("golangci-lint not found on the system", "error", err)
-		return "", fmt.Errorf("%w: golangci-lint not found on the system", ErrFileSystem)
+		return "", fmt.Errorf("%w: golangci-lint not found on the system", tools.ErrFileSystem)
 	}
 
 	versionCtx, cancel := context.WithTimeout(ctx, time.Second*3)
@@ -110,17 +112,17 @@ func (g *GoLintTool) Run(ctx context.Context, args Args) (string, error) { //nol
 	versionOutput, err := exec.CommandContext(versionCtx, "golangci-lint", "version").CombinedOutput()
 	if err != nil {
 		slog.Error("failed to get golangci-lint version", "error", err)
-		return "", fmt.Errorf("%w: failed to get golangci-lint version: %w", ErrCommandExecution, err)
+		return "", fmt.Errorf("%w: failed to get golangci-lint version: %w", tools.ErrCommandExecution, err)
 	} else if !bytes.Contains(versionOutput, []byte("has version 2")) {
 		slog.Error("golangci-lint version <2", "output", string(versionOutput))
-		return "", fmt.Errorf("%w: golangci-lint version <2", ErrCommandExecution)
+		return "", fmt.Errorf("%w: golangci-lint version <2", tools.ErrCommandExecution)
 	}
 
 	// path is optional
-	if path := args.GetString(GoLintPath); path != nil {
+	if path := args.GetString(ParamPath); path != nil {
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		targetPath = relPath
@@ -129,7 +131,7 @@ func (g *GoLintTool) Run(ctx context.Context, args Args) (string, error) { //nol
 
 	stat, err := os.Stat(targetPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %s: %w", ErrFileSystem, targetPath, err)
+		return "", fmt.Errorf("%w: failed to stat path %s: %w", tools.ErrFileSystem, targetPath, err)
 	}
 
 	var targetFile string
@@ -179,7 +181,7 @@ func (g *GoLintTool) Run(ctx context.Context, args Args) (string, error) { //nol
 		stderr := errBuf.String()
 		slog.Error("error from golangci-lint", "path", targetPath, "file", targetFile, "error", err, "stderr", stderr)
 
-		return "", fmt.Errorf("%w: golangci-lint: %s", ErrCommandExecution, stderr)
+		return "", fmt.Errorf("%w: golangci-lint: %s", tools.ErrCommandExecution, stderr)
 	}
 
 	results := output{}

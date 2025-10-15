@@ -1,4 +1,4 @@
-package tools
+package gotest
 
 import (
 	"bytes"
@@ -11,52 +11,54 @@ import (
 	"time"
 
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/tools"
 )
 
 const (
-	GoTestPath = "path"
+	Name      = "go_test"
+	ParamPath = "path"
 )
 
-type GoTestTool struct {
+type GoTest struct {
 	ProjectPath string
 }
 
-func NewGoTestTool(projectPath, _ string) Tool {
-	return &GoTestTool{ProjectPath: projectPath}
+func New(projectPath, _ string) tools.Tool {
+	return &GoTest{ProjectPath: projectPath}
 }
 
-func (g *GoTestTool) Name() string { return "go_test" }
-func (g *GoTestTool) Description() string {
-	examples := CollectExamples(g.Examples()...)
+func (g *GoTest) Name() string { return Name }
+func (g *GoTest) Description() string {
+	examples := tools.CollectExamples(g.Examples()...)
 
 	return fmt.Sprintf("Runs `go test` against the file/directory specified in %q, or the whole project if not "+
 		"specified. If a file is provided, tests in its containing directory will be run. Output is the raw `go test` "+
 		"stream with coverage information.%s",
-		GoTestPath, examples,
+		ParamPath, examples,
 	)
 }
 
-func (g *GoTestTool) Examples() Examples {
-	return Examples{
+func (g *GoTest) Examples() tools.Examples {
+	return tools.Examples{
 		{
 			Description: `Run "go test" on the "pkg/fs" directory`,
-			Args:        Args{GoTestPath: "pkg/fs"},
+			Args:        tools.Args{ParamPath: "pkg/fs"},
 		},
 	}
 }
 
-func (g *GoTestTool) Params() Params {
-	return Params{
+func (g *GoTest) Params() tools.Params {
+	return tools.Params{
 		{
-			Key:         GoTestPath,
+			Key:         ParamPath,
 			Description: "The path of the directory/file to test",
-			Type:        ParamTypeString,
+			Type:        tools.ParamTypeString,
 			Required:    false,
 		},
 	}
 }
 
-type GoTestResult struct {
+type Result struct {
 	Action      string    `json:"Action"`
 	Elapsed     float64   `json:"Elapsed"`
 	FailedBuild string    `json:"FailedBuild"`
@@ -67,19 +69,19 @@ type GoTestResult struct {
 	Time        time.Time `json:"Time"`
 }
 
-func (g *GoTestTool) Run(ctx context.Context, args Args) (string, error) {
+func (g *GoTest) Run(ctx context.Context, args tools.Args) (string, error) {
 	targetPath := g.ProjectPath
 
 	if _, err := exec.LookPath("go"); err != nil {
 		slog.Error("go not found on the system", "error", err)
-		return "", fmt.Errorf("%w: go not found on the system", ErrFileSystem)
+		return "", fmt.Errorf("%w: go not found on the system", tools.ErrFileSystem)
 	}
 
 	// path is optional
-	if path := args.GetString(GoTestPath); path != nil {
+	if path := args.GetString(ParamPath); path != nil {
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", ErrArguments, err)
+			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		targetPath = relPath
@@ -87,7 +89,7 @@ func (g *GoTestTool) Run(ctx context.Context, args Args) (string, error) {
 
 	stat, err := os.Stat(targetPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %q: %w", ErrFileSystem, targetPath, err)
+		return "", fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, targetPath, err)
 	}
 
 	var targetDir string
