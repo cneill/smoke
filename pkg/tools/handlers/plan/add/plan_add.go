@@ -324,14 +324,14 @@ func (p *PlanAdd) Params() tools.Params { //nolint:funlen
 }
 
 func (p *PlanAdd) Run(_ context.Context, args tools.Args) (string, error) {
-	performedAdd := false
+	var tasksAdded, contextAdded int
 
 	if tasks := args.GetArgsObjectSlice(ParamTasks); tasks != nil {
 		if err := p.handleTasks(tasks); err != nil {
 			return "", err
 		}
 
-		performedAdd = true
+		tasksAdded = len(tasks)
 	}
 
 	if context := args.GetArgsObjectSlice(ParamContext); context != nil {
@@ -339,14 +339,15 @@ func (p *PlanAdd) Run(_ context.Context, args tools.Args) (string, error) {
 			return "", err
 		}
 
-		performedAdd = true
+		contextAdded = len(context)
 	}
 
-	if !performedAdd {
+	addedAny := tasksAdded > 0 || contextAdded > 0
+	if !addedAny {
 		return "", fmt.Errorf("no valid tasks or context items were found in this tool call")
 	}
 
-	return "", nil
+	return fmt.Sprintf("Added %d tasks and %d context items", tasksAdded, contextAdded), nil
 }
 
 func (p *PlanAdd) handleTasks(tasks []tools.Args) error {

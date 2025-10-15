@@ -227,8 +227,8 @@ func (m *Manager) GetItemByID(searchID string) *ItemUnion {
 
 	for idx, item := range m.items {
 		if item.ID() == searchID {
-			// skip old versions of this item if it has been updated by a subsequent item
-			if revisedIdx, ok := m.updated[item.ID()]; ok && revisedIdx > idx {
+			// skip old versions if this item has been updated by a subsequent item
+			if latestIdx := m.latestIdx(item.ID()); latestIdx > idx {
 				continue
 			}
 
@@ -253,7 +253,7 @@ func (m *Manager) GetPendingTasks() []*TaskItem {
 		}
 
 		// skip old versions if this task has been updated by a subsequent task item
-		if revisedIdx, ok := m.updated[item.ID()]; ok && revisedIdx > idx {
+		if latestIdx := m.latestIdx(item.ID()); latestIdx > idx {
 			continue
 		}
 
@@ -281,8 +281,8 @@ func (m *Manager) GetContextFor(searchID string) []*ContextItem {
 			continue
 		}
 
-		// skip old versions if this context item has been updated by a subsequent context item
-		if revisedIdx, ok := m.updated[item.ID()]; ok && revisedIdx > idx {
+		// skip old versions if this context has been updated by a subsequent task item
+		if latestIdx := m.latestIdx(item.ID()); latestIdx > idx {
 			continue
 		}
 
@@ -292,6 +292,30 @@ func (m *Manager) GetContextFor(searchID string) []*ContextItem {
 	}
 
 	return allContext
+}
+
+func (m *Manager) GetChildrenFor(searchID string) []*TaskItem {
+	m.itemMutex.RLock()
+	defer m.itemMutex.RUnlock()
+
+	children := []*TaskItem{}
+
+	for idx, item := range m.items {
+		if item.TaskItem == nil {
+			continue
+		}
+
+		if item.TaskItem.Parent == searchID {
+			// skip old versions if parent has been updated by a subsequent task item
+			if latestIdx := m.latestIdx(item.ID()); latestIdx > idx {
+				continue
+			}
+
+			children = append(children, item.TaskItem)
+		}
+	}
+
+	return children
 }
 
 func (m *Manager) Teardown() error {
@@ -307,6 +331,21 @@ func (m *Manager) Teardown() error {
 	}
 
 	return nil
+}
+
+func (m *Manager) latestIdx(id string) int {
+	// Assumes item mutex is already locked.
+	if latestIdx, ok := m.updated[id]; ok {
+		return latestIdx
+	}
+
+	for idx, item := range m.items {
+		if item.ID() == id {
+			return idx
+		}
+	}
+
+	return -1
 }
 
 // validateTaskDependencies ensures that we have matching items for the dependencies declared on a TaskItem
