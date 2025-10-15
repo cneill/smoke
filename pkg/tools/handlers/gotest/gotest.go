@@ -58,7 +58,7 @@ func (g *GoTest) Params() tools.Params {
 	}
 }
 
-type GoTestResult struct {
+type Result struct {
 	Action      string    `json:"Action"`
 	Elapsed     float64   `json:"Elapsed"`
 	FailedBuild string    `json:"FailedBuild"`

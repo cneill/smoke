@@ -86,6 +86,7 @@ func (p *Plan) Run(session *llms.Session) (tea.Cmd, error) {
 		Message:       historyMessage,
 		Session:       session,
 	}
+
 	return uimsg.MsgToCmd(update), nil
 }
 
