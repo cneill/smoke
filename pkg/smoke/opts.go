@@ -2,9 +2,11 @@ package smoke
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/mcp"
@@ -87,9 +89,18 @@ func WithMCPClient(client *mcp.CommandClient) OptFunc {
 }
 
 // WithTeaEmitter allows us to inject messages straight into Bubbletea's event loop rather than round-tripping.
-func WithTeaEmitter(emitter TeaEmitter) OptFunc {
+// NOTE: This has to be injected *after* Smoke is first set up, because we need the ui model (which relies on Smoke) to
+// be set up before we can get an emitter for the Bubbletea Program running its event loop.
+func WithTeaEmitter(emitter uimsg.TeaEmitter) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		smoke.teaEmitter = emitter
+
+		session := smoke.getMainSession()
+		if session != nil {
+			slog.Debug("SETTING TEA EMITTER ON SESSION TOOLS MANAGER _AFTER_ SETUP")
+			session.Tools.SetTeaEmitter(emitter)
+		}
+
 		return smoke, nil
 	}
 }

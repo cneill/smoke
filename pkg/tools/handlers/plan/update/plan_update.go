@@ -32,11 +32,11 @@ type PlanUpdate struct {
 	PlanManager *plan.Manager
 }
 
-func New(projectPath, sessionName string) tools.Tool {
+func New(projectPath, sessionName string) (tools.Tool, error) {
 	return &PlanUpdate{
 		ProjectPath: projectPath,
 		SessionName: sessionName,
-	}
+	}, nil
 }
 
 func (p *PlanUpdate) Name() string { return Name }

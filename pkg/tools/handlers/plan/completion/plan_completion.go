@@ -23,11 +23,11 @@ type PlanCompletion struct {
 	PlanManager *plan.Manager
 }
 
-func New(projectPath, sessionName string) tools.Tool {
+func New(projectPath, sessionName string) (tools.Tool, error) {
 	return &PlanCompletion{
 		ProjectPath: projectPath,
 		SessionName: sessionName,
-	}
+	}, nil
 }
 
 func (p *PlanCompletion) Name() string { return Name }

@@ -12,6 +12,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/config"
@@ -22,8 +23,6 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers"
 )
-
-type TeaEmitter func(tea.Msg)
 
 // Smoke manages the overall state of the application, including the project path we're working in, the [*llms.Session]
 // we're currently interacting with, the [*tools.Manager] which provides the LLM tool calling affordances, the
@@ -44,7 +43,7 @@ type Smoke struct {
 	conversations     map[string]llms.Conversation
 	conversationMutex sync.RWMutex
 
-	teaEmitter TeaEmitter
+	teaEmitter uimsg.TeaEmitter
 
 	commands   *commands.Manager
 	llmConfig  *llms.Config
@@ -268,7 +267,6 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 	sessionName := mainSession.Name + "_summary"
 	systemMessage := prompts.SummarizeSystemPrompt(msg.OriginalMessages...).Markdown()
 
-	// TODO: THIS IS BORKED BECAUSE IT TRIES TO CREATE A PLAN FILE FOR THE _NEW_ SESSION NAME
 	managerOpts := &tools.ManagerOpts{
 		ProjectPath:      s.projectPath,
 		SessionName:      sessionName,
@@ -280,6 +278,8 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tools manager for summarization conversation: %w", err)
 	}
+
+	toolManager.SetTeaEmitter(s.teaEmitter)
 
 	newSession, err := llms.NewSession(&llms.SessionOpts{
 		Name:            sessionName,

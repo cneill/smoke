@@ -10,3 +10,6 @@ func MsgToCmd(msg any) tea.Cmd {
 		return msg
 	}
 }
+
+// TeaEmitter is a function that pushes messages directly to the main Bubbletea event loop.
+type TeaEmitter func(tea.Msg)

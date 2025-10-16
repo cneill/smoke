@@ -18,11 +18,11 @@ type PlanRead struct {
 	PlanManager *plan.Manager
 }
 
-func New(projectPath, sessionName string) tools.Tool {
+func New(projectPath, sessionName string) (tools.Tool, error) {
 	return &PlanRead{
 		ProjectPath: projectPath,
 		SessionName: sessionName,
-	}
+	}, nil
 }
 
 func (p *PlanRead) Name() string { return Name }

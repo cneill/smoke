@@ -23,8 +23,8 @@ type GoTest struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
-	return &GoTest{ProjectPath: projectPath}
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &GoTest{ProjectPath: projectPath}, nil
 }
 
 func (g *GoTest) Name() string { return Name }

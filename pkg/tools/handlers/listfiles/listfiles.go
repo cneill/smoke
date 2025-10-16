@@ -20,8 +20,8 @@ type ListFiles struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
-	return &ListFiles{ProjectPath: projectPath}
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &ListFiles{ProjectPath: projectPath}, nil
 }
 
 func (l *ListFiles) Name() string { return Name }

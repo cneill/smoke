@@ -28,26 +28,26 @@ type DDG struct {
 	hc          *hc.HC
 }
 
-func New(projectPath, _ string) tools.Tool {
+func New(projectPath, _ string) (tools.Tool, error) {
 	headers := http.Header{}
 	headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	headers.Set("Accept-Language", "en-US,en;q=0.5")
 	headers.Set("Referer", "https://duckduckgo.com")
 	headers.Set("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0")
 
-	hc, err := hc.New(hc.DefaultClient(),
+	hcClient, err := hc.New(hc.DefaultClient(),
 		hc.ClientBaseURL("https://html.duckduckgo.com/html"),
 		hc.GlobalHeaders(headers),
 		hc.RateTickerDuration(time.Second*2),
 	)
 	if err != nil {
-		panic(fmt.Errorf("failed to set up HC: %w", err))
+		return nil, fmt.Errorf("failed to set up HC: %w", err)
 	}
 
 	return &DDG{
 		ProjectPath: projectPath,
-		hc:          hc,
-	}
+		hc:          hcClient,
+	}, nil
 }
 
 func (d *DDG) Name() string { return Name }

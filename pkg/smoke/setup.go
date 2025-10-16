@@ -166,5 +166,9 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 		return nil, fmt.Errorf("failed to initialize tools manager for main smoke session: %w", err)
 	}
 
+	if s.teaEmitter != nil {
+		toolManager.SetTeaEmitter(s.teaEmitter)
+	}
+
 	return toolManager, nil
 }

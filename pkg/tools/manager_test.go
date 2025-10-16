@@ -11,6 +11,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +43,7 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 		SessionName:      "test",
 		ToolInitializers: handlers.AllTools(),
 		PlanManager:      planManager,
+		TeaEmitter:       func(tea.Msg) {},
 	}
 
 	manager, err := tools.NewManager(opts)
@@ -49,8 +51,8 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 
 	dummy := dummyTool{params: params}
 
-	manager.InitTools(func(_, _ string) tools.Tool {
-		return dummy
+	manager.InitTools(func(_, _ string) (tools.Tool, error) {
+		return dummy, nil
 	})
 
 	return manager

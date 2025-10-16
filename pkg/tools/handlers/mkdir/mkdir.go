@@ -18,10 +18,10 @@ type Mkdir struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
+func New(projectPath, _ string) (tools.Tool, error) {
 	return &Mkdir{
 		ProjectPath: projectPath,
-	}
+	}, nil
 }
 
 func (m *Mkdir) Name() string { return Name }

@@ -16,7 +16,11 @@ func TestAllToolDescriptions(t *testing.T) {
 	testTools := make(tools.Tools, len(toolInits))
 
 	for i, toolInit := range toolInits {
-		testTools[i] = toolInit(".", "session")
+		tool, err := toolInit(".", "session")
+		if err != nil {
+			t.Fatalf("initializer failed: %v", err)
+		}
+		testTools[i] = tool
 	}
 
 	for _, tool := range testTools {

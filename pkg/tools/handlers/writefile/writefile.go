@@ -21,8 +21,8 @@ type WriteFile struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
-	return &WriteFile{ProjectPath: projectPath}
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &WriteFile{ProjectPath: projectPath}, nil
 }
 
 func (w *WriteFile) Name() string { return Name }

@@ -22,9 +22,9 @@ type GoImports struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
+func New(projectPath, _ string) (tools.Tool, error) {
 	// TODO: allow error-return here, return / log error if binary not found, don't crash everything
-	return &GoImports{ProjectPath: projectPath}
+	return &GoImports{ProjectPath: projectPath}, nil
 }
 
 func (g *GoImports) Name() string { return Name }
