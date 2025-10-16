@@ -58,8 +58,10 @@ func (s *Summarize) Run(ctx context.Context, args tools.Args) (string, error) {
 	// TODO: this is just a test - it freezes the ui and is not a good idea!!!! It freezes because a tool call is
 	// expected to be synchronous, but we need summarization to happen in the background in a goroutine. FIX!!!
 	if s.TeaEmitter != nil {
+		slog.Debug("Sending 'info' command prompt message...")
 		s.TeaEmitter(commands.PromptMessage{
 			Command: "info",
+			Args:    []string{},
 		})
 	} else {
 		slog.Error("no tea emitter was set on the summarize tool")

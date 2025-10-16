@@ -17,6 +17,7 @@ import (
 	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
 	"github.com/cneill/smoke/pkg/tools/handlers/readfile"
 	"github.com/cneill/smoke/pkg/tools/handlers/replacelines"
+	"github.com/cneill/smoke/pkg/tools/handlers/summarize"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
 )
 
@@ -37,7 +38,7 @@ func AllTools() []tools.Initializer {
 		planupdate.New,
 		readfile.New,
 		replacelines.New,
-		// summarize.New,
+		summarize.New,
 		writefile.New,
 	}
 }

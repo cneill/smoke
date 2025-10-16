@@ -51,12 +51,6 @@ type SendSessionMessage struct {
 	Session          *llms.Session
 }
 
-type ErrorMessage struct {
-	MessageType
-
-	Err error
-}
-
 type HelpMessage struct {
 	MessageType
 

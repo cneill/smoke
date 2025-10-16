@@ -11,6 +11,7 @@ import (
 	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/edit"
 	"github.com/cneill/smoke/pkg/commands/handlers/plan"
@@ -136,6 +137,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.handleCommandMessage(msg))
 	case smoke.Message:
 		cmds = append(cmds, m.handleSmokeMessage(msg))
+	case *uimsg.Error:
+		slog.Error("got raw error in ui event loop", "err", msg.Err)
+		cmds = append(cmds, updateHistory(msg))
+	default:
+		slog.Debug("got unknown message", "message", msg, "type", fmt.Sprintf("%T", msg))
 	}
 
 	return m, tea.Batch(cmds...)
@@ -164,7 +170,7 @@ func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
 
 		cmd, err := m.smoke.HandleUserMessage(llmMessage)
 		if err != nil {
-			return updateHistory(err)
+			return updateHistory(uimsg.ToError(err))
 		}
 
 		cmds = append(cmds, cmd)
@@ -201,7 +207,7 @@ func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage)
 	}
 
 	if response.Err != nil {
-		commands = append(commands, updateHistory(response.Err))
+		commands = append(commands, updateHistory(uimsg.ToError(response.Err)))
 	} else {
 		commands = append(commands, updateHistory(response.Message))
 	}
@@ -217,7 +223,7 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 	commands := []tea.Cmd{}
 
 	if response.Err != nil {
-		commands = append(commands, updateHistory(response.Err))
+		commands = append(commands, updateHistory(uimsg.ToError(response.Err)))
 	} else {
 		for _, message := range response.Messages {
 			commands = append(commands, updateHistory(message))

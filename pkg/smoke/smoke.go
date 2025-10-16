@@ -172,7 +172,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 			case llms.EventError:
 				slog.Error("conversation error", "error", event.Err)
 				s.teaEmitter(AssistantResponseMessage{
-					Err: fmt.Errorf("conversation error: %w", event.Err),
+					Err: uimsg.ToError(fmt.Errorf("conversation error: %w", event.Err)),
 				})
 				conversation.Cancel(event.Err)
 
@@ -222,12 +222,15 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				}
 
 				for _, toolCall := range event.Message.ToolCalls {
-					var content string
+					var (
+						content     string
+						toolCallErr error
+					)
 
 					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
 					if err != nil {
 						slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
-						toolCallErr := fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
+						toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
 						content = toolCallErr.Error()
 					} else {
 						content = output
@@ -238,6 +241,10 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 						llms.WithToolCalls(toolCall),
 						llms.WithContent(content),
 					)
+
+					if toolCallErr != nil {
+						resultsMsg = resultsMsg.Update(llms.WithError(toolCallErr))
+					}
 
 					if err := session.AddMessage(resultsMsg); err != nil {
 						slog.Error("failed to add tool call result message to session", "error", err)
@@ -347,7 +354,7 @@ func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSumm
 			case llms.EventError:
 				slog.Error("conversation error", "error", event.Err)
 				s.teaEmitter(AssistantResponseMessage{
-					Err: fmt.Errorf("summarization conversation error: %w", event.Err),
+					Err: uimsg.ToError(fmt.Errorf("summarization conversation error: %w", event.Err)),
 				})
 				conversation.Cancel(event.Err)
 
@@ -398,12 +405,15 @@ func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSumm
 				}
 
 				for _, toolCall := range event.Message.ToolCalls {
-					var content string
+					var (
+						content     string
+						toolCallErr error
+					)
 
 					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
 					if err != nil {
 						slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
-						toolCallErr := fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
+						toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
 						content = toolCallErr.Error()
 					} else {
 						content = output
@@ -414,6 +424,10 @@ func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSumm
 						llms.WithToolCalls(toolCall),
 						llms.WithContent(content),
 					)
+
+					if toolCallErr != nil {
+						resultsMsg = resultsMsg.Update(llms.WithError(toolCallErr))
+					}
 
 					if err := session.AddMessage(resultsMsg); err != nil {
 						slog.Error("failed to add tool call result message to session", "error", err)

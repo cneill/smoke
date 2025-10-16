@@ -4,6 +4,7 @@ package run
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -56,22 +57,27 @@ func (r *Run) Run(session *llms.Session) (tea.Cmd, error) {
 		return nil, fmt.Errorf("%w: %w", commands.ErrArguments, err)
 	}
 
-	output, err := session.Tools.CallTool(context.TODO(), r.ToolName, args)
-	if err != nil {
-		return nil, fmt.Errorf("error running tool from prompt: %w", err)
+	handler := func() tea.Msg {
+		output, err := session.Tools.CallTool(context.TODO(), r.ToolName, args)
+		if err != nil {
+			slog.Error("tool called by run command failed", "err", err)
+			return uimsg.ToError(fmt.Errorf("error running tool from prompt: %w", err))
+		}
+
+		msg := llms.SimpleMessage(llms.RoleUser, output)
+		if err := session.AddMessage(msg); err != nil {
+			return uimsg.ToError(fmt.Errorf("failed to add run message: %w", err))
+		}
+
+		updateMsg := fmt.Sprintf("User called tool %q with args %q:\n\n%s\n", r.ToolName, r.RawArgs, output)
+
+		update := commands.HistoryUpdateMessage{
+			PromptMessage: r.PromptMessage,
+			Message:       updateMsg,
+		}
+
+		return update
 	}
 
-	msg := llms.SimpleMessage(llms.RoleUser, output)
-	if err := session.AddMessage(msg); err != nil {
-		return nil, fmt.Errorf("failed to add run message: %w", err)
-	}
-
-	updateMsg := fmt.Sprintf("User called tool %q with args %q:\n\n%s\n", r.ToolName, r.RawArgs, output)
-
-	update := commands.HistoryUpdateMessage{
-		PromptMessage: r.PromptMessage,
-		Message:       updateMsg,
-	}
-
-	return uimsg.MsgToCmd(update), nil
+	return handler, nil
 }
