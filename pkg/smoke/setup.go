@@ -97,7 +97,7 @@ func (s *Smoke) setupSession() error {
 		SystemMessage:   s.mainSystemPrompt,
 		Tools:           toolManager,
 		SystemAsMessage: s.llm.RequiresSessionSystem(),
-		Mode:            llms.ModeNormal,
+		Mode:            llms.ModeWork,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to initialize main smoke session: %w", err)
@@ -141,7 +141,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 
 	if session != nil {
 		switch session.GetMode() {
-		case llms.ModeNormal:
+		case llms.ModeWork:
 			initList = toolhandlers.NormalTools()
 		case llms.ModePlanning:
 			initList = toolhandlers.PlanningTools()

@@ -8,8 +8,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/help"
 	"github.com/cneill/smoke/pkg/commands/handlers/info"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
-	"github.com/cneill/smoke/pkg/commands/handlers/plan"
-	"github.com/cneill/smoke/pkg/commands/handlers/review"
+	"github.com/cneill/smoke/pkg/commands/handlers/mode"
 	"github.com/cneill/smoke/pkg/commands/handlers/run"
 	"github.com/cneill/smoke/pkg/commands/handlers/save"
 	"github.com/cneill/smoke/pkg/commands/handlers/session"
@@ -23,8 +22,7 @@ func AllCommands() map[string]commands.Initializer {
 		export.Name:    export.New,
 		info.Name:      info.New,
 		load.Name:      load.New,
-		plan.Name:      plan.New,
-		review.Name:    review.New,
+		mode.Name:      mode.New,
 		run.Name:       run.New,
 		save.Name:      save.New,
 		session.Name:   session.New,

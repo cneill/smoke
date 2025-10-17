@@ -487,22 +487,35 @@ func (s *Smoke) SetSession(newSession *llms.Session) error {
 	return nil
 }
 
-func (s *Smoke) SetMode(mode llms.Mode) {
+func (s *Smoke) SetMode(mode llms.Mode) error {
 	session := s.getMainSession()
+	if session == nil {
+		return fmt.Errorf("no main session found")
+	}
+
 	session.SetMode(mode)
 
-	var enabledTools []tools.Initializer
+	var (
+		enabledTools  []tools.Initializer
+		systemMessage string
+	)
 
 	switch mode {
 	case llms.ModePlanning:
 		enabledTools = handlers.PlanningTools()
+		systemMessage = prompts.PlanningSystemPrompt().Markdown()
 	case llms.ModeReview:
 		enabledTools = handlers.ReviewTools()
-	case llms.ModeNormal:
+		systemMessage = prompts.ReviewSystemPrompt().Markdown()
+	case llms.ModeWork:
 		enabledTools = handlers.NormalTools()
+		systemMessage = prompts.WorkSystemPrompt().Markdown()
 	default:
-		// TODO: don't panic
-		panic(fmt.Errorf("tried to set smoke to unknown mode %q", mode))
+		return fmt.Errorf("tried to set smoke to unknown mode %q", mode)
+	}
+
+	if err := session.SetSystemMessage(systemMessage); err != nil {
+		return fmt.Errorf("failed to set system message for review mode: %w", err)
 	}
 
 	session.Tools.InitTools(enabledTools...)
@@ -513,6 +526,8 @@ func (s *Smoke) SetMode(mode llms.Mode) {
 	}
 
 	session.Tools.AddTools(mcpTools...)
+
+	return nil
 }
 
 // HandleCommand invokes a prompt command provided by the user.
@@ -562,7 +577,7 @@ func (s *Smoke) getMCPTools() (tools.Tools, error) {
 		switch session.GetMode() {
 		case llms.ModePlanning, llms.ModeReview:
 			mcpTools, err = mcpClient.PlanTools(ctx)
-		case llms.ModeNormal:
+		case llms.ModeWork:
 			mcpTools, err = mcpClient.Tools(ctx)
 		}
 

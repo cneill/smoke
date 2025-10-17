@@ -14,8 +14,7 @@ import (
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/edit"
-	"github.com/cneill/smoke/pkg/commands/handlers/plan"
-	"github.com/cneill/smoke/pkg/commands/handlers/review"
+	"github.com/cneill/smoke/pkg/commands/handlers/mode"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
@@ -274,31 +273,10 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 			cmds = append(cmds, resetHistory)
 		}
 
-	case plan.ModeMessage:
-		if err := m.smoke.SetSession(msg.Session); err != nil {
-			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for planning mode switch: %w", err)))
+	case mode.Message:
+		if err := m.smoke.SetMode(msg.Mode); err != nil {
+			cmds = append(cmds, updateHistory(uimsg.ToError(err)))
 			break
-		}
-
-		if msg.Enabled {
-			m.smoke.SetMode(llms.ModePlanning)
-		} else {
-			m.smoke.SetMode(llms.ModeNormal)
-		}
-
-		cmds = append(cmds, updateHistory(msg))
-		// TODO: do away with these separate mode messages, unify them with session update message?
-
-	case review.ModeMessage:
-		if err := m.smoke.SetSession(msg.Session); err != nil {
-			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session for review mode switch: %w", err)))
-			break
-		}
-
-		if msg.Enabled {
-			m.smoke.SetMode(llms.ModeReview)
-		} else {
-			m.smoke.SetMode(llms.ModeNormal)
 		}
 
 		cmds = append(cmds, updateHistory(msg))

@@ -15,8 +15,7 @@ import (
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
-	"github.com/cneill/smoke/pkg/commands/handlers/plan"
-	"github.com/cneill/smoke/pkg/commands/handlers/review"
+	"github.com/cneill/smoke/pkg/commands/handlers/mode"
 	"github.com/cneill/smoke/pkg/commands/handlers/session"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/mattn/go-runewidth"
@@ -314,30 +313,11 @@ func renderCommandMessage(msg commands.Message, info bubbleInfo) bubbleInfo {
 			Foreground(lipgloss.Color("#ffffff"))
 		info.content = msg.Message
 
-	case plan.ModeMessage:
-		if msg.Enabled {
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#550011"))
-		} else {
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#005511"))
-		}
-
-		info.title = "Planning mode"
+	case mode.Message:
+		info.title = fmt.Sprintf("%s mode", strings.Title(string(msg.Mode)))
 		info.subtitle = msg.Message
-
-		// TODO: handle mode messages more elegantly
-	case review.ModeMessage:
-		if msg.Enabled {
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#550011"))
-		} else {
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#005511"))
-		}
-
-		info.title = "Review mode"
-		info.subtitle = msg.Message
+		info.titleStyle = info.titleStyle.
+			Foreground(lipgloss.Color("#ffffff"))
 	}
 
 	return info
