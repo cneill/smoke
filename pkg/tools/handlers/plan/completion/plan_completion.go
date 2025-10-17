@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	Name = "plan_completion"
-
 	ParamTaskIDs = "task_ids"
 	ParamContent = "content"
 	ParamStatus  = "status"
@@ -30,7 +28,7 @@ func New(projectPath, sessionName string) (tools.Tool, error) {
 	}, nil
 }
 
-func (p *PlanCompletion) Name() string { return Name }
+func (p *PlanCompletion) Name() string { return tools.NamePlanCompletion }
 func (p *PlanCompletion) Description() string {
 	examples := tools.CollectExamples(p.Examples()...)
 
@@ -67,7 +65,7 @@ func (p *PlanCompletion) Examples() tools.Examples {
 			Description: fmt.Sprintf("Mark a task and its child subtasks as obsolete after user feedback on the "+
 				"plan. This is essentially equivalent to deleting the task and will ensure that it does not show up "+
 				"in the output of %q.",
-				tools.ToolPlanRead,
+				tools.NamePlanRead,
 			),
 			Args: tools.Args{
 				ParamTaskIDs: []string{"task_id_1"},

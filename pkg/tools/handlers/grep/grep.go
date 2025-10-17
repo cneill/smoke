@@ -14,10 +14,10 @@ import (
 
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/formatting"
 )
 
 const (
-	Name              = "grep"
 	ParamPath         = "path"
 	ParamRegex        = "regex"
 	ParamContextLines = "context_lines"
@@ -31,7 +31,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &Grep{ProjectPath: projectPath}, nil
 }
 
-func (g *Grep) Name() string { return Name }
+func (g *Grep) Name() string { return tools.NameGrep }
 func (g *Grep) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 
@@ -155,8 +155,7 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (string, error) {
 			return "", fmt.Errorf("%w: invalid file path %q: %w", tools.ErrFileSystem, filePath, err)
 		}
 
-		// TODO: move "line separator" elsewhere?
-		output += relPath + "\n" + tools.LineSep + "\n"
+		output += relPath + "\n" + formatting.LineSep + "\n"
 		for _, result := range fileResults {
 			output += strings.Join(result, "\n") + "\n\n"
 		}

@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	Name      = "goimports"
 	ParamPath = "path"
 )
 
@@ -30,7 +29,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &GoImports{ProjectPath: projectPath}, nil
 }
 
-func (g *GoImports) Name() string { return Name }
+func (g *GoImports) Name() string { return tools.NameGoImports }
 func (g *GoImports) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 

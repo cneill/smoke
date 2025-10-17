@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	Name      = "gofumpt"
 	ParamPath = "path"
 )
 
@@ -30,7 +29,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &GoFumpt{ProjectPath: projectPath}, nil
 }
 
-func (g *GoFumpt) Name() string { return Name }
+func (g *GoFumpt) Name() string { return tools.NameGoFumpt }
 func (g *GoFumpt) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 

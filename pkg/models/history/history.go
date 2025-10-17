@@ -311,7 +311,8 @@ func renderCommandMessage(msg commands.Message, info bubbleInfo) bubbleInfo {
 		info.content = msg.Message
 
 	case mode.Message:
-		info.title = fmt.Sprintf("%s mode", strings.Title(string(msg.Mode)))
+		modeTitle := strings.Title(string(msg.Mode)) //nolint:staticcheck
+		info.title = modeTitle + " mode"
 		info.subtitle = msg.Message
 		info.titleStyle = info.titleStyle.
 			Foreground(lipgloss.Color("#ffffff"))

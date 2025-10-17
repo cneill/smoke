@@ -61,24 +61,24 @@ func WorkSystemPrompt() *Prompt {
 		List(
 			Itemf("Try to read the existing plan with the `%s` tool. If there is no plan information, stop and ask the "+
 				"user for clarification before trying to make any changes.",
-				tools.ToolPlanRead),
+				tools.NamePlanRead),
 			Itemf("If you need to retrieve any context from the project after reading the plan, store those details in the plan "+
 				"with `%s` before continuing so that you can pick up where you left off if you get interrupted.",
-				tools.ToolPlanAdd),
+				tools.NamePlanAdd),
 			Itemf("After you're finished writing code for a task, run the `%s` tool to format the modified files.",
-				tools.ToolGoFumpt),
+				tools.NameGoFumpt),
 			Itemf("Run the `%s` tool and fix any unit test errors. Run `%s` again if you need to make changes.",
-				tools.ToolGoTest, tools.ToolGoFumpt),
+				tools.NameGoTest, tools.NameGoFumpt),
 			Itemf("Run `%s` on each file to make sure you didn't edit any lines or files you didn't mean to.",
-				tools.ToolGitDiff),
+				tools.NameGitDiff),
 			Itemf("After each task/subtask is completed and tested, mark it complete with the `%s` tool.",
-				tools.ToolPlanCompletion),
+				tools.NamePlanCompletion),
 			Itemf("Run the `%s` tool against files you modified and fix any errors introduced by your changes.",
-				tools.ToolGoLint),
+				tools.NameGoLint),
 		),
 		Pf("You have all the information and tools you need to complete your tasks, and should continue until you are "+
 			"totally done with all tasks and have marked them complete with the `%s` tool.",
-			tools.ToolPlanCompletion),
+			tools.NamePlanCompletion),
 	)
 
 	// Rules
@@ -213,7 +213,7 @@ func SummarizeSystemPrompt(messages ...*llms.Message) *Prompt {
 	// Rules for summarization
 	builder.Add(SectionRules,
 		Pf("Before you begin, use the `%s` tool to determine what pieces of information would be most relevant to your summary.",
-			tools.ToolPlanRead),
+			tools.NamePlanRead),
 		P(`Use Markdown headings to split your summary into logical groupings like "Package context & definitions", `+
 			`"Design decisions", "Code conventions", "Relevant files", "Third party libraries", and so on.`),
 		P("Pack in as much information as possible while discarding irrelevant filler. Make the summary as dense as you can."),

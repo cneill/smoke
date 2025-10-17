@@ -11,8 +11,6 @@ import (
 )
 
 const (
-	Name = "summarize"
-
 	ParamSummary = "summary_message"
 )
 
@@ -34,7 +32,7 @@ func (s *Summarize) SetTeaEmitter(emitter uimsg.TeaEmitter) {
 	s.TeaEmitter = emitter
 }
 
-func (s *Summarize) Name() string { return Name }
+func (s *Summarize) Name() string { return tools.NameSummarizeHistory }
 
 func (s *Summarize) Description() string {
 	// TODO

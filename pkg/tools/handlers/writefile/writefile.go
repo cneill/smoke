@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	Name          = "writefile"
 	ParamPath     = "path"
 	ParamContents = "contents"
 )
@@ -25,7 +24,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &WriteFile{ProjectPath: projectPath}, nil
 }
 
-func (w *WriteFile) Name() string { return Name }
+func (w *WriteFile) Name() string { return tools.NameWriteFile }
 func (w *WriteFile) Description() string {
 	examples := tools.CollectExamples(w.Examples()...)
 

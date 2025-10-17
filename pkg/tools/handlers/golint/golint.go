@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	Name      = "go_lint"
 	ParamPath = "path"
 )
 
@@ -42,7 +41,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &GoLint{ProjectPath: projectPath}, nil
 }
 
-func (g *GoLint) Name() string { return Name }
+func (g *GoLint) Name() string { return tools.NameGoLint }
 func (g *GoLint) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 

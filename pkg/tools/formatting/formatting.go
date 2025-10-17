@@ -6,6 +6,8 @@ import (
 	"strconv"
 )
 
+const LineSep = "====================="
+
 // WithLineNumbers takes multiple lines of text and returns a string that prefixes them with their line numbers. If
 // 'start' is supplied, the count starts there.
 // func WithLineNumbers(contents string, start ...int) string {

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/formatting"
 	"github.com/cneill/smoke/pkg/tools/handlers/grep"
 
 	"github.com/stretchr/testify/assert"
@@ -92,7 +93,7 @@ func TestGrep_Run(t *testing.T) { //nolint:funlen
 				grep.ParamPath:         "invalid_context_lines_test.txt",
 				grep.ParamContextLines: "garbage",
 			},
-			expectedOutput: "invalid_context_lines_test.txt\n" + tools.LineSep + "\n*1: a\n\n*2: b\n\n*3: c\n\n",
+			expectedOutput: "invalid_context_lines_test.txt\n" + formatting.LineSep + "\n*1: a\n\n*2: b\n\n*3: c\n\n",
 			errors:         nil,
 		},
 		{
@@ -112,7 +113,7 @@ func TestGrep_Run(t *testing.T) { //nolint:funlen
 				grep.ParamRegex: `xyz+`,
 				grep.ParamPath:  "no_match_test.txt",
 			},
-			expectedOutput: "no_match_test.txt\n" + tools.LineSep + "\n",
+			expectedOutput: "no_match_test.txt\n" + formatting.LineSep + "\n",
 			errors:         nil,
 		},
 		{
@@ -122,7 +123,7 @@ func TestGrep_Run(t *testing.T) { //nolint:funlen
 				grep.ParamRegex: `[abc]`,
 				grep.ParamPath:  "multiple_matches_test.txt",
 			},
-			expectedOutput: "multiple_matches_test.txt\n" + tools.LineSep + "\n*1: a\n\n*2: b\n\n*3: c\n\n",
+			expectedOutput: "multiple_matches_test.txt\n" + formatting.LineSep + "\n*1: a\n\n*2: b\n\n*3: c\n\n",
 			errors:         nil,
 		},
 		{
@@ -133,7 +134,7 @@ func TestGrep_Run(t *testing.T) { //nolint:funlen
 				grep.ParamPath:         "with_context_lines_test.txt",
 				grep.ParamContextLines: 2,
 			},
-			expectedOutput: "with_context_lines_test.txt\n" + tools.LineSep + "\n1: abc\n*2: 123\n3: xyz\n\n",
+			expectedOutput: "with_context_lines_test.txt\n" + formatting.LineSep + "\n1: abc\n*2: 123\n3: xyz\n\n",
 			errors:         nil,
 		},
 	}
@@ -221,7 +222,7 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 				grep.ParamPath:  "file_2.txt",
 				grep.ParamRegex: "test2",
 			},
-			expectedOutput: fmt.Sprintf("file_2.txt\n%s\n*2: test2\n\n", tools.LineSep),
+			expectedOutput: fmt.Sprintf("file_2.txt\n%s\n*2: test2\n\n", formatting.LineSep),
 			errors:         nil,
 		},
 		{
@@ -232,7 +233,7 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\nsubdir/file_4.txt\n%s\n*1: 123 123\n\n",
-				tools.LineSep, tools.LineSep, tools.LineSep,
+				formatting.LineSep, formatting.LineSep, formatting.LineSep,
 			),
 			errors: nil,
 		},
@@ -242,7 +243,7 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 				grep.ParamPath:  "subdir",
 				grep.ParamRegex: "test2",
 			},
-			expectedOutput: fmt.Sprintf("subdir/file_4.txt\n%s\n*2: test2\n\n", tools.LineSep),
+			expectedOutput: fmt.Sprintf("subdir/file_4.txt\n%s\n*2: test2\n\n", formatting.LineSep),
 			errors:         nil,
 		},
 		{
@@ -251,7 +252,7 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 				grep.ParamPath:  "subdir",
 				grep.ParamRegex: "123",
 			},
-			expectedOutput: fmt.Sprintf("subdir/file_4.txt\n%s\n*1: 123 123\n\n", tools.LineSep),
+			expectedOutput: fmt.Sprintf("subdir/file_4.txt\n%s\n*1: 123 123\n\n", formatting.LineSep),
 			errors:         nil,
 		},
 		{
@@ -262,7 +263,7 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_2.txt\n%s\n*1: test\n\n*2: test2\n\n*3: test3\n\nsubdir/file_4.txt\n%s\n*2: test2\n\n",
-				tools.LineSep, tools.LineSep,
+				formatting.LineSep, formatting.LineSep,
 			),
 			errors: nil,
 		},
@@ -274,7 +275,7 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 			},
 			expectedOutput: fmt.Sprintf(
 				"file_1.txt\n%s\n*2: 123\n\nfile_3.txt\n%s\n*1: 123\n\n*4: 193\n\nsubdir/file_4.txt\n%s\n*1: 123 123\n\n",
-				tools.LineSep, tools.LineSep, tools.LineSep,
+				formatting.LineSep, formatting.LineSep, formatting.LineSep,
 			),
 			errors: nil,
 		},
@@ -297,7 +298,7 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 			expectedOutput: fmt.Sprintf(
 				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\nfile_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n\n2: 456\n3: 789\n*4: 193\n\n"+
 					"subdir/file_4.txt\n%s\n*1: 123 123\n2: test2\n3: xyz\n\n",
-				tools.LineSep, tools.LineSep, tools.LineSep,
+				formatting.LineSep, formatting.LineSep, formatting.LineSep,
 			),
 			errors: nil,
 		},
@@ -312,7 +313,7 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 				"file_1.txt\n%s\n1: abc\n*2: 123\n3: xyz\n\n"+
 					"file_3.txt\n%s\n*1: 123\n2: 456\n3: 789\n4: 193\n\n1: 123\n2: 456\n3: 789\n*4: 193\n\n"+
 					"subdir/file_4.txt\n%s\n*1: 123 123\n2: test2\n3: xyz\n4: unique\n\n",
-				tools.LineSep, tools.LineSep, tools.LineSep,
+				formatting.LineSep, formatting.LineSep, formatting.LineSep,
 			),
 			errors: nil,
 		},

@@ -8,10 +8,6 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 )
 
-const (
-	Name = "plan_read"
-)
-
 type PlanRead struct {
 	ProjectPath string
 	SessionName string
@@ -25,7 +21,7 @@ func New(projectPath, sessionName string) (tools.Tool, error) {
 	}, nil
 }
 
-func (p *PlanRead) Name() string { return Name }
+func (p *PlanRead) Name() string { return tools.NamePlanRead }
 func (p *PlanRead) Description() string {
 	examples := tools.CollectExamples(p.Examples()...)
 

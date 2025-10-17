@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	Name       = "duck_duck_go"
 	ParamQuery = "query"
 
 	ddgLinkPrefix = "//duckduckgo.com/l/?uddg="
@@ -50,7 +49,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	}, nil
 }
 
-func (d *DDG) Name() string { return Name }
+func (d *DDG) Name() string { return tools.NameDDG }
 func (d *DDG) Description() string {
 	examples := tools.CollectExamples(d.Examples()...)
 

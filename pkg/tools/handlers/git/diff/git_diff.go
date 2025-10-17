@@ -12,8 +12,6 @@ import (
 )
 
 const (
-	Name = "git_diff"
-
 	ParamStat = "stat"
 	ParamPath = "path"
 )
@@ -30,7 +28,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &GitDiff{ProjectPath: projectPath}, nil
 }
 
-func (g *GitDiff) Name() string { return Name }
+func (g *GitDiff) Name() string { return tools.NameGitDiff }
 func (g *GitDiff) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 

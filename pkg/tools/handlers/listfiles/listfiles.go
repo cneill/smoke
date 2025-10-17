@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	Name      = "list_files"
 	ParamPath = "path"
 )
 
@@ -24,7 +23,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &ListFiles{ProjectPath: projectPath}, nil
 }
 
-func (l *ListFiles) Name() string { return Name }
+func (l *ListFiles) Name() string { return tools.NameListFiles }
 func (l *ListFiles) Description() string {
 	examples := tools.CollectExamples(l.Examples()...)
 

@@ -12,8 +12,6 @@ import (
 )
 
 const (
-	Name = "read_file"
-
 	ParamPath      = "path"
 	ParamStartLine = "start_line"
 	ParamEndLine   = "end_line"
@@ -27,7 +25,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &ReadFile{ProjectPath: projectPath}, nil
 }
 
-func (r *ReadFile) Name() string { return Name }
+func (r *ReadFile) Name() string { return tools.NameReadFile }
 func (r *ReadFile) Description() string {
 	examples := tools.CollectExamples(r.Examples()...)
 

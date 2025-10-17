@@ -13,8 +13,6 @@ import (
 )
 
 const (
-	Name = "replace_lines"
-
 	ParamPath      = "path"
 	ParamStartLine = "start_line"
 	ParamEndLine   = "end_line"
@@ -29,7 +27,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &ReplaceLines{ProjectPath: projectPath}, nil
 }
 
-func (r *ReplaceLines) Name() string { return Name }
+func (r *ReplaceLines) Name() string { return tools.NameReplaceLines }
 func (r *ReplaceLines) Description() string {
 	examples := tools.CollectExamples(r.Examples()...)
 
@@ -40,7 +38,7 @@ func (r *ReplaceLines) Description() string {
 			"series of lines, be sure to include the old lines' content in %q where necessary, preserving spacing, "+
 			"parentheses, curly braces, etc.%s",
 		ParamStartLine, ParamEndLine, ParamPath, ParamReplace,
-		tools.ToolGrep, tools.ToolReadFile,
+		tools.NameGrep, tools.NameReadFile,
 		ParamStartLine, ParamEndLine,
 		ParamReplace, examples,
 	)
@@ -282,7 +280,7 @@ func (r *ReplaceLines) generateContextOutput(filePath string, startLine, endLine
 	}
 
 	if len(contextLinesSlice) == 0 {
-		return summary + "\n" + tools.LineSep + "\n(File is now empty)"
+		return summary + "\n" + formatting.LineSep + "\n(File is now empty)"
 	}
 
 	contextLineNumbers := fmt.Sprintf("Context (lines %d-%d)", contextStart, contextEnd-1)
@@ -291,5 +289,5 @@ func (r *ReplaceLines) generateContextOutput(filePath string, startLine, endLine
 	}
 
 	return fmt.Sprintf("%s\n%s\n%s:\n%s",
-		summary, tools.LineSep, contextLineNumbers, string(contextOutput))
+		summary, formatting.LineSep, contextLineNumbers, string(contextOutput))
 }

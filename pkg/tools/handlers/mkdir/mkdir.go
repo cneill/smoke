@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	Name      = "mkdir"
 	ParamPath = "path"
 )
 
@@ -24,7 +23,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	}, nil
 }
 
-func (m *Mkdir) Name() string { return Name }
+func (m *Mkdir) Name() string { return tools.NameMkdir }
 func (m *Mkdir) Description() string {
 	examples := tools.CollectExamples(m.Examples()...)
 
