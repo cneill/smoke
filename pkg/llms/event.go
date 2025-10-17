@@ -17,7 +17,6 @@ type EventToolCallsRequested struct {
 
 func (e EventToolCallsRequested) isEvent() {}
 
-// TODO: need this?
 type EventToolCallResults struct {
 	Messages []*Message
 }

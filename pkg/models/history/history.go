@@ -4,6 +4,7 @@ package history
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -218,17 +219,13 @@ func (m *Model) logContent() string {
 				Foreground(lipgloss.Color("#af0000"))
 			info.content = item.Error()
 
-		case error:
-			// TODO: eliminate this in favor of *uimsg.Error above
-			info.title = "⛔ Error"
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#af0000"))
-			info.content = item.Error()
-
 		case string:
 			info.title = "Unknown message"
 			info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#999999"))
 			info.content = item
+
+		default:
+			slog.Error("UNKNOWN MESSAGE TYPE", "item", item, "type", fmt.Sprintf("%T", item))
 		}
 
 		fmt.Fprint(builder, m.renderBubble(info))

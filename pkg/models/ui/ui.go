@@ -139,8 +139,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *uimsg.Error:
 		slog.Error("got raw error in ui event loop", "err", msg.Err)
 		cmds = append(cmds, updateHistory(msg))
-	default:
-		slog.Debug("got unknown message", "message", msg, "type", fmt.Sprintf("%T", msg))
 	}
 
 	return m, tea.Batch(cmds...)
@@ -169,7 +167,7 @@ func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
 
 		cmd, err := m.smoke.HandleUserMessage(llmMessage)
 		if err != nil {
-			return updateHistory(uimsg.ToError(err))
+			return updateHistory(err)
 		}
 
 		cmds = append(cmds, cmd)
@@ -206,7 +204,7 @@ func (m *Model) handleAssistantResponse(response smoke.AssistantResponseMessage)
 	}
 
 	if response.Err != nil {
-		commands = append(commands, updateHistory(uimsg.ToError(response.Err)))
+		commands = append(commands, updateHistory(response.Err))
 	} else {
 		commands = append(commands, updateHistory(response.Message))
 	}
@@ -222,7 +220,7 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 	commands := []tea.Cmd{}
 
 	if response.Err != nil {
-		commands = append(commands, updateHistory(uimsg.ToError(response.Err)))
+		commands = append(commands, updateHistory(response.Err))
 	} else {
 		for _, message := range response.Messages {
 			commands = append(commands, updateHistory(message))
@@ -275,7 +273,7 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 
 	case mode.Message:
 		if err := m.smoke.SetMode(msg.Mode); err != nil {
-			cmds = append(cmds, updateHistory(uimsg.ToError(err)))
+			cmds = append(cmds, updateHistory(err))
 			break
 		}
 
@@ -321,6 +319,13 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 // updateHistory is a helper function that takes any item and returns a tea.Cmd that will add it to the history
 // viewport.
 func updateHistory(msg any) tea.Cmd {
+	// Convert regular errors to *uimsg.Error
+	if err, ok := msg.(error); ok {
+		if _, ok := msg.(*uimsg.Error); !ok {
+			msg = uimsg.ToError(err)
+		}
+	}
+
 	return func() tea.Msg {
 		return history.ContentUpdate{
 			Message: msg,
