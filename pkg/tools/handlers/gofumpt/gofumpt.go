@@ -23,8 +23,10 @@ type GoFumpt struct {
 }
 
 func New(projectPath, _ string) (tools.Tool, error) {
-	// TODO: allow for error here, and bail if we can't find the gofumpt binary on the system. Log an error but don't
-	// crash everything.
+	if _, err := exec.LookPath("gofumpt"); err != nil {
+		return nil, fmt.Errorf("%w: gofumpt not found on the system", tools.ErrMissingExecutable)
+	}
+
 	return &GoFumpt{ProjectPath: projectPath}, nil
 }
 
@@ -65,11 +67,6 @@ func (g *GoFumpt) Params() tools.Params {
 
 func (g *GoFumpt) Run(ctx context.Context, args tools.Args) (string, error) {
 	targetPath := g.ProjectPath
-
-	if _, err := exec.LookPath("gofumpt"); err != nil {
-		slog.Error("gofumpt not found on the system", "error", err)
-		return "", fmt.Errorf("%w: gofumpt not found on the system", tools.ErrFileSystem)
-	}
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {

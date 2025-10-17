@@ -23,6 +23,10 @@ type GitDiff struct {
 }
 
 func New(projectPath, _ string) (tools.Tool, error) {
+	if _, err := exec.LookPath("git"); err != nil {
+		return nil, fmt.Errorf("%w: git not found on the system", tools.ErrMissingExecutable)
+	}
+
 	return &GitDiff{ProjectPath: projectPath}, nil
 }
 

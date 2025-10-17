@@ -24,6 +24,10 @@ type GoTest struct {
 }
 
 func New(projectPath, _ string) (tools.Tool, error) {
+	if _, err := exec.LookPath("go"); err != nil {
+		return nil, fmt.Errorf("%w: go not found on the system", tools.ErrMissingExecutable)
+	}
+
 	return &GoTest{ProjectPath: projectPath}, nil
 }
 
@@ -71,11 +75,6 @@ type Result struct {
 
 func (g *GoTest) Run(ctx context.Context, args tools.Args) (string, error) {
 	targetPath := g.ProjectPath
-
-	if _, err := exec.LookPath("go"); err != nil {
-		slog.Error("go not found on the system", "error", err)
-		return "", fmt.Errorf("%w: go not found on the system", tools.ErrFileSystem)
-	}
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {

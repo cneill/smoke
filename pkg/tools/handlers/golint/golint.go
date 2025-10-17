@@ -25,6 +25,20 @@ type GoLint struct {
 }
 
 func New(projectPath, _ string) (tools.Tool, error) {
+	if _, err := exec.LookPath("golangci-lint"); err != nil {
+		return nil, fmt.Errorf("%w: golangci-lint not found on the system", tools.ErrMissingExecutable)
+	}
+
+	versionCtx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	versionOutput, err := exec.CommandContext(versionCtx, "golangci-lint", "version").CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get golangci-lint version: %w", tools.ErrCommandExecution, err)
+	} else if !bytes.Contains(versionOutput, []byte("has version 2")) {
+		return nil, fmt.Errorf("%w: golangci-lint version <2", tools.ErrCommandExecution)
+	}
+
 	return &GoLint{ProjectPath: projectPath}, nil
 }
 
@@ -100,23 +114,6 @@ type lineRange struct {
 func (g *GoLint) Run(ctx context.Context, args tools.Args) (string, error) { //nolint:cyclop,funlen
 	targetPath := g.ProjectPath
 	originalPath := g.ProjectPath
-
-	if _, err := exec.LookPath("golangci-lint"); err != nil {
-		slog.Error("golangci-lint not found on the system", "error", err)
-		return "", fmt.Errorf("%w: golangci-lint not found on the system", tools.ErrFileSystem)
-	}
-
-	versionCtx, cancel := context.WithTimeout(ctx, time.Second*3)
-	defer cancel()
-
-	versionOutput, err := exec.CommandContext(versionCtx, "golangci-lint", "version").CombinedOutput()
-	if err != nil {
-		slog.Error("failed to get golangci-lint version", "error", err)
-		return "", fmt.Errorf("%w: failed to get golangci-lint version: %w", tools.ErrCommandExecution, err)
-	} else if !bytes.Contains(versionOutput, []byte("has version 2")) {
-		slog.Error("golangci-lint version <2", "output", string(versionOutput))
-		return "", fmt.Errorf("%w: golangci-lint version <2", tools.ErrCommandExecution)
-	}
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {
