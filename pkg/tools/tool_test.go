@@ -15,12 +15,13 @@ func TestAllToolDescriptions(t *testing.T) {
 	toolInits := handlers.AllTools()
 	testTools := make(tools.Tools, len(toolInits))
 
-	for i, toolInit := range toolInits {
+	for idx, toolInit := range toolInits {
 		tool, err := toolInit(".", "session")
 		if err != nil {
 			t.Fatalf("initializer failed: %v", err)
 		}
-		testTools[i] = tool
+
+		testTools[idx] = tool
 	}
 
 	for _, tool := range testTools {

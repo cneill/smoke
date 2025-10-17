@@ -73,7 +73,7 @@ func (e *Edit) Help() string {
 	return "Opens the conversation history or the last assistant message in your editor."
 }
 
-func (e Edit) Usage() string {
+func (e *Edit) Usage() string {
 	return "/edit [last|all]"
 }
 

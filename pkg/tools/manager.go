@@ -72,6 +72,7 @@ func (m *Manager) SetTeaEmitter(emitter uimsg.TeaEmitter) {
 
 	m.toolMutex.Lock()
 	defer m.toolMutex.Unlock()
+
 	for _, tool := range m.tools {
 		// We have to do this here because the tea emitter is injected later than initial startup.
 		if wte, ok := tool.(WantsTeaEmitter); ok && m.teaEmitter != nil {

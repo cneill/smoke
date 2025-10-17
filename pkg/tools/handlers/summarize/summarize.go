@@ -2,7 +2,6 @@ package summarize
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/cneill/smoke/internal/uimsg"
@@ -28,12 +27,10 @@ func New(projectPath, _ string) (tools.Tool, error) {
 }
 
 func (s *Summarize) SetPlanManager(manager *plan.Manager) {
-	slog.Debug("SETTING PLAN MANAGER ON SUMMARIZE TOOL")
 	s.PlanManager = manager
 }
 
 func (s *Summarize) SetTeaEmitter(emitter uimsg.TeaEmitter) {
-	slog.Debug("SETTING TEA EMITTER ON SUMMARIZE TOOL", "deets", fmt.Sprintf("%v", emitter))
 	s.TeaEmitter = emitter
 }
 
@@ -54,7 +51,7 @@ func (s *Summarize) Params() tools.Params {
 	return tools.Params{}
 }
 
-func (s *Summarize) Run(ctx context.Context, args tools.Args) (string, error) {
+func (s *Summarize) Run(_ context.Context, _ tools.Args) (string, error) {
 	// TODO: this is just a test - it freezes the ui and is not a good idea!!!! It freezes because a tool call is
 	// expected to be synchronous, but we need summarization to happen in the background in a goroutine. FIX!!!
 	if s.TeaEmitter != nil {
