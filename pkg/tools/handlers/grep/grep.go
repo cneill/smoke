@@ -27,8 +27,8 @@ type Grep struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
-	return &Grep{ProjectPath: projectPath}
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &Grep{ProjectPath: projectPath}, nil
 }
 
 func (g *Grep) Name() string { return Name }

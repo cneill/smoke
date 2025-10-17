@@ -22,8 +22,8 @@ type GitDiff struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
-	return &GitDiff{ProjectPath: projectPath}
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &GitDiff{ProjectPath: projectPath}, nil
 }
 
 func (g *GitDiff) Name() string { return Name }

@@ -26,8 +26,7 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 	}
 
 	for _, arg := range msg.Args {
-		switch arg {
-		case "--system":
+		if arg == "--system" {
 			handler.includeSystem = true
 		}
 	}

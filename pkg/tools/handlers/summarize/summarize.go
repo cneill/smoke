@@ -1,4 +1,71 @@
-package tools
+package summarize
+
+import (
+	"context"
+	"log/slog"
+
+	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/plan"
+	"github.com/cneill/smoke/pkg/tools"
+)
+
+const (
+	Name = "summarize"
+
+	ParamSummary = "summary_message"
+)
+
+type Summarize struct {
+	ProjectPath string
+	PlanManager *plan.Manager
+	TeaEmitter  uimsg.TeaEmitter
+}
+
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &Summarize{ProjectPath: projectPath}, nil
+}
+
+func (s *Summarize) SetPlanManager(manager *plan.Manager) {
+	s.PlanManager = manager
+}
+
+func (s *Summarize) SetTeaEmitter(emitter uimsg.TeaEmitter) {
+	s.TeaEmitter = emitter
+}
+
+func (s *Summarize) Name() string { return Name }
+
+func (s *Summarize) Description() string {
+	// TODO
+	return "Summarize a portion of the current message history"
+}
+
+func (s *Summarize) Examples() tools.Examples {
+	// TODO
+	return tools.Examples{}
+}
+
+func (s *Summarize) Params() tools.Params {
+	// TODO
+	return tools.Params{}
+}
+
+func (s *Summarize) Run(_ context.Context, _ tools.Args) (string, error) {
+	// TODO: this is just a test - it freezes the ui and is not a good idea!!!! It freezes because a tool call is
+	// expected to be synchronous, but we need summarization to happen in the background in a goroutine. FIX!!!
+	if s.TeaEmitter != nil {
+		slog.Debug("Sending 'info' command prompt message...")
+		s.TeaEmitter(commands.PromptMessage{
+			Command: "info",
+			Args:    []string{},
+		})
+	} else {
+		slog.Error("no tea emitter was set on the summarize tool")
+	}
+
+	return "Hello there", nil
+}
 
 // import (
 // 	"context"

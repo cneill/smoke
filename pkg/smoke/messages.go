@@ -2,6 +2,7 @@ package smoke
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
 )
@@ -12,7 +13,7 @@ type Message interface {
 
 type AssistantResponseMessage struct {
 	Message *llms.Message
-	Err     error
+	Err     *uimsg.Error
 }
 
 func (a AssistantResponseMessage) isSmokeMessage() {}
@@ -32,7 +33,7 @@ func (u UsageUpdateMessage) isSmokeMessage() {}
 
 type ToolCallResponseMessage struct {
 	Messages []*llms.Message
-	Err      error
+	Err      *uimsg.Error
 }
 
 func (t ToolCallResponseMessage) isSmokeMessage() {}
@@ -41,7 +42,7 @@ func (t ToolCallResponseMessage) isSmokeMessage() {}
 type SendCommandMessageResponseMessage struct {
 	OriginalMessage commands.SendSessionMessage
 	Session         *llms.Session
-	Err             error
+	Err             *uimsg.Error
 }
 
 func (s SendCommandMessageResponseMessage) isSmokeMessage() {}

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/plan"
 )
 
@@ -34,9 +35,12 @@ type Manager struct {
 	ProjectPath string
 	SessionName string
 
-	tools       Tools
-	toolMutex   sync.RWMutex
-	planManager *plan.Manager
+	initializers []Initializer
+	tools        Tools
+	toolMutex    sync.RWMutex
+	planManager  *plan.Manager
+
+	teaEmitter uimsg.TeaEmitter
 }
 
 func NewManager(opts *ManagerOpts) (*Manager, error) {
@@ -49,8 +53,9 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 		ProjectPath: opts.ProjectPath,
 		SessionName: opts.SessionName,
 
-		toolMutex:   sync.RWMutex{},
-		planManager: opts.PlanManager,
+		initializers: opts.ToolInitializers,
+		toolMutex:    sync.RWMutex{},
+		planManager:  opts.PlanManager,
 	}
 
 	if opts.ToolInitializers != nil {
@@ -60,6 +65,21 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 	}
 
 	return manager, nil
+}
+
+func (m *Manager) SetTeaEmitter(emitter uimsg.TeaEmitter) {
+	m.teaEmitter = emitter
+
+	m.toolMutex.Lock()
+	defer m.toolMutex.Unlock()
+
+	for _, tool := range m.tools {
+		// We have to do this here because the tea emitter is injected later than initial startup.
+		if wte, ok := tool.(WantsTeaEmitter); ok && m.teaEmitter != nil {
+			slog.Debug("SETTING TEA EMITTER FOR TOOL", "name", tool.Name())
+			wte.SetTeaEmitter(m.teaEmitter)
+		}
+	}
 }
 
 func (m *Manager) GetTools() Tools {
@@ -76,9 +96,14 @@ func (m *Manager) InitTools(initializers ...Initializer) {
 	tools := Tools{}
 
 	for _, init := range initializers {
-		tool := init(m.ProjectPath, m.SessionName)
-		if pt, ok := tool.(PlanTool); ok {
-			pt.SetPlanManager(m.planManager)
+		tool, err := init(m.ProjectPath, m.SessionName)
+		if err != nil {
+			m.logger.Error("tool initializer failed", "error", err)
+			continue
+		}
+
+		if wpm, ok := tool.(WantsPlanManager); ok {
+			wpm.SetPlanManager(m.planManager)
 		}
 
 		tools = append(tools, tool)

@@ -24,8 +24,8 @@ type GoLint struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
-	return &GoLint{ProjectPath: projectPath}
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &GoLint{ProjectPath: projectPath}, nil
 }
 
 func (g *GoLint) Name() string { return Name }

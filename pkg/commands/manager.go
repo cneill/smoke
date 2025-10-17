@@ -57,6 +57,8 @@ func (m *Manager) Completer() func(string) []string {
 }
 
 func (m *Manager) HandleCommand(session *llms.Session, msg PromptMessage) (tea.Cmd, error) {
+	slog.Debug("running prompt command", "command", msg.Command, "args", msg.Args)
+
 	initializer, ok := m.Commands[msg.Command]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrUnknownCommand, msg.Command)
@@ -72,7 +74,7 @@ func (m *Manager) HandleCommand(session *llms.Session, msg PromptMessage) (tea.C
 		return nil, fmt.Errorf("%w: %w", ErrRun, err)
 	}
 
-	slog.Debug("ran prompt command", "command", msg.Command, "args", msg.Args)
+	slog.Debug("prompt command completed successfully", "command", msg.Command, "args", msg.Args)
 
 	return cmd, nil
 }

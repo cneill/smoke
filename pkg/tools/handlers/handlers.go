@@ -37,6 +37,7 @@ func AllTools() []tools.Initializer {
 		planupdate.New,
 		readfile.New,
 		replacelines.New,
+		// summarize.New,
 		writefile.New,
 	}
 }

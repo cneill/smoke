@@ -5,6 +5,7 @@ package tools
 import (
 	"context"
 
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/google/jsonschema-go/jsonschema"
 )
@@ -35,15 +36,24 @@ func (t Tools) Names() []string {
 	return results
 }
 
-// TODO: make initializer more general; this isn't really ideal
-type Initializer func(projectPath, sessionName string) Tool
+// Initializer constructs a Tool for the given project/session. It may return an error if the tool cannot be safely
+// constructed (e.g., dependency setup failure).
+type (
+	Initializer      func(projectPath, sessionName string) (Tool, error)
+	WantsPlanManager interface {
+		Tool
 
-type PlanTool interface {
-	Tool
+		// SetPlanManager provides the plan.Manager to a tool that needs it to interact with the plan file.
+		SetPlanManager(manager *plan.Manager)
+	}
 
-	// SetPlanManager provides the plan.Manager to a tool that needs it to interact with the plan file.
-	SetPlanManager(manager *plan.Manager)
-}
+	WantsTeaEmitter interface {
+		Tool
+
+		// SetTeaEmitter provides a message emitter for the Bubbletea event loop to a tool that needs it.
+		SetTeaEmitter(emitter uimsg.TeaEmitter)
+	}
+)
 
 type MCPTool interface {
 	Tool

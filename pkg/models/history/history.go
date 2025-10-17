@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
 	"github.com/cneill/smoke/pkg/commands/handlers/plan"
@@ -212,7 +213,14 @@ func (m *Model) logContent() string {
 		case commands.Message:
 			info = renderCommandMessage(item, info)
 
+		case *uimsg.Error:
+			info.title = "⛔ Error"
+			info.titleStyle = info.titleStyle.
+				Foreground(lipgloss.Color("#af0000"))
+			info.content = item.Error()
+
 		case error:
+			// TODO: eliminate this in favor of *uimsg.Error above
 			info.title = "⛔ Error"
 			info.titleStyle = info.titleStyle.
 				Foreground(lipgloss.Color("#af0000"))

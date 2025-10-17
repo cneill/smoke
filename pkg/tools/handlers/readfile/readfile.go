@@ -23,8 +23,8 @@ type ReadFile struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
-	return &ReadFile{ProjectPath: projectPath}
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &ReadFile{ProjectPath: projectPath}, nil
 }
 
 func (r *ReadFile) Name() string { return Name }

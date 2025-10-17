@@ -25,8 +25,8 @@ type ReplaceLines struct {
 	ProjectPath string
 }
 
-func New(projectPath, _ string) tools.Tool {
-	return &ReplaceLines{ProjectPath: projectPath}
+func New(projectPath, _ string) (tools.Tool, error) {
+	return &ReplaceLines{ProjectPath: projectPath}, nil
 }
 
 func (r *ReplaceLines) Name() string { return Name }

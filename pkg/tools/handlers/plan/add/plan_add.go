@@ -31,11 +31,11 @@ type PlanAdd struct {
 	PlanManager *plan.Manager
 }
 
-func New(projectPath, sessionName string) tools.Tool {
+func New(projectPath, sessionName string) (tools.Tool, error) {
 	return &PlanAdd{
 		ProjectPath: projectPath,
 		SessionName: sessionName,
-	}
+	}, nil
 }
 
 func (p *PlanAdd) Name() string { return Name }
