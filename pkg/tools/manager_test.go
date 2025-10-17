@@ -43,11 +43,12 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 		SessionName:      "test",
 		ToolInitializers: handlers.AllTools(),
 		PlanManager:      planManager,
-		TeaEmitter:       func(tea.Msg) {},
 	}
 
 	manager, err := tools.NewManager(opts)
 	require.NoError(t, err)
+
+	manager.SetTeaEmitter(func(tea.Msg) {})
 
 	dummy := dummyTool{params: params}
 
