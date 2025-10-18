@@ -7,6 +7,7 @@ const (
 	ModePlanning  = "planning"
 	ModeReview    = "review"
 	ModeSummarize = "summarize"
+	ModeRanking   = "ranking"
 )
 
 func AllModes() []Mode {
@@ -15,6 +16,7 @@ func AllModes() []Mode {
 		ModePlanning,
 		ModeReview,
 		ModeSummarize,
+		ModeRanking,
 	}
 }
 

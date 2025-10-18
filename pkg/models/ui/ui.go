@@ -15,6 +15,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/edit"
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
+	"github.com/cneill/smoke/pkg/commands/handlers/rank"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
@@ -306,6 +307,14 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 
 	case summarize.SessionSummarizeMessage:
 		cmd, err := m.smoke.HandleSummarizeMessage(msg)
+		if err != nil {
+			cmds = append(cmds, updateHistory(err))
+		} else {
+			cmds = append(cmds, cmd)
+		}
+
+	case rank.RequestMessage:
+		cmd, err := m.smoke.HandleRankRequestMessage(msg)
 		if err != nil {
 			cmds = append(cmds, updateHistory(err))
 		} else {

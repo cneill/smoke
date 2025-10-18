@@ -5,10 +5,9 @@ import "math/rand/v2"
 const idChars = "abcdef0123456789"
 
 // RandID returns a random 32-character hex string
-// TODO: consolidate with llms.RandID?
-func RandID() string {
+func RandID(size int) string {
 	output := []byte{}
-	for range 32 {
+	for range size {
 		output = append(output, idChars[rand.IntN(len(idChars))]) //nolint:gosec
 	}
 

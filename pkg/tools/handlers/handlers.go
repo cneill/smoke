@@ -83,3 +83,7 @@ func SummarizeTools() []tools.Initializer {
 		planread.New,
 	}
 }
+
+func RankingTools() []tools.Initializer {
+	return []tools.Initializer{}
+}

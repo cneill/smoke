@@ -1,15 +1,16 @@
 package rank
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand/v2"
 )
 
 type Item struct {
-	ID       string
-	Contents string
-	History  []int
+	ID       string `json:"id"`
+	Contents string `json:"contents"`
+	History  []int  `json:"-"`
 }
 
 func (i *Item) Clone() *Item {
@@ -75,4 +76,9 @@ func (i Items) Clone() Items {
 	}
 
 	return cloned
+}
+
+func (i Items) JSON() string {
+	bytes, _ := json.Marshal(i)
+	return string(bytes)
 }

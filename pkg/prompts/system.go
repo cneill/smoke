@@ -3,6 +3,7 @@ package prompts
 import (
 	"time"
 
+	"github.com/cneill/smoke/pkg/commands/handlers/rank"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/tools"
 )
@@ -13,7 +14,7 @@ func PlanningSystemPrompt() *Prompt {
 	builder.ApplyPreset(SystemPreset(), Append)
 
 	// Task
-	builder.Add(SectionTask, P("You are currently in `plan_process`."))
+	builder.Add(SectionTaskContext, P("You are currently in `plan_process`."))
 
 	// Description
 	builder.Add(SectionDescription,
@@ -53,7 +54,7 @@ func WorkSystemPrompt() *Prompt {
 	builder.ApplyPreset(SystemPreset(), Append)
 
 	// Task
-	builder.Add(SectionTask, P("You are currently in `work_process`."))
+	builder.Add(SectionTaskContext, P("You are currently in `work_process`."))
 
 	// Description
 	builder.Add(SectionDescription,
@@ -106,7 +107,7 @@ func ReviewSystemPrompt() *Prompt {
 	builder.ApplyPreset(SystemPreset(), Append)
 
 	// Task
-	builder.Add(SectionTask,
+	builder.Add(SectionTaskContext,
 		P("You are currently in `review_process`."),
 	)
 
@@ -196,7 +197,7 @@ func SummarizeSystemPrompt(messages ...*llms.Message) *Prompt {
 	builder.ApplyPreset(SystemPreset(), Append)
 
 	// Task
-	builder.Add(SectionTask,
+	builder.Add(SectionTaskContext,
 		P("You are currently in `summarize_process`."),
 	)
 
@@ -232,15 +233,76 @@ func SummarizeSystemPrompt(messages ...*llms.Message) *Prompt {
 	return builder.Build()
 }
 
+// RankSystemPrompt builds the ranking system prompt.
+//
+// Heavily inspired by raink's prompt
+// Ref: https://github.com/noperator/raink/blob/c925edae5b41ca19c479e86eeec61148d3cadfd4/pkg/raink/raink.go#L618-L634
+func RankSystemPrompt(description string, items ...*rank.Item) *Prompt {
+	builder := NewBuilder("rank_system")
+
+	builder.Add(SectionTaskContext,
+		P("You are currently in `rank_process`."),
+	)
+
+	builder.Add(SectionDescription,
+		P("The user would like you to rank a list of items based on the following description:"),
+		P(description),
+	)
+
+	builder.Add(SectionRules,
+		P("The following rules should dictate ALL of your responses:"),
+		List(
+			Item("Respond with the BEST or MOST RELEVANT item FIRST and the WORST or LEAST RELEVANT item LAST, based "+
+				"on what the user specified in their description."),
+			Item("You MUST refer to items by their ID, and not include any of the item's text or ANY other "+
+				"information in your response."),
+			Item("You MUST rank EVERY item in the list by its ID, even if an item seems irrelevant (rank these worse)."),
+			Item("You MUST NOT include any justifications, explanations, commentary, scores, or anything other than "+
+				"your ranked list in your responses, following the formatting instructions."),
+		),
+	)
+
+	example1 := rank.Items{
+		{ID: "abc123", Contents: "apple"},
+		{ID: "def456", Contents: "sunset"},
+		{ID: "fff321", Contents: "angry"},
+		{ID: "eee654", Contents: "tree"},
+		{ID: "321aef", Contents: "wine"},
+	}
+
+	builder.Add(SectionExamples,
+		P(`**Example 1:** the user requests a ranking of items based on their relevance to the word "fruit", with `+
+			"the following items:"),
+		P("`"+example1.JSON()+"`"),
+		P("A reasonable response would be: `"+`["abc123", "321aef", "eee654", "def456", "fff321"]`+"` (without backticks)."),
+	)
+
+	builder.Add(SectionTask,
+		P("Here are the items you should rank:"),
+		P("`"+rank.Items(items).JSON()+"`"),
+	)
+
+	builder.Add(SectionFormatting,
+		List(
+			Item("ALWAYS respond in JSON format. The exact format of your response should be "+
+				"`"+`["<first_id>", "<second_id>", "<third_id>", ...]`+"`, with ALL IDs from the original list, in "+
+				"DESCENDING order, where `<first_id>` is the BEST or MOST RELEVANT item."),
+		),
+	)
+
+	return builder.Build()
+}
+
 func SystemPreset() Preset {
 	return Preset{
 		Name: "system_preset",
 		Sections: map[SectionType]Nodes{
-			SectionTask: {
+			SectionTaskContext: {
 				P("You are a helpful coding assistant who is an expert in software development and architecture in Golang. " +
 					"You strive for a clean architecture that is easy to understand, efficient, and easy to maintain."),
 				P("The user may ask you to plan and implement code changes, to review their code, to summarize a series of " +
-					"messages, or may simply ask a question that does not require tool use."),
+					"messages, to rank a list of items based on some criteria, or may simply ask a question that does " +
+					"not require tool use."),
 			},
 			SectionTone: {
 				P("You are friendly but not afraid to point out flaws in the user's code or suggested approaches if " +

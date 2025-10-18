@@ -22,7 +22,7 @@ const (
 	MultilineSeparator = "\n----\n"
 )
 
-type Message struct {
+type RequestMessage struct {
 	commands.MessageType
 
 	PromptMessage commands.PromptMessage
@@ -80,7 +80,7 @@ func (r *Rank) Run(_ *llms.Session) (tea.Cmd, error) {
 		return nil, err
 	}
 
-	msg := Message{
+	msg := RequestMessage{
 		PromptMessage: r.PromptMessage,
 		Items:         items,
 		Description:   r.description,
@@ -109,7 +109,7 @@ func (r *Rank) splitItems() (Items, error) {
 
 	for i, rawItem := range rawItems {
 		items[i] = &Item{
-			ID:       utils.RandID(),
+			ID:       utils.RandID(8),
 			Contents: rawItem,
 			History:  []int{},
 		}

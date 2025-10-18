@@ -13,26 +13,28 @@ type SectionType string
 
 // order inspired by Anthropic - https://x.com/mattpocockuk/status/1958179930262356032/photo/1
 const (
-	SectionTask                SectionType = "Task"
+	SectionTaskContext         SectionType = "Task Context"
 	SectionTone                SectionType = "Tone"
 	SectionBackground          SectionType = "Background"
 	SectionDescription         SectionType = "Description"
 	SectionRules               SectionType = "Rules"
 	SectionExamples            SectionType = "Examples"
 	SectionConversationHistory SectionType = "Conversation History"
+	SectionTask                SectionType = "Task"
 	SectionInstructions        SectionType = "Instructions"
 	SectionFormatting          SectionType = "Formatting"
 )
 
 func orderedSections() []SectionType {
 	return []SectionType{
-		SectionTask,
+		SectionTaskContext,
 		SectionTone,
 		SectionBackground,
 		SectionDescription,
 		SectionRules,
 		SectionExamples,
 		SectionConversationHistory,
+		SectionTask,
 		SectionInstructions,
 		SectionFormatting,
 	}
