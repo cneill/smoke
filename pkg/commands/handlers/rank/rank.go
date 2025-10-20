@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -56,6 +57,9 @@ type ResponseMessage struct {
 
 type Rank struct {
 	PromptMessage commands.PromptMessage
+	batchSize     int
+	numIterations int
+	top           int
 	listPath      string
 	listContents  string
 	description   string
@@ -71,6 +75,9 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 	}
 
 	handler := &Rank{
+		batchSize:     25,
+		numIterations: 5,
+		top:           15,
 		PromptMessage: msg,
 	}
 
@@ -78,8 +85,48 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 		return nil, fmt.Errorf("%w: usage: %s", commands.ErrArguments, handler.Usage())
 	}
 
-	handler.listPath = msg.Args[0]
-	handler.description = strings.Join(msg.Args[1:], " ")
+	lastFlagIdx := 0
+
+	for idx := 0; idx < len(msg.Args); idx++ {
+		switch msg.Args[idx] {
+		case "--batch-size":
+			raw := msg.Args[idx+1]
+
+			parsed, err := strconv.ParseInt(raw, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse batch size %q: %w", raw, err)
+			}
+
+			handler.batchSize = int(parsed)
+			idx++
+			lastFlagIdx = idx
+		case "--iterations":
+			raw := msg.Args[idx+1]
+
+			parsed, err := strconv.ParseInt(raw, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse number of iterations %q: %w", raw, err)
+			}
+
+			handler.numIterations = int(parsed)
+			idx++
+			lastFlagIdx = idx
+		case "--top":
+			raw := msg.Args[idx+1]
+
+			parsed, err := strconv.ParseInt(raw, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse number of iterations %q: %w", raw, err)
+			}
+
+			handler.top = int(parsed)
+			idx++
+			lastFlagIdx = idx
+		}
+	}
+
+	handler.listPath = msg.Args[lastFlagIdx+1]
+	handler.description = strings.Join(msg.Args[lastFlagIdx+2:], " ")
 
 	contents, err := os.ReadFile(handler.listPath)
 	if err != nil {
@@ -105,7 +152,7 @@ func (r *Rank) Help() string {
 }
 
 func (r *Rank) Usage() string {
-	return "/rank <list_file> <description>"
+	return "/rank [--batch-size N] [--iterations N] [--top N] <list_file> <description>"
 }
 
 func (r *Rank) SetTeaEmitter(emitter uimsg.TeaEmitter) {
@@ -117,7 +164,10 @@ func (r *Rank) Run(_ *llms.Session) (tea.Cmd, error) {
 
 	msg := commands.HistoryUpdateMessage{
 		PromptMessage: r.PromptMessage,
-		Message:       fmt.Sprintf("Starting requested ranking of %d items...", len(r.allItems)),
+		Message: fmt.Sprintf(
+			"Starting requested ranking of %d items with batch size of %d and %d iterations, returning top %d items...",
+			len(r.allItems), r.batchSize, r.numIterations, r.top,
+		),
 	}
 
 	return uimsg.MsgToCmd(msg), nil
@@ -164,8 +214,8 @@ func (r *Rank) splitItems(contents string) (Items, error) {
 
 // TODO: better name
 func (r *Rank) looper(items Items) {
-	numIterations := 5
-	batchSize := 20
+	// numIterations := 5
+	// batchSize := 20
 	wg := sync.WaitGroup{}
 	responseChan := make(chan ResponseMessage)
 
@@ -173,8 +223,8 @@ func (r *Rank) looper(items Items) {
 	defer cancel()
 
 	// For each batch, we rank-order its items multiple times to make sure we get some consistency/stability.
-	for iteration := range numIterations {
-		batches, err := items.Batch(batchSize)
+	for iteration := range r.numIterations {
+		batches, err := items.Batch(r.batchSize)
 		if err != nil {
 			msg := uimsg.ToError(fmt.Errorf("failed to create batches of items: %w", err))
 			r.teaEmitter(msg)
@@ -185,7 +235,7 @@ func (r *Rank) looper(items Items) {
 		// TODO: this is gross, do better
 		if iteration == 0 {
 			wg.Go(func() {
-				r.responseListener(ctx, len(batches)*numIterations, responseChan)
+				r.responseListener(ctx, len(batches)*r.numIterations, responseChan)
 			})
 		}
 
@@ -276,14 +326,30 @@ listenLoop:
 	}
 
 	if successes != numResponses {
-		slog.Info("failed to get all expected results", "successes", successes, "expected", numResponses)
+		slog.Error("failed to get all expected results", "successes", successes, "expected", numResponses)
 		return
 	}
 
-	slog.Info("got all expected results", "successes", successes, "failures", failures, "batches", results)
+	slog.Debug("got all expected results", "successes", successes, "failures", failures, "batches", results)
 
-	final := MergeBatches(results...).RankSorted()
-	for _, item := range final {
-		slog.Info("item ranking details", "id", item.ID, "contents", item.Contents, "rank_history", item.RankHistory, "ranking_score", item.RankingScore())
+	ranked := MergeBatches(results...).RankSorted()
+	for _, item := range ranked {
+		slog.Debug("item ranking details", "id", item.ID, "contents", item.Contents, "rank_history", item.RankHistory, "ranking_score", item.RankingScore())
 	}
+
+	topItems := ranked[:min(r.top, len(ranked))]
+
+	resultMsg := "**Top ranked items:**\n\n"
+	for i, item := range topItems {
+		resultMsg += fmt.Sprintf("\t%d. %s (score=%.2f)\n", i+1, item.Contents, item.RankingScore())
+	}
+
+	update := commands.HistoryUpdateMessage{
+		PromptMessage: r.PromptMessage,
+		Message:       resultMsg,
+	}
+
+	r.teaEmitter(update)
+
+	// TODO: write results to a file?
 }
