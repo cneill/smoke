@@ -127,6 +127,7 @@ func (s *Smoke) setupMCP() error {
 
 func (s *Smoke) setupCommands() {
 	s.commands = commands.NewManager(s.projectPath)
+	s.commands.SetTeaEmitter(s.teaEmitter)
 
 	for commandName, initializer := range cmdhandlers.AllCommands() {
 		s.commands.Register(commandName, initializer)

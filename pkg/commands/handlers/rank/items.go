@@ -1,6 +1,7 @@
 package rank
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -16,7 +17,7 @@ type Item struct {
 }
 
 func (i *Item) Clone() *Item {
-	clonedHistory := []int{}
+	clonedHistory := make([]int, len(i.RankHistory))
 	copy(clonedHistory, i.RankHistory)
 
 	return &Item{
@@ -135,11 +136,39 @@ func (i Items) AddRankings(ids []string) error {
 	return nil
 }
 
+func (i Items) RankSorted() Items {
+	sorted := i.Clone()
+	slices.SortFunc(sorted, func(a, b *Item) int {
+		return cmp.Compare(a.RankingScore(), b.RankingScore())
+	})
+
+	return sorted
+}
+
 func MergeBatches(batches ...Items) Items {
 	result := Items{}
+	idMap := map[string]Items{}
 
 	for _, batchItems := range batches {
-		result = append(result, batchItems...)
+		for _, item := range batchItems {
+			idMap[item.ID] = append(idMap[item.ID], item)
+		}
+	}
+
+	for id, items := range idMap {
+		newItem := &Item{
+			ID: id,
+		}
+
+		history := []int{}
+		for _, item := range items {
+			history = append(history, item.RankHistory...)
+			newItem.Contents = item.Contents
+		}
+
+		newItem.RankHistory = history
+
+		result = append(result, newItem)
 	}
 
 	return result.Clone()

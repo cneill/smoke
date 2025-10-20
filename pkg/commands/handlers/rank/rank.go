@@ -43,7 +43,7 @@ type RequestMessage struct {
 	BatchIdx      int
 	Batch         Items
 	Description   string
-	ResponseChan  chan<- ResponseMessage
+	ResponseChan  chan<- ResponseMessage `json:"-"`
 	Retries       int
 }
 
@@ -139,9 +139,19 @@ func (r *Rank) splitItems(contents string) (Items, error) {
 		return nil, fmt.Errorf("only found %d items in list, need at least 2 to rank", n)
 	}
 
-	items := make(Items, len(rawItems))
+	// TODO: this feels gross, should be able to pick up in first pass...
+	nonEmptyItems := make([]string, 0, len(rawItems))
+	for _, item := range rawItems {
+		if strings.TrimSpace(item) == "" {
+			continue
+		}
 
-	for i, rawItem := range rawItems {
+		nonEmptyItems = append(nonEmptyItems, item)
+	}
+
+	items := make(Items, len(nonEmptyItems))
+
+	for i, rawItem := range nonEmptyItems {
 		items[i] = &Item{
 			ID:          utils.RandID(8),
 			Contents:    rawItem,
@@ -155,27 +165,30 @@ func (r *Rank) splitItems(contents string) (Items, error) {
 // TODO: better name
 func (r *Rank) looper(items Items) {
 	numIterations := 5
-	batchSize := 10
-
-	batches, err := r.allItems.Batch(batchSize)
-	if err != nil {
-		msg := uimsg.ToError(fmt.Errorf("failed to create batches of items: %w", err))
-		r.teaEmitter(msg)
-
-		return
-	}
-
-	responseChan := make(chan ResponseMessage)
+	batchSize := 20
 	wg := sync.WaitGroup{}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*90)
-	defer cancel()
+	responseChan := make(chan ResponseMessage)
 
-	wg.Go(func() {
-		r.responseListener(ctx, len(batches), responseChan)
-	})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*180)
+	defer cancel()
 
 	// For each batch, we rank-order its items multiple times to make sure we get some consistency/stability.
 	for iteration := range numIterations {
+		batches, err := items.Batch(batchSize)
+		if err != nil {
+			msg := uimsg.ToError(fmt.Errorf("failed to create batches of items: %w", err))
+			r.teaEmitter(msg)
+
+			return
+		}
+
+		// TODO: this is gross, do better
+		if iteration == 0 {
+			wg.Go(func() {
+				r.responseListener(ctx, len(batches)*numIterations, responseChan)
+			})
+		}
+
 		for batchIdx, batch := range batches {
 			slog.Debug("requesting ranking", "iteration", iteration, "batch_index", batchIdx, "batch", batch)
 
@@ -198,10 +211,10 @@ func (r *Rank) looper(items Items) {
 	// We now take the results, filter to the top X%, and run this whole process over again with the filtered items.
 }
 
-func (r *Rank) responseListener(ctx context.Context, numBatches int, responseChan <-chan ResponseMessage) {
+func (r *Rank) responseListener(ctx context.Context, numResponses int, responseChan <-chan ResponseMessage) {
 	failures := 0
 	successes := 0
-	results := make([]Items, numBatches)
+	results := make([]Items, 0, numResponses)
 
 listenLoop:
 	for {
@@ -236,7 +249,9 @@ listenLoop:
 
 			slog.Debug("got rankings", "batch_idx", response.BatchIdx, "iteration", response.Iteration, "rankings", result)
 
-			if err := response.Batch.AddRankings(result); err != nil {
+			batch := response.Batch.Clone()
+
+			if err := batch.AddRankings(result); err != nil {
 				// TODO: retry? what do?
 				slog.Error("failed to add rankings for batch", "idx", response.BatchIdx, "iteration", response.Iteration, "error", err)
 
@@ -245,7 +260,7 @@ listenLoop:
 				continue
 			}
 
-			results[response.BatchIdx] = response.Batch
+			results = append(results, batch)
 			successes++
 
 		default:
@@ -253,11 +268,22 @@ listenLoop:
 				slog.Error("got 5 or more failures, response listener bailing")
 				break listenLoop
 			}
+
+			if successes == numResponses {
+				break listenLoop
+			}
 		}
 	}
 
-	if successes != numBatches {
-		slog.Info("failed to get all expected results", "successes", successes, "expected", numBatches)
+	if successes != numResponses {
+		slog.Info("failed to get all expected results", "successes", successes, "expected", numResponses)
 		return
+	}
+
+	slog.Info("got all expected results", "successes", successes, "failures", failures, "batches", results)
+
+	final := MergeBatches(results...).RankSorted()
+	for _, item := range final {
+		slog.Info("item ranking details", "id", item.ID, "contents", item.Contents, "rank_history", item.RankHistory, "ranking_score", item.RankingScore())
 	}
 }
