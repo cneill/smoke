@@ -4,6 +4,7 @@ package commands
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/llms"
 )
 
@@ -15,3 +16,9 @@ type Command interface {
 }
 
 type Initializer func(msg PromptMessage) (Command, error)
+
+type WantsTeaEmitter interface {
+	Command
+
+	SetTeaEmitter(emitter uimsg.TeaEmitter)
+}

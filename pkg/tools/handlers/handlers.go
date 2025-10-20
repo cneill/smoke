@@ -42,6 +42,7 @@ func AllTools() []tools.Initializer {
 	}
 }
 
+// TODO: rename Normal to Work
 func NormalTools() []tools.Initializer {
 	return AllTools()
 }
@@ -82,4 +83,8 @@ func SummarizeTools() []tools.Initializer {
 	return []tools.Initializer{
 		planread.New,
 	}
+}
+
+func RankingTools() []tools.Initializer {
+	return []tools.Initializer{}
 }

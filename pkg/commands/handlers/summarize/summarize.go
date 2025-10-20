@@ -56,7 +56,7 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 	}
 
 	if len(msg.Args) != 2 {
-		return nil, fmt.Errorf("usage: /summarize [--first N | --last N | --before TIME | --after TIME], e.g. --last 10")
+		return nil, fmt.Errorf("%w: usage: %s", commands.ErrArguments, handler.Usage())
 	}
 
 	flag := strings.TrimPrefix(msg.Args[0], "--")
@@ -64,7 +64,7 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 	case summarizeFirst, summarizeLast, summarizeBefore, summarizeAfter:
 		handler.Scope = flag
 	default:
-		return nil, fmt.Errorf("unknown scope flag %q, use --first, --last, --before, --after", msg.Args[0])
+		return nil, fmt.Errorf("%w: unknown scope flag %q, use --first, --last, --before, --after", commands.ErrArguments, msg.Args[0])
 	}
 
 	handler.Value = msg.Args[1]
@@ -72,7 +72,7 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 	if flag == summarizeLast || flag == summarizeFirst {
 		num, err := strconv.Atoi(msg.Args[1])
 		if err != nil || num < 1 {
-			return nil, fmt.Errorf("value for --%s must be a positive integer", flag)
+			return nil, fmt.Errorf("%w: value for --%s must be a positive integer", commands.ErrArguments, flag)
 		}
 
 		handler.ValueInt = num
@@ -80,7 +80,7 @@ func New(msg commands.PromptMessage) (commands.Command, error) {
 		// TODO: more flexible time format parsing
 		t, err := time.Parse(time.RFC3339, msg.Args[1])
 		if err != nil {
-			return nil, fmt.Errorf("invalid time format for --%s, use RFC3339 (e.g., 2023-01-01T00:00:00Z)", flag)
+			return nil, fmt.Errorf("%w: invalid time format for --%s, use RFC3339 (e.g., 2023-01-01T00:00:00Z)", commands.ErrArguments, flag)
 		}
 
 		handler.ValueTime = t

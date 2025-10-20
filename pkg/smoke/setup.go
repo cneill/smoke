@@ -127,6 +127,7 @@ func (s *Smoke) setupMCP() error {
 
 func (s *Smoke) setupCommands() {
 	s.commands = commands.NewManager(s.projectPath)
+	s.commands.SetTeaEmitter(s.teaEmitter)
 
 	for commandName, initializer := range cmdhandlers.AllCommands() {
 		s.commands.Register(commandName, initializer)
@@ -142,6 +143,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 	if session != nil {
 		switch session.GetMode() {
 		case llms.ModeWork:
+			// TODO: rename "normal" to "work"
 			initList = toolhandlers.NormalTools()
 		case llms.ModePlanning:
 			initList = toolhandlers.PlanningTools()
