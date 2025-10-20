@@ -98,7 +98,11 @@ func (i Items) Clone() Items {
 }
 
 func (i Items) JSON() string {
-	bytes, _ := json.Marshal(i)
+	bytes, err := json.Marshal(i)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal items slice to JSON: %w", err))
+	}
+
 	return string(bytes)
 }
 

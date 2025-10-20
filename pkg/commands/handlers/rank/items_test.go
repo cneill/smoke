@@ -138,7 +138,8 @@ func TestItems_Batch(t *testing.T) { //nolint:funlen
 			assert.Equal(t, test.expectedMaxBatchSize, maxBatchSize, "expected max batch size %d, got %d", test.expectedMaxBatchSize, maxBatchSize)
 			assert.Equal(t, test.expectedMinBatchSize, minBatchSize, "expected min batch size %d, got %d", test.expectedMinBatchSize, minBatchSize)
 			assert.Equal(t, test.numItems, totalBatchItems, "missing items from initial Items slice")
-			assert.GreaterOrEqual(t, 1, maxBatchSize-minBatchSize, "max batch size (%d) shouldn't differ from min batch (%d) size by more than 1", maxBatchSize, minBatchSize)
+			assert.GreaterOrEqual(t, 1, maxBatchSize-minBatchSize,
+				"max batch size (%d) shouldn't differ from min batch (%d) size by more than 1", maxBatchSize, minBatchSize)
 		})
 	}
 }
