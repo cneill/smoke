@@ -42,6 +42,7 @@ func AllTools() []tools.Initializer {
 	}
 }
 
+// TODO: rename Normal to Work
 func NormalTools() []tools.Initializer {
 	return AllTools()
 }

@@ -8,12 +8,15 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/llms"
 )
 
 type Manager struct {
 	ProjectPath string
 	Commands    map[string]Initializer
+
+	teaEmitter uimsg.TeaEmitter
 }
 
 func NewManager(projectPath string) *Manager {
@@ -27,6 +30,10 @@ func NewManager(projectPath string) *Manager {
 
 func (m *Manager) Register(name string, initializer Initializer) {
 	m.Commands[name] = initializer
+}
+
+func (m *Manager) SetTeaEmitter(emitter uimsg.TeaEmitter) {
+	m.teaEmitter = emitter
 }
 
 func (m *Manager) CommandNames() []string {
@@ -67,6 +74,11 @@ func (m *Manager) HandleCommand(session *llms.Session, msg PromptMessage) (tea.C
 	handler, err := initializer(msg)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrArguments, err)
+	}
+
+	if wte, ok := handler.(WantsTeaEmitter); ok && m.teaEmitter != nil {
+		slog.Debug("SETTING TEA EMITTER FOR COMMAND", "name", handler.Name())
+		wte.SetTeaEmitter(m.teaEmitter)
 	}
 
 	cmd, err := handler.Run(session)

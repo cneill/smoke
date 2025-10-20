@@ -142,6 +142,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 	if session != nil {
 		switch session.GetMode() {
 		case llms.ModeWork:
+			// TODO: rename "normal" to "work"
 			initList = toolhandlers.NormalTools()
 		case llms.ModePlanning:
 			initList = toolhandlers.PlanningTools()
