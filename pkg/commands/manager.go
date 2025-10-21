@@ -83,6 +83,7 @@ func (m *Manager) Completer() func(string) []string {
 		m.mutex.RLock()
 		defer m.mutex.RUnlock()
 
+		// TODO: handle arguments more gracefully - should keep completion as the user fills in flags/etc
 		for name, cmd := range m.commands {
 			if strings.HasPrefix(name, input) || input == "" {
 				results = append(results, cmd.Usage())

@@ -430,7 +430,7 @@ func (m *Model) handleCommandCompletion(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 
-	m.suggestedCompletionText = strings.TrimPrefix(options[0], cmdPart)
+	m.suggestedCompletionText = strings.TrimPrefix(options[0], m.userCompletionText)
 
 	slog.Debug("handling command completion", "user", m.userCompletionText, "suggested", m.suggestedCompletionText)
 
