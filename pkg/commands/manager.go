@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/uimsg"
@@ -13,31 +15,62 @@ import (
 )
 
 type Manager struct {
-	ProjectPath string
-	Commands    map[string]Initializer
+	ProjectPath  string
+	initializers map[string]Initializer
+	commands     map[string]Command
+	mutex        sync.RWMutex
 
 	teaEmitter uimsg.TeaEmitter
 }
 
 func NewManager(projectPath string) *Manager {
 	manager := &Manager{
-		ProjectPath: projectPath,
-		Commands:    map[string]Initializer{},
+		ProjectPath:  projectPath,
+		initializers: map[string]Initializer{},
+		commands:     map[string]Command{},
+		mutex:        sync.RWMutex{},
 	}
 
 	return manager
 }
 
-func (m *Manager) Register(name string, initializer Initializer) {
-	m.Commands[name] = initializer
+func (m *Manager) Register(name string, initializer Initializer) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.initializers[name] = initializer
+
+	cmd, err := initializer()
+	if err != nil {
+		return fmt.Errorf("failed to initialize command %q: %w", name, err)
+	}
+
+	if m.teaEmitter != nil {
+		if wte, ok := cmd.(WantsTeaEmitter); ok {
+			wte.SetTeaEmitter(m.teaEmitter)
+		}
+	}
+
+	m.commands[name] = cmd
+
+	return nil
 }
 
 func (m *Manager) SetTeaEmitter(emitter uimsg.TeaEmitter) {
 	m.teaEmitter = emitter
+
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	for _, cmd := range m.commands {
+		if wte, ok := cmd.(WantsTeaEmitter); ok {
+			wte.SetTeaEmitter(emitter)
+		}
+	}
 }
 
 func (m *Manager) CommandNames() []string {
-	results := slices.Collect(maps.Keys(m.Commands))
+	results := slices.Collect(maps.Keys(m.initializers))
 	slices.Sort(results)
 
 	return results
@@ -47,13 +80,12 @@ func (m *Manager) Completer() func(string) []string {
 	return func(input string) []string {
 		results := []string{}
 
-		if input == "" {
-			return m.CommandNames()
-		}
+		m.mutex.RLock()
+		defer m.mutex.RUnlock()
 
-		for commandName := range m.Commands {
-			if strings.HasPrefix(commandName, input) {
-				results = append(results, commandName)
+		for name, cmd := range m.commands {
+			if strings.HasPrefix(name, input) || input == "" {
+				results = append(results, cmd.Usage())
 			}
 		}
 
@@ -66,27 +98,24 @@ func (m *Manager) Completer() func(string) []string {
 func (m *Manager) HandleCommand(session *llms.Session, msg PromptMessage) (tea.Cmd, error) {
 	slog.Debug("running prompt command", "command", msg.Command, "args", msg.Args)
 
-	initializer, ok := m.Commands[msg.Command]
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	handler, ok := m.commands[msg.Command]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrUnknownCommand, msg.Command)
 	}
 
-	handler, err := initializer(msg)
+	// TODO: timeout?
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd, err := handler.Run(ctx, msg, session)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrArguments, err)
+		return nil, fmt.Errorf("error running prompt command %q: %w", msg.Command, err)
 	}
 
-	if wte, ok := handler.(WantsTeaEmitter); ok && m.teaEmitter != nil {
-		slog.Debug("SETTING TEA EMITTER FOR COMMAND", "name", handler.Name())
-		wte.SetTeaEmitter(m.teaEmitter)
-	}
-
-	cmd, err := handler.Run(session)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrRun, err)
-	}
-
-	slog.Debug("prompt command completed successfully", "command", msg.Command, "args", msg.Args)
+	slog.Debug("prompt command executed successfully", "command", msg.Command, "args", msg.Args)
 
 	return cmd, nil
 }
