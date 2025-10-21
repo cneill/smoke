@@ -8,6 +8,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const (
@@ -172,7 +173,7 @@ func (p *PlanUpdate) Params() tools.Params { //nolint:funlen
 						plan.ContextTypeCode, tools.NameReadFile, plan.ContextTypeDecision, plan.ContextTypeReference,
 						plan.ContextTypeConstraint, plan.ContextTypeConvention),
 					Type: tools.ParamTypeString,
-					EnumStringValues: tools.ToStrings([]plan.ContextType{
+					EnumStringValues: utils.ToStrings([]plan.ContextType{
 						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeDecision,
 						plan.ContextTypeReference,
 					}),

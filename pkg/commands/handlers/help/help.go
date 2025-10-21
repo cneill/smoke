@@ -17,13 +17,13 @@ import (
 const Name = "help"
 
 type Help struct {
-	commands map[string]commands.Command
+	initializers map[string]commands.Initializer
 }
 
-func New(cmds map[string]commands.Command) commands.Initializer {
+func New(initializers map[string]commands.Initializer) commands.Initializer {
 	return func() (commands.Command, error) {
 		return &Help{
-			commands: cmds,
+			initializers: initializers,
 		}, nil
 	}
 }
@@ -39,7 +39,7 @@ func (h *Help) Usage() string {
 }
 
 func (h *Help) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {
-	helps := make([]string, len(h.commands))
+	helps := make([]string, len(h.initializers))
 
 	idx := 0
 
@@ -47,7 +47,12 @@ func (h *Help) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Sessio
 		return fmt.Sprintf("`/%s` - **%s**\n\t* **Usage:** `%s`", name, help, usage)
 	}
 
-	for name, cmd := range h.commands {
+	for name, initializer := range h.initializers {
+		cmd, err := initializer()
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize command %q for help: %w", name, err)
+		}
+
 		helps[idx] = cmdUsage(name, cmd.Help(), cmd.Usage())
 		idx++
 	}
