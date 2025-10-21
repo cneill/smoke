@@ -3,6 +3,8 @@
 package commands
 
 import (
+	"context"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/llms"
@@ -12,13 +14,15 @@ type Command interface {
 	Name() string
 	Help() string
 	Usage() string
-	Run(session *llms.Session) (tea.Cmd, error)
+	Run(ctx context.Context, msg PromptMessage, session *llms.Session) (tea.Cmd, error)
 }
 
-type Initializer func(msg PromptMessage) (Command, error)
+type (
+	Initializer func() (Command, error)
 
-type WantsTeaEmitter interface {
-	Command
+	WantsTeaEmitter interface {
+		Command
 
-	SetTeaEmitter(emitter uimsg.TeaEmitter)
-}
+		SetTeaEmitter(emitter uimsg.TeaEmitter)
+	}
+)

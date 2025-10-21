@@ -2,6 +2,8 @@
 package exit
 
 import (
+	"context"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/cneill/smoke/pkg/commands"
@@ -10,16 +12,10 @@ import (
 
 const Name = "exit"
 
-type Exit struct {
-	PromptMessage commands.PromptMessage
-}
+type Exit struct{}
 
-func New(msg commands.PromptMessage) (commands.Command, error) {
-	handler := &Exit{
-		PromptMessage: msg,
-	}
-
-	return handler, nil
+func New() (commands.Command, error) {
+	return &Exit{}, nil
 }
 
 func (e *Exit) Name() string { return Name }
@@ -32,6 +28,6 @@ func (e *Exit) Usage() string {
 	return "/exit"
 }
 
-func (e *Exit) Run(_ *llms.Session) (tea.Cmd, error) {
+func (e *Exit) Run(_ context.Context, _ commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {
 	return tea.Quit, nil
 }

@@ -4,6 +4,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,27 +21,10 @@ const (
 	sessionClear = "clear"
 )
 
-type Session struct {
-	PromptMessage commands.PromptMessage
-	Command       string
-}
+type Session struct{}
 
-func New(msg commands.PromptMessage) (commands.Command, error) {
-	// Handle help generation separately
-	if len(msg.Args) == 1 && msg.Args[0] == "help" {
-		return &Session{PromptMessage: msg}, nil
-	}
-
-	if len(msg.Args) < 1 || (msg.Args[0] != sessionNew && msg.Args[0] != sessionClear) {
-		return nil, fmt.Errorf("must supply either %q or %q argument", sessionNew, sessionClear)
-	}
-
-	handler := &Session{
-		PromptMessage: msg,
-		Command:       msg.Args[0],
-	}
-
-	return handler, nil
+func New() (commands.Command, error) {
+	return &Session{}, nil
 }
 
 func (s *Session) Name() string { return Name }
@@ -53,28 +37,36 @@ func (s *Session) Usage() string {
 	return "/session <new|clear>"
 }
 
-func (s *Session) Run(session *llms.Session) (tea.Cmd, error) {
+func (s *Session) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
+	if len(msg.Args) < 1 || (msg.Args[0] != sessionNew && msg.Args[0] != sessionClear) {
+		return nil, fmt.Errorf("%w: must supply either %q or %q argument", commands.ErrArguments, sessionNew, sessionClear)
+	}
+
+	command := msg.Args[0]
+
 	newSession, err := llms.NewSession(&llms.SessionOpts{
-		Name:          session.Name,
-		SystemMessage: session.SystemMessage,
-		Tools:         session.Tools,
+		Name:            session.Name,
+		SystemMessage:   session.SystemMessage,
+		Tools:           session.Tools,
+		SystemAsMessage: session.SystemAsMessage,
+		Mode:            session.GetMode(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new session: %w", err)
 	}
 
-	msg := "Started new LLM session"
-	if s.Command == sessionClear {
-		msg += " and cleared history."
+	historyMsg := "Started new LLM session"
+	if command == sessionClear {
+		historyMsg += " and cleared history."
 	} else {
-		msg += " and preserved history."
+		historyMsg += " and preserved history."
 	}
 
 	update := commands.SessionUpdateMessage{
-		PromptMessage: s.PromptMessage,
+		PromptMessage: msg,
 		Session:       newSession,
-		Message:       msg,
-		ResetHistory:  s.Command == sessionClear,
+		Message:       historyMsg,
+		ResetHistory:  command == sessionClear,
 	}
 
 	return uimsg.MsgToCmd(update), nil

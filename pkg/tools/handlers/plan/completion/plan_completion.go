@@ -7,6 +7,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const (
@@ -129,7 +130,7 @@ func (p *PlanCompletion) Params() tools.Params {
 			),
 			Type:     tools.ParamTypeString,
 			Required: false,
-			EnumStringValues: tools.ToStrings([]plan.CompletionStatus{
+			EnumStringValues: utils.ToStrings([]plan.CompletionStatus{
 				plan.CompletionStatusSuccess, plan.CompletionStatusFailed, plan.CompletionStatusPartial,
 				plan.CompletionStatusObsolete,
 			}),

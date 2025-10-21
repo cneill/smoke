@@ -3,6 +3,7 @@ package edit
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -39,32 +40,10 @@ type ResultMessage struct {
 	Err error
 }
 
-type Edit struct {
-	PromptMessage commands.PromptMessage
-	Target        string
-}
+type Edit struct{}
 
-func New(msg commands.PromptMessage) (commands.Command, error) {
-	// Handle help generation separately
-	if len(msg.Args) == 1 && msg.Args[0] == "help" {
-		return &Edit{PromptMessage: msg}, nil
-	}
-
-	handler := &Edit{
-		PromptMessage: msg,
-		Target:        editAll,
-	}
-
-	if len(msg.Args) > 0 {
-		switch msg.Args[0] {
-		case editLast, editAll:
-			handler.Target = msg.Args[0]
-		default:
-			return nil, fmt.Errorf("unknown edit target %q, must specify %q or %q", msg.Args[0], editLast, editAll)
-		}
-	}
-
-	return handler, nil
+func New() (commands.Command, error) {
+	return &Edit{}, nil
 }
 
 func (e *Edit) Name() string { return Name }
@@ -77,10 +56,23 @@ func (e *Edit) Usage() string {
 	return "/edit [last|all]"
 }
 
-func (e *Edit) Run(session *llms.Session) (tea.Cmd, error) {
-	var content []byte
+func (e *Edit) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
+	var (
+		target  string
+		content []byte
+	)
 
-	switch e.Target {
+	if len(msg.Args) > 0 {
+		switch msg.Args[0] {
+		case editLast, editAll:
+			target = msg.Args[0]
+		default:
+			return nil, fmt.Errorf("%w: unknown edit target %q, must specify %q or %q",
+				commands.ErrArguments, msg.Args[0], editLast, editAll)
+		}
+	}
+
+	switch target {
 	case editLast:
 		last := session.LastByRole(llms.RoleAssistant)
 		if last == nil {
@@ -120,7 +112,7 @@ func (e *Edit) Run(session *llms.Session) (tea.Cmd, error) {
 	}
 
 	req := RequestMessage{
-		PromptMessage: e.PromptMessage,
+		PromptMessage: msg,
 		Path:          path,
 		Editor:        editor,
 		Description:   "last assistant message",
