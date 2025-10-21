@@ -56,7 +56,11 @@ type ResponseMessage struct {
 }
 
 type Rank struct {
-	PromptMessage commands.PromptMessage
+	teaEmitter uimsg.TeaEmitter
+}
+
+type opts struct {
+	promptMessage commands.PromptMessage
 	batchSize     int
 	numIterations int
 	top           int
@@ -64,85 +68,18 @@ type Rank struct {
 	listContents  string
 	description   string
 	allItems      Items
-
-	teaEmitter uimsg.TeaEmitter
 }
 
-func New(msg commands.PromptMessage) (commands.Command, error) {
-	// Handle help generation separately
-	if len(msg.Args) == 1 && msg.Args[0] == "help" {
-		return &Rank{PromptMessage: msg}, nil
-	}
-
-	handler := &Rank{
+func defaultOpts() *opts {
+	return &opts{
 		batchSize:     25,
 		numIterations: 5,
 		top:           15,
-		PromptMessage: msg,
 	}
+}
 
-	if len(msg.Args) < 2 {
-		return nil, fmt.Errorf("%w: usage: %s", commands.ErrArguments, handler.Usage())
-	}
-
-	lastFlagIdx := 0
-
-	for idx := 0; idx < len(msg.Args); idx++ {
-		switch msg.Args[idx] {
-		case "--batch-size":
-			raw := msg.Args[idx+1]
-
-			parsed, err := strconv.ParseInt(raw, 10, 32)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse batch size %q: %w", raw, err)
-			}
-
-			handler.batchSize = int(parsed)
-			idx++
-			lastFlagIdx = idx
-		case "--iterations":
-			raw := msg.Args[idx+1]
-
-			parsed, err := strconv.ParseInt(raw, 10, 32)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse number of iterations %q: %w", raw, err)
-			}
-
-			handler.numIterations = int(parsed)
-			idx++
-			lastFlagIdx = idx
-		case "--top":
-			raw := msg.Args[idx+1]
-
-			parsed, err := strconv.ParseInt(raw, 10, 32)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse number of iterations %q: %w", raw, err)
-			}
-
-			handler.top = int(parsed)
-			idx++
-			lastFlagIdx = idx
-		}
-	}
-
-	handler.listPath = msg.Args[lastFlagIdx+1]
-	handler.description = strings.Join(msg.Args[lastFlagIdx+2:], " ")
-
-	contents, err := os.ReadFile(handler.listPath)
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to read contents of list file %q: %w", commands.ErrArguments, handler.listPath, err)
-	}
-
-	handler.listContents = string(contents)
-
-	items, err := handler.splitItems(handler.listContents)
-	if err != nil {
-		return nil, err
-	}
-
-	handler.allItems = items
-
-	return handler, nil
+func New() (commands.Command, error) {
+	return &Rank{}, nil
 }
 
 func (r *Rank) Name() string { return Name }
@@ -159,18 +96,98 @@ func (r *Rank) SetTeaEmitter(emitter uimsg.TeaEmitter) {
 	r.teaEmitter = emitter
 }
 
-func (r *Rank) Run(_ *llms.Session) (tea.Cmd, error) {
-	go r.looper(r.allItems)
+func (r *Rank) Run(ctx context.Context, msg commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {
+	if r.teaEmitter == nil {
+		return nil, fmt.Errorf("rank command handler doesn't have a valid tea emitter")
+	}
 
-	msg := commands.HistoryUpdateMessage{
-		PromptMessage: r.PromptMessage,
+	if len(msg.Args) < 2 {
+		return nil, fmt.Errorf("%w: usage: %s", commands.ErrArguments, r.Usage())
+	}
+
+	// Don't want the ranking to stop when the manager cancels the parent context...
+	ctx = context.WithoutCancel(ctx)
+
+	opts, err := r.parseOpts(msg)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", commands.ErrArguments, err)
+	}
+
+	go r.looper(ctx, opts)
+
+	update := commands.HistoryUpdateMessage{
+		PromptMessage: msg,
 		Message: fmt.Sprintf(
 			"Starting requested ranking of %d items with batch size of %d and %d iterations, returning top %d items...",
-			len(r.allItems), r.batchSize, r.numIterations, r.top,
+			len(opts.allItems), opts.batchSize, opts.numIterations, opts.top,
 		),
 	}
 
-	return uimsg.MsgToCmd(msg), nil
+	return uimsg.MsgToCmd(update), nil
+}
+
+func (r *Rank) parseOpts(msg commands.PromptMessage) (*opts, error) {
+	opts := defaultOpts()
+	opts.promptMessage = msg
+
+	lastFlagIdx := 0
+
+	for idx := 0; idx < len(msg.Args); idx++ {
+		switch msg.Args[idx] {
+		case "--batch-size":
+			raw := msg.Args[idx+1]
+
+			parsed, err := strconv.ParseInt(raw, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse batch size %q: %w", raw, err)
+			}
+
+			opts.batchSize = int(parsed)
+			idx++
+			lastFlagIdx = idx
+		case "--iterations":
+			raw := msg.Args[idx+1]
+
+			parsed, err := strconv.ParseInt(raw, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse number of iterations %q: %w", raw, err)
+			}
+
+			opts.numIterations = int(parsed)
+			idx++
+			lastFlagIdx = idx
+		case "--top":
+			raw := msg.Args[idx+1]
+
+			parsed, err := strconv.ParseInt(raw, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse number of iterations %q: %w", raw, err)
+			}
+
+			opts.top = int(parsed)
+			idx++
+			lastFlagIdx = idx
+		}
+	}
+
+	opts.listPath = msg.Args[lastFlagIdx+1]
+	opts.description = strings.Join(msg.Args[lastFlagIdx+2:], " ")
+
+	contents, err := os.ReadFile(opts.listPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read contents of list file %q: %w", opts.listPath, err)
+	}
+
+	opts.listContents = string(contents)
+
+	items, err := r.splitItems(opts.listContents)
+	if err != nil {
+		return nil, err
+	}
+
+	opts.allItems = items
+
+	return opts, nil
 }
 
 func (r *Rank) splitItems(contents string) (Items, error) {
@@ -213,18 +230,16 @@ func (r *Rank) splitItems(contents string) (Items, error) {
 }
 
 // TODO: better name
-func (r *Rank) looper(items Items) {
-	// numIterations := 5
-	// batchSize := 20
+func (r *Rank) looper(ctx context.Context, opts *opts) {
 	wg := sync.WaitGroup{}
 	responseChan := make(chan ResponseMessage)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*180)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*180)
 	defer cancel()
 
 	// For each batch, we rank-order its items multiple times to make sure we get some consistency/stability.
-	for iteration := range r.numIterations {
-		batches, err := items.Batch(r.batchSize)
+	for iteration := range opts.numIterations {
+		batches, err := opts.allItems.Batch(opts.batchSize)
 		if err != nil {
 			msg := uimsg.ToError(fmt.Errorf("failed to create batches of items: %w", err))
 			r.teaEmitter(msg)
@@ -235,7 +250,7 @@ func (r *Rank) looper(items Items) {
 		// TODO: this is gross, do better
 		if iteration == 0 {
 			wg.Go(func() {
-				r.responseListener(ctx, len(batches)*r.numIterations, responseChan)
+				r.responseListener(ctx, len(batches)*opts.numIterations, opts, responseChan)
 			})
 		}
 
@@ -243,11 +258,11 @@ func (r *Rank) looper(items Items) {
 			slog.Debug("requesting ranking", "iteration", iteration, "batch_index", batchIdx, "batch", batch)
 
 			msg := RequestMessage{
-				PromptMessage: r.PromptMessage,
+				PromptMessage: opts.promptMessage,
 				Iteration:     iteration,
 				BatchIdx:      batchIdx,
 				Batch:         batch,
-				Description:   r.description,
+				Description:   opts.description,
 				ResponseChan:  responseChan,
 				Retries:       3, // TODO: do something with this
 			}
@@ -261,7 +276,7 @@ func (r *Rank) looper(items Items) {
 	// We now take the results, filter to the top X%, and run this whole process over again with the filtered items.
 }
 
-func (r *Rank) responseListener(ctx context.Context, numResponses int, responseChan <-chan ResponseMessage) {
+func (r *Rank) responseListener(ctx context.Context, numResponses int, opts *opts, responseChan <-chan ResponseMessage) {
 	failures := 0
 	successes := 0
 	results := make([]Items, 0, numResponses)
@@ -269,7 +284,6 @@ func (r *Rank) responseListener(ctx context.Context, numResponses int, responseC
 listenLoop:
 	for {
 		select {
-		// TODO: context / cancellation?
 		case <-ctx.Done():
 			slog.Error("context finished before completion", "error", ctx.Err())
 			break listenLoop
@@ -337,7 +351,7 @@ listenLoop:
 		slog.Debug("item ranking details", "id", item.ID, "contents", item.Contents, "rank_history", item.RankHistory, "ranking_score", item.RankingScore())
 	}
 
-	topItems := ranked[:min(r.top, len(ranked))]
+	topItems := ranked[:min(opts.top, len(ranked))]
 
 	resultMsg := "**Top ranked items:**\n\n"
 	for i, item := range topItems {
@@ -345,7 +359,7 @@ listenLoop:
 	}
 
 	update := commands.HistoryUpdateMessage{
-		PromptMessage: r.PromptMessage,
+		PromptMessage: opts.promptMessage,
 		Message:       resultMsg,
 	}
 
