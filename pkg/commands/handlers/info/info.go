@@ -2,6 +2,7 @@
 package info
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -15,23 +16,10 @@ import (
 
 const Name = "info"
 
-type Info struct {
-	PromptMessage commands.PromptMessage
-	includeSystem bool
-}
+type Info struct{}
 
-func New(msg commands.PromptMessage) (commands.Command, error) {
-	handler := &Info{
-		PromptMessage: msg,
-	}
-
-	for _, arg := range msg.Args {
-		if arg == "--system" {
-			handler.includeSystem = true
-		}
-	}
-
-	return handler, nil
+func New() (commands.Command, error) {
+	return &Info{}, nil
 }
 
 func (i *Info) Name() string { return Name }
@@ -45,7 +33,15 @@ func (i *Info) Usage() string {
 	return "/info [--system]"
 }
 
-func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
+func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
+	includeSystem := false
+
+	for _, arg := range msg.Args {
+		if arg == "--system" {
+			includeSystem = true
+		}
+	}
+
 	name := session.Name
 	messageCount := session.MessageCount()
 	inputTokens, outputTokens := session.Usage()
@@ -61,14 +57,14 @@ func (i *Info) Run(session *llms.Session) (tea.Cmd, error) {
 	info += fmt.Sprintf("**Duration:** %s\n\n", duration)
 	info += fmt.Sprintf("**Tools available:** %s\n\n", strings.Join(toolNames, ", "))
 
-	if i.includeSystem {
+	if includeSystem {
 		info += fmt.Sprintf("\n**System message:**\n\n%s\n\n", session.SystemMessage)
 	}
 
 	// TODO: ability to get information not contained in the session object
 
 	update := commands.HistoryUpdateMessage{
-		PromptMessage: i.PromptMessage,
+		PromptMessage: msg,
 		Message:       info,
 	}
 

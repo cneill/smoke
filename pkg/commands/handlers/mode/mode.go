@@ -2,6 +2,7 @@
 package mode
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const Name = "mode"
@@ -23,37 +24,12 @@ type Message struct {
 	PromptMessage commands.PromptMessage
 	Mode          llms.Mode
 	Message       string
-	// Session       *llms.Session
 }
 
-type Mode struct {
-	PromptMessage commands.PromptMessage
-	mode          llms.Mode
-}
+type Mode struct{}
 
-func New(msg commands.PromptMessage) (commands.Command, error) {
-	// Handle help generation separately
-	if len(msg.Args) == 1 && msg.Args[0] == "help" {
-		return &Mode{PromptMessage: msg}, nil
-	}
-
-	if len(msg.Args) == 0 {
-		return nil, fmt.Errorf("%w: must supply mode argument", commands.ErrArguments)
-	}
-
-	handler := &Mode{
-		PromptMessage: msg,
-	}
-
-	mode := llms.Mode(msg.Args[0])
-
-	if !slices.Contains(llms.SelectableModes(), mode) {
-		return nil, fmt.Errorf("invalid mode %q, must choose one of %s", mode, selectableModes(", "))
-	}
-
-	handler.mode = mode
-
-	return handler, nil
+func New() (commands.Command, error) {
+	return &Mode{}, nil
 }
 
 func (m *Mode) Name() string { return Name }
@@ -66,20 +42,29 @@ func (m *Mode) Usage() string {
 	return fmt.Sprintf("/mode <%s>", selectableModes("|"))
 }
 
-func (m *Mode) Run(_ *llms.Session) (tea.Cmd, error) {
-	historyMessage := fmt.Sprintf("Entering %s mode", m.mode)
-	msg := Message{
-		PromptMessage: m.PromptMessage,
-		Mode:          m.mode,
-		Message:       historyMessage,
+func (m *Mode) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {
+	if len(msg.Args) == 0 {
+		return nil, fmt.Errorf("%w: must supply mode argument", commands.ErrArguments)
 	}
 
-	return uimsg.MsgToCmd(msg), nil
+	mode := llms.Mode(msg.Args[0])
+
+	if !slices.Contains(llms.SelectableModes(), mode) {
+		return nil, fmt.Errorf("%w: invalid mode %q, must choose one of %s", commands.ErrArguments, mode, selectableModes(", "))
+	}
+
+	result := Message{
+		PromptMessage: msg,
+		Mode:          mode,
+		Message:       fmt.Sprintf("Entering %s mode", mode),
+	}
+
+	return uimsg.MsgToCmd(result), nil
 }
 
 func selectableModes(sep string) string {
 	// TODO: move tools.ToStrings somewhere else - doesn't make sense to pull that package in here
-	selectable := tools.ToStrings(llms.SelectableModes())
+	selectable := utils.ToStrings(llms.SelectableModes())
 	slices.Sort(selectable)
 
 	return strings.Join(selectable, sep)

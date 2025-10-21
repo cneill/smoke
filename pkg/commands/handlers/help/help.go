@@ -2,8 +2,8 @@
 package help
 
 import (
+	"context"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 
@@ -17,15 +17,13 @@ import (
 const Name = "help"
 
 type Help struct {
-	PromptMessage commands.PromptMessage
-	initializers  map[string]commands.Initializer
+	commands map[string]commands.Command
 }
 
-func New(initializers map[string]commands.Initializer) commands.Initializer {
-	return func(msg commands.PromptMessage) (commands.Command, error) {
+func New(cmds map[string]commands.Command) commands.Initializer {
+	return func() (commands.Command, error) {
 		return &Help{
-			PromptMessage: msg,
-			initializers:  initializers,
+			commands: cmds,
 		}, nil
 	}
 }
@@ -40,8 +38,8 @@ func (h *Help) Usage() string {
 	return "/help"
 }
 
-func (h *Help) Run(_ *llms.Session) (tea.Cmd, error) {
-	helps := make([]string, len(h.initializers))
+func (h *Help) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {
+	helps := make([]string, len(h.commands))
 
 	idx := 0
 
@@ -49,13 +47,7 @@ func (h *Help) Run(_ *llms.Session) (tea.Cmd, error) {
 		return fmt.Sprintf("`/%s` - **%s**\n\t* **Usage:** `%s`", name, help, usage)
 	}
 
-	for name, init := range h.initializers {
-		cmd, err := init(commands.PromptMessage{Command: name, Args: []string{"help"}})
-		if err != nil {
-			slog.Error("failed to initialize command for help generation", "command", name, "error", err)
-			continue
-		}
-
+	for name, cmd := range h.commands {
 		helps[idx] = cmdUsage(name, cmd.Help(), cmd.Usage())
 		idx++
 	}
@@ -68,8 +60,10 @@ func (h *Help) Run(_ *llms.Session) (tea.Cmd, error) {
 		fmt.Fprintf(builder, "* %s\n", help)
 	}
 
-	return uimsg.MsgToCmd(commands.HistoryUpdateMessage{
-		PromptMessage: h.PromptMessage,
+	update := commands.HistoryUpdateMessage{
+		PromptMessage: msg,
 		Message:       builder.String(),
-	}), nil
+	}
+
+	return uimsg.MsgToCmd(update), nil
 }
