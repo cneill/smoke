@@ -72,14 +72,14 @@ type Result struct {
 	Time        time.Time `json:"Time"`
 }
 
-func (g *GoTest) Run(ctx context.Context, args tools.Args) (string, error) {
+func (g *GoTest) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
 	targetPath := g.ProjectPath
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		targetPath = relPath
@@ -87,7 +87,7 @@ func (g *GoTest) Run(ctx context.Context, args tools.Args) (string, error) {
 
 	stat, err := os.Stat(targetPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, targetPath, err)
+		return nil, fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, targetPath, err)
 	}
 
 	var targetDir string
@@ -120,5 +120,5 @@ func (g *GoTest) Run(ctx context.Context, args tools.Args) (string, error) {
 		result += "\n\nstderr:\n" + stderr.String()
 	}
 
-	return result, nil
+	return &tools.Output{Text: result}, nil
 }

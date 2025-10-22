@@ -53,21 +53,25 @@ func (m *Mkdir) Params() tools.Params {
 	}
 }
 
-func (m *Mkdir) Run(_ context.Context, args tools.Args) (string, error) {
+func (m *Mkdir) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
 	fullPath, err := fs.GetRelativePath(m.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", err, tools.ErrArguments)
+		return nil, fmt.Errorf("%w: path error: %w", err, tools.ErrArguments)
 	}
 
 	err = os.MkdirAll(fullPath, 0o755)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to create directory %q: %w", tools.ErrFileSystem, fullPath, err)
+		return nil, fmt.Errorf("%w: failed to create directory %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
-	return fmt.Sprintf("Created directory at %q", *path), nil
+	output := &tools.Output{
+		Text: fmt.Sprintf("Created directory at %q", *path),
+	}
+
+	return output, nil
 }

@@ -50,10 +50,14 @@ func (p *PlanRead) Params() tools.Params {
 	return tools.Params{}
 }
 
-func (p *PlanRead) Run(_ context.Context, _ tools.Args) (string, error) {
+func (p *PlanRead) Run(_ context.Context, _ tools.Args) (*tools.Output, error) {
 	if p.PlanManager == nil {
-		return "", fmt.Errorf("plan manager not set")
+		return nil, fmt.Errorf("plan manager not set")
 	}
 
-	return p.PlanManager.Markdown(), nil
+	output := &tools.Output{
+		Text: p.PlanManager.Markdown(),
+	}
+
+	return output, nil
 }

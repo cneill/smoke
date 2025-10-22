@@ -21,7 +21,7 @@ type Tool interface {
 	// required for the tool to execute.
 	Params() Params
 	// Run executes the tool and returns a string that gets returned to the LLM, or an error.
-	Run(ctx context.Context, args Args) (string, error)
+	Run(ctx context.Context, args Args) (*Output, error)
 }
 
 type Tools []Tool

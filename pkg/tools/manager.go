@@ -145,7 +145,7 @@ func (m *Manager) GetArgs(toolName string, input []byte) (Args, error) {
 
 // CallTool finds the [Tool] with the name 'toolName' (if known, otherwise returns ErrUnknownTool), and calls it with
 // the provided 'args'. After running, it returns the output or the error returned by Run wrapped with ErrCallFailed.
-func (m *Manager) CallTool(ctx context.Context, toolName string, args Args) (string, error) {
+func (m *Manager) CallTool(ctx context.Context, toolName string, args Args) (*Output, error) {
 	m.logger.Debug("calling tool", "tool_name", toolName, "args", args)
 
 	for _, tool := range m.tools {
@@ -153,7 +153,7 @@ func (m *Manager) CallTool(ctx context.Context, toolName string, args Args) (str
 			output, err := tool.Run(ctx, args)
 			if err != nil {
 				m.logger.Error("tool call unsuccessful", "tool_name", toolName, "args", args, "output", output, "error", err)
-				return "", fmt.Errorf("%w: %w", ErrCallFailed, err)
+				return nil, fmt.Errorf("%w: %w", ErrCallFailed, err)
 			}
 
 			m.logger.Debug("tool call successful", "tool_name", toolName, "args", args, "output", output)
@@ -164,7 +164,7 @@ func (m *Manager) CallTool(ctx context.Context, toolName string, args Args) (str
 
 	m.logger.Error("unknown tool", "tool_name", toolName)
 
-	return "", ErrUnknownTool
+	return nil, ErrUnknownTool
 }
 
 func (m *Manager) Teardown() error {

@@ -17,6 +17,7 @@ const (
 	NamePlanCompletion   = "plan_completion"
 	NamePlanRead         = "plan_read"
 	NamePlanUpdate       = "plan_update"
+	NamePlaywright       = "playwright"
 	NameReadFile         = "read_file"
 	NameReadPlan         = "read_plan"
 	NameRemovePlan       = "remove_plan"

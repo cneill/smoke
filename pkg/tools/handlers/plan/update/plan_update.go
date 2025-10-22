@@ -193,7 +193,7 @@ func (p *PlanUpdate) Params() tools.Params { //nolint:funlen
 	}
 }
 
-func (p *PlanUpdate) Run(_ context.Context, args tools.Args) (string, error) {
+func (p *PlanUpdate) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	var (
 		taskIDs, contextIDs []string
 		err                 error
@@ -203,7 +203,7 @@ func (p *PlanUpdate) Run(_ context.Context, args tools.Args) (string, error) {
 	if tasks != nil {
 		taskIDs, err = p.handleTasks(tasks)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
@@ -211,12 +211,12 @@ func (p *PlanUpdate) Run(_ context.Context, args tools.Args) (string, error) {
 	if context != nil {
 		contextIDs, err = p.handleContext(context)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	if len(tasks) == 0 && len(context) == 0 {
-		return "", fmt.Errorf("no tasks or context items were provided to update")
+		return nil, fmt.Errorf("no tasks or context items were provided to update")
 	}
 
 	output := "Updated "
@@ -232,7 +232,7 @@ func (p *PlanUpdate) Run(_ context.Context, args tools.Args) (string, error) {
 	output = strings.TrimRight(output, "; ")
 
 	// TODO: maybe include current context with ReadPlanTool ?
-	return output, nil
+	return &tools.Output{Text: output}, nil
 }
 
 func (p *PlanUpdate) handleTasks(tasks []tools.Args) ([]string, error) {

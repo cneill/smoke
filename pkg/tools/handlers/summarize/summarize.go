@@ -49,7 +49,7 @@ func (s *Summarize) Params() tools.Params {
 	return tools.Params{}
 }
 
-func (s *Summarize) Run(_ context.Context, _ tools.Args) (string, error) {
+func (s *Summarize) Run(_ context.Context, _ tools.Args) (*tools.Output, error) {
 	// TODO: this is just a test - it freezes the ui and is not a good idea!!!! It freezes because a tool call is
 	// expected to be synchronous, but we need summarization to happen in the background in a goroutine. FIX!!!
 	if s.TeaEmitter != nil {
@@ -62,7 +62,7 @@ func (s *Summarize) Run(_ context.Context, _ tools.Args) (string, error) {
 		slog.Error("no tea emitter was set on the summarize tool")
 	}
 
-	return "Hello there", nil
+	return &tools.Output{Text: "Hello there"}, nil
 }
 
 // import (

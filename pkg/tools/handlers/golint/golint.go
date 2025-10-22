@@ -71,7 +71,7 @@ func (g *GoLint) Params() tools.Params {
 	}
 }
 
-type output struct {
+type golintOutput struct {
 	Issues []issue `json:"Issues"`
 }
 
@@ -110,7 +110,7 @@ type lineRange struct {
 	To   int64 `json:"To"`
 }
 
-func (g *GoLint) Run(ctx context.Context, args tools.Args) (string, error) { //nolint:cyclop,funlen
+func (g *GoLint) Run(ctx context.Context, args tools.Args) (*tools.Output, error) { //nolint:cyclop,funlen
 	targetPath := g.ProjectPath
 	originalPath := g.ProjectPath
 
@@ -118,7 +118,7 @@ func (g *GoLint) Run(ctx context.Context, args tools.Args) (string, error) { //n
 	if path := args.GetString(ParamPath); path != nil {
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		targetPath = relPath
@@ -127,7 +127,7 @@ func (g *GoLint) Run(ctx context.Context, args tools.Args) (string, error) { //n
 
 	stat, err := os.Stat(targetPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %s: %w", tools.ErrFileSystem, targetPath, err)
+		return nil, fmt.Errorf("%w: failed to stat path %s: %w", tools.ErrFileSystem, targetPath, err)
 	}
 
 	var targetFile string
@@ -177,14 +177,16 @@ func (g *GoLint) Run(ctx context.Context, args tools.Args) (string, error) { //n
 		stderr := errBuf.String()
 		slog.Error("error from golangci-lint", "path", targetPath, "file", targetFile, "error", err, "stderr", stderr)
 
-		return "", fmt.Errorf("%w: golangci-lint: %s", tools.ErrCommandExecution, stderr)
+		return nil, fmt.Errorf("%w: golangci-lint: %s", tools.ErrCommandExecution, stderr)
 	}
 
-	results := output{}
+	output := &tools.Output{Text: buf.String()}
+
+	results := golintOutput{}
 	if err := json.Unmarshal(buf.Bytes(), &results); err != nil {
 		slog.Error("error parsing golangci-lint output", "error", err)
 		// TODO: Maybe revisit this..?
-		return buf.String(), nil
+		return output, nil
 	}
 
 	targetIssues := []issue{}
@@ -210,8 +212,10 @@ func (g *GoLint) Run(ctx context.Context, args tools.Args) (string, error) { //n
 	if err != nil {
 		slog.Error("failed to render JSON issues", "error", err)
 		// TODO: Maybe revisit this..?
-		return buf.String(), nil
+		return output, nil
 	}
 
-	return string(issues), nil
+	output.Text = string(issues)
+
+	return output, nil
 }

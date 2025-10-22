@@ -26,7 +26,7 @@ func (t *Tool) Examples() tools.Examples { return nil }
 func (t *Tool) Params() tools.Params     { return t.params }
 func (t *Tool) Source() string           { return t.clientName }
 
-func (t *Tool) Run(ctx context.Context, args tools.Args) (string, error) {
+func (t *Tool) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
 	params := &mcp.CallToolParams{
 		Name:      t.toolName,
 		Arguments: args,
@@ -34,7 +34,7 @@ func (t *Tool) Run(ctx context.Context, args tools.Args) (string, error) {
 
 	result, err := t.session.CallTool(ctx, params)
 	if err != nil {
-		return "", fmt.Errorf("failed to call MCP tool %q: %w", t.Name(), err)
+		return nil, fmt.Errorf("failed to call MCP tool %q: %w", t.Name(), err)
 	}
 
 	sb := &strings.Builder{}
@@ -43,14 +43,14 @@ func (t *Tool) Run(ctx context.Context, args tools.Args) (string, error) {
 		switch content := content.(type) {
 		case *mcp.TextContent:
 			if _, err := sb.WriteString(content.Text); err != nil {
-				return "", fmt.Errorf("failed to construct output: %w", err)
+				return nil, fmt.Errorf("failed to construct output: %w", err)
 			}
 		default:
 			continue
 		}
 	}
 
-	return sb.String(), nil
+	return &tools.Output{Text: sb.String()}, nil
 }
 
 func (t *Tool) Schema() *jsonschema.Schema {

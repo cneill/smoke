@@ -138,14 +138,14 @@ func (p *PlanCompletion) Params() tools.Params {
 	}
 }
 
-func (p *PlanCompletion) Run(_ context.Context, args tools.Args) (string, error) {
+func (p *PlanCompletion) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	if p.PlanManager == nil {
-		return "", fmt.Errorf("plan manager not set")
+		return nil, fmt.Errorf("plan manager not set")
 	}
 
 	taskIDs := args.GetStringSlice(ParamTaskIDs)
 	if taskIDs == nil {
-		return "", fmt.Errorf("%w: no task IDs provided", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: no task IDs provided", tools.ErrArguments)
 	}
 
 	content := args.GetString(ParamContent)
@@ -160,7 +160,7 @@ func (p *PlanCompletion) Run(_ context.Context, args tools.Args) (string, error)
 	for _, taskID := range taskIDs {
 		item := p.PlanManager.GetItemByID(taskID)
 		if item == nil || item.Type() != plan.ItemTypeTask {
-			return "", fmt.Errorf("%w: no task found with ID %q", tools.ErrArguments, taskID)
+			return nil, fmt.Errorf("%w: no task found with ID %q", tools.ErrArguments, taskID)
 		}
 	}
 
@@ -169,8 +169,12 @@ func (p *PlanCompletion) Run(_ context.Context, args tools.Args) (string, error)
 
 	item := &plan.ItemUnion{CompletionItem: completionItem}
 	if err := p.PlanManager.HandleItem(item); err != nil {
-		return "", fmt.Errorf("failed to mark tasks as completed: %w", err)
+		return nil, fmt.Errorf("failed to mark tasks as completed: %w", err)
 	}
 
-	return "Marked the following tasks as completed: " + strings.Join(taskIDs, ", "), nil
+	output := &tools.Output{
+		Text: "Marked the following tasks as completed: " + strings.Join(taskIDs, ", "),
+	}
+
+	return output, nil
 }

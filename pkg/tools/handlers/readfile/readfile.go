@@ -80,15 +80,15 @@ func (r *ReadFile) Params() tools.Params {
 	}
 }
 
-func (r *ReadFile) Run(_ context.Context, args tools.Args) (string, error) { //nolint:cyclop
+func (r *ReadFile) Run(_ context.Context, args tools.Args) (*tools.Output, error) { //nolint:cyclop
 	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
 	fullPath, err := fs.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+		return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
 
 	var (
@@ -98,7 +98,7 @@ func (r *ReadFile) Run(_ context.Context, args tools.Args) (string, error) { //n
 
 	if startArg := args.GetInt64(ParamStartLine); startArg != nil {
 		if *startArg < 1 {
-			return "", fmt.Errorf("%w: %q must be >= 1", tools.ErrArguments, ParamStartLine)
+			return nil, fmt.Errorf("%w: %q must be >= 1", tools.ErrArguments, ParamStartLine)
 		}
 
 		start = *startArg
@@ -106,23 +106,23 @@ func (r *ReadFile) Run(_ context.Context, args tools.Args) (string, error) { //n
 
 	if endArg := args.GetInt64(ParamEndLine); endArg != nil {
 		if *endArg < 1 {
-			return "", fmt.Errorf("%w: %q must be >= 1", tools.ErrArguments, ParamEndLine)
+			return nil, fmt.Errorf("%w: %q must be >= 1", tools.ErrArguments, ParamEndLine)
 		}
 
 		end = *endArg
 	}
 
 	if end != -1 && start > end {
-		return "", fmt.Errorf("%w: %q must be <= %q", tools.ErrArguments, ParamStartLine, ParamEndLine)
+		return nil, fmt.Errorf("%w: %q must be <= %q", tools.ErrArguments, ParamStartLine, ParamEndLine)
 	}
 
 	contents, err := os.ReadFile(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)
+		return nil, fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
 	if isBinary(contents) {
-		return "[binary content]", nil
+		return &tools.Output{Text: "[binary content]"}, nil
 	}
 
 	lines := bytes.Split(contents, []byte("\n"))
@@ -133,12 +133,14 @@ func (r *ReadFile) Run(_ context.Context, args tools.Args) (string, error) { //n
 	}
 
 	if start > numLines {
-		return "", fmt.Errorf("%w: %q is beyond the end of the file", tools.ErrArguments, ParamStartLine)
+		return nil, fmt.Errorf("%w: %q is beyond the end of the file", tools.ErrArguments, ParamStartLine)
 	}
 
-	output := formatting.WithLineNumbers(lines[start-1:end], int(start))
+	output := &tools.Output{
+		Text: string(formatting.WithLineNumbers(lines[start-1:end], int(start))),
+	}
 
-	return string(output), nil
+	return output, nil
 }
 
 // isBinary checks if the given byte slice contains binary data by looking for null bytes and other non-printable

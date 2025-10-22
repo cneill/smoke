@@ -233,7 +233,8 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 						toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
 						content = toolCallErr.Error()
 					} else {
-						content = output
+						// TODO: need to check for images!!!!!
+						content = output.Text
 					}
 
 					resultsMsg := llms.NewMessage(
@@ -416,7 +417,8 @@ func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSumm
 						toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
 						content = toolCallErr.Error()
 					} else {
-						content = output
+						// TODO: need to check for images? I doubt it?
+						content = output.Text
 					}
 
 					resultsMsg := llms.NewMessage(
@@ -508,7 +510,7 @@ func (s *Smoke) SetMode(mode llms.Mode) error {
 		enabledTools = handlers.ReviewTools()
 		systemMessage = prompts.ReviewSystemPrompt().Markdown()
 	case llms.ModeWork:
-		enabledTools = handlers.NormalTools()
+		enabledTools = handlers.WorkTools()
 		systemMessage = prompts.WorkSystemPrompt().Markdown()
 	default:
 		return fmt.Errorf("tried to set smoke to unknown mode %q", mode)

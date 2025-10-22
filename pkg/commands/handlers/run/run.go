@@ -55,14 +55,15 @@ func (r *Run) Run(ctx context.Context, msg commands.PromptMessage, session *llms
 			return uimsg.ToError(fmt.Errorf("error running tool from prompt: %w", err))
 		}
 
-		outputMsg := llms.SimpleMessage(llms.RoleUser, output)
+		// TODO: better way to deal with this? Will it ever make sense to reference other content types?
+		outputMsg := llms.SimpleMessage(llms.RoleUser, output.Text)
 		if err := session.AddMessage(outputMsg); err != nil {
 			return uimsg.ToError(fmt.Errorf("failed to add run message: %w", err))
 		}
 
 		update := commands.HistoryUpdateMessage{
 			PromptMessage: msg,
-			Message:       fmt.Sprintf("User called tool %q with args %q:\n\n%s\n", toolName, rawArgs, output),
+			Message:       fmt.Sprintf("User called tool %q with args %q:\n\n%s\n", toolName, rawArgs, output.Text),
 		}
 
 		return update

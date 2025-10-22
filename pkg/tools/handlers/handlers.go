@@ -15,6 +15,7 @@ import (
 	plancompletion "github.com/cneill/smoke/pkg/tools/handlers/plan/completion"
 	planread "github.com/cneill/smoke/pkg/tools/handlers/plan/read"
 	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
+	"github.com/cneill/smoke/pkg/tools/handlers/playwright"
 	"github.com/cneill/smoke/pkg/tools/handlers/readfile"
 	"github.com/cneill/smoke/pkg/tools/handlers/replacelines"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
@@ -35,6 +36,7 @@ func AllTools() []tools.Initializer {
 		plancompletion.New,
 		planread.New,
 		planupdate.New,
+		playwright.New,
 		readfile.New,
 		replacelines.New,
 		// summarize.New,
@@ -42,8 +44,7 @@ func AllTools() []tools.Initializer {
 	}
 }
 
-// TODO: rename Normal to Work
-func NormalTools() []tools.Initializer {
+func WorkTools() []tools.Initializer {
 	return AllTools()
 }
 

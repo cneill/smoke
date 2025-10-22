@@ -64,21 +64,21 @@ func (g *GoFumpt) Params() tools.Params {
 	}
 }
 
-func (g *GoFumpt) Run(ctx context.Context, args tools.Args) (string, error) {
+func (g *GoFumpt) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
 	targetPath := g.ProjectPath
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		targetPath = relPath
 	}
 
 	if _, err := os.Stat(targetPath); err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, targetPath, err)
+		return nil, fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, targetPath, err)
 	}
 
 	stdout := &bytes.Buffer{}
@@ -94,8 +94,8 @@ func (g *GoFumpt) Run(ctx context.Context, args tools.Args) (string, error) {
 
 	if err := cmd.Run(); err != nil {
 		slog.Error("error from gofumpt", "target_path", targetPath, "error", err, "stderr", stderr.String())
-		return "", fmt.Errorf("%w: gofumpt: %s", tools.ErrCommandExecution, stderr.String())
+		return nil, fmt.Errorf("%w: gofumpt: %s", tools.ErrCommandExecution, stderr.String())
 	}
 
-	return stdout.String(), nil
+	return &tools.Output{Text: stdout.String()}, nil
 }

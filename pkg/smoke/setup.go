@@ -144,7 +144,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 		switch session.GetMode() {
 		case llms.ModeWork:
 			// TODO: rename "normal" to "work"
-			initList = toolhandlers.NormalTools()
+			initList = toolhandlers.WorkTools()
 		case llms.ModePlanning:
 			initList = toolhandlers.PlanningTools()
 		case llms.ModeReview:
@@ -153,7 +153,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 			initList = toolhandlers.SummarizeTools()
 		}
 	} else {
-		initList = toolhandlers.NormalTools()
+		initList = toolhandlers.WorkTools()
 	}
 
 	toolOpts := &tools.ManagerOpts{

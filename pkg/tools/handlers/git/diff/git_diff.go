@@ -67,17 +67,17 @@ func (g *GitDiff) Params() tools.Params {
 	}
 }
 
-func (g *GitDiff) Run(ctx context.Context, args tools.Args) (string, error) {
+func (g *GitDiff) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
 	fullPath := g.ProjectPath
 
 	if path := args.GetString(ParamPath); path != nil && *path != "" {
 		if strings.ContainsAny(*path, "`$%&;[](){}| ") {
-			return "", fmt.Errorf("%w: path contained invalid characters that might allow command execution", tools.ErrArguments)
+			return nil, fmt.Errorf("%w: path contained invalid characters that might allow command execution", tools.ErrArguments)
 		}
 
 		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
-			return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
 
 		fullPath = relPath
@@ -99,8 +99,8 @@ func (g *GitDiff) Run(ctx context.Context, args tools.Args) (string, error) {
 
 	output, err := exec.CommandContext(ctx, "git", params...).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("error executing git diff: %w", err)
+		return nil, fmt.Errorf("error executing git diff: %w", err)
 	}
 
-	return string(output), nil
+	return &tools.Output{Text: string(output)}, nil
 }

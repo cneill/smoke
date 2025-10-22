@@ -86,32 +86,32 @@ func (g *Grep) Params() tools.Params {
 	}
 }
 
-func (g *Grep) Run(_ context.Context, args tools.Args) (string, error) {
+func (g *Grep) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
 	fullPath, err := fs.GetRelativePath(g.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+		return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
 
 	regex := args.GetString(ParamRegex)
 	if regex == nil || *regex == "" {
-		return "", fmt.Errorf("%w: no regex or empty regex supplied", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: no regex or empty regex supplied", tools.ErrArguments)
 	}
 
 	compiled, err := regexp.Compile(*regex)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to compile regex pattern: %w", tools.ErrArguments, err)
+		return nil, fmt.Errorf("%w: failed to compile regex pattern: %w", tools.ErrArguments, err)
 	}
 
 	var contextLines int64
 
 	if contextLinesPtr := args.GetInt64(ParamContextLines); contextLinesPtr != nil {
 		if *contextLinesPtr < 0 {
-			return "", fmt.Errorf("%w: %q must be >=0", tools.ErrArguments, ParamContextLines)
+			return nil, fmt.Errorf("%w: %q must be >=0", tools.ErrArguments, ParamContextLines)
 		}
 
 		contextLines = *contextLinesPtr
@@ -119,11 +119,11 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (string, error) {
 
 	stat, err := os.Stat(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, fullPath, err)
+		return nil, fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
 	if !stat.Mode().IsRegular() && !stat.IsDir() {
-		return "", fmt.Errorf("%w: invalid file for grep: %q (mode=%s)", tools.ErrFileSystem, fullPath, stat.Mode().String())
+		return nil, fmt.Errorf("%w: invalid file for grep: %q (mode=%s)", tools.ErrFileSystem, fullPath, stat.Mode().String())
 	}
 
 	dirResults := map[string][][]string{}
@@ -131,14 +131,14 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (string, error) {
 	if !stat.IsDir() {
 		fileResults, err := g.getFileResults(fullPath, compiled, contextLines)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		dirResults[fullPath] = fileResults
 	} else {
 		dirResults, err = g.getDirResults(fullPath, compiled, contextLines)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
@@ -152,7 +152,7 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (string, error) {
 
 		relPath, err := filepath.Rel(g.ProjectPath, filePath)
 		if err != nil {
-			return "", fmt.Errorf("%w: invalid file path %q: %w", tools.ErrFileSystem, filePath, err)
+			return nil, fmt.Errorf("%w: invalid file path %q: %w", tools.ErrFileSystem, filePath, err)
 		}
 
 		output += relPath + "\n" + formatting.LineSep + "\n"
@@ -161,7 +161,7 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (string, error) {
 		}
 	}
 
-	return output, nil
+	return &tools.Output{Text: output}, nil
 }
 
 func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLines int64) ([][]string, error) {

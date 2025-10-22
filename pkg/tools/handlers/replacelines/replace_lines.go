@@ -108,15 +108,15 @@ func (r *ReplaceLines) Params() tools.Params {
 	}
 }
 
-func (r *ReplaceLines) Run(_ context.Context, args tools.Args) (string, error) {
+func (r *ReplaceLines) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
 	fullPath, err := fs.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+		return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
 
 	startLine := args.GetInt(ParamStartLine)
@@ -126,39 +126,39 @@ func (r *ReplaceLines) Run(_ context.Context, args tools.Args) (string, error) {
 	// validate that our args are reasonable
 	switch {
 	case startLine == nil || endLine == nil || replace == nil:
-		return "", fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%w: missing %q, %q, or %q",
 			tools.ErrArguments, ParamStartLine, ParamEndLine, ParamReplace,
 		)
 	case *startLine < 0 || *endLine < 0:
-		return "", fmt.Errorf("%w: %q or %q is less than 0", tools.ErrArguments, ParamStartLine, ParamEndLine)
+		return nil, fmt.Errorf("%w: %q or %q is less than 0", tools.ErrArguments, ParamStartLine, ParamEndLine)
 	case *startLine > *endLine:
-		return "", fmt.Errorf("%w: %q is greater than %q", tools.ErrArguments, ParamStartLine, ParamEndLine)
+		return nil, fmt.Errorf("%w: %q is greater than %q", tools.ErrArguments, ParamStartLine, ParamEndLine)
 	}
 
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, *path, err)
+		return nil, fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, *path, err)
 	}
 
 	lines := bytes.Split(data, []byte("\n"))
 
 	if *endLine > len(lines) {
-		return "", fmt.Errorf("%w: %q is beyond the end of the file", tools.ErrArguments, ParamEndLine)
+		return nil, fmt.Errorf("%w: %q is beyond the end of the file", tools.ErrArguments, ParamEndLine)
 	}
 
 	// write the lines before the replace, the contents of the replace, and the untouched lines after it
 	buf := &bytes.Buffer{}
 	if *startLine > 1 {
 		if _, err := buf.Write(bytes.Join(lines[0:*startLine-1], []byte("\n"))); err != nil {
-			return "", fmt.Errorf("failed to write leading lines to buffer: %w", err)
+			return nil, fmt.Errorf("failed to write leading lines to buffer: %w", err)
 		}
 
 		buf.WriteRune('\n')
 	}
 
 	if _, err := buf.WriteString(*replace); err != nil {
-		return "", fmt.Errorf("failed to write replace to buffer: %w", err)
+		return nil, fmt.Errorf("failed to write replace to buffer: %w", err)
 	}
 
 	// make sure we actually insert a LINE and not just text on another line
@@ -168,14 +168,14 @@ func (r *ReplaceLines) Run(_ context.Context, args tools.Args) (string, error) {
 
 	if *endLine < len(lines) {
 		if _, err := buf.Write(bytes.Join(lines[*endLine:], []byte("\n"))); err != nil {
-			return "", fmt.Errorf("failed to write trailing lines to buffer: %w", err)
+			return nil, fmt.Errorf("failed to write trailing lines to buffer: %w", err)
 		}
 	}
 
 	data = buf.Bytes()
 
 	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
-		return "", fmt.Errorf("%w: failed to write contents to %q: %w", tools.ErrFileSystem, fullPath, err)
+		return nil, fmt.Errorf("%w: failed to write contents to %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
 	// Make sure we don't get a fake "line" when the file is now empty
@@ -185,7 +185,9 @@ func (r *ReplaceLines) Run(_ context.Context, args tools.Args) (string, error) {
 	}
 
 	// Generate contextual output instead of returning entire file
-	contextOutput := r.generateContextOutput(*path, *startLine, *endLine, *replace, newLines)
+	contextOutput := &tools.Output{
+		Text: r.generateContextOutput(*path, *startLine, *endLine, *replace, newLines),
+	}
 
 	return contextOutput, nil
 }

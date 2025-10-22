@@ -62,34 +62,38 @@ func (w *WriteFile) Params() tools.Params {
 	}
 }
 
-func (w *WriteFile) Run(_ context.Context, args tools.Args) (string, error) {
+func (w *WriteFile) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
 	fullPath, err := smokefs.GetRelativePath(w.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+		return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
 
 	contents := args.GetString(ParamContents)
 	if contents == nil {
-		return "", fmt.Errorf("%w: no contents supplied", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: no contents supplied", tools.ErrArguments)
 	}
 
 	_, statErr := os.Stat(fullPath)
 	if statErr != nil && !errors.Is(statErr, fs.ErrNotExist) {
-		return "", fmt.Errorf("%w: failed to stat %q: %w", tools.ErrFileSystem, *path, statErr)
+		return nil, fmt.Errorf("%w: failed to stat %q: %w", tools.ErrFileSystem, *path, statErr)
 	}
 
 	if statErr == nil {
-		return "", fmt.Errorf("%w: refusing to overwrite %q", tools.ErrFileSystem, *path)
+		return nil, fmt.Errorf("%w: refusing to overwrite %q", tools.ErrFileSystem, *path)
 	}
 
 	if err := os.WriteFile(fullPath, []byte(*contents), 0o644); err != nil {
-		return "", fmt.Errorf("%w: failed to write contents to %q: %w", tools.ErrFileSystem, *path, err)
+		return nil, fmt.Errorf("%w: failed to write contents to %q: %w", tools.ErrFileSystem, *path, err)
 	}
 
-	return fmt.Sprintf("Wrote contents to %q", *path), nil
+	output := &tools.Output{
+		Text: fmt.Sprintf("Wrote contents to %q", *path),
+	}
+
+	return output, nil
 }

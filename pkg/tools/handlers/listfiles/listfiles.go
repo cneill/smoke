@@ -52,22 +52,22 @@ func (l *ListFiles) Params() tools.Params {
 }
 
 // Run expects a directory 'dir' that exists within ProjectPath ("." for top-level listing).
-func (l *ListFiles) Run(_ context.Context, args tools.Args) (string, error) {
+func (l *ListFiles) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	path := args.GetString(ParamPath)
 	if path == nil {
-		return "", fmt.Errorf("no path supplied")
+		return nil, fmt.Errorf("no path supplied")
 	}
 
 	fullPath, err := fs.GetRelativePath(l.ProjectPath, *path)
 	if err != nil {
-		return "", fmt.Errorf("path error: %w", err)
+		return nil, fmt.Errorf("path error: %w", err)
 	}
 
 	builder := strings.Builder{}
 
 	iter, err := fs.ExcludesWalker(l.ProjectPath, fullPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to walk files: %w", err)
+		return nil, fmt.Errorf("failed to walk files: %w", err)
 	}
 
 	for entry, err := range iter {
@@ -78,23 +78,21 @@ func (l *ListFiles) Run(_ context.Context, args tools.Args) (string, error) {
 
 		info, err := entry.DirEntry.Info()
 		if err != nil {
-			return "", fmt.Errorf("failed to get info about path %q: %w", entry.RelPath, err)
+			return nil, fmt.Errorf("failed to get info about path %q: %w", entry.RelPath, err)
 		}
 
 		if _, err := builder.WriteString("[" + info.Mode().String() + "] "); err != nil {
-			return "", fmt.Errorf("failed to add file mode: %w", err)
+			return nil, fmt.Errorf("failed to add file mode: %w", err)
 		}
 
 		if _, err := builder.WriteString(strconv.FormatInt(info.Size(), 10) + "B "); err != nil {
-			return "", fmt.Errorf("failed to add file size: %w", err)
+			return nil, fmt.Errorf("failed to add file size: %w", err)
 		}
 
 		if _, err := builder.WriteString("/" + entry.RelPath + "\n"); err != nil {
-			return "", fmt.Errorf("failed to add path: %w", err)
+			return nil, fmt.Errorf("failed to add path: %w", err)
 		}
 	}
 
-	output := builder.String()
-
-	return output, nil
+	return &tools.Output{Text: builder.String()}, nil
 }

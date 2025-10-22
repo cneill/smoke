@@ -80,10 +80,10 @@ func (d *DDG) Params() tools.Params {
 	}
 }
 
-func (d *DDG) Run(ctx context.Context, args tools.Args) (string, error) {
+func (d *DDG) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
 	query := args.GetString(ParamQuery)
 	if query == nil {
-		return "", fmt.Errorf("no query supplied")
+		return nil, fmt.Errorf("no query supplied")
 	}
 
 	resp, err := d.hc.Do(
@@ -91,22 +91,22 @@ func (d *DDG) Run(ctx context.Context, args tools.Args) (string, error) {
 		hc.Query("q", *query),
 	)
 	if err != nil {
-		return "", fmt.Errorf("error with request: %w", err)
+		return nil, fmt.Errorf("error with request: %w", err)
 	}
 
 	defer resp.Body.Close()
 
 	results, err := d.getResults(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to get DuckDuckGo results: %w", err)
+		return nil, fmt.Errorf("failed to get DuckDuckGo results: %w", err)
 	}
 
 	jsonBytes, err := json.Marshal(results)
 	if err != nil {
-		return "", fmt.Errorf("failed to convert DuckDuckGo results to JSON: %w", err)
+		return nil, fmt.Errorf("failed to convert DuckDuckGo results to JSON: %w", err)
 	}
 
-	return string(jsonBytes), nil
+	return &tools.Output{Text: string(jsonBytes)}, nil
 }
 
 type ddgResult struct {

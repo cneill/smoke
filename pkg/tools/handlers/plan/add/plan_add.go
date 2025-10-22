@@ -322,12 +322,12 @@ func (p *PlanAdd) Params() tools.Params { //nolint:funlen
 	}
 }
 
-func (p *PlanAdd) Run(_ context.Context, args tools.Args) (string, error) {
+func (p *PlanAdd) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	var tasksAdded, contextAdded int
 
 	if tasks := args.GetArgsObjectSlice(ParamTasks); tasks != nil {
 		if err := p.handleTasks(tasks); err != nil {
-			return "", err
+			return nil, err
 		}
 
 		tasksAdded = len(tasks)
@@ -335,7 +335,7 @@ func (p *PlanAdd) Run(_ context.Context, args tools.Args) (string, error) {
 
 	if context := args.GetArgsObjectSlice(ParamContext); context != nil {
 		if err := p.handleContext(context); err != nil {
-			return "", err
+			return nil, err
 		}
 
 		contextAdded = len(context)
@@ -343,10 +343,14 @@ func (p *PlanAdd) Run(_ context.Context, args tools.Args) (string, error) {
 
 	addedAny := tasksAdded > 0 || contextAdded > 0
 	if !addedAny {
-		return "", fmt.Errorf("no valid tasks or context items were found in this tool call")
+		return nil, fmt.Errorf("no valid tasks or context items were found in this tool call")
 	}
 
-	return fmt.Sprintf("Added %d tasks and %d context items", tasksAdded, contextAdded), nil
+	output := &tools.Output{
+		Text: fmt.Sprintf("Added %d tasks and %d context items", tasksAdded, contextAdded),
+	}
+
+	return output, nil
 }
 
 func (p *PlanAdd) handleTasks(tasks []tools.Args) error {
