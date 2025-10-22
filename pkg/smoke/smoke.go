@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -198,7 +199,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 						llms.WithRole(llms.RoleAssistant),
 						llms.WithID(event.ID),
 						llms.WithLLMInfo(s.llm.LLMInfo()),
-						llms.WithContent(event.Text),
+						llms.WithTextContent(event.Text),
 					)
 				} else {
 					pendingMessage = pendingMessage.Update(
@@ -223,25 +224,41 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 
 				for _, toolCall := range event.Message.ToolCalls {
 					var (
-						content     string
-						toolCallErr error
+						textContent  string
+						imageContent []byte
+						toolCallErr  error
 					)
 
 					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
 					if err != nil {
 						slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
 						toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
-						content = toolCallErr.Error()
-					} else {
-						// TODO: need to check for images!!!!!
-						content = output.Text
+						textContent = toolCallErr.Error()
+					} else if output.Type() == tools.OutputTypeText {
+						textContent = output.Text
+					} else if output.Type() == tools.OutputTypeImage {
+						imageBytes, err := os.ReadFile(output.ImagePath)
+						if err != nil {
+							slog.Error("failed to read image bytes", "path", output.ImagePath, "error", err)
+							toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
+							textContent = toolCallErr.Error()
+						}
+
+						imageContent = imageBytes
 					}
 
-					resultsMsg := llms.NewMessage(
+					messageOpts := []llms.MessageOpt{
 						llms.WithRole(llms.RoleTool),
 						llms.WithToolCalls(toolCall),
-						llms.WithContent(content),
-					)
+					}
+
+					if textContent != "" {
+						messageOpts = append(messageOpts, llms.WithTextContent(textContent))
+					} else if imageContent != nil {
+						messageOpts = append(messageOpts, llms.WithImageContent(imageContent))
+					}
+
+					resultsMsg := llms.NewMessage(messageOpts...)
 
 					if toolCallErr != nil {
 						resultsMsg = resultsMsg.Update(llms.WithError(toolCallErr))
@@ -376,11 +393,11 @@ func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSumm
 				}
 
 				content := fmt.Sprintf("%s\n\nThis message represents a summary of %d %s, updated %s",
-					event.Message.Content, num, pluralized, time.Now())
+					event.Message.TextContent, num, pluralized, time.Now())
 
 				newMessage := llms.NewMessage(
 					llms.WithRole(llms.RoleUser),
-					llms.WithContent(content),
+					llms.WithTextContent(content),
 				)
 
 				mainSession := s.getMainSession()
@@ -424,7 +441,7 @@ func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSumm
 					resultsMsg := llms.NewMessage(
 						llms.WithRole(llms.RoleTool),
 						llms.WithToolCalls(toolCall),
-						llms.WithContent(content),
+						llms.WithTextContent(content),
 					)
 
 					if toolCallErr != nil {

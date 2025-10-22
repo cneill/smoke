@@ -237,7 +237,7 @@ func (m *Model) logContent() string {
 }
 
 func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
-	info.content = msg.Content
+	info.content = msg.TextContent
 	info.subtitle = msg.Added.Format(time.DateTime)
 
 	switch msg.Role {

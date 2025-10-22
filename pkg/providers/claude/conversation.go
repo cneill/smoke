@@ -221,8 +221,8 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 		case llms.RoleAssistant:
 			contentBlocks := []anthropic.ContentBlockParamUnion{}
 
-			if strings.TrimSpace(msg.Content) != "" {
-				contentBlocks = append(contentBlocks, anthropic.NewTextBlock(msg.Content))
+			if strings.TrimSpace(msg.TextContent) != "" {
+				contentBlocks = append(contentBlocks, anthropic.NewTextBlock(msg.TextContent))
 			}
 
 			if msg.HasToolCalls() {
@@ -233,14 +233,14 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 		case llms.RoleSystem:
 			// Anthropic defines the system prompt outside of messages
 		case llms.RoleUser:
-			results[num] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.Content))
+			results[num] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.TextContent))
 		case llms.RoleTool:
 			if n := len(msg.ToolCalls); n > 1 {
 				slog.Warn("more than one tool call referenced in message with tool role; skipping", "num", n, "names", msg.ToolCalls.Names())
 				continue
 			}
 
-			content := msg.Content
+			content := msg.TextContent
 			if content == "" {
 				content = "[no output]" // can't be empty?
 			}
@@ -248,7 +248,7 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 			results[num] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCalls[0].ID, content, msg.Error != ""))
 
 		case llms.RoleUnknown:
-			slog.Warn("got message with unknown role", "message", msg.Content)
+			slog.Warn("got message with unknown role", "message", msg.TextContent)
 		}
 	}
 
@@ -337,7 +337,7 @@ func (c *conversation) handleResponse(ctx context.Context, id string, blocks []a
 	msg := c.newMessage(
 		llms.WithID(id),
 		llms.WithRole(llms.RoleAssistant),
-		llms.WithContent(textBuilder.String()),
+		llms.WithTextContent(textBuilder.String()),
 	)
 
 	if len(providerToolCalls) > 0 {

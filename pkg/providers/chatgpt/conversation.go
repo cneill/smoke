@@ -226,7 +226,7 @@ func (c *conversation) getSessionMessages(session *llms.Session) []openai.ChatCo
 	for num, msg := range session.Messages {
 		switch msg.Role {
 		case llms.RoleAssistant:
-			assistantMsg := openai.AssistantMessage(msg.Content)
+			assistantMsg := openai.AssistantMessage(msg.TextContent)
 
 			if msg.HasToolCalls() {
 				assistantMsg.OfAssistant.ToolCalls = c.genericToolCallsToProvider(msg.ToolCalls...)
@@ -234,18 +234,18 @@ func (c *conversation) getSessionMessages(session *llms.Session) []openai.ChatCo
 
 			results[num] = assistantMsg
 		case llms.RoleSystem:
-			results[num] = openai.SystemMessage(msg.Content)
+			results[num] = openai.SystemMessage(msg.TextContent)
 		case llms.RoleUser:
-			results[num] = openai.UserMessage(msg.Content)
+			results[num] = openai.UserMessage(msg.TextContent)
 		case llms.RoleTool:
 			if n := len(msg.ToolCalls); n > 1 {
 				slog.Warn("more than one tool call referenced in message with tool role; skipping", "num", n, "names", msg.ToolCalls.Names())
 				continue
 			}
 
-			results[num] = openai.ToolMessage(msg.Content, msg.ToolCalls[0].ID)
+			results[num] = openai.ToolMessage(msg.TextContent, msg.ToolCalls[0].ID)
 		case llms.RoleUnknown:
-			slog.Warn("got message with unknown role", "message", msg.Content)
+			slog.Warn("got message with unknown role", "message", msg.TextContent)
 		}
 	}
 
@@ -338,7 +338,7 @@ func (c *conversation) handleResponse(ctx context.Context, id string, response o
 	msg := c.newMessage(
 		llms.WithID(id),
 		llms.WithRole(llms.RoleAssistant),
-		llms.WithContent(response.Content),
+		llms.WithTextContent(response.Content),
 	)
 
 	if len(toolCalls) > 0 {

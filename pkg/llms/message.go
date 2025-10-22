@@ -13,9 +13,10 @@ type Message struct {
 	Added   time.Time `json:"added"`
 	Updated time.Time `json:"updated"`
 
-	Role    Role   `json:"role"`
-	Content string `json:"content,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Role         Role   `json:"role"`
+	TextContent  string `json:"content,omitempty"`
+	ImageContent []byte `json:"-"`
+	Error        string `json:"error,omitempty"`
 
 	// ToolCalls holds all tool calls made by the provider in Assistant messages and the details of the (one) original
 	// Assistant call for Tool messages.
@@ -44,7 +45,7 @@ func NewMessage(opts ...MessageOpt) *Message {
 func SimpleMessage(role Role, content string) *Message {
 	return NewMessage(
 		WithRole(role),
-		WithContent(content),
+		WithTextContent(content),
 	)
 }
 
@@ -63,13 +64,13 @@ func (m *Message) OK() error {
 
 func (m *Message) Clone() *Message {
 	newMessage := Message{
-		ID:        m.ID,
-		Added:     m.Added,
-		Updated:   m.Updated,
-		Role:      m.Role,
-		Content:   m.Content,
-		Error:     m.Error,
-		ToolCalls: m.ToolCalls.Clone(),
+		ID:          m.ID,
+		Added:       m.Added,
+		Updated:     m.Updated,
+		Role:        m.Role,
+		TextContent: m.TextContent,
+		Error:       m.Error,
+		ToolCalls:   m.ToolCalls.Clone(),
 	}
 
 	if m.LLMInfo != nil {
@@ -116,7 +117,7 @@ func (m *Message) LogValue() slog.Value {
 		attrs = append(attrs, slog.Any("llm_info", m.LLMInfo))
 	}
 
-	attrs = append(attrs, slog.String("content", m.Content))
+	attrs = append(attrs, slog.String("content", m.TextContent))
 
 	return slog.GroupValue(attrs...)
 }
@@ -134,11 +135,11 @@ func (m *Message) ToMarkdown() string {
 			fmt.Fprintf(builder, "**Args:** `%s`\n", toolCall.Args.String())
 		}
 
-		if m.Content != "" {
-			fmt.Fprintf(builder, "**Content:**\n\n%s\n", m.Content)
+		if m.TextContent != "" {
+			fmt.Fprintf(builder, "**Content:**\n\n%s\n", m.TextContent)
 		}
 	} else {
-		builder.WriteString(m.Content)
+		builder.WriteString(m.TextContent)
 	}
 
 	// footer
@@ -156,9 +157,16 @@ func WithID(id string) MessageOpt {
 	}
 }
 
-func WithContent(content string) MessageOpt {
+func WithTextContent(content string) MessageOpt {
 	return func(message *Message) *Message {
-		message.Content = content
+		message.TextContent = content
+		return message
+	}
+}
+
+func WithImageContent(rawBytes []byte) MessageOpt {
+	return func(message *Message) *Message {
+		message.ImageContent = rawBytes
 		return message
 	}
 }
@@ -194,7 +202,7 @@ func WithLLMInfo(info *LLMInfo) MessageOpt {
 func WithChunkContent(content string) MessageOpt {
 	return func(message *Message) *Message {
 		// TODO: mutex?
-		message.Content += content
+		message.TextContent += content
 		return message
 	}
 }

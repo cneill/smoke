@@ -26,9 +26,9 @@ func TestLog_AddMessage_Update(t *testing.T) {
 	}
 
 	messages := []*llms.Message{
-		newMessage(llms.WithContent("hello")),
-		newMessage(llms.WithContent("hello there")),
-		newMessage(llms.WithContent("hello there, beautiful")),
+		newMessage(llms.WithTextContent("hello")),
+		newMessage(llms.WithTextContent("hello there")),
+		newMessage(llms.WithTextContent("hello there, beautiful")),
 	}
 
 	for _, message := range messages {
@@ -44,7 +44,7 @@ func TestLog_AddMessage_Update(t *testing.T) {
 	llmMsg, ok := resultMsgs[0].(*llms.Message)
 	assert.True(t, ok)
 	assert.Equal(t, id, llmMsg.ID)
-	assert.Equal(t, "hello there, beautiful", llmMsg.Content)
+	assert.Equal(t, "hello there, beautiful", llmMsg.TextContent)
 
 	_, isErr := resultMsgs[1].(error)
 	assert.True(t, isErr)
@@ -52,7 +52,7 @@ func TestLog_AddMessage_Update(t *testing.T) {
 	log.AddMessage(
 		llms.NewMessage(
 			llms.WithID("unknown"),
-			llms.WithContent("unknown id"),
+			llms.WithTextContent("unknown id"),
 		),
 	)
 

@@ -128,7 +128,7 @@ func (s *Smoke) handleRankingBatch(ctx context.Context, request rank.RequestMess
 
 				msg := rank.ResponseMessage{
 					RequestMessage: request,
-					Message:        event.Message.Content,
+					Message:        event.Message.TextContent,
 				}
 
 				request.ResponseChan <- msg
