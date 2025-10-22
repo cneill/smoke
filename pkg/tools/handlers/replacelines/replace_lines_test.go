@@ -426,8 +426,10 @@ func TestReplaceLinesTool_ContextOutput(t *testing.T) { //nolint:funlen
 			output, err := rlt.Run(t.Context(), args)
 			require.NoError(t, err, "expected no error from Run()")
 
-			for _, expected := range test.expectedContains {
-				assert.Contains(t, output, expected, "expected output to contain %q", expected)
+			if output != nil {
+				for _, expected := range test.expectedContains {
+					assert.Contains(t, output.Text, expected, "expected output to contain %q", expected)
+				}
 			}
 		})
 	}

@@ -46,8 +46,8 @@ func TestGoTest_Run_NoPath_Passing(t *testing.T) {
 
 	out, err := tool.Run(t.Context(), nil)
 	require.NoError(t, err)
-	assert.Contains(t, out, "ok")
-	assert.NotContains(t, out, "FAIL")
+	assert.Contains(t, out.Text, "ok")
+	assert.NotContains(t, out.Text, "FAIL")
 }
 
 func TestGoTest_Run_WithFilePath_Passing(t *testing.T) {
@@ -59,8 +59,8 @@ func TestGoTest_Run_WithFilePath_Passing(t *testing.T) {
 	tool := &gotest.GoTest{ProjectPath: tempDir}
 	out, err := tool.Run(t.Context(), tools.Args{gotest.ParamPath: testGoFile})
 	require.NoError(t, err)
-	assert.Contains(t, out, "ok")
-	assert.NotContains(t, out, "FAIL")
+	assert.Contains(t, out.Text, "ok")
+	assert.NotContains(t, out.Text, "FAIL")
 }
 
 func TestGoTest_Run_FailingTest_ReturnsOutput(t *testing.T) {
@@ -73,8 +73,8 @@ func TestGoTest_Run_FailingTest_ReturnsOutput(t *testing.T) {
 	out, err := tool.Run(t.Context(), nil)
 	// Even with failing tests, error should be nil and output should include fail action.
 	require.NoError(t, err)
-	assert.NotEmpty(t, out)
-	assert.Contains(t, out, "FAIL")
+	assert.NotEmpty(t, out.Text)
+	assert.Contains(t, out.Text, "FAIL")
 }
 
 func TestGoTest_Run_InvalidAndMissingPaths(t *testing.T) {
@@ -87,13 +87,15 @@ func TestGoTest_Run_InvalidAndMissingPaths(t *testing.T) {
 
 	// Non-existent in-project path
 	out, err := tool.Run(t.Context(), tools.Args{gotest.ParamPath: "does_not_exist"})
-	assert.Empty(t, out)
+	assert.Nil(t, out)
+	// assert.Empty(t, out.Text)
 	require.Error(t, err)
 	require.ErrorIs(t, err, tools.ErrFileSystem)
 
 	// Path outside project
 	out, err = tool.Run(t.Context(), tools.Args{gotest.ParamPath: "../outside"})
-	assert.Empty(t, out)
+	// assert.Empty(t, out.Text)
+	assert.Nil(t, out)
 	require.Error(t, err)
 	require.ErrorIs(t, err, tools.ErrArguments)
 }

@@ -22,11 +22,13 @@ type dummyTool struct {
 
 const dummyName = "dummy"
 
-func (d dummyTool) Name() string                                        { return dummyName }
-func (d dummyTool) Description() string                                 { return "dummy tool for testing" }
-func (d dummyTool) Examples() tools.Examples                            { return nil }
-func (d dummyTool) Params() tools.Params                                { return d.params }
-func (d dummyTool) Run(_ context.Context, _ tools.Args) (string, error) { return "", nil }
+func (d dummyTool) Name() string             { return dummyName }
+func (d dummyTool) Description() string      { return "dummy tool for testing" }
+func (d dummyTool) Examples() tools.Examples { return nil }
+func (d dummyTool) Params() tools.Params     { return d.params }
+func (d dummyTool) Run(_ context.Context, _ tools.Args) (*tools.Output, error) {
+	return &tools.Output{Text: ""}, nil
+}
 
 func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	t.Helper()

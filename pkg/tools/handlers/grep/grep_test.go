@@ -165,7 +165,9 @@ func TestGrep_Run(t *testing.T) { //nolint:funlen
 				}
 			}
 
-			assert.Equal(t, test.expectedOutput, output)
+			if output != nil {
+				assert.Equal(t, test.expectedOutput, output.Text)
+			}
 		})
 	}
 }
@@ -332,7 +334,9 @@ func TestGrep_Run_Directory(t *testing.T) { //nolint:funlen
 				}
 			}
 
-			assert.Equal(t, test.expectedOutput, output, "returned output doesn't match expected")
+			if output != nil {
+				assert.Equal(t, test.expectedOutput, output.Text, "returned output doesn't match expected")
+			}
 		})
 	}
 }

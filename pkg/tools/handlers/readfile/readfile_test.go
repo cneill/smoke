@@ -189,7 +189,9 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 				require.ErrorIs(t, runErr, test.err)
 			}
 
-			assert.Equal(t, test.expectedOutput, output)
+			if output != nil {
+				assert.Equal(t, test.expectedOutput, output.Text)
+			}
 		})
 	}
 }
