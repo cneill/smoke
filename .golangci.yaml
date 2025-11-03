@@ -1,0 +1,67 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    - bodyclose    # this should all be handled by httpclient, but linter isn't smart enough to detect - enable case-by-case later?
+    - depguard     # annoying - must maintain a constant whitelist of import-able packages
+    - err113       # annoying - no dynamic errors, forces named errors or wrapping errors
+    - exhaustruct  # annoying - forces full struct initializations
+    - forbidigo    # annoying
+    - godot        # annoying - ending all comments with periods
+    - ireturn      # I hate this linter
+    - mnd          # annoying - magic numbers more annoying to alert on than deal with
+    - musttag      # annoying and seemingly broken warnings about `json:` tags on structs
+    - noinlineerr  # annoying - refuses if err := ...; err != nil {
+    - tagalign     # forces you to use the tool to do non-standard alignment
+    - tagliatelle  # annoying - enforces "no snake case" in JSON tags on things we don't control
+    - wsl          # deprecated
+  settings:
+    dupl:
+      threshold: 1000
+    forbidigo:
+      forbid:
+        - pattern: ^print.*$
+    funlen:
+      lines: 80
+      ignore-comments: true
+    gosec:
+      config:
+        G302: "0644"
+        G306: "0644"
+    lll:
+      line-length: 150
+    nlreturn:
+      block-size: 2
+    perfsprint:
+      errorf: false # annoying - forces errors.New() when no format strings in fmt.Errorf call
+    varnamelen:
+      min-name-length: 2
+      ignore-type-assert-ok: true
+      ignore-map-index-ok: true
+      ignore-chan-recv-ok: true
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

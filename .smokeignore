@@ -1,0 +1,8 @@
+cmd/smoke/smoke
+cmd/tooltest/tooltest
+cmd/mcptest
+cmd/prompttest
+logs/
+*.log
+*_plan.*
+*.json

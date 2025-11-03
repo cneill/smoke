@@ -1,0 +1,27 @@
+package tools
+
+const (
+	NameDDG              = "duck_duck_go"
+	NameEditPlan         = "edit_plan"
+	NameGitDiff          = "git_diff"
+	NameGoAST            = "go_ast"
+	NameGoFumpt          = "go_fumpt"
+	NameGoImports        = "go_imports"
+	NameGoLint           = "go_lint"
+	NameGoPLS            = "go_pls"
+	NameGoTest           = "go_test"
+	NameGrep             = "grep"
+	NameListFiles        = "list_files"
+	NameMkdir            = "mkdir"
+	NamePlanAdd          = "plan_add"
+	NamePlanCompletion   = "plan_completion"
+	NamePlanRead         = "plan_read"
+	NamePlanUpdate       = "plan_update"
+	NamePlaywright       = "playwright"
+	NameReadFile         = "read_file"
+	NameReadPlan         = "read_plan"
+	NameRemovePlan       = "remove_plan"
+	NameReplaceLines     = "replace_lines"
+	NameSummarizeHistory = "summarize_history"
+	NameWriteFile        = "write_file"
+)

@@ -1,0 +1,35 @@
+version: 2
+project_name: smoke
+builds:
+  - id: smoke
+    main: ./cmd/smoke
+    binary: smoke
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - '386'
+      - arm64
+      - amd64
+    ignore:
+      - goos: darwin
+        goarch: '386'
+    ldflags:
+      - -s -w -X github.com/cneill/smoke/internal/version.Version={{.Version}} -X github.com/cneill/smoke/internal/version.Commit={{.ShortCommit}} -X github.com/cneill/smoke/internal/version.Date={{.Date}}
+archives:
+  - id: smoke
+    ids:
+      - smoke
+    formats:
+      - tar.gz
+    files:
+      - ./README.md
+      - ./LICENSE
+checksum:
+  name_template: 'checksums.txt'
+changelog:
+  use: github-native
+  abbrev: 0
+  sort: asc
