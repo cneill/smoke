@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -17,7 +18,55 @@ type Tool struct {
 	toolName   string
 	session    *mcp.ClientSession
 	underlying *mcp.Tool
+	schema     *jsonschema.Schema
 	params     tools.Params
+}
+
+type ToolOpts struct {
+	MCPTool       *mcp.Tool
+	MCPSession    *mcp.ClientSession
+	MCPServerName string
+}
+
+func (t *ToolOpts) OK() error {
+	switch {
+	case t.MCPTool == nil:
+		return fmt.Errorf("missing MCP tool")
+	case t.MCPSession == nil:
+		return fmt.Errorf("missing MCP session")
+	case t.MCPServerName == "":
+		return fmt.Errorf("missing MCP server name")
+	}
+
+	return nil
+}
+
+func NewTool(opts *ToolOpts) (*Tool, error) {
+	if err := opts.OK(); err != nil {
+		return nil, fmt.Errorf("options error for MCP tool: %w", err)
+	}
+
+	rawSchema, err := json.Marshal(opts.MCPTool.InputSchema)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tool JSON schema for tool %q: %w", opts.MCPTool.Name, err)
+	}
+
+	schema := &jsonschema.Schema{}
+	if err := json.Unmarshal(rawSchema, schema); err != nil {
+		return nil, fmt.Errorf("invalid JSON schema: %w", err)
+	}
+
+	t := &Tool{
+		fullName:   opts.MCPServerName + "_" + opts.MCPTool.Name,
+		clientName: opts.MCPServerName,
+		toolName:   opts.MCPTool.Name,
+		session:    opts.MCPSession,
+		underlying: opts.MCPTool,
+		schema:     schema,
+		params:     paramsFromSchema(schema),
+	}
+
+	return t, nil
 }
 
 func (t *Tool) Name() string             { return t.fullName }
@@ -54,7 +103,7 @@ func (t *Tool) Run(ctx context.Context, args tools.Args) (*tools.Output, error) 
 }
 
 func (t *Tool) Schema() *jsonschema.Schema {
-	return t.underlying.InputSchema
+	return t.schema
 }
 
 func paramsFromSchema(schema *jsonschema.Schema) tools.Params {
