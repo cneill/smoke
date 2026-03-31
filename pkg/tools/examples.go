@@ -23,11 +23,12 @@ func ExampleJSONArguments(args Args) (string, error) {
 }
 
 func CollectExamples(examples ...Example) string {
-	result := "\n## Examples\n\n"
+	builder := strings.Builder{}
+	builder.WriteString("\n## Examples\n\n")
 
 	for _, example := range examples {
 		if example.Description != "" {
-			result += "**Description:** " + example.Description + "\n"
+			builder.WriteString("**Description:** " + example.Description + "\n")
 		}
 
 		jsonArgs, err := ExampleJSONArguments(example.Args)
@@ -35,8 +36,8 @@ func CollectExamples(examples ...Example) string {
 			panic(err)
 		}
 
-		result += "**Arguments:** " + jsonArgs + "\n\n"
+		builder.WriteString("**Arguments:** " + jsonArgs + "\n\n")
 	}
 
-	return strings.TrimSuffix(result, "\n")
+	return strings.TrimSuffix(builder.String(), "\n")
 }

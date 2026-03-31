@@ -33,7 +33,7 @@ const (
 )
 
 func flags() []cli.Flag {
-	flags := []cli.Flag{}
+	flags := []cli.Flag{} //nolint:prealloc
 	flags = append(flags, localConfigFlags()...)
 	flags = append(flags, llmConfigFlags()...)
 	flags = append(flags, providerFlags()...)

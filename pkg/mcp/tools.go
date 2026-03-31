@@ -56,7 +56,7 @@ func NewTool(opts *ToolOpts) (*Tool, error) {
 		return nil, fmt.Errorf("invalid JSON schema: %w", err)
 	}
 
-	t := &Tool{
+	tool := &Tool{
 		fullName:   opts.MCPServerName + "_" + opts.MCPTool.Name,
 		clientName: opts.MCPServerName,
 		toolName:   opts.MCPTool.Name,
@@ -66,7 +66,7 @@ func NewTool(opts *ToolOpts) (*Tool, error) {
 		params:     paramsFromSchema(schema),
 	}
 
-	return t, nil
+	return tool, nil
 }
 
 func (t *Tool) Name() string             { return t.fullName }

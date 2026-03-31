@@ -36,7 +36,9 @@ func (s *Smoke) setup() error {
 		return fmt.Errorf("failed to set up MCP servers: %w", err)
 	}
 
-	s.setupCommands()
+	if err := s.setupCommands(); err != nil {
+		return fmt.Errorf("failed to set up commands: %w", err)
+	}
 
 	return nil
 }
@@ -125,13 +127,17 @@ func (s *Smoke) setupMCP() error {
 	return nil
 }
 
-func (s *Smoke) setupCommands() {
+func (s *Smoke) setupCommands() error {
 	s.commands = commands.NewManager(s.projectPath)
 	s.commands.SetTeaEmitter(s.teaEmitter)
 
 	for commandName, initializer := range cmdhandlers.AllCommands() {
-		s.commands.Register(commandName, initializer)
+		if err := s.commands.Register(commandName, initializer); err != nil {
+			return fmt.Errorf("failed to set up command %q: %w", commandName, err)
+		}
 	}
+
+	return nil
 }
 
 func (s *Smoke) setupToolsManager() (*tools.Manager, error) {

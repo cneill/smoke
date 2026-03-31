@@ -204,7 +204,7 @@ func (c *conversation) getMessageNewParams() anthropic.MessageNewParams {
 	return anthropic.MessageNewParams{
 		Messages:  c.getSessionMessages(c.session),
 		MaxTokens: c.config.MaxTokens,
-		Model:     anthropic.Model(c.config.Model),
+		Model:     c.config.Model,
 		System: []anthropic.TextBlockParam{
 			{Text: c.session.SystemMessage},
 		},

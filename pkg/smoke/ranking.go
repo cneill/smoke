@@ -23,7 +23,7 @@ func (s *Smoke) HandleRankRequestMessage(msg rank.RequestMessage) (tea.Cmd, erro
 
 	slog.Debug("Handling ranking request", "message", msg)
 
-	commands := []tea.Cmd{}
+	commands := []tea.Cmd{} //nolint:prealloc
 
 	conversation := s.llm.StartConversation(context.Background(), batchSession)
 	s.conversationMutex.Lock()

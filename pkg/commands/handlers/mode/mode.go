@@ -1,4 +1,4 @@
-// Package review contains a prompt command that asks the model to review the code referenced by the user for red flags
+// Package mode contains a prompt command that allows the user to change smoke's behavior/tools/system prompt.
 package mode
 
 import (

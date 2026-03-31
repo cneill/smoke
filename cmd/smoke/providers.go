@@ -117,16 +117,25 @@ func (p providerDetails) getModel(search string) (string, error) {
 		return p.defaultModel, nil
 	}
 
-	return "", fmt.Errorf("unknown model: %q\n%s", search, p.aliases)
+	return "", fmt.Errorf("unknown model: %q\n\n%s", search, p.aliases)
 }
 
 type modelAliases map[string][]string
 
 func (m modelAliases) String() string {
-	result := "Model aliases:\n"
-	for modelName, aliases := range m {
-		result += fmt.Sprintf("%s: %s\n", modelName, strings.Join(aliases, ", "))
+	builder := strings.Builder{}
+	builder.Grow(64)
+	builder.WriteString("Model aliases:\n")
+
+	modelNames := slices.Collect(maps.Keys(m))
+	slices.Sort(modelNames)
+
+	for _, modelName := range modelNames {
+		builder.WriteString(modelName)
+		builder.WriteString(": ")
+		builder.WriteString(strings.Join(m[modelName], ", "))
+		builder.WriteByte('\n')
 	}
 
-	return result
+	return builder.String()
 }
