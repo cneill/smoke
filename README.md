@@ -43,7 +43,7 @@ USAGE:
    smoke [global options]
 
 VERSION:
-   v0.0.1
+   v0.0.2
 
 DESCRIPTION:
    An agentic coding assistant primarily focused on the Go programming language. It only works on one directory at a time, and that directory must contain a .git subdirectory.
