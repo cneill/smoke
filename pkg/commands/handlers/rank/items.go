@@ -150,7 +150,7 @@ func (i Items) RankSorted() Items {
 }
 
 func MergeBatches(batches ...Items) Items {
-	result := Items{}
+	result := Items{} //nolint:prealloc
 	idMap := map[string]Items{}
 
 	for _, batchItems := range batches {

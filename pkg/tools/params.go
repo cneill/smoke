@@ -146,9 +146,9 @@ func (p Params) ByKey(key string) *Param {
 
 // Keys returns a slice of all keys for the Params in the slice.
 func (p Params) Keys() []string {
-	results := []string{}
-	for _, param := range p {
-		results = append(results, param.Key)
+	results := make([]string, len(p))
+	for i, param := range p {
+		results[i] = param.Key
 	}
 
 	return results

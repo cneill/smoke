@@ -230,13 +230,14 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 					)
 
 					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
-					if err != nil {
+					switch {
+					case err != nil:
 						slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
 						toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
 						textContent = toolCallErr.Error()
-					} else if output.Type() == tools.OutputTypeText {
+					case output.Type() == tools.OutputTypeText:
 						textContent = output.Text
-					} else if output.Type() == tools.OutputTypeImage {
+					case output.Type() == tools.OutputTypeImage:
 						imageBytes, err := os.ReadFile(output.ImagePath)
 						if err != nil {
 							slog.Error("failed to read image bytes", "path", output.ImagePath, "error", err)

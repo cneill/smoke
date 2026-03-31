@@ -96,25 +96,25 @@ func (c *CommandClient) Name() string { return c.name }
 func (c *CommandClient) Tools(ctx context.Context) (tools.Tools, error) {
 	results := tools.Tools{}
 
-	for tool, err := range c.session.Tools(ctx, &mcp.ListToolsParams{}) {
+	for serverTool, err := range c.session.Tools(ctx, &mcp.ListToolsParams{}) {
 		if err != nil {
 			return nil, fmt.Errorf("error with tool: %w", err)
 		}
 
-		if !c.toolAllowed(tool.Name) {
+		if !c.toolAllowed(serverTool.Name) {
 			continue
 		}
 
-		mcpTool := &Tool{
-			fullName:   c.name + "_" + tool.Name,
-			clientName: c.name,
-			toolName:   tool.Name,
-			session:    c.session,
-			underlying: tool,
-			params:     paramsFromSchema(tool.InputSchema),
+		clientTool, err := NewTool(&ToolOpts{
+			MCPTool:       serverTool,
+			MCPSession:    c.session,
+			MCPServerName: c.name,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("invalid tool for server %q: %w", c.name, err)
 		}
 
-		results = append(results, mcpTool)
+		results = append(results, clientTool)
 	}
 
 	return results, nil

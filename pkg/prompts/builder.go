@@ -42,6 +42,7 @@ func (b *Builder) Remove(t SectionType) *Builder {
 }
 
 // Convenience constructors
+
 func P(text string) *Text {
 	return &Text{Content: text}
 }

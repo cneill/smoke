@@ -142,10 +142,10 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 		}
 	}
 
-	var output string
-
 	sortedPaths := slices.Collect(maps.Keys(dirResults))
 	slices.Sort(sortedPaths)
+
+	builder := strings.Builder{}
 
 	for _, filePath := range sortedPaths {
 		fileResults := dirResults[filePath]
@@ -155,13 +155,14 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 			return nil, fmt.Errorf("%w: invalid file path %q: %w", tools.ErrFileSystem, filePath, err)
 		}
 
-		output += relPath + "\n" + formatting.LineSep + "\n"
+		builder.WriteString(relPath + "\n" + formatting.LineSep + "\n")
+
 		for _, result := range fileResults {
-			output += strings.Join(result, "\n") + "\n\n"
+			builder.WriteString(strings.Join(result, "\n") + "\n\n")
 		}
 	}
 
-	return &tools.Output{Text: output}, nil
+	return &tools.Output{Text: builder.String()}, nil
 }
 
 func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLines int64) ([][]string, error) {

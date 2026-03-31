@@ -27,10 +27,10 @@ type Tool interface {
 type Tools []Tool
 
 func (t Tools) Names() []string {
-	results := []string{}
+	results := make([]string, len(t))
 
-	for _, tool := range t {
-		results = append(results, tool.Name())
+	for i, tool := range t {
+		results[i] = tool.Name()
 	}
 
 	return results

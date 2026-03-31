@@ -257,10 +257,10 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
 		cmds = append(cmds, updateHistory(msg))
 
 		if msg.ResetHistory {
-			newLog := []any{}
+			newLog := make([]any, len(msg.Session.Messages))
 
-			for _, msg := range msg.Session.Messages {
-				newLog = append(newLog, msg)
+			for i, msg := range msg.Session.Messages {
+				newLog[i] = msg
 			}
 
 			resetHistory := func() tea.Msg {

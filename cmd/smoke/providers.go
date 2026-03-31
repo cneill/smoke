@@ -15,24 +15,46 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 	llms.LLMTypeChatGPT: {
 		apiKeyFlag:   FlagOpenAIKey,
 		apiKeyEnvVar: EnvOpenAIKey,
-		defaultModel: openai.ChatModelGPT5,
+		defaultModel: openai.ChatModelGPT5_4,
 		aliases: modelAliases{
-			openai.ChatModelGPT4o:    {"4", "4o", "gpt4o", "gpt-4o"},
-			openai.ChatModelGPT4_1:   {"4.1", "gpt4.1", "gpt-4.1"},
-			openai.ChatModelGPT5:     {"5", "gpt5", "gpt-5"},
-			openai.ChatModelGPT5Mini: {"5-mini", "gpt5-mini", "gpt-5-mini"},
-			openai.ChatModelO3:       {"o3", "gpto3", "gpt-o3"},
-			openai.ChatModelO3Mini:   {"o3-mini", "gpto3-mini", "gpt-o3-mini"},
+			openai.ChatModelGPT4:        {"4", "gpt4", "gpt-4"},
+			openai.ChatModelGPT4o:       {"4o", "gpt4o", "gpt-4o"},
+			openai.ChatModelGPT4oMini:   {"4o-mini", "gpt4o-mini", "gpt-4o-mini"},
+			openai.ChatModelGPT4_1:      {"4.1", "gpt4.1", "gpt-4.1"},
+			openai.ChatModelGPT4_1Mini:  {"4.1-mini", "gpt4.1-mini", "gpt-4.1-mini"},
+			openai.ChatModelGPT4_1Nano:  {"4.1-nano", "gpt4.1-nano", "gpt-4.1-nano"},
+			openai.ChatModelGPT5:        {"5", "gpt5", "gpt-5"},
+			openai.ChatModelGPT5Mini:    {"5-mini", "gpt5-mini", "gpt-5-mini"},
+			openai.ChatModelGPT5Nano:    {"5-nano", "gpt5-nano", "gpt-5-nano"},
+			openai.ChatModelGPT5_1:      {"5.1", "gpt5.1", "gpt-5.1"},
+			openai.ChatModelGPT5_1Mini:  {"5.1-mini", "gpt5.1-mini", "gpt-5.1-mini"},
+			openai.ChatModelGPT5_1Codex: {"5.1-codex", "gpt5.1-codex", "gpt-5.1-codex"},
+			openai.ChatModelGPT5_2:      {"5.2", "gpt5.2", "gpt-5.2"},
+			openai.ChatModelGPT5_2Pro:   {"5.2-pro", "gpt5.2-pro", "gpt-5.2-pro"},
+			openai.ChatModelGPT5_4:      {"5.4", "gpt5.4", "gpt-5.4"},
+			openai.ChatModelGPT5_4Mini:  {"5.4-mini", "gpt5.4-mini", "gpt-5.4-mini"},
+			openai.ChatModelGPT5_4Nano:  {"5.4-nano", "gpt5.4-nano", "gpt-5.4-nano"},
+			openai.ChatModelO1:          {"o1", "gpto1", "gpt-o1"},
+			openai.ChatModelO1Mini:      {"o1-mini", "gpto1-mini", "gpt-o1-mini"},
+			openai.ChatModelO1Preview:   {"o1-preview", "gpto1-preview", "gpt-o1-preview"},
+			openai.ChatModelO3:          {"o3", "gpto3", "gpt-o3"},
+			openai.ChatModelO3Mini:      {"o3-mini", "gpto3-mini", "gpt-o3-mini"},
+			openai.ChatModelO4Mini:      {"o4-mini", "gpto4-mini", "gpt-o4-mini"},
 		},
 	},
 	llms.LLMTypeClaude: {
 		apiKeyFlag:   FlagAnthropicKey,
 		apiKeyEnvVar: EnvAnthropicKey,
-		defaultModel: string(anthropic.ModelClaudeSonnet4_0),
+		defaultModel: anthropic.ModelClaudeSonnet4_6,
 		aliases: modelAliases{
-			string(anthropic.ModelClaudeOpus4_1_20250805): {"opus", "opus4.1"},
-			string(anthropic.ModelClaudeOpus4_0):          {"opus4"},
-			string(anthropic.ModelClaudeSonnet4_0):        {"sonnet", "sonnet4"},
+			anthropic.ModelClaudeOpus4_6:          {"opus", "opus4.6"},
+			anthropic.ModelClaudeOpus4_5:          {"opus4.5"},
+			anthropic.ModelClaudeOpus4_1_20250805: {"opus4.1"},
+			anthropic.ModelClaudeOpus4_0:          {"opus4"},
+			anthropic.ModelClaudeSonnet4_6:        {"sonnet", "sonnet4.6"},
+			anthropic.ModelClaudeSonnet4_5:        {"sonnet4.5"},
+			anthropic.ModelClaudeSonnet4_0:        {"sonnet4"},
+			anthropic.ModelClaudeHaiku4_5:         {"haiku", "haiku4.5"},
 		},
 	},
 	llms.LLMTypeGrok: {
@@ -95,16 +117,25 @@ func (p providerDetails) getModel(search string) (string, error) {
 		return p.defaultModel, nil
 	}
 
-	return "", fmt.Errorf("unknown model: %q\n%s", search, p.aliases)
+	return "", fmt.Errorf("unknown model: %q\n\n%s", search, p.aliases)
 }
 
 type modelAliases map[string][]string
 
 func (m modelAliases) String() string {
-	result := "Model aliases:\n"
-	for modelName, aliases := range m {
-		result += fmt.Sprintf("%s: %s\n", modelName, strings.Join(aliases, ", "))
+	builder := strings.Builder{}
+	builder.Grow(64)
+	builder.WriteString("Model aliases:\n")
+
+	modelNames := slices.Collect(maps.Keys(m))
+	slices.Sort(modelNames)
+
+	for _, modelName := range modelNames {
+		builder.WriteString(modelName)
+		builder.WriteString(": ")
+		builder.WriteString(strings.Join(m[modelName], ", "))
+		builder.WriteByte('\n')
 	}
 
-	return result
+	return builder.String()
 }
