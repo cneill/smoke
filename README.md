@@ -1,53 +1,26 @@
 # smoke
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/cneill/smoke)](https://goreportcard.com/report/github.com/cneill/smoke) [![Go package documentation](https://pkg.go.dev/badge/github.com/cneill/smoke)](https://pkg.go.dev/github.com/cneill/smoke)
+
 ## About
 
-Smoke is my attempt at an agentic coding assistant. It is tailored to *my* needs, and is best viewed as a hobby research
-project. To avoid creating a poor simulacrum of other existing coding assistants, I have not allowed myself to install
-or use any others up until this point. While I have taken inspiration from various sources such as Thorsten Ball's [How
-to Build an Agent](https://ampcode.com/how-to-build-an-agent) blog post, I have used only smoke to directly help me
-build smoke. This likely means that I am missing features considered table stakes in the broader coding assistant space,
-but this is by design.
+Smoke is my attempt at an agentic coding assistant for Go. It is tailored to *my* needs. Read more about why I built it
+[here](https://techiavellian.com/introducing-smoke/).
 
 The [raink](https://github.com/noperator/raink/) tool described in 
 [this blog post](https://bishopfox.com/blog/raink-llms-document-ranking) was the direct inspiration for my `/rank`
 command. My implementation is incomplete, but I still find it useful.
 
-If people discover this repo and express interest in using smoke, I might write a more helpful README in the future. The
-code is quite messy in some places, documentation is sparse to nonexistent, and there are likely many bugs. Caveat
-emptor.
+If people discover this repo and want to use it, I might write a more helpful README in the future. The code is quite
+messy in some places, documentation is sparse to nonexistent, and there are likely many bugs. Caveat emptor.
 
-## Motivations
+## Motivation
 
-* I wanted to better understand LLM tool use
-* This seemed like a fun project to pursue while I was between jobs
-* I doubted that existing tools would have established insurmountable moats after only a few months of existence
-* If I were to take claims about the *massive* future importance of these tools at face value, it seemed absurd to let
-  others decide how I could use them
-* Conversations between Dax and Adam on [@TerminalDotShop's YouTube channel](https://www.youtube.com/@TerminalDotShop)
-  about their experience building [opencode](https://github.com/sst/opencode) suggested to me that creators of these
-  tools are often just watching each other and copying popular features. I felt that this would lead them all to take
-  similar approaches when that might not be warranted
-    * To be clear, **I am not criticizing opencode**, and I look forward to taking it for a test drive myself. I simply
-      agree with much of *their* skepticism about the breathless online discourse around these tools. They're not magic,
-      and it is refreshing to hear people with skin in the game say as much
 * Pure hubris
 
 ## CLI Usage
 
 ```
-NAME:
-   smoke - Smoke 'em if you got 'em.
-
-USAGE:
-   smoke [global options]
-
-VERSION:
-   v0.0.2
-
-DESCRIPTION:
-   An agentic coding assistant primarily focused on the Go programming language. It only works on one directory at a time, and that directory must contain a .git subdirectory.
-
 GLOBAL OPTIONS:
    --help, -h     show help
    --version, -v  print the version
@@ -61,7 +34,7 @@ GLOBAL OPTIONS:
 
    Local Configuration
 
-   --debug, -D                    Enable debug logging. (default: false) [$SMOKE_DEBUG]
+   --debug, -D                    Enable debug logging. [$SMOKE_DEBUG]
    --dir DIRECTORY, -d DIRECTORY  The DIRECTORY where your project lives. [$SMOKE_DIRECTORY]
    --session NAME, -s NAME        The NAME of the session, which will be used to derive the log file and plan file names (default: "session") [$SMOKE_SESSION]
 
