@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers/ddg"
+	"github.com/cneill/smoke/pkg/tools/handlers/edit"
 	gitdiff "github.com/cneill/smoke/pkg/tools/handlers/git/diff"
 	"github.com/cneill/smoke/pkg/tools/handlers/gofumpt"
 	"github.com/cneill/smoke/pkg/tools/handlers/goimports"
@@ -16,13 +17,13 @@ import (
 	planread "github.com/cneill/smoke/pkg/tools/handlers/plan/read"
 	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
 	"github.com/cneill/smoke/pkg/tools/handlers/readfile"
-	"github.com/cneill/smoke/pkg/tools/handlers/replacelines"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
 )
 
 func AllTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		edit.New,
 		gitdiff.New,
 		gofumpt.New,
 		goimports.New,
@@ -38,7 +39,7 @@ func AllTools() []tools.Initializer {
 		// TODO: figure out how to actually support images w/ multimodal models
 		// playwright.New,
 		readfile.New,
-		replacelines.New,
+		// replacelines.New,
 		// summarize.New,
 		writefile.New,
 	}

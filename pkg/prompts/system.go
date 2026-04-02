@@ -85,12 +85,12 @@ func WorkSystemPrompt() *Prompt {
 	// Rules
 	builder.Add(SectionRules,
 		List(
-			Item("Keep track of lines you've edited with `replace_lines` as you go. If you add 3 net new lines to a file, for "+
-				"example, you will need to account for that in subsequent calls further down in the file. Use the `read_file` "+
-				"tool if necessary to keep track of the line numbers to edit. You should NEVER make a mistake where you "+
-				"accidentally delete context above or below the lines you intended to edit. You should always be ABSOLUTELY "+
-				"SURE about the line numbers you edit. If you are uncertain, read the relevant lines with `read_file` again "+
-				"and consult the diff with the `git_diff` tool to make sure you didn't delete anything you shouldn't have."),
+			// Item("Keep track of lines you've edited with `replace_lines` as you go. If you add 3 net new lines to a file, for "+
+			// 	"example, you will need to account for that in subsequent calls further down in the file. Use the `read_file` "+
+			// 	"tool if necessary to keep track of the line numbers to edit. You should NEVER make a mistake where you "+
+			// 	"accidentally delete context above or below the lines you intended to edit. You should always be ABSOLUTELY "+
+			// 	"SURE about the line numbers you edit. If you are uncertain, read the relevant lines with `read_file` again "+
+			// 	"and consult the diff with the `git_diff` tool to make sure you didn't delete anything you shouldn't have."),
 			Item("If you discover a new piece of information relevant to other tasks, or if you change something about how "+
 				"another task will need to be implemented, use `plan_add` to add context items to those tasks as needed."),
 			Item("Work on every task in the plan, keeping parents/dependencies in mind for order of operations, and do not stop "+

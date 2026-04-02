@@ -2,6 +2,7 @@ package tools
 
 const (
 	NameDDG              = "duck_duck_go"
+	NameEdit             = "edit"
 	NameEditPlan         = "edit_plan"
 	NameGitDiff          = "git_diff"
 	NameGoAST            = "go_ast"
