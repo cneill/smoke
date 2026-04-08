@@ -137,6 +137,16 @@ func TestGrep_Run(t *testing.T) { //nolint:funlen
 			expectedOutput: "with_context_lines_test.txt\n" + formatting.LineSep + "\n1: abc\n*2: 123\n3: xyz\n\n",
 			errors:         nil,
 		},
+		{
+			name:        "binary_file",
+			initContent: "\x00\n\x00\nmatch",
+			args: tools.Args{
+				grep.ParamRegex: `match`,
+				grep.ParamPath:  "binary_file_test.txt",
+			},
+			expectedOutput: "binary_file_test.txt\n" + formatting.LineSep + "\n[binary file matches]\n\n",
+			errors:         nil,
+		},
 	}
 
 	for _, test := range tests {

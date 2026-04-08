@@ -9,6 +9,7 @@ import (
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/formatting"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const (
@@ -121,7 +122,7 @@ func (r *ReadFile) Run(_ context.Context, args tools.Args) (*tools.Output, error
 		return nil, fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
-	if isBinary(contents) {
+	if utils.IsBinary(contents) {
 		return &tools.Output{Text: "[binary content]"}, nil
 	}
 
@@ -141,25 +142,4 @@ func (r *ReadFile) Run(_ context.Context, args tools.Args) (*tools.Output, error
 	}
 
 	return output, nil
-}
-
-// isBinary checks if the given byte slice contains binary data by looking for null bytes and other non-printable
-// characters.
-func isBinary(data []byte) bool {
-	checkSize := min(len(data), 8192)
-	nullBytes := 0
-
-	for idx := range checkSize {
-		b := data[idx]
-		// Count null bytes
-		if b == 0 {
-			nullBytes++
-		}
-
-		if nullBytes > 0 && idx > 0 && float64(nullBytes)/float64(idx) > 0.01 {
-			return true
-		}
-	}
-
-	return false
 }
