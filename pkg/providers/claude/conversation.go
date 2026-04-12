@@ -208,8 +208,9 @@ func (c *conversation) getMessageNewParams() anthropic.MessageNewParams {
 		System: []anthropic.TextBlockParam{
 			{Text: c.session.SystemMessage},
 		},
-		Tools:       c.newMessageTools(c.session),
-		Temperature: anthropic.Float(c.config.Temperature),
+		Tools:        c.newMessageTools(c.session),
+		Temperature:  anthropic.Float(c.config.Temperature),
+		CacheControl: anthropic.NewCacheControlEphemeralParam(),
 	}
 }
 
