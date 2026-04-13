@@ -218,10 +218,10 @@ func run(ctx context.Context, cmd *cli.Command) error {
 func main() {
 	command := &cli.Command{
 		Name: "smoke",
-		Description: "An agentic coding assistant primarily focused on the Go programming language. It only works on " +
-			"one directory at a time, and that directory must contain a .git subdirectory.",
+		Description: "An agentic coding assistant for the Go programming language that operates within a single git " +
+			"repository.",
 		Usage:     "A coding assistant for Gophers",
-		UsageText: "smoke [global options] [workspace]",
+		UsageText: "smoke [global options] [project path]",
 		Flags:     flags(),
 		Action:    run,
 		OnUsageError: func(_ context.Context, _ *cli.Command, err error, _ bool) error {
