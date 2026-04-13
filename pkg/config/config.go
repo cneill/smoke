@@ -11,7 +11,7 @@ import (
 )
 
 type Config struct {
-	Providers *Providers `json:"providers"`
+	Providers *Providers `json:"-"`
 	MCP       *MCP       `json:"mcp"`
 }
 
@@ -110,21 +110,6 @@ func DefaultConfig() *Config {
 		Providers: &Providers{},
 		MCP: &MCP{
 			Servers: []*MCPServer{
-				{
-					Name:         "example",
-					Command:      "example_tool",
-					Args:         []string{"arg1", "arg2"},
-					Enabled:      false,
-					AllowedTools: []string{},
-					DeniedTools:  []string{"dangerous_*", "evil_tool"},
-					PlanTools:    []string{},
-					Env: []Env{
-						{
-							Var:   "EXAMPLE_ENV_VAR",
-							Value: "EXAMPLE VALUE",
-						},
-					},
-				},
 				{
 					Name:         "gopls",
 					Command:      "gopls",
