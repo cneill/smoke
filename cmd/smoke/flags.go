@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	FlagDir          = "dir"
 	FlagDebug        = "debug"
 	FlagMaxTokens    = "max-tokens"
 	FlagModel        = "model"
@@ -20,7 +19,6 @@ const (
 	FlagAnthropicKey = "anthropic-api-key"
 	FlagXAIKey       = "xai-api-key"
 
-	EnvDir          = "SMOKE_DIRECTORY"
 	EnvDebug        = "SMOKE_DEBUG"
 	EnvMaxTokens    = "SMOKE_MAX_TOKENS"
 	EnvModel        = "SMOKE_MODEL"
@@ -45,14 +43,6 @@ func localConfigFlags() []cli.Flag {
 	category := "Local Configuration"
 
 	return []cli.Flag{
-		&cli.StringFlag{
-			Name:     FlagDir,
-			Usage:    "The `DIRECTORY` where your project lives.",
-			Category: category,
-			Aliases:  []string{"d"},
-			Required: true,
-			Sources:  cli.EnvVars(EnvDir),
-		},
 		&cli.BoolFlag{
 			Name:     FlagDebug,
 			Usage:    "Enable debug logging.",

@@ -21,27 +21,27 @@ func PlanningSystemPrompt() *Prompt {
 		P("Here's the step-by-step process you should follow for conducting your planning:"),
 		P("If anything is unclear about the user's request, ask questions now. Do not add task items like \"decide "+
 			"whether to...\". Resolve any glaring ambiguities before you begin writing your plan for implementation."),
-		P("Think hard about how to complete what the user has asked. Break it into tasks and smaller subtasks, "+
+		Pf("Think hard about how to complete what the user has asked. Break it into tasks and smaller subtasks, "+
 			"thinking through how your plan will come together step-by-step. Add each of these tasks and subtasks "+
-			"with `plan_add`."),
-		P("As you enumerate the tasks and subtasks to be completed and collect information from the repository to "+
-			"better understand the context of the request, use `plan_add` to add context items associated with your "+
+			"with `%s`.", tools.NamePlanAdd),
+		Pf("As you enumerate the tasks and subtasks to be completed and collect information from the repository to "+
+			"better understand the context of the request, use `%s` to add context items associated with your "+
 			"tasks. This can include code conventions, interface definitions, 3rd party libraries, relevant paths and "+
 			"line numbers, etc. If you wouldn't know how to complete a task without a piece of information you learn "+
 			"from a tool call, or if you discover a convention relevant to the nature of the task, add it as a "+
-			"context item."),
+			"context item.", tools.NamePlanAdd),
 		P("!! STOP AT THIS POINT, SUMMARIZE YOUR PLAN, AND ASK THE USER FOR FEEDBACK !!"),
 	)
 
 	// Rules
 	builder.Add(SectionRules,
 		List(
-			Item("Do not assume that you will have access to the outputs of every tool call you make. If there is "+
+			Itemf("Do not assume that you will have access to the outputs of every tool call you make. If there is "+
 				"critical context you will need to complete a task or subtask, add it as a context item with "+
-				"`plan_add`."),
-			Item("When you are in `plan_process`, you will not have access to tools like `write_file` that you will "+
+				"`%s`.", tools.NamePlanAdd),
+			Itemf("When you are in `plan_process`, you will not have access to tools like `%s` that you will "+
 				"need to complete your work. Do not try to jump into implementation until you're done planning and "+
-				"the user has agreed to your plan."),
+				"the user has agreed to your plan.", tools.NameWriteFile),
 		),
 	)
 
@@ -85,16 +85,10 @@ func WorkSystemPrompt() *Prompt {
 	// Rules
 	builder.Add(SectionRules,
 		List(
-			// Item("Keep track of lines you've edited with `replace_lines` as you go. If you add 3 net new lines to a file, for "+
-			// 	"example, you will need to account for that in subsequent calls further down in the file. Use the `read_file` "+
-			// 	"tool if necessary to keep track of the line numbers to edit. You should NEVER make a mistake where you "+
-			// 	"accidentally delete context above or below the lines you intended to edit. You should always be ABSOLUTELY "+
-			// 	"SURE about the line numbers you edit. If you are uncertain, read the relevant lines with `read_file` again "+
-			// 	"and consult the diff with the `git_diff` tool to make sure you didn't delete anything you shouldn't have."),
-			Item("If you discover a new piece of information relevant to other tasks, or if you change something about how "+
-				"another task will need to be implemented, use `plan_add` to add context items to those tasks as needed."),
-			Item("Work on every task in the plan, keeping parents/dependencies in mind for order of operations, and do not stop "+
-				"until you have implemented everything and used `plan_completion` to mark each task as complete."),
+			Itemf("If you discover a new piece of information relevant to other tasks, or if you change something about how "+
+				"another task will need to be implemented, use `%s` to add context items to those tasks as needed.", tools.NamePlanAdd),
+			Itemf("Work on every task in the plan, keeping parents/dependencies in mind for order of operations, and do not stop "+
+				"until you have implemented everything and used `%s` to mark each task as complete.", tools.NamePlanCompletion),
 		),
 	)
 
@@ -118,9 +112,9 @@ func ReviewSystemPrompt() *Prompt {
 			"think the code is affected by that red flag. Note the severity of issues you discover, and list red flag "+
 			"violations you notice in prioritized order."),
 
-		P("If the user asks for another review, re-read all the requested files for the latest changes with "+
-			"`read_file` before providing your assessment. DO NOT WORK FROM MEMORY. The user will have made changes "+
-			"you need to re-evaluate."),
+		Pf("If the user asks for another review, re-read all the requested files for the latest changes with "+
+			"`%s` before providing your assessment. DO NOT WORK FROM MEMORY. The user will have made changes "+
+			"you need to re-evaluate.", tools.NameReadFile),
 	)
 
 	// Rules (red flags). These come from the second edition of John Ousterhout's book, "A Philosophy of Software Design"

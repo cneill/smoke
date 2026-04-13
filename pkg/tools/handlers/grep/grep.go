@@ -2,6 +2,7 @@ package grep
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -15,6 +16,7 @@ import (
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/formatting"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const (
@@ -166,17 +168,17 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 }
 
 func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLines int64) ([][]string, error) {
-	file, err := os.Open(fullPath)
+	contents, err := os.ReadFile(fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to open file %q: %w", tools.ErrFileSystem, fullPath, err)
+		return nil, fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
-	defer file.Close()
+
+	isBinary := utils.IsBinary(contents)
 
 	var (
-		// lineNum int64
 		lines   = []string{}
 		results = [][]string{}
-		scanner = bufio.NewScanner(file)
+		scanner = bufio.NewScanner(bytes.NewReader(contents))
 	)
 
 	for scanner.Scan() {
@@ -189,32 +191,39 @@ func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLi
 	}
 
 	for lineNum, line := range lines {
-		if pattern.MatchString(line) {
-			context := []string{}
-
-			// add the context preceding the match, if requested
-			if contextLines > 0 {
-				start := max(0, int64(lineNum)-contextLines)
-
-				for i := start; i < int64(lineNum); i++ {
-					context = append(context, fmt.Sprintf("%d: %s", i+1, lines[i]))
-				}
-			}
-
-			// add the matched line, prefixing its line number with '*'
-			context = append(context, fmt.Sprintf("*%d: %s", lineNum+1, line))
-
-			// add the context following the match, if requested
-			if contextLines > 0 {
-				end := min(int64(len(lines)), int64(lineNum+1)+contextLines)
-
-				for i := lineNum + 1; int64(i) < end; i++ {
-					context = append(context, fmt.Sprintf("%d: %s", i+1, lines[i]))
-				}
-			}
-
-			results = append(results, context)
+		if !pattern.MatchString(line) {
+			continue
 		}
+
+		if isBinary {
+			results = append(results, []string{"[binary file matches]"})
+			break
+		}
+
+		context := []string{}
+
+		// add the context preceding the match, if requested
+		if contextLines > 0 {
+			start := max(0, int64(lineNum)-contextLines)
+
+			for i := start; i < int64(lineNum); i++ {
+				context = append(context, fmt.Sprintf("%d: %s", i+1, lines[i]))
+			}
+		}
+
+		// add the matched line, prefixing its line number with '*'
+		context = append(context, fmt.Sprintf("*%d: %s", lineNum+1, line))
+
+		// add the context following the match, if requested
+		if contextLines > 0 {
+			end := min(int64(len(lines)), int64(lineNum+1)+contextLines)
+
+			for i := lineNum + 1; int64(i) < end; i++ {
+				context = append(context, fmt.Sprintf("%d: %s", i+1, lines[i]))
+			}
+		}
+
+		results = append(results, context)
 	}
 
 	return results, nil

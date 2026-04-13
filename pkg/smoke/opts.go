@@ -1,7 +1,9 @@
 package smoke
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -29,7 +31,11 @@ func WithProjectPath(path string) OptFunc {
 
 		gitPath := filepath.Join(absPath, ".git")
 		if _, err := os.Stat(gitPath); err != nil {
-			return nil, fmt.Errorf("failed to stat '.git' directory in project path %q: %w", gitPath, err)
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, fmt.Errorf("specified project path %q is not a git repository", absPath)
+			}
+
+			return nil, fmt.Errorf("failed to stat '.git' directory in project path %q: %w", absPath, err)
 		}
 
 		smoke.projectPath = absPath

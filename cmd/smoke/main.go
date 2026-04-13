@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/log"
@@ -22,7 +23,7 @@ import (
 var ErrInit = errors.New("initialization")
 
 func validate(cmd *cli.Command) error {
-	provider := cmd.String(FlagProvider)
+	provider := strings.ToLower(cmd.String(FlagProvider))
 
 	details, err := getProviders().details(provider)
 	if err != nil {
@@ -31,6 +32,11 @@ func validate(cmd *cli.Command) error {
 
 	if cmd.String(details.apiKeyFlag) == "" {
 		return fmt.Errorf("must supply --%s flag or $%s environment variable", details.apiKeyFlag, details.apiKeyEnvVar)
+	}
+
+	args := cmd.Args()
+	if args.Len() > 1 {
+		return fmt.Errorf("must supply one project directory as an argument (or none for CWD)")
 	}
 
 	return nil
@@ -58,7 +64,7 @@ func setupLogFile(cmd *cli.Command) (*os.File, error) {
 }
 
 func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
-	provider := cmd.String(FlagProvider)
+	provider := strings.ToLower(cmd.String(FlagProvider))
 
 	details, err := getProviders().details(provider)
 	if err != nil {
@@ -112,8 +118,20 @@ func getMCPClients(ctx context.Context, projectPath string, mcpConfigs *config.M
 }
 
 func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, error) {
+	args := cmd.Args()
+
+	projectPath := args.First()
+	if args.Len() == 0 {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current working directory: %w", err)
+		}
+
+		projectPath = cwd
+	}
+
 	sessionName := cmd.String(FlagSessionName)
-	projectPath := cmd.String(FlagDir)
+	// projectPath := cmd.String(FlagDir)
 
 	loadedConfig, err := config.LoadConfig()
 	if err != nil {
@@ -200,11 +218,12 @@ func run(ctx context.Context, cmd *cli.Command) error {
 func main() {
 	command := &cli.Command{
 		Name: "smoke",
-		Description: "An agentic coding assistant primarily focused on the Go programming language. It only works on " +
-			"one directory at a time, and that directory must contain a .git subdirectory.",
-		Usage:  "Smoke 'em if you got 'em.",
-		Flags:  flags(),
-		Action: run,
+		Description: "An agentic coding assistant for the Go programming language that operates within a single git " +
+			"repository.",
+		Usage:     "A coding assistant for Gophers",
+		UsageText: "smoke [global options] [project path]",
+		Flags:     flags(),
+		Action:    run,
 		OnUsageError: func(_ context.Context, _ *cli.Command, err error, _ bool) error {
 			return fmt.Errorf("%w: %w", ErrInit, err)
 		},
@@ -214,8 +233,8 @@ func main() {
 	err := command.Run(context.TODO(), os.Args)
 	if err != nil {
 		if errors.Is(err, ErrInit) {
-			if err := cli.ShowAppHelp(command); err != nil {
-				fmt.Printf("error: %v\n", err)
+			if helpErr := cli.ShowAppHelp(command); helpErr != nil {
+				fmt.Printf("error: %v\n", helpErr)
 				os.Exit(1)
 			}
 
