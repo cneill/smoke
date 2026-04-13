@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/log"
@@ -22,7 +23,7 @@ import (
 var ErrInit = errors.New("initialization")
 
 func validate(cmd *cli.Command) error {
-	provider := cmd.String(FlagProvider)
+	provider := strings.ToLower(cmd.String(FlagProvider))
 
 	details, err := getProviders().details(provider)
 	if err != nil {
@@ -63,7 +64,7 @@ func setupLogFile(cmd *cli.Command) (*os.File, error) {
 }
 
 func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
-	provider := cmd.String(FlagProvider)
+	provider := strings.ToLower(cmd.String(FlagProvider))
 
 	details, err := getProviders().details(provider)
 	if err != nil {
