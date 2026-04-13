@@ -25,9 +25,7 @@ func (s *Smoke) setup() error {
 		return fmt.Errorf("failed to set up plan manager for smoke: %w", err)
 	}
 
-	if err := s.setupSkills(); err != nil {
-		return fmt.Errorf("failed to set up skills: %w", err)
-	}
+	s.setupSkills()
 
 	if err := s.setupLLM(); err != nil {
 		return fmt.Errorf("failed to set up LLM: %w", err)
@@ -67,15 +65,9 @@ func (s *Smoke) setupPlanManager() error {
 	return nil
 }
 
-func (s *Smoke) setupSkills() error {
-	catalog, err := skills.Discover(s.projectPath)
-	if err != nil {
-		return fmt.Errorf("failed to discover skills: %w", err)
-	}
-
+func (s *Smoke) setupSkills() {
+	catalog := skills.Discover(s.projectPath)
 	s.skillCatalog = catalog
-
-	return nil
 }
 
 func (s *Smoke) setupLLM() error {

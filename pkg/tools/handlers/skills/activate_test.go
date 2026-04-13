@@ -143,16 +143,6 @@ func TestActivateSkill_SetSkillCatalog(t *testing.T) {
 	assert.Len(t, tool.Params()[0].EnumStringValues, 2)
 }
 
-func TestActivateSkill_Examples(t *testing.T) {
-	t.Parallel()
-
-	tool := newTool(testCatalog())
-	examples := tool.Examples()
-
-	require.Len(t, examples, 1)
-	assert.Contains(t, examples[0].Description, "golang-testing")
-}
-
 func TestActivateSkill_ExamplesEmpty(t *testing.T) {
 	t.Parallel()
 

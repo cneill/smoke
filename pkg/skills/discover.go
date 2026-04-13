@@ -18,7 +18,7 @@ const agentsSkillsDir = ".agents/skills"
 // Each location is scanned for immediate subdirectories containing a SKILL.md file. Skills are deduplicated by name,
 // with project-level skills taking precedence over user-level skills. Invalid skill files are logged as warnings but
 // do not cause the overall discovery to fail.
-func Discover(projectPath string) (Catalog, error) {
+func Discover(projectPath string) Catalog {
 	// Use a map keyed by skill name for deduplication. We scan home first, then project, so project overwrites.
 	byName := map[string]*Skill{}
 	order := []string{}
@@ -58,7 +58,7 @@ func Discover(projectPath string) (Catalog, error) {
 		catalog = append(catalog, byName[name])
 	}
 
-	return catalog, nil
+	return catalog
 }
 
 // discoverInDir scans a single directory for subdirectories containing a SKILL.md file, parses each, and returns the
@@ -81,14 +81,6 @@ func discoverInDir(dir string) []*Skill {
 		}
 
 		skillPath := filepath.Join(dir, entry.Name(), skillFileName)
-
-		if _, err := os.Stat(skillPath); err != nil {
-			if !errors.Is(err, fs.ErrNotExist) {
-				slog.Warn("failed to stat skill file", "path", skillPath, "error", err)
-			}
-
-			continue
-		}
 
 		skill, err := ParseSkillFile(skillPath)
 		if err != nil {

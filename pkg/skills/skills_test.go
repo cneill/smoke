@@ -251,8 +251,7 @@ Project body.
 
 	t.Setenv("HOME", homeDir)
 
-	catalog, err := skills.Discover(projectDir)
-	require.NoError(t, err)
+	catalog := skills.Discover(projectDir)
 
 	require.Len(t, catalog, 1)
 	assert.Equal(t, "shared-skill", catalog[0].Name)
@@ -285,8 +284,7 @@ Project.
 
 	t.Setenv("HOME", homeDir)
 
-	catalog, err := skills.Discover(projectDir)
-	require.NoError(t, err)
+	catalog := skills.Discover(projectDir)
 
 	require.Len(t, catalog, 2)
 	assert.Equal(t, "home-skill", catalog[0].Name)
@@ -299,8 +297,7 @@ func TestDiscover_NoSkillsDirs(t *testing.T) {
 
 	t.Setenv("HOME", homeDir)
 
-	catalog, err := skills.Discover(projectDir)
-	require.NoError(t, err)
+	catalog := skills.Discover(projectDir)
 	assert.Empty(t, catalog)
 }
 
@@ -327,8 +324,7 @@ Good body.
 
 	t.Setenv("HOME", homeDir)
 
-	catalog, err := skills.Discover(projectDir)
-	require.NoError(t, err)
+	catalog := skills.Discover(projectDir)
 
 	require.Len(t, catalog, 1)
 	assert.Equal(t, "good-skill", catalog[0].Name)

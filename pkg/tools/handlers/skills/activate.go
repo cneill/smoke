@@ -53,20 +53,10 @@ func (a *ActivateSkill) Description() string {
 }
 
 func (a *ActivateSkill) Examples() tools.Examples {
-	if len(a.catalog) == 0 {
-		return tools.Examples{
-			{
-				Description: "Activate a skill called \"my-skill\"",
-				Args:        tools.Args{ParamName: "my-skill"},
-			},
-		}
-	}
-
-	// Use the first skill in the catalog as the example.
 	return tools.Examples{
 		{
-			Description: fmt.Sprintf("Activate the %q skill", a.catalog[0].Name),
-			Args:        tools.Args{ParamName: a.catalog[0].Name},
+			Description: "Activate a skill called \"my-skill\"",
+			Args:        tools.Args{ParamName: "my-skill"},
 		},
 	}
 }
