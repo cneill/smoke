@@ -21,6 +21,7 @@ import (
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/prompts"
+	"github.com/cneill/smoke/pkg/skills"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers"
 )
@@ -35,6 +36,8 @@ type Smoke struct {
 	projectPath string
 
 	planManager *plan.Manager
+
+	skillCatalog skills.Catalog
 
 	mainSessionName  string
 	mainSystemPrompt string

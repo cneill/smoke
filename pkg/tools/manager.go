@@ -8,6 +8,7 @@ import (
 
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/plan"
+	"github.com/cneill/smoke/pkg/skills"
 )
 
 type ManagerOpts struct {
@@ -15,6 +16,7 @@ type ManagerOpts struct {
 	SessionName      string
 	ToolInitializers []Initializer
 	PlanManager      *plan.Manager
+	SkillCatalog     skills.Catalog
 }
 
 func (m *ManagerOpts) OK() error {
@@ -39,6 +41,7 @@ type Manager struct {
 	tools        Tools
 	toolMutex    sync.RWMutex
 	planManager  *plan.Manager
+	skillCatalog skills.Catalog
 
 	teaEmitter uimsg.TeaEmitter
 }
@@ -56,6 +59,7 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 		initializers: opts.ToolInitializers,
 		toolMutex:    sync.RWMutex{},
 		planManager:  opts.PlanManager,
+		skillCatalog: opts.SkillCatalog,
 	}
 
 	if opts.ToolInitializers != nil {
@@ -104,6 +108,10 @@ func (m *Manager) InitTools(initializers ...Initializer) {
 
 		if wpm, ok := tool.(WantsPlanManager); ok {
 			wpm.SetPlanManager(m.planManager)
+		}
+
+		if wsc, ok := tool.(WantsSkillCatalog); ok {
+			wsc.SetSkillCatalog(m.skillCatalog)
 		}
 
 		tools = append(tools, tool)

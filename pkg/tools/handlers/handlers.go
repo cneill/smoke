@@ -17,6 +17,7 @@ import (
 	planread "github.com/cneill/smoke/pkg/tools/handlers/plan/read"
 	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
 	"github.com/cneill/smoke/pkg/tools/handlers/readfile"
+	skillshandler "github.com/cneill/smoke/pkg/tools/handlers/skills"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
 )
 
@@ -39,6 +40,7 @@ func AllTools() []tools.Initializer {
 		// TODO: figure out how to actually support images w/ multimodal models
 		// playwright.New,
 		readfile.New,
+		skillshandler.New,
 		// replacelines.New,
 		// summarize.New,
 		writefile.New,
@@ -62,6 +64,7 @@ func PlanningTools() []tools.Initializer {
 		planread.New,
 		planupdate.New,
 		readfile.New,
+		skillshandler.New,
 	}
 }
 
@@ -78,6 +81,7 @@ func ReviewTools() []tools.Initializer {
 		planread.New,
 		planupdate.New,
 		readfile.New,
+		skillshandler.New,
 	}
 }
 
