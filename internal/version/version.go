@@ -19,8 +19,9 @@ var Date string //nolint:gochecknoglobals
 // Priority:
 //  1. Version (if provided via ldflags, e.g., a tag like v1.2.3)
 //  2. Commit (if provided via ldflags), + "dev-" prefix
-//  3. Short SHA from Go build info (vcs.revision), if present, + "dev-" prefix
-//  4. "dev"
+//  3. Go module version (if no "-" / "+" indicating dirty/unreleased)
+//  4. Short SHA from Go build info (vcs.revision), if present, + "dev-" prefix
+//  5. "dev"
 func String() string {
 	if v := strings.TrimSpace(Version); v != "" {
 		return v
@@ -30,12 +31,21 @@ func String() string {
 		return shaVersion(c)
 	}
 
-	if bi, ok := debug.ReadBuildInfo(); ok {
-		for _, s := range bi.Settings {
-			if s.Key == "vcs.revision" {
-				if s.Value != "" {
-					return shaVersion(s.Value)
-				}
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+
+	goVersion := buildInfo.Main.Version
+
+	if goVersion != "" && !strings.Contains(goVersion, "-") && !strings.Contains(goVersion, "+") {
+		return strings.TrimPrefix(goVersion, "v")
+	}
+
+	for _, s := range buildInfo.Settings {
+		if s.Key == "vcs.revision" {
+			if s.Value != "" {
+				return shaVersion(s.Value)
 			}
 		}
 	}
