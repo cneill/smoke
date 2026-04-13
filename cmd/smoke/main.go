@@ -131,7 +131,6 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 	}
 
 	sessionName := cmd.String(FlagSessionName)
-	// projectPath := cmd.String(FlagDir)
 
 	loadedConfig, err := config.LoadConfig()
 	if err != nil {
