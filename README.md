@@ -20,6 +20,8 @@ messy in some places, documentation is sparse to nonexistent, and there are like
 
 ## CLI Usage
 
+`smoke [flags] [project path]`
+
 ```
 GLOBAL OPTIONS:
    --help, -h     show help
@@ -34,9 +36,8 @@ GLOBAL OPTIONS:
 
    Local Configuration
 
-   --debug, -D                    Enable debug logging. [$SMOKE_DEBUG]
-   --dir DIRECTORY, -d DIRECTORY  The DIRECTORY where your project lives. [$SMOKE_DIRECTORY]
-   --session NAME, -s NAME        The NAME of the session, which will be used to derive the log file and plan file names (default: "session") [$SMOKE_SESSION]
+   --debug, -D              Enable debug logging. [$SMOKE_DEBUG]
+   --session NAME, -s NAME  The NAME of the session, which will be used to derive the log file and plan file names (default: "session") [$SMOKE_SESSION]
 
    Providers
 
@@ -48,35 +49,56 @@ GLOBAL OPTIONS:
 ### Example invocation
 
 ```bash
-smoke -D -t 8192 -T 1 -d . -p grok -m code
+smoke -D -p chatgpt -m 5.4 ~/projects/example
 ```
 
 ### Example config file
 
-Smoke will create a config file in `~/.config/smoke/config.json` if one does not already exist. The API key fields do
-not actually do anything at this point. It is primarily useful for defining MCP servers. The default config file
-contains a fake MCP server that you'll want to delete.
+Smoke will create a default config file in `~/.config/smoke/config.json` if one does not already exist. Right now it's
+only useful for configuring MCP servers. The default config includes support for the [`gopls` MCP server][gopls_server]
+out of the box.
+
 
 ```json
 {
-  "providers": {
-    "anthropic_key": "",
-    "openai_key": "",
-    "xai_key": ""
-  },
-  "mcp": {
-    "servers": [
-      {
-        "name": "gopls",
-        "command": "gopls",
-        "args": ["mcp"],
-        "enabled": true,
-        "allowed_tools": ["go_*"],
-        "denied_tools": [],
-        "plan_tools": ["go_*"],
-        "env": null
-      }
-    ]
-  }
+    "mcp": {
+        "servers": [
+            {
+                "name": "example",
+                "command": "example_tool",
+                "args": [
+                    "arg1",
+                    "arg2"
+                ],
+                "enabled": false,
+                "allowed_tools": [],
+                "denied_tools": [
+                    "dangerous_*",
+                    "evil_tool"
+                ],
+                "plan_tools": [],
+                "env": [
+                    {
+                        "var": "EXAMPLE_ENV_VAR",
+                        "value": "EXAMPLE VALUE"
+                    }
+                ]
+            },
+            {
+                "name": "gopls",
+                "command": "gopls",
+                "args": [
+                    "mcp"
+                ],
+                "enabled": true,
+                "allowed_tools": [],
+                "denied_tools": [],
+                "plan_tools": [],
+                "env": null
+            }
+        ]
+    }
 }
 ```
+
+[gopls_server]: https://go.dev/gopls/features/mcp
