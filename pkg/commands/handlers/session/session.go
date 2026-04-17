@@ -34,7 +34,7 @@ func (s *Session) Help() string {
 }
 
 func (s *Session) Usage() string {
-	return "/session <new|clear>"
+	return "session <new|clear>"
 }
 
 func (s *Session) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {

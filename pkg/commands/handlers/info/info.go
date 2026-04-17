@@ -30,7 +30,7 @@ func (i *Info) Help() string {
 }
 
 func (i *Info) Usage() string {
-	return "/info [--system]"
+	return "info [--system]"
 }
 
 func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {

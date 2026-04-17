@@ -4,7 +4,6 @@ package input
 
 import (
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -30,6 +29,7 @@ type Opts struct {
 	MaxHeight        int
 	PlaceholderText  string
 	CommandCompleter func(string) []string
+	SkillCompleter   func(string) []string
 }
 
 func (o *Opts) OK() error {
@@ -40,6 +40,8 @@ func (o *Opts) OK() error {
 		return fmt.Errorf("height must be >0")
 	case o.CommandCompleter == nil:
 		return fmt.Errorf("must supply a command completer")
+	case o.SkillCompleter == nil:
+		return fmt.Errorf("must supply a skill completer")
 	}
 
 	return nil
@@ -67,9 +69,7 @@ type Model struct {
 	pendingD bool
 	lastD    time.Time
 
-	commandCompleter        func(string) []string
-	userCompletionText      string
-	suggestedCompletionText string
+	completionState *CompletionState
 
 	topLineBorderFocused     lipgloss.Style
 	topLineBorderBlurred     lipgloss.Style
@@ -91,11 +91,16 @@ func New(opts *Opts) (*Model, error) {
 		return nil, fmt.Errorf("options error: %w", err)
 	}
 
+	cs, err := NewCompletionState(opts.CommandCompleter, opts.SkillCompleter)
+	if err != nil {
+		return nil, fmt.Errorf("error setting up completion state: %w", err)
+	}
+
 	model := &Model{
 		textarea: getTextArea(opts),
 		spinner:  getSpinner(opts.Width, opts.Height),
 
-		commandCompleter: opts.CommandCompleter,
+		completionState: cs,
 
 		mode: modeInsert,
 
@@ -315,11 +320,10 @@ func (m *Model) topLineView() string {
 	border := borderStyle.Render(strings.Repeat("▄", totalWidth-usageWidth) + "█")
 
 	// add the prompt command completion suggestions above the "/" in the topline
-	if m.suggestedCompletionText != "" {
-		completionSuggestion := m.userCompletionText + m.suggestedCompletionText
-		suggestionWidth := lipgloss.Width(completionSuggestion)
+	if completion := m.completionState.CompletionText(); completion != "" {
+		suggestionWidth := lipgloss.Width(completion)
 		border = borderStyle.Render(strings.Repeat("▄", 2)) +
-			suggestionStyle.Render(completionSuggestion) +
+			suggestionStyle.Render(completion) +
 			borderStyle.Render(strings.Repeat("▄", totalWidth-usageWidth-suggestionWidth-2)+"█")
 	}
 
@@ -381,8 +385,12 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		}
 	}
 
-	if (keyMsg.String() == "/" && m.textarea.Value() == "") || m.userCompletionText != "" {
-		return m.handleCommandCompletion(keyMsg)
+	if m.completionState.HandleUserCompletionKey(keyMsg, m.textarea.Value()) {
+		var cmd tea.Cmd
+
+		m.textarea, cmd = m.textarea.Update(msg)
+
+		return cmd
 	}
 
 	// don't send key updates to the textarea when scrolling the history viewport
@@ -403,38 +411,6 @@ func (m *Model) setMode(newMode mode) {
 	} else {
 		m.textarea.Prompt = normalPrompt
 	}
-}
-
-func (m *Model) handleCommandCompletion(msg tea.KeyMsg) tea.Cmd {
-	var cmd tea.Cmd
-
-	m.textarea, cmd = m.textarea.Update(msg)
-
-	// TODO: handle tab/up(?) to fill in suggested text
-	if msg.Type == tea.KeyBackspace {
-		m.userCompletionText = m.userCompletionText[:len(m.userCompletionText)-1]
-	} else {
-		m.userCompletionText += msg.String()
-	}
-
-	if m.userCompletionText == "" {
-		m.suggestedCompletionText = ""
-		return cmd
-	}
-
-	cmdPart := strings.TrimPrefix(m.userCompletionText, "/")
-	options := m.commandCompleter(cmdPart)
-
-	if len(options) == 0 {
-		m.suggestedCompletionText = ""
-		return nil
-	}
-
-	m.suggestedCompletionText = strings.TrimPrefix(options[0], m.userCompletionText)
-
-	slog.Debug("handling command completion", "user", m.userCompletionText, "suggested", m.suggestedCompletionText)
-
-	return cmd
 }
 
 func (m *Model) handleSpinnerMsg(msg tea.Msg) tea.Cmd {
@@ -522,8 +498,7 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 	fields := strings.Fields(content)
 	cmdName := strings.TrimPrefix(fields[0], "/")
 
-	m.userCompletionText = ""
-	m.suggestedCompletionText = ""
+	m.completionState.Reset()
 
 	args := []string{}
 	if len(fields) > 1 {

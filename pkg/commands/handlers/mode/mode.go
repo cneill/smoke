@@ -39,7 +39,7 @@ func (m *Mode) Help() string {
 }
 
 func (m *Mode) Usage() string {
-	return fmt.Sprintf("/mode <%s>", selectableModes("|"))
+	return fmt.Sprintf("mode <%s>", selectableModes("|"))
 }
 
 func (m *Mode) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {

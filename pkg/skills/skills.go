@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -71,6 +72,22 @@ func (c Catalog) Names() []string {
 	}
 
 	return results
+}
+
+func (c Catalog) Completer() func(string) []string {
+	return func(input string) []string {
+		results := []string{}
+
+		for _, skill := range c {
+			if strings.HasPrefix(skill.Name, input) || input == "" {
+				results = append(results, skill.Name)
+			}
+		}
+
+		slices.Sort(results)
+
+		return results
+	}
 }
 
 // ParseSkillFile reads a SKILL.md file at the given path and returns a parsed Skill.

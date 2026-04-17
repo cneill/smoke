@@ -35,7 +35,7 @@ func (h *Help) Help() string {
 }
 
 func (h *Help) Usage() string {
-	return "/help"
+	return "help"
 }
 
 func (h *Help) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {

@@ -76,6 +76,7 @@ func New(opts *Opts) (*Model, error) {
 		MaxHeight:        5,
 		PlaceholderText:  "Enter your message...",
 		CommandCompleter: opts.Smoke.CommandCompleter(),
+		SkillCompleter:   opts.Smoke.SkillCompleter(),
 	}
 
 	inputModel, err := input.New(inputOpts)

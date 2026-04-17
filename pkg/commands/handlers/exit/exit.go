@@ -25,7 +25,7 @@ func (e *Exit) Help() string {
 }
 
 func (e *Exit) Usage() string {
-	return "/exit"
+	return "exit"
 }
 
 func (e *Exit) Run(_ context.Context, _ commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {

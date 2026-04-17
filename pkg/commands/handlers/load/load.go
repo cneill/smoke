@@ -30,7 +30,7 @@ func (l *Load) Help() string {
 }
 
 func (l *Load) Usage() string {
-	return "/load <path>"
+	return "load <path>"
 }
 
 func (l *Load) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
