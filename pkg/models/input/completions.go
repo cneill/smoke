@@ -88,13 +88,13 @@ func (c *CompletionState) HandleUserCompletionKey(msg tea.KeyMsg, currentText st
 
 	// user has cleared the whole completion text
 	if c.userText == "" {
-		c.completionType = CompletionTypeNone
-		c.suggestedText = ""
+		c.Reset()
 	}
 
 	return true
 }
 
+// CompletionText returns the full text that will be displayed in the autocompletion line
 func (c *CompletionState) CompletionText() string {
 	var options []string
 
@@ -103,12 +103,8 @@ func (c *CompletionState) CompletionText() string {
 		return ""
 	case CompletionTypeCommand:
 		options = c.commandCompleter(strings.TrimPrefix(c.userText, "/"))
-
 	case CompletionTypeSkill:
 		options = c.skillCompleter(strings.TrimPrefix(c.userText, "$"))
-
-	default:
-		return ""
 	}
 
 	if len(options) == 0 {
