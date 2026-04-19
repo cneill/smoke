@@ -81,52 +81,58 @@ func TestActivateSkill_Params(t *testing.T) {
 	assert.Equal(t, []string{"golang-testing", "code-review"}, params[0].EnumStringValues)
 }
 
-func TestActivateSkill_RunSuccess(t *testing.T) {
+func TestActivateSkill_Run(t *testing.T) {
 	t.Parallel()
 
-	tool := newTool(testCatalog())
-	args := tools.Args{"name": "golang-testing"}
-
-	output, err := tool.Run(context.Background(), args)
-	require.NoError(t, err)
-
-	assert.Equal(t, "Write table-driven tests.\nUse testify for assertions.\n", output.Text)
-}
-
-func TestActivateSkill_RunUnknownSkill(t *testing.T) {
-	t.Parallel()
-
-	tool := newTool(testCatalog())
-	args := tools.Args{"name": "nonexistent"}
-
-	_, err := tool.Run(context.Background(), args)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, tools.ErrArguments)
-}
-
-func TestActivateSkill_RunNoName(t *testing.T) {
-	t.Parallel()
-
-	tool := newTool(testCatalog())
-	args := tools.Args{}
-
-	_, err := tool.Run(context.Background(), args)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, tools.ErrArguments)
-}
-
-func TestActivateSkill_RunEmptyBody(t *testing.T) {
-	t.Parallel()
-
-	catalog := skills.Catalog{
-		{Name: "empty", Description: "An empty skill", Body: ""},
+	tests := []struct {
+		name       string
+		catalog    skills.Catalog
+		args       tools.Args
+		wantOutput string
+		wantErr    error
+	}{
+		{
+			name:       "success",
+			catalog:    testCatalog(),
+			args:       tools.Args{"name": "golang-testing"},
+			wantOutput: "Write table-driven tests.\nUse testify for assertions.\n",
+		},
+		{
+			name:    "unknown_skill",
+			catalog: testCatalog(),
+			args:    tools.Args{"name": "nonexistent"},
+			wantErr: tools.ErrArguments,
+		},
+		{
+			name:    "no_name",
+			catalog: testCatalog(),
+			args:    tools.Args{},
+			wantErr: tools.ErrArguments,
+		},
+		{
+			name:       "empty_body",
+			catalog:    skills.Catalog{{Name: "empty", Description: "An empty skill", Body: ""}},
+			args:       tools.Args{"name": "empty"},
+			wantOutput: "no body content",
+		},
 	}
-	tool := newTool(catalog)
-	args := tools.Args{"name": "empty"}
 
-	output, err := tool.Run(context.Background(), args)
-	require.NoError(t, err)
-	assert.Contains(t, output.Text, "no body content")
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			tool := newTool(test.catalog)
+
+			output, err := tool.Run(context.Background(), test.args)
+			if test.wantErr == nil {
+				require.NoError(t, err)
+				require.NotNil(t, output)
+				assert.Contains(t, output.Text, test.wantOutput)
+			} else {
+				require.ErrorIs(t, err, test.wantErr)
+			}
+		})
+	}
 }
 
 func TestActivateSkill_SetSkillCatalog(t *testing.T) {
