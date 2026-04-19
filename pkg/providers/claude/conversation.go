@@ -163,13 +163,16 @@ func (c *conversation) sendStream(ctx context.Context) error {
 			continue
 		}
 
+		// TODO: handle MessageStartEvent, ContentBlockStartEvent, ContentBlockStopEvent, MessageDeltaEvent,
+		// MessageStopEvent, etc
+
 		switch deltaType := chunkType.Delta.AsAny().(type) {
 		case anthropic.TextDelta:
 			c.emit(ctx, llms.EventTextDelta{
 				ID:   accumulator.ID,
 				Text: deltaType.Text,
 			})
-		// TODO: other delta types?
+		// TODO: handle InputJSONDelta type?
 		default:
 			slog.Warn("unknown delta type", "type", fmt.Sprintf("%T", chunkType.Delta.AsAny()))
 			continue
