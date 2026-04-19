@@ -29,7 +29,7 @@ func (r *Run) Help() string {
 }
 
 func (r *Run) Usage() string {
-	return "/run <tool_name> <args_json>"
+	return "run <tool_name> <args_json>"
 }
 
 func (r *Run) Run(ctx context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {

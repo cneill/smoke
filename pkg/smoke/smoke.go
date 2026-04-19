@@ -21,6 +21,7 @@ import (
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/prompts"
+	"github.com/cneill/smoke/pkg/skills"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers"
 )
@@ -35,6 +36,8 @@ type Smoke struct {
 	projectPath string
 
 	planManager *plan.Manager
+
+	skillCatalog skills.Catalog
 
 	mainSessionName  string
 	mainSystemPrompt string
@@ -562,6 +565,10 @@ func (s *Smoke) HandleCommand(msg commands.PromptMessage) (tea.Cmd, error) {
 
 func (s *Smoke) CommandCompleter() func(string) []string {
 	return s.commands.Completer()
+}
+
+func (s *Smoke) SkillCompleter() func(string) []string {
+	return s.skillCatalog.Completer()
 }
 
 // TODO: this feels wrong...

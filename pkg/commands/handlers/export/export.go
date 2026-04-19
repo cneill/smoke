@@ -31,7 +31,7 @@ func (e *Export) Help() string {
 }
 
 func (e *Export) Usage() string {
-	return "/export [path]"
+	return "export [path]"
 }
 
 func (e *Export) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {

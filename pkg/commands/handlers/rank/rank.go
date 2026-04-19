@@ -89,7 +89,7 @@ func (r *Rank) Help() string {
 }
 
 func (r *Rank) Usage() string {
-	return "/rank [--batch-size N] [--iterations N] [--top N] <list_file> <description>"
+	return "rank [--batch-size N] [--iterations N] [--top N] <list_file> <description>"
 }
 
 func (r *Rank) SetTeaEmitter(emitter uimsg.TeaEmitter) {

@@ -11,6 +11,7 @@ import (
 	"github.com/cneill/smoke/pkg/providers/chatgpt"
 	"github.com/cneill/smoke/pkg/providers/claude"
 	"github.com/cneill/smoke/pkg/providers/grok"
+	"github.com/cneill/smoke/pkg/skills"
 	"github.com/cneill/smoke/pkg/tools"
 	toolhandlers "github.com/cneill/smoke/pkg/tools/handlers"
 )
@@ -23,6 +24,8 @@ func (s *Smoke) setup() error {
 	if err := s.setupPlanManager(); err != nil {
 		return fmt.Errorf("failed to set up plan manager for smoke: %w", err)
 	}
+
+	s.setupSkills()
 
 	if err := s.setupLLM(); err != nil {
 		return fmt.Errorf("failed to set up LLM: %w", err)
@@ -60,6 +63,11 @@ func (s *Smoke) setupPlanManager() error {
 	s.planManager = planManager
 
 	return nil
+}
+
+func (s *Smoke) setupSkills() {
+	catalog := skills.Discover(s.projectPath)
+	s.skillCatalog = catalog
 }
 
 func (s *Smoke) setupLLM() error {
@@ -167,6 +175,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 		SessionName:      s.mainSessionName,
 		ToolInitializers: initList,
 		PlanManager:      s.planManager,
+		SkillCatalog:     s.skillCatalog,
 	}
 
 	toolManager, err := tools.NewManager(toolOpts)

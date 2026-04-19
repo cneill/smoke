@@ -1,3 +1,4 @@
+.git
 cmd/smoke/smoke
 logs/
 *.log

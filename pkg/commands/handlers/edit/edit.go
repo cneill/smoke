@@ -53,7 +53,7 @@ func (e *Edit) Help() string {
 }
 
 func (e *Edit) Usage() string {
-	return "/edit [last|all]"
+	return "edit [last|all]"
 }
 
 func (e *Edit) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {

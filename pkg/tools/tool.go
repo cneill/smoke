@@ -7,6 +7,7 @@ import (
 
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/plan"
+	"github.com/cneill/smoke/pkg/skills"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -52,6 +53,13 @@ type (
 
 		// SetTeaEmitter provides a message emitter for the Bubbletea event loop to a tool that needs it.
 		SetTeaEmitter(emitter uimsg.TeaEmitter)
+	}
+
+	WantsSkillCatalog interface {
+		Tool
+
+		// SetSkillCatalog provides the skills catalog to a tool that needs it.
+		SetSkillCatalog(catalog skills.Catalog)
 	}
 )
 

@@ -31,7 +31,7 @@ func (s *Save) Help() string {
 }
 
 func (s *Save) Usage() string {
-	return "/save [path]"
+	return "save [path]"
 }
 
 func (s *Save) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {

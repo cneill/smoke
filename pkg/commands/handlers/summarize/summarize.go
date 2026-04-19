@@ -59,7 +59,7 @@ func (s *Summarize) Help() string {
 }
 
 func (s *Summarize) Usage() string {
-	return "/summarize [--first N | --last N | --before TIME | --after TIME]"
+	return "summarize [--first N | --last N | --before TIME | --after TIME]"
 }
 
 // TODO: make this work like /rank, don't push all the logic to Smoke

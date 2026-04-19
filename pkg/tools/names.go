@@ -1,6 +1,7 @@
 package tools
 
 const (
+	NameActivateSkill    = "activate_skill"
 	NameDDG              = "duck_duck_go"
 	NameEdit             = "edit"
 	NameEditPlan         = "edit_plan"
