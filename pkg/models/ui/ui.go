@@ -162,6 +162,9 @@ func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
 		m.history.Resize(width, m.history.GetHeight()-delta)
 		m.input.Resize(width, lineHeight)
 
+	case input.ShiftModeMessage:
+		m.smoke.ShiftMode()
+
 	case input.UserMessage:
 		llmMessage := llms.SimpleMessage(llms.RoleUser, msg.Content)
 		cmds = append(cmds, updateHistory(llmMessage))

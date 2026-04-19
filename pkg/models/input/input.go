@@ -228,9 +228,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	}
 
 	if m.LineHeight() != startHeight {
-		commands = append(commands, func() tea.Msg {
-			return ResizeMessage{}
-		})
+		commands = append(commands, uimsg.MsgToCmd(ResizeMessage{}))
 	}
 
 	return m, tea.Batch(commands...)
@@ -367,6 +365,9 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		m.textarea.Blur()
 
 		return nil
+
+	case tea.KeyShiftTab:
+		return uimsg.MsgToCmd(ShiftModeMessage{})
 
 	case tea.KeyUp, tea.KeyDown:
 		// scroll up and down through previous user messages

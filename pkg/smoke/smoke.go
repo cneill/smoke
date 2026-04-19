@@ -553,6 +553,22 @@ func (s *Smoke) SetMode(mode llms.Mode) error {
 	return nil
 }
 
+func (s *Smoke) ShiftMode() error {
+	session := s.getMainSession()
+	if session == nil {
+		return fmt.Errorf("no main session found")
+	}
+
+	switch session.GetMode() {
+	case llms.ModePlanning, llms.ModeRanking, llms.ModeReview, llms.ModeSummarize:
+		return s.SetMode(llms.ModeWork)
+	case llms.ModeWork:
+		return s.SetMode(llms.ModePlanning)
+	}
+
+	return nil
+}
+
 // HandleCommand invokes a prompt command provided by the user.
 func (s *Smoke) HandleCommand(msg commands.PromptMessage) (tea.Cmd, error) {
 	cmd, err := s.commands.HandleCommand(s.getMainSession(), msg)
