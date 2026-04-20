@@ -73,6 +73,7 @@ func (m *Model) handleVimInsertKey(key string) tea.Cmd {
 
 	m.setMode(modeInsert)
 	m.textarea.Focus()
+	m.statusline.SetFocus(true)
 
 	switch key {
 	case "i":
