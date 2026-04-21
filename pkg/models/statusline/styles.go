@@ -45,7 +45,7 @@ func InitStyles() Styles {
 			Background(orange).
 			Bold(true),
 		SuggestionBlurred: suggestionBase.
-			Background(lightgray),
+			Background(darkgray),
 
 		UsageFocused: usageBase.
 			Foreground(brightgreen).

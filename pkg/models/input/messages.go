@@ -25,3 +25,9 @@ func (c CancelUserMessage) isInputMessage() {}
 type ShiftModeMessage struct{}
 
 func (s ShiftModeMessage) isInputMessage() {}
+
+type CompletionMessage struct {
+	Text string
+}
+
+func (c CompletionMessage) isInputMessage() {}

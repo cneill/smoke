@@ -61,7 +61,7 @@ const (
 )
 
 type Model struct {
-	statusline statusline.Model
+	statusline *statusline.Model
 	textarea   textarea.Model
 	spinner    spinner.Model
 
@@ -90,7 +90,7 @@ func New(opts *Opts) (*Model, error) {
 	}
 
 	model := &Model{
-		statusline: *statusline.New(opts.Width),
+		statusline: statusline.New(opts.Width),
 		textarea:   getTextArea(opts),
 		spinner:    getSpinner(opts.Width, opts.Height),
 
@@ -189,9 +189,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		commands = append(commands, uimsg.MsgToCmd(ResizeMessage{}))
 	}
 
-	m.statusline.Update(statusline.SuggestionMessage{
-		CompletionText: m.completionState.CompletionText(),
-	})
+	if cmd := m.handleStatuslineMsg(msg); cmd != nil {
+		commands = append(commands, cmd)
+	}
 
 	return m, tea.Batch(commands...)
 }
@@ -259,13 +259,6 @@ func (m *Model) SetWaiting(value bool) tea.Cmd {
 	return nil
 }
 
-func (m *Model) UpdateUsage(inputTokens, outputTokens int64) {
-	m.statusline.Update(statusline.UsageMessage{
-		InputTokens:  inputTokens,
-		OutputTokens: outputTokens,
-	})
-}
-
 func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok && !m.waiting {
@@ -295,7 +288,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 
 		// insert -> normal mode
 		if m.mode == modeInsert {
-			m.setMode(modeNormal)
+			m.setInputMode(modeNormal)
 			return nil
 		}
 
@@ -325,12 +318,11 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		}
 	}
 
-	if m.completionState.HandleUserCompletionKey(keyMsg, m.textarea.Value()) {
-		var cmd tea.Cmd
+	if cmd := m.completionState.HandleUserCompletionKey(keyMsg, m.textarea.Value()); cmd != nil {
+		newTextarea, textareaCmd := m.textarea.Update(msg)
+		m.textarea = newTextarea
 
-		m.textarea, cmd = m.textarea.Update(msg)
-
-		return cmd
+		return tea.Batch(cmd, textareaCmd)
 	}
 
 	// don't send key updates to the textarea when scrolling the history viewport
@@ -344,7 +336,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) setMode(newMode mode) {
+func (m *Model) setInputMode(newMode mode) {
 	m.mode = newMode
 	if m.mode == modeInsert {
 		m.textarea.Prompt = insertPrompt
@@ -449,4 +441,17 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 		Command: cmdName,
 		Args:    args,
 	})
+}
+
+func (m *Model) handleStatuslineMsg(msg tea.Msg) tea.Cmd {
+	if completionMsg, ok := msg.(CompletionMessage); ok {
+		msg = statusline.CompletionMessage{
+			Text: completionMsg.Text,
+		}
+	}
+
+	newStatusline, cmd := m.statusline.Update(msg)
+	m.statusline = newStatusline
+
+	return cmd
 }

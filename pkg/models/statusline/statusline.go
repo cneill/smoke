@@ -6,12 +6,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/smoke"
 )
 
 type Model struct {
 	focused        bool
+	modelMode      llms.Mode
 	width          int
-	suggestionText string
+	completionText string
 	inputTokens    int64
 	outputTokens   int64
 	styles         Styles
@@ -34,12 +37,14 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	commands := []tea.Cmd{}
 
-	switch v := msg.(type) {
-	case SuggestionMessage:
-		m.suggestionText = v.CompletionText
-	case UsageMessage:
-		m.inputTokens = v.InputTokens
-		m.outputTokens = v.OutputTokens
+	switch msg := msg.(type) {
+	case CompletionMessage:
+		m.completionText = msg.Text
+	case smoke.UsageUpdateMessage:
+		m.inputTokens = msg.InputTokens
+		m.outputTokens = msg.OutputTokens
+	case smoke.ModeMessage:
+		m.modelMode = msg.Mode
 	}
 
 	return m, tea.Batch(commands...)
@@ -50,8 +55,8 @@ func (m *Model) View() string {
 
 	suggestion := ""
 
-	if m.suggestionText != "" {
-		suggestionStyled := style.Suggestion.Render(m.suggestionText)
+	if m.completionText != "" {
+		suggestionStyled := style.Suggestion.Render(m.completionText)
 		suggestionPadding := style.Border.Render(strings.Repeat("▄", 2))
 		suggestion = suggestionPadding + suggestionStyled
 	}

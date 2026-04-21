@@ -63,7 +63,6 @@ func (m *Mode) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Sessio
 }
 
 func selectableModes(sep string) string {
-	// TODO: move tools.ToStrings somewhere else - doesn't make sense to pull that package in here
 	selectable := utils.ToStrings(llms.SelectableModes())
 	slices.Sort(selectable)
 

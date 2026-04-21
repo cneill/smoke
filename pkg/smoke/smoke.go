@@ -118,7 +118,7 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 	// future, this may have to change.
 	session := s.getMainSession()
 	if session == nil {
-		return nil, fmt.Errorf("failed to get main session")
+		return nil, ErrNoSession
 	}
 
 	slog.Debug("Handling user message", "message", msg)
@@ -513,7 +513,7 @@ func (s *Smoke) SetSession(newSession *llms.Session) error {
 func (s *Smoke) SetMode(mode llms.Mode) error {
 	session := s.getMainSession()
 	if session == nil {
-		return fmt.Errorf("no main session found")
+		return ErrNoSession
 	}
 
 	session.SetMode(mode)
@@ -550,23 +550,34 @@ func (s *Smoke) SetMode(mode llms.Mode) error {
 
 	session.Tools.AddTools(mcpTools...)
 
+	go s.teaEmitter(ModeMessage{
+		Mode: mode,
+	})
+
 	return nil
 }
 
 func (s *Smoke) ShiftMode() error {
 	session := s.getMainSession()
 	if session == nil {
-		return fmt.Errorf("no main session found")
+		return ErrNoSession
 	}
 
-	switch session.GetMode() {
+	var (
+		oldMode = session.GetMode()
+		newMode llms.Mode
+	)
+
+	switch oldMode {
 	case llms.ModePlanning, llms.ModeRanking, llms.ModeReview, llms.ModeSummarize:
-		return s.SetMode(llms.ModeWork)
+		newMode = llms.ModeWork
 	case llms.ModeWork:
-		return s.SetMode(llms.ModePlanning)
+		newMode = llms.ModePlanning
 	}
 
-	return nil
+	slog.Debug("shifting mode", "from", oldMode, "to", newMode)
+
+	return s.SetMode(newMode)
 }
 
 // HandleCommand invokes a prompt command provided by the user.

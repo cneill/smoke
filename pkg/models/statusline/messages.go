@@ -4,15 +4,8 @@ type Message interface {
 	isStatuslineMessage()
 }
 
-type SuggestionMessage struct {
-	CompletionText string
+type CompletionMessage struct {
+	Text string
 }
 
-func (s SuggestionMessage) isStatuslineMessage() {}
-
-type UsageMessage struct {
-	InputTokens  int64
-	OutputTokens int64
-}
-
-func (u UsageMessage) isStatuslineMessage() {}
+func (c CompletionMessage) isStatuslineMessage() {}

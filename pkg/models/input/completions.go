@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/internal/uimsg"
 )
 
 type CompletionType int
@@ -51,28 +52,12 @@ func (c *CompletionState) InCompletion() bool {
 }
 
 // HandleUserCompletionKey returns true if 'msg' starts, or is part of, a completion for skills/commands.
-func (c *CompletionState) HandleUserCompletionKey(msg tea.KeyMsg, currentText string) bool {
+func (c *CompletionState) HandleUserCompletionKey(msg tea.KeyMsg, currentText string) tea.Cmd {
 	keyVal := msg.String()
 
 	// check if we have a leading character signaling the start of a completion
-	if !c.InCompletion() {
-		switch {
-		case keyVal == "/" && currentText == "":
-			c.completionType = CompletionTypeCommand
-		case keyVal == "$":
-			// make sure we're not in the middle of a word
-			if currentText != "" && !strings.ContainsAny(string(currentText[len(currentText)-1]), " \t\n") {
-				return false
-			}
-
-			c.completionType = CompletionTypeSkill
-		default:
-			return false
-		}
-
-		c.userText += keyVal
-
-		return true
+	if !c.InCompletion() && !c.handleCompletionLeader(msg, currentText) {
+		return nil
 	}
 
 	// TODO: handle tab/up(?) to fill in suggested text
@@ -91,7 +76,11 @@ func (c *CompletionState) HandleUserCompletionKey(msg tea.KeyMsg, currentText st
 		c.Reset()
 	}
 
-	return true
+	// TODO: sending this just for it to get converted to a statusline version seems dumb, figure out a reasonable fix
+	// for the import cycle
+	return uimsg.MsgToCmd(CompletionMessage{
+		Text: c.CompletionText(),
+	})
 }
 
 // CompletionText returns the full text that will be displayed in the autocompletion line
@@ -122,4 +111,25 @@ func (c *CompletionState) Reset() {
 	c.userText = ""
 	c.suggestedText = ""
 	c.completionType = CompletionTypeNone
+}
+
+func (c *CompletionState) handleCompletionLeader(msg tea.KeyMsg, currentText string) bool {
+	keyVal := msg.String()
+	switch {
+	case keyVal == "/" && currentText == "":
+		c.completionType = CompletionTypeCommand
+	case keyVal == "$":
+		// make sure we're not in the middle of a word
+		// TODO: handle unicode
+		lastByte := string(currentText[len(currentText)-1])
+		if currentText != "" && !strings.ContainsAny(lastByte, " \t\n") {
+			return false
+		}
+
+		c.completionType = CompletionTypeSkill
+	default:
+		return false
+	}
+
+	return true
 }

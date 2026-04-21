@@ -71,7 +71,7 @@ func (m *Model) handleVimInsertKey(key string) tea.Cmd {
 		return nil
 	}
 
-	m.setMode(modeInsert)
+	m.setInputMode(modeInsert)
 	m.textarea.Focus()
 	m.statusline.SetFocus(true)
 

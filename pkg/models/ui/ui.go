@@ -163,7 +163,9 @@ func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
 		m.input.Resize(width, lineHeight)
 
 	case input.ShiftModeMessage:
-		m.smoke.ShiftMode()
+		if err := m.smoke.ShiftMode(); err != nil {
+			return updateHistory(err)
+		}
 
 	case input.UserMessage:
 		llmMessage := llms.SimpleMessage(llms.RoleUser, msg.Content)
@@ -193,11 +195,13 @@ func (m *Model) handleSmokeMessage(msg smoke.Message) tea.Cmd {
 		cmds = append(cmds, m.handleAssistantResponse(msg))
 	case smoke.AssistantUpdatedStreamMessage:
 		cmds = append(cmds, m.handleAssistantUpdatedStream(msg))
-	case smoke.UsageUpdateMessage:
-		slog.Debug("Usage update", "input_tokens", msg.InputTokens, "output_tokens", msg.OutputTokens)
-		m.input.UpdateUsage(msg.InputTokens, msg.OutputTokens)
 	case smoke.ToolCallResponseMessage:
 		cmds = append(cmds, m.handleToolCallResponse(msg))
+	case smoke.UsageUpdateMessage, smoke.ModeMessage:
+		newInput, cmd := m.input.Update(msg)
+		m.input = newInput
+
+		cmds = append(cmds, cmd)
 	}
 
 	return tea.Batch(cmds...)
