@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/models/statusline"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -48,7 +49,7 @@ func (o *Opts) OK() error {
 }
 
 const (
-	insertPrompt = "▶ "
+	insertPrompt = "➜ "
 	normalPrompt = "█ "
 )
 
@@ -60,8 +61,9 @@ const (
 )
 
 type Model struct {
-	textarea textarea.Model
-	spinner  spinner.Model
+	statusline *statusline.Model
+	textarea   textarea.Model
+	spinner    spinner.Model
 
 	waiting bool
 
@@ -70,15 +72,6 @@ type Model struct {
 	lastD    time.Time
 
 	completionState *CompletionState
-
-	topLineBorderFocused     lipgloss.Style
-	topLineBorderBlurred     lipgloss.Style
-	topLineSuggestionFocused lipgloss.Style
-	topLineSuggestionBlurred lipgloss.Style
-	topLineUsageFocused      lipgloss.Style
-	topLineUsageBlurred      lipgloss.Style
-	inputTokens              int64
-	outputTokens             int64
 
 	// Manages the full history of text submissions (LLM messages, prompt commands, etc) by the user for history
 	// scrolling purposes *only*
@@ -97,40 +90,13 @@ func New(opts *Opts) (*Model, error) {
 	}
 
 	model := &Model{
-		textarea: getTextArea(opts),
-		spinner:  getSpinner(opts.Width, opts.Height),
+		statusline: statusline.New(opts.Width),
+		textarea:   getTextArea(opts),
+		spinner:    getSpinner(opts.Width, opts.Height),
 
 		completionState: cs,
 
 		mode: modeInsert,
-
-		topLineBorderFocused: lipgloss.NewStyle().
-			Foreground(orange).
-			Background(black).
-			Align(lipgloss.Left),
-		topLineBorderBlurred: lipgloss.NewStyle().
-			Foreground(darkgray).
-			Background(black).
-			Bold(true).
-			Align(lipgloss.Left),
-		topLineSuggestionFocused: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(orange).
-			Bold(true).
-			Align(lipgloss.Left),
-		topLineSuggestionBlurred: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("#aaaaaa")).
-			Align(lipgloss.Left),
-		topLineUsageFocused: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00ff00")).
-			Background(lipgloss.Color("#111111")).
-			Bold(true).
-			Align(lipgloss.Left),
-		topLineUsageBlurred: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#cccccc")).
-			Background(black).
-			Align(lipgloss.Left),
 	}
 
 	return model, nil
@@ -159,35 +125,28 @@ func getTextArea(opts *Opts) textarea.Model {
 		model.MaxHeight = opts.MaxHeight
 	}
 
-	model.FocusedStyle.Base = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000"))
-	model.FocusedStyle.CursorLine = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
+	styleBase := lipgloss.NewStyle().
+		Background(black)
+
+	model.FocusedStyle.Base = styleBase
+	model.FocusedStyle.CursorLine = styleBase.
 		Foreground(lipgloss.Color("#eeeeee"))
-	model.FocusedStyle.Placeholder = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
+	model.FocusedStyle.Placeholder = styleBase.
 		Foreground(lipgloss.Color("#666666"))
-	model.FocusedStyle.Text = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
+	model.FocusedStyle.Text = styleBase.
 		Foreground(lipgloss.Color("#eeeeee"))
-	model.FocusedStyle.Prompt = lipgloss.NewStyle().
-		Background(lipgloss.Color("#000000")).
+	model.FocusedStyle.Prompt = styleBase.
 		Foreground(orange).
 		Bold(true)
 
-	model.BlurredStyle.Base = lipgloss.NewStyle().
-		Inherit(model.FocusedStyle.Base)
-	model.BlurredStyle.CursorLine = lipgloss.NewStyle().
-		Inherit(model.FocusedStyle.CursorLine).
+	model.BlurredStyle.Base = styleBase
+	model.BlurredStyle.CursorLine = model.FocusedStyle.CursorLine.
 		Foreground(lipgloss.Color("#888888"))
-	model.BlurredStyle.Placeholder = lipgloss.NewStyle().
-		Inherit(model.FocusedStyle.Placeholder).
+	model.BlurredStyle.Placeholder = model.FocusedStyle.Placeholder.
 		Foreground(lipgloss.Color("#444444"))
-	model.BlurredStyle.Text = lipgloss.NewStyle().
-		Inherit(model.FocusedStyle.Text).
+	model.BlurredStyle.Text = model.FocusedStyle.Text.
 		Foreground(lipgloss.Color("#888888"))
-	model.BlurredStyle.Prompt = lipgloss.NewStyle().
-		Inherit(model.FocusedStyle.Prompt).
+	model.BlurredStyle.Prompt = model.FocusedStyle.Prompt.
 		Foreground(darkgray)
 
 	model.ShowLineNumbers = false
@@ -195,13 +154,12 @@ func getTextArea(opts *Opts) textarea.Model {
 	return model
 }
 
-// TODO: clean up the duplication between textarea and spinner styling...
 func getSpinner(width, height int) spinner.Model {
 	model := spinner.New(
 		spinner.WithSpinner(spinner.Points),
 		spinner.WithStyle(
 			lipgloss.NewStyle().
-				Background(lipgloss.Color("#000000")).
+				Background(black).
 				Foreground(lipgloss.Color("#ff0000")).
 				Width(width).
 				Height(height),
@@ -228,9 +186,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	}
 
 	if m.LineHeight() != startHeight {
-		commands = append(commands, func() tea.Msg {
-			return ResizeMessage{}
-		})
+		commands = append(commands, uimsg.MsgToCmd(ResizeMessage{}))
+	}
+
+	if cmd := m.handleStatuslineMsg(msg); cmd != nil {
+		commands = append(commands, cmd)
 	}
 
 	return m, tea.Batch(commands...)
@@ -242,12 +202,15 @@ func (m *Model) View() string {
 		mainContent = m.spinner.View()
 	}
 
-	return m.topLineView() + "\n" + mainContent
+	return m.statusline.View() + "\n" + mainContent
 }
 
 func (m *Model) Resize(width, height int) {
+	m.statusline.SetWidth(width)
+
 	m.textarea.SetWidth(width)
 	m.textarea.SetHeight(height)
+
 	m.spinner.Style.Width(width)
 	m.spinner.Style.Height(height)
 }
@@ -296,40 +259,6 @@ func (m *Model) SetWaiting(value bool) tea.Cmd {
 	return nil
 }
 
-func (m *Model) UpdateUsage(inputTokens, outputTokens int64) {
-	m.inputTokens = inputTokens
-	m.outputTokens = outputTokens
-}
-
-func (m *Model) topLineView() string {
-	var (
-		borderStyle     = m.topLineBorderFocused
-		suggestionStyle = m.topLineSuggestionFocused
-		usageStyle      = m.topLineUsageFocused
-	)
-	if !m.Focused() {
-		borderStyle = m.topLineBorderBlurred
-		suggestionStyle = m.topLineSuggestionBlurred
-		usageStyle = m.topLineUsageBlurred
-	}
-
-	totalWidth := m.textarea.Width()
-	usageText := usageStyle.Render(fmt.Sprintf("in: %d, out: %d", m.inputTokens, m.outputTokens))
-	usagePadding := borderStyle.Render("█")
-	usageWidth := lipgloss.Width(usageText)
-	border := borderStyle.Render(strings.Repeat("▄", totalWidth-usageWidth) + "█")
-
-	// add the prompt command completion suggestions above the "/" in the topline
-	if completion := m.completionState.CompletionText(); completion != "" {
-		suggestionWidth := lipgloss.Width(completion)
-		border = borderStyle.Render(strings.Repeat("▄", 2)) +
-			suggestionStyle.Render(completion) +
-			borderStyle.Render(strings.Repeat("▄", totalWidth-usageWidth-suggestionWidth-2)+"█")
-	}
-
-	return border + usageText + usagePadding
-}
-
 func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok && !m.waiting {
@@ -359,14 +288,18 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 
 		// insert -> normal mode
 		if m.mode == modeInsert {
-			m.setMode(modeNormal)
+			m.setInputMode(modeNormal)
 			return nil
 		}
 
 		// modeNormal -> history (blur)
 		m.textarea.Blur()
+		m.statusline.SetFocus(false)
 
 		return nil
+
+	case tea.KeyShiftTab:
+		return uimsg.MsgToCmd(ShiftModeMessage{})
 
 	case tea.KeyUp, tea.KeyDown:
 		// scroll up and down through previous user messages
@@ -385,12 +318,11 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 		}
 	}
 
-	if m.completionState.HandleUserCompletionKey(keyMsg, m.textarea.Value()) {
-		var cmd tea.Cmd
+	if cmd := m.completionState.HandleUserCompletionKey(keyMsg, m.textarea.Value()); cmd != nil {
+		newTextarea, textareaCmd := m.textarea.Update(msg)
+		m.textarea = newTextarea
 
-		m.textarea, cmd = m.textarea.Update(msg)
-
-		return cmd
+		return tea.Batch(cmd, textareaCmd)
 	}
 
 	// don't send key updates to the textarea when scrolling the history viewport
@@ -404,7 +336,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) setMode(newMode mode) {
+func (m *Model) setInputMode(newMode mode) {
 	m.mode = newMode
 	if m.mode == modeInsert {
 		m.textarea.Prompt = insertPrompt
@@ -505,8 +437,27 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 		args = fields[1:]
 	}
 
-	return uimsg.MsgToCmd(commands.PromptMessage{
+	m.completionState.Reset()
+
+	// clear the autocomplete for the prompt command in the statusline
+	completionMsg := statusline.CompletionMessage{}
+	promptMsg := commands.PromptMessage{
 		Command: cmdName,
 		Args:    args,
-	})
+	}
+
+	return tea.Batch(uimsg.MsgToCmd(completionMsg), uimsg.MsgToCmd(promptMsg))
+}
+
+func (m *Model) handleStatuslineMsg(msg tea.Msg) tea.Cmd {
+	if completionMsg, ok := msg.(CompletionMessage); ok {
+		msg = statusline.CompletionMessage{
+			Text: completionMsg.Text,
+		}
+	}
+
+	newStatusline, cmd := m.statusline.Update(msg)
+	m.statusline = newStatusline
+
+	return cmd
 }

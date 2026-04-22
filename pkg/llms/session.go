@@ -24,7 +24,8 @@ type Session struct {
 	InputTokens  int64        `json:"input_tokens"`
 	OutputTokens int64        `json:"output_tokens"`
 
-	mode Mode `json:"-"`
+	modeMutex sync.RWMutex `json:"-"`
+	mode      Mode         `json:"-"`
 }
 
 type SessionOpts struct {
@@ -67,6 +68,7 @@ func NewSession(opts *SessionOpts) (*Session, error) {
 
 		messageMutex: sync.RWMutex{},
 		usageMutex:   sync.RWMutex{},
+		modeMutex:    sync.RWMutex{},
 
 		mode: opts.Mode,
 	}
@@ -256,10 +258,18 @@ func (s *Session) ReplaceMessages(searches, replacements []*Message) {
 }
 
 func (s *Session) SetMode(mode Mode) {
+	s.modeMutex.Lock()
+	defer s.modeMutex.Unlock()
+
 	s.mode = mode
 }
 
-func (s *Session) GetMode() Mode { return s.mode }
+func (s *Session) GetMode() Mode {
+	s.modeMutex.RLock()
+	defer s.modeMutex.RUnlock()
+
+	return s.mode
+}
 
 func (s *Session) Teardown() error {
 	if s.Tools != nil {

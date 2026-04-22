@@ -52,3 +52,9 @@ func MsgToCmd(msg tea.Msg) tea.Cmd {
 		return msg
 	}
 }
+
+type ModeMessage struct {
+	Mode llms.Mode
+}
+
+func (m ModeMessage) isSmokeMessage() {}
