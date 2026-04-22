@@ -22,9 +22,10 @@ type Model struct {
 
 func New(width int) *Model {
 	model := &Model{
-		focused: true,
-		width:   width,
-		styles:  InitStyles(),
+		focused:   true,
+		modelMode: llms.ModeWork,
+		width:     width,
+		styles:    InitStyles(),
 	}
 
 	return model
@@ -53,23 +54,31 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 func (m *Model) View() string {
 	style := m.styleVariant()
 
-	suggestion := ""
+	var (
+		suggestion      string
+		suggestionWidth int
+	)
 
 	if m.completionText != "" {
-		suggestionStyled := style.Suggestion.Render(m.completionText)
-		suggestionPadding := style.Border.Render(strings.Repeat("▄", 2))
+		suggestionStyled := style.Completion.Render(m.completionText)
+		suggestionPadding := style.Border.Render(strings.Repeat(" ", 2))
 		suggestion = suggestionPadding + suggestionStyled
+		suggestionWidth = lipgloss.Width(suggestion)
 	}
 
+	modeStyled := style.Usage.Render(fmt.Sprintf("mode: %s", m.modelMode))
+	modeWidth := lipgloss.Width(modeStyled)
+
+	usagePadding := style.Border.Render(" ✱ ")
+
 	usageStyled := style.Usage.Render(fmt.Sprintf("in: %d, out: %d", m.inputTokens, m.outputTokens))
-	usagePadding := style.Border.Render("█")
-	usage := usagePadding + usageStyled + usagePadding
+	usage := usagePadding + usageStyled + " "
 	usageWidth := lipgloss.Width(usage)
 
-	borderWidth := max(0, m.width-usageWidth-lipgloss.Width(suggestion))
-	border := style.Border.Render(strings.Repeat("▄", borderWidth))
+	borderWidth := max(0, m.width-modeWidth-usageWidth-suggestionWidth)
+	border := style.Border.Render(strings.Repeat(" ", borderWidth))
 
-	return suggestion + border + usage
+	return suggestion + border + modeStyled + usage
 }
 
 func (m *Model) SetFocus(focused bool) {

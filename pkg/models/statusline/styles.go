@@ -6,8 +6,8 @@ type Styles struct {
 	BorderFocused lipgloss.Style
 	BorderBlurred lipgloss.Style
 
-	SuggestionFocused lipgloss.Style
-	SuggestionBlurred lipgloss.Style
+	CompletionFocused lipgloss.Style
+	CompletionBlurred lipgloss.Style
 
 	UsageFocused lipgloss.Style
 	UsageBlurred lipgloss.Style
@@ -27,7 +27,7 @@ func InitStyles() Styles {
 		Background(black).
 		Align(lipgloss.Left)
 
-	suggestionBase := lipgloss.NewStyle().
+	completionBase := lipgloss.NewStyle().
 		Foreground(white).
 		Align(lipgloss.Left)
 
@@ -41,10 +41,10 @@ func InitStyles() Styles {
 		BorderBlurred: borderBase.
 			Foreground(darkgray),
 
-		SuggestionFocused: suggestionBase.
+		CompletionFocused: completionBase.
 			Background(orange).
 			Bold(true),
-		SuggestionBlurred: suggestionBase.
+		CompletionBlurred: completionBase.
 			Background(darkgray),
 
 		UsageFocused: usageBase.
@@ -58,7 +58,7 @@ func InitStyles() Styles {
 func (s Styles) GetVariant(variant StyleVariant) Style {
 	focused := Style{
 		Border:     s.BorderFocused,
-		Suggestion: s.SuggestionFocused,
+		Completion: s.CompletionFocused,
 		Usage:      s.UsageFocused,
 	}
 
@@ -68,7 +68,7 @@ func (s Styles) GetVariant(variant StyleVariant) Style {
 	case Blurred:
 		return Style{
 			Border:     s.BorderBlurred,
-			Suggestion: s.SuggestionBlurred,
+			Completion: s.CompletionBlurred,
 			Usage:      s.UsageBlurred,
 		}
 	}
@@ -85,6 +85,6 @@ const (
 
 type Style struct {
 	Border     lipgloss.Style
-	Suggestion lipgloss.Style
+	Completion lipgloss.Style
 	Usage      lipgloss.Style
 }
