@@ -16,7 +16,7 @@ type Styles struct {
 func InitStyles() Styles {
 	var (
 		black       = lipgloss.Color("#000000")
-		brightgreen = lipgloss.Color("#00ff00")
+		brightgreen = lipgloss.Color("#00aaaa")
 		darkgray    = lipgloss.Color("#333333")
 		lightgray   = lipgloss.Color("#aaaaaa")
 		orange      = lipgloss.Color("#cc4400")
