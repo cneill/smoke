@@ -437,10 +437,16 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 		args = fields[1:]
 	}
 
-	return uimsg.MsgToCmd(commands.PromptMessage{
+	m.completionState.Reset()
+
+	// clear the autocomplete for the prompt command in the statusline
+	completionMsg := statusline.CompletionMessage{}
+	promptMsg := commands.PromptMessage{
 		Command: cmdName,
 		Args:    args,
-	})
+	}
+
+	return tea.Batch(uimsg.MsgToCmd(completionMsg), uimsg.MsgToCmd(promptMsg))
 }
 
 func (m *Model) handleStatuslineMsg(msg tea.Msg) tea.Cmd {
