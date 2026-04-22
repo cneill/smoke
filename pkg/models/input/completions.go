@@ -120,10 +120,11 @@ func (c *CompletionState) handleCompletionLeader(msg tea.KeyMsg, currentText str
 		c.completionType = CompletionTypeCommand
 	case keyVal == "$":
 		// make sure we're not in the middle of a word
-		// TODO: handle unicode
-		lastByte := string(currentText[len(currentText)-1])
-		if currentText != "" && !strings.ContainsAny(lastByte, " \t\n") {
-			return false
+		if currentText != "" {
+			lastByte := string(currentText[len(currentText)-1])
+			if currentText != "" && !strings.ContainsAny(lastByte, " \t\n") {
+				return false
+			}
 		}
 
 		c.completionType = CompletionTypeSkill
