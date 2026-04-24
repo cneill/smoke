@@ -17,6 +17,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/config"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/plan"
@@ -49,10 +50,11 @@ type Smoke struct {
 
 	teaEmitter uimsg.TeaEmitter
 
-	commands   *commands.Manager
-	llmConfig  *llms.Config
-	llm        llms.LLM
-	mcpClients []*mcp.CommandClient
+	commands      *commands.Manager
+	llmConfig     *llms.Config
+	llm           llms.LLM
+	mcpClients    []*mcp.CommandClient
+	elicitRuntime *elicit.Runtime
 }
 
 func (s *Smoke) OK() error {
@@ -289,6 +291,52 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 			}
 		}
 	}
+}
+
+func (s *Smoke) SubmitElicit(submission *elicit.Submission) (string, error) {
+	if s.elicitRuntime == nil {
+		return "", fmt.Errorf("elicit runtime not available")
+	}
+
+	request, ok := s.elicitRuntime.ActiveRequest()
+	if !ok {
+		return "", fmt.Errorf("no active elicit request")
+	}
+
+	if submission == nil {
+		return "", fmt.Errorf("missing elicit submission")
+	}
+
+	if err := s.elicitRuntime.Complete(submission); err != nil {
+		return "", fmt.Errorf("failed to complete elicit request: %w", err)
+	}
+
+	if submission.Selection == 0 {
+		if submission.Response != "" {
+			return "None of the above: " + submission.Response, nil
+		}
+
+		return "None of the above", nil
+	}
+
+	response := fmt.Sprintf("%d. %s", submission.Selection, request.Options[submission.Selection-1])
+	if submission.Response != "" {
+		response += ": " + submission.Response
+	}
+
+	return response, nil
+}
+
+func (s *Smoke) CancelElicit() error {
+	if s.elicitRuntime == nil {
+		return fmt.Errorf("elicit runtime not available")
+	}
+
+	if err := s.elicitRuntime.Cancel(); err != nil {
+		return fmt.Errorf("failed to cancel elicit request: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (tea.Cmd, error) {

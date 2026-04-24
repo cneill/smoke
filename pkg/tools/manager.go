@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/skills"
 )
@@ -17,6 +18,7 @@ type ManagerOpts struct {
 	ToolInitializers []Initializer
 	PlanManager      *plan.Manager
 	SkillCatalog     skills.Catalog
+	ElicitRuntime    *elicit.Runtime
 }
 
 func (m *ManagerOpts) OK() error {
@@ -37,11 +39,12 @@ type Manager struct {
 	ProjectPath string
 	SessionName string
 
-	initializers []Initializer
-	tools        Tools
-	toolMutex    sync.RWMutex
-	planManager  *plan.Manager
-	skillCatalog skills.Catalog
+	initializers  []Initializer
+	tools         Tools
+	toolMutex     sync.RWMutex
+	planManager   *plan.Manager
+	skillCatalog  skills.Catalog
+	elicitRuntime *elicit.Runtime
 
 	teaEmitter uimsg.TeaEmitter
 }
@@ -56,10 +59,11 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 		ProjectPath: opts.ProjectPath,
 		SessionName: opts.SessionName,
 
-		initializers: opts.ToolInitializers,
-		toolMutex:    sync.RWMutex{},
-		planManager:  opts.PlanManager,
-		skillCatalog: opts.SkillCatalog,
+		initializers:  opts.ToolInitializers,
+		toolMutex:     sync.RWMutex{},
+		planManager:   opts.PlanManager,
+		skillCatalog:  opts.SkillCatalog,
+		elicitRuntime: opts.ElicitRuntime,
 	}
 
 	if opts.ToolInitializers != nil {
@@ -80,7 +84,7 @@ func (m *Manager) SetTeaEmitter(emitter uimsg.TeaEmitter) {
 	for _, tool := range m.tools {
 		// We have to do this here because the tea emitter is injected later than initial startup.
 		if wte, ok := tool.(WantsTeaEmitter); ok && m.teaEmitter != nil {
-			slog.Debug("SETTING TEA EMITTER FOR TOOL", "name", tool.Name())
+			slog.Debug("Setting tea emitter for tool", "name", tool.Name())
 			wte.SetTeaEmitter(m.teaEmitter)
 		}
 	}
@@ -112,6 +116,14 @@ func (m *Manager) InitTools(initializers ...Initializer) {
 
 		if wsc, ok := tool.(WantsSkillCatalog); ok {
 			wsc.SetSkillCatalog(m.skillCatalog)
+		}
+
+		if wer, ok := tool.(WantsElicitRuntime); ok && m.elicitRuntime != nil {
+			wer.SetElicitRuntime(m.elicitRuntime)
+		}
+
+		if wte, ok := tool.(WantsTeaEmitter); ok && m.teaEmitter != nil {
+			wte.SetTeaEmitter(m.teaEmitter)
 		}
 
 		tools = append(tools, tool)

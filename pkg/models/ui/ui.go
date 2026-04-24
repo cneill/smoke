@@ -17,6 +17,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
 	"github.com/cneill/smoke/pkg/commands/handlers/rank"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
@@ -138,6 +139,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.handleCommandMessage(msg))
 	case smoke.Message:
 		cmds = append(cmds, m.handleSmokeMessage(msg))
+	case elicit.Message:
+		cmds = append(cmds, m.handleElicitMessage(msg))
 	case *uimsg.Error:
 		slog.Error("got raw error in ui event loop", "err", msg.Err)
 		cmds = append(cmds, updateHistory(msg))
@@ -181,6 +184,33 @@ func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
 
 	case input.CancelUserMessage:
 		m.smoke.CancelUserMessage(msg.Err)
+	case input.ElicitSubmissionMessage:
+		request := m.input.ElicitRequest()
+
+		submission, err := elicit.ParseSubmission(msg.Content, len(request.Options))
+		if err != nil {
+			cmds = append(cmds, updateHistory(fmt.Errorf("invalid elicit submission: %w", err)))
+			break
+		}
+
+		response, err := m.smoke.SubmitElicit(submission)
+		if err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		m.input.ClearElicit()
+		cmds = append(cmds, m.input.SetWaiting(true))
+		cmds = append(cmds, updateHistory(history.ElicitResponseMessage{Response: response}))
+	case input.ElicitCanceledMessage:
+		if err := m.smoke.CancelElicit(); err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		m.input.ClearElicit()
+		cmds = append(cmds, m.input.SetWaiting(true))
+		cmds = append(cmds, updateHistory(history.ElicitResponseMessage{Response: "Canceled"}))
 	}
 
 	return tea.Batch(cmds...)
@@ -202,6 +232,19 @@ func (m *Model) handleSmokeMessage(msg smoke.Message) tea.Cmd {
 		m.input = newInput
 
 		cmds = append(cmds, cmd)
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) handleElicitMessage(msg elicit.Message) tea.Cmd {
+	cmds := []tea.Cmd{}
+
+	switch msg := msg.(type) {
+	case elicit.RequestMessage:
+		cmds = append(cmds, m.input.SetWaiting(false))
+		cmds = append(cmds, updateHistory(history.ElicitPromptMessage{Request: msg.Request}))
+		cmds = append(cmds, m.input.BeginElicit(input.ElicitState{Request: msg.Request}))
 	}
 
 	return tea.Batch(cmds...)

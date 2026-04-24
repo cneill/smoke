@@ -212,6 +212,10 @@ func (m *Model) logContent() string {
 			info = renderLLMMessage(item, info)
 		case commands.Message:
 			info = renderCommandMessage(item, info)
+		case ElicitPromptMessage:
+			info = renderElicitPromptMessage(item, info)
+		case ElicitResponseMessage:
+			info = renderElicitResponseMessage(item, info)
 
 		case *uimsg.Error:
 			info.title = "⛔ Error"
@@ -317,6 +321,33 @@ func renderCommandMessage(msg commands.Message, info bubbleInfo) bubbleInfo {
 		info.titleStyle = info.titleStyle.
 			Foreground(lipgloss.Color("#ffffff"))
 	}
+
+	return info
+}
+
+func renderElicitPromptMessage(msg ElicitPromptMessage, info bubbleInfo) bubbleInfo {
+	info.title = "Question"
+	info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
+
+	builder := &strings.Builder{}
+	fmt.Fprintln(builder, msg.Request.Question)
+
+	builder.WriteRune('\n')
+
+	for i, option := range msg.Request.Options {
+		fmt.Fprintf(builder, "%d. %s\n", i+1, option)
+	}
+
+	fmt.Fprint(builder, "none. None of the above")
+	info.content = builder.String()
+
+	return info
+}
+
+func renderElicitResponseMessage(msg ElicitResponseMessage, info bubbleInfo) bubbleInfo {
+	info.title = "Response"
+	info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
+	info.content = msg.Response
 
 	return info
 }
