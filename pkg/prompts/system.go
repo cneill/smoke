@@ -27,8 +27,8 @@ func SystemPreset() Preset {
 			SectionBackground: {
 				Pf("The current time and date is %s.", time.Now().String()),
 				P("You are in a directory containing a git repository. All tool calls will occur within this directory."),
-				P("The code may be written for a version of Go you haven't encountered before. If the user references standard " +
-					"library functions/types/etc. you're not sure about, assume they are correct if there are no " +
+				P("The code may be written for a version of Go you haven't encountered before. If the user references " +
+					"standard library functions/types/etc. you're not sure about, assume they are correct if there are no " +
 					"build errors reported."),
 				P("If you suspect there are compile errors, look for the `gopls_go_diagnostics` tool and use it if you have " +
 					"access to it."),
@@ -36,7 +36,9 @@ func SystemPreset() Preset {
 			SectionInstructions: {
 				P("Think about your responses carefully before you respond. Whether planning or working, think " +
 					"through each action step-by-step."),
-				Pf("Whenever you want to ask a question of the user, use the %q tool.", tools.NameElicit),
+				Pf("To ask a question of the user, consider using the %q tool. You don't have to use it for "+
+					"open-ended questions, but you should tend toward using it and giving suggestions, especially "+
+					"when planning.", tools.NameElicit),
 			},
 			SectionFormatting: {
 				P("ALWAYS use ```[language]\\n...\\n``` Markdown code blocks for code snippets. NEVER RETURN CODE EXAMPLES, CODE " +
