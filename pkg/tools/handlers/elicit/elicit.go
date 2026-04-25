@@ -44,12 +44,18 @@ func (e *Elicit) Examples() tools.Examples {
 
 func (e *Elicit) Params() tools.Params {
 	return tools.Params{
-		{Key: ParamQuestion, Description: "The question to ask the user", Type: tools.ParamTypeString, Required: true},
+		{
+			Key:         ParamQuestion,
+			Description: "The question to ask the user",
+			Type:        tools.ParamTypeString,
+			Required:    true,
+		},
 		{
 			Key:         ParamOptions,
 			Description: "A list of 1 to 5 answer options",
 			Type:        tools.ParamTypeArray,
-			ItemType:    tools.ParamTypeString, Required: true,
+			ItemType:    tools.ParamTypeString,
+			Required:    true,
 		},
 	}
 }
@@ -64,16 +70,12 @@ func (e *Elicit) Run(ctx context.Context, args tools.Args) (*tools.Output, error
 	}
 
 	question := args.GetString(ParamQuestion)
-	if question == nil || *question == "" {
-		return nil, fmt.Errorf("%w: missing question", tools.ErrArguments)
-	}
-
 	options := args.GetStringSlice(ParamOptions)
-	if options == nil {
-		return nil, fmt.Errorf("%w: missing options", tools.ErrArguments)
-	}
 
-	if len(options) == 0 || len(options) > 5 {
+	switch {
+	case question == nil || *question == "":
+		return nil, fmt.Errorf("%w: missing question", tools.ErrArguments)
+	case len(options) == 0 || len(options) > 5:
 		return nil, fmt.Errorf("%w: options must contain between 1 and 5 items", tools.ErrArguments)
 	}
 
