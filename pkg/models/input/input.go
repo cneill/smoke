@@ -98,6 +98,7 @@ func New(opts *Opts) (*Model, error) {
 		spinner:    getSpinner(opts.Width, opts.Height),
 
 		completionState: cs,
+		elicitState:     newElicitState(),
 
 		mode: modeInsert,
 	}
@@ -253,18 +254,11 @@ func (m *Model) Focused() bool {
 
 func (m *Model) Waiting() bool { return m.waiting }
 
-func (m *Model) InElicitMode() bool { return m.elicitState != nil }
-
-func (m *Model) ElicitRequest() elicit.RequestMessage {
-	if m.elicitState == nil {
-		return elicit.RequestMessage{}
+func (m *Model) BeginElicit(msg elicit.RequestMessage) error {
+	if err := m.elicitState.newRequest(msg); err != nil {
+		return err
 	}
 
-	return m.elicitState.Request
-}
-
-func (m *Model) BeginElicit(state ElicitState) tea.Cmd {
-	m.elicitState = &state
 	m.setInputMode(modeInsert)
 	m.textarea.Focus()
 	m.statusline.SetFocus(true)
@@ -274,8 +268,12 @@ func (m *Model) BeginElicit(state ElicitState) tea.Cmd {
 	return nil
 }
 
+func (m *Model) ElicitRequest() *elicit.RequestMessage {
+	return m.elicitState.currentRequest()
+}
+
 func (m *Model) ClearElicit() {
-	m.elicitState = nil
+	m.elicitState.endRequest()
 	m.setInputMode(modeInsert)
 }
 
@@ -313,7 +311,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 	case tea.KeyEsc:
 		// check if the user is currently in the process of answering a question from the elicit tool
 		// TODO: figure out if this should override VIM/scroll switching - may be annoying
-		if m.InElicitMode() && m.Focused() && m.mode == modeInsert {
+		if m.elicitState.isActive() && m.Focused() && m.mode == modeInsert {
 			m.textarea.Reset()
 			m.ClearElicit()
 
@@ -454,7 +452,7 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 
 	switch {
 	// user is answering a question
-	case m.InElicitMode():
+	case m.elicitState.isActive():
 		return uimsg.MsgToCmd(elicit.UserInputMessage{Content: content})
 	// user has sent a prompt command like "/help"
 	case strings.HasPrefix(content, "/"):

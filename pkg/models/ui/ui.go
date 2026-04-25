@@ -217,9 +217,15 @@ func (m *Model) handleElicitMessage(msg elicit.Message) tea.Cmd {
 	case elicit.RequestMessage:
 		cmds = append(cmds, m.input.SetWaiting(false))
 		cmds = append(cmds, updateHistory(msg))
-		cmds = append(cmds, m.input.BeginElicit(input.ElicitState{Request: msg}))
+
+		if err := m.input.BeginElicit(msg); err != nil {
+			cmds = append(cmds, updateHistory(err))
+		}
 	case elicit.UserInputMessage:
 		request := m.input.ElicitRequest()
+		if request == nil {
+			break
+		}
 
 		response, err := elicit.ParseResponse(msg.Content, request.Options)
 		if err != nil {
@@ -234,7 +240,6 @@ func (m *Model) handleElicitMessage(msg elicit.Message) tea.Cmd {
 
 		m.input.ClearElicit()
 		cmds = append(cmds, m.input.SetWaiting(true))
-		// cmds = append(cmds, updateHistory(response))
 		cmds = append(cmds, updateHistory(elicit.UserResponseMessage{Response: response}))
 	case elicit.UserCanceledMessage:
 		if err := m.smoke.CancelElicit(); err != nil {
