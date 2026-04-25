@@ -17,6 +17,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
 	"github.com/cneill/smoke/pkg/commands/handlers/rank"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
@@ -138,6 +139,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.handleCommandMessage(msg))
 	case smoke.Message:
 		cmds = append(cmds, m.handleSmokeMessage(msg))
+	case elicit.Message:
+		cmds = append(cmds, m.handleElicitMessage(msg))
 	case *uimsg.Error:
 		slog.Error("got raw error in ui event loop", "err", msg.Err)
 		cmds = append(cmds, updateHistory(msg))
@@ -202,6 +205,39 @@ func (m *Model) handleSmokeMessage(msg smoke.Message) tea.Cmd {
 		m.input = newInput
 
 		cmds = append(cmds, cmd)
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) handleElicitMessage(msg elicit.Message) tea.Cmd {
+	cmds := []tea.Cmd{}
+
+	switch msg := msg.(type) {
+	case elicit.RequestMessage:
+		cmds = append(cmds, m.input.SetWaiting(false))
+		cmds = append(cmds, updateHistory(msg))
+
+		m.input.BeginElicit()
+	case elicit.UserInputMessage:
+		response, err := m.smoke.HandleElicitUserInput(msg)
+		if err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		m.input.ClearElicit()
+		cmds = append(cmds, m.input.SetWaiting(true))
+		cmds = append(cmds, updateHistory(response))
+	case elicit.UserCanceledMessage:
+		if err := m.smoke.CancelElicit(); err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		m.input.ClearElicit()
+		cmds = append(cmds, m.input.SetWaiting(true))
+		cmds = append(cmds, updateHistory(msg))
 	}
 
 	return tea.Batch(cmds...)

@@ -4,6 +4,7 @@ const (
 	NameActivateSkill    = "activate_skill"
 	NameDDG              = "duck_duck_go"
 	NameEdit             = "edit"
+	NameElicit           = "elicit"
 	NameEditPlan         = "edit_plan"
 	NameGitDiff          = "git_diff"
 	NameGoAST            = "go_ast"

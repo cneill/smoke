@@ -4,6 +4,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers/ddg"
 	"github.com/cneill/smoke/pkg/tools/handlers/edit"
+	"github.com/cneill/smoke/pkg/tools/handlers/elicit"
 	gitdiff "github.com/cneill/smoke/pkg/tools/handlers/git/diff"
 	"github.com/cneill/smoke/pkg/tools/handlers/gofumpt"
 	"github.com/cneill/smoke/pkg/tools/handlers/goimports"
@@ -25,6 +26,7 @@ func AllTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
 		edit.New,
+		elicit.New,
 		gitdiff.New,
 		gofumpt.New,
 		goimports.New,
@@ -54,6 +56,7 @@ func WorkTools() []tools.Initializer {
 func PlanningTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		elicit.New,
 		gitdiff.New,
 		golint.New,
 		gotest.New,
@@ -71,6 +74,7 @@ func PlanningTools() []tools.Initializer {
 func ReviewTools() []tools.Initializer {
 	return []tools.Initializer{
 		ddg.New,
+		elicit.New,
 		gitdiff.New,
 		golint.New,
 		gotest.New,

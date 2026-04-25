@@ -18,6 +18,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
 	"github.com/cneill/smoke/pkg/commands/handlers/session"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/wordwrap"
@@ -212,7 +213,8 @@ func (m *Model) logContent() string {
 			info = renderLLMMessage(item, info)
 		case commands.Message:
 			info = renderCommandMessage(item, info)
-
+		case elicit.Message:
+			info = renderElicitMessage(item, info)
 		case *uimsg.Error:
 			info.title = "⛔ Error"
 			info.titleStyle = info.titleStyle.
@@ -316,6 +318,27 @@ func renderCommandMessage(msg commands.Message, info bubbleInfo) bubbleInfo {
 		info.subtitle = msg.Message
 		info.titleStyle = info.titleStyle.
 			Foreground(lipgloss.Color("#ffffff"))
+	}
+
+	return info
+}
+
+func renderElicitMessage(msg elicit.Message, info bubbleInfo) bubbleInfo {
+	switch msg := msg.(type) {
+	case elicit.RequestMessage:
+		info.title = "Question"
+		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
+		info.content = msg.String()
+
+	case elicit.UserCanceledMessage:
+		info.title = "Canceled"
+		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#ff0000"))
+		info.content = msg.String()
+
+	case elicit.UserResponseMessage:
+		info.title = "Response"
+		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
+		info.content = msg.String()
 	}
 
 	return info

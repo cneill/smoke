@@ -5,6 +5,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/commands"
 	cmdhandlers "github.com/cneill/smoke/pkg/commands/handlers"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/plan"
@@ -31,6 +32,8 @@ func (s *Smoke) setup() error {
 		return fmt.Errorf("failed to set up LLM: %w", err)
 	}
 
+	s.setupElicitManager()
+
 	if err := s.setupSession(); err != nil {
 		return fmt.Errorf("failed to set up main smoke session: %w", err)
 	}
@@ -44,6 +47,19 @@ func (s *Smoke) setup() error {
 	}
 
 	return nil
+}
+
+func (s *Smoke) setupElicitManager() {
+	manager := elicit.NewManager()
+	manager.SetOnBegin(func(req elicit.RequestMessage) {
+		if s.teaEmitter == nil {
+			return
+		}
+
+		s.teaEmitter(req)
+	})
+
+	s.elicitManager = manager
 }
 
 func (s *Smoke) setupPlanManager() error {
@@ -176,6 +192,7 @@ func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
 		ToolInitializers: initList,
 		PlanManager:      s.planManager,
 		SkillCatalog:     s.skillCatalog,
+		ElicitManager:    s.elicitManager,
 	}
 
 	toolManager, err := tools.NewManager(toolOpts)

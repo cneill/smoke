@@ -17,6 +17,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/config"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/plan"
@@ -49,10 +50,11 @@ type Smoke struct {
 
 	teaEmitter uimsg.TeaEmitter
 
-	commands   *commands.Manager
-	llmConfig  *llms.Config
-	llm        llms.LLM
-	mcpClients []*mcp.CommandClient
+	commands      *commands.Manager
+	llmConfig     *llms.Config
+	llm           llms.LLM
+	mcpClients    []*mcp.CommandClient
+	elicitManager *elicit.Manager
 }
 
 func (s *Smoke) OK() error {
@@ -289,6 +291,37 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 			}
 		}
 	}
+}
+
+func (s *Smoke) HandleElicitUserInput(msg elicit.UserInputMessage) (elicit.UserResponseMessage, error) {
+	var responseMsg elicit.UserResponseMessage
+
+	if s.elicitManager == nil {
+		return responseMsg, fmt.Errorf("elicit manager not available")
+	}
+
+	response, err := s.elicitManager.ParseUserInput(msg)
+	if err != nil {
+		return responseMsg, fmt.Errorf("failed to handle user elicit response: %w", err)
+	}
+
+	if err := s.elicitManager.Complete(response); err != nil {
+		return responseMsg, fmt.Errorf("failed to complete elicit request: %w", err)
+	}
+
+	return elicit.UserResponseMessage{Response: response}, nil
+}
+
+func (s *Smoke) CancelElicit() error {
+	if s.elicitManager == nil {
+		return fmt.Errorf("elicit manager not available")
+	}
+
+	if err := s.elicitManager.Cancel(); err != nil {
+		return fmt.Errorf("failed to cancel elicit request: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (tea.Cmd, error) {

@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/models/statusline"
 	"github.com/mattn/go-runewidth"
 )
@@ -51,6 +52,7 @@ func (o *Opts) OK() error {
 const (
 	insertPrompt = "➜ "
 	normalPrompt = "█ "
+	elicitPrompt = "? "
 )
 
 type mode int
@@ -72,6 +74,7 @@ type Model struct {
 	lastD    time.Time
 
 	completionState *CompletionState
+	elicitActive    bool
 
 	// Manages the full history of text submissions (LLM messages, prompt commands, etc) by the user for history
 	// scrolling purposes *only*
@@ -250,6 +253,20 @@ func (m *Model) Focused() bool {
 
 func (m *Model) Waiting() bool { return m.waiting }
 
+func (m *Model) BeginElicit() {
+	m.elicitActive = true
+	m.setInputMode(modeInsert)
+	m.textarea.Focus()
+	m.statusline.SetFocus(true)
+	m.textarea.Prompt = elicitPrompt
+	m.completionState.Reset()
+}
+
+func (m *Model) ClearElicit() {
+	m.elicitActive = false
+	m.setInputMode(modeInsert)
+}
+
 func (m *Model) SetWaiting(value bool) tea.Cmd {
 	m.waiting = value
 	if value {
@@ -282,6 +299,15 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 			return m.handleContentSubmit()
 		}
 	case tea.KeyEsc:
+		// check if the user is currently in the process of answering a question from the elicit tool
+		// TODO: figure out if this should override VIM/scroll switching - may be annoying
+		if m.elicitActive && m.Focused() && m.mode == modeInsert {
+			m.textarea.Reset()
+			m.ClearElicit()
+
+			return uimsg.MsgToCmd(elicit.UserCanceledMessage{})
+		}
+
 		if !m.Focused() {
 			return nil
 		}
@@ -414,14 +440,20 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 	m.userHistory = append(m.userHistory, content)
 	m.userHistoryIndex = nil
 
-	if strings.HasPrefix(content, "/") {
+	switch {
+	// user is answering a question
+	case m.elicitActive:
+		return uimsg.MsgToCmd(elicit.UserInputMessage{Content: content})
+	// user has sent a prompt command like "/help"
+	case strings.HasPrefix(content, "/"):
 		return m.handlePromptCommand(content)
+	// user has sent a normal message of some kind
+	default:
+		return uimsg.MsgToCmd(UserMessage{
+			SourceID: MainSourceID,
+			Content:  content,
+		})
 	}
-
-	return uimsg.MsgToCmd(UserMessage{
-		SourceID: MainSourceID,
-		Content:  content,
-	})
 }
 
 // handlePromptCommand checks for a command specified by the user (e.g. "/exit") and returns the appropriate message

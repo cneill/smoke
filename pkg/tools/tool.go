@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/skills"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -53,6 +54,13 @@ type (
 
 		// SetTeaEmitter provides a message emitter for the Bubbletea event loop to a tool that needs it.
 		SetTeaEmitter(emitter uimsg.TeaEmitter)
+	}
+
+	WantsElicitManager interface {
+		Tool
+
+		// SetElicitManager provides the session-scoped elicit manager to a tool that needs interactive user input.
+		SetElicitManager(manager *elicit.Manager)
 	}
 
 	WantsSkillCatalog interface {
