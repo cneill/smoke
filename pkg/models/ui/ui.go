@@ -184,33 +184,6 @@ func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
 
 	case input.CancelUserMessage:
 		m.smoke.CancelUserMessage(msg.Err)
-	case input.ElicitSubmissionMessage:
-		request := m.input.ElicitRequest()
-
-		submission, err := elicit.ParseSubmission(msg.Content, len(request.Options))
-		if err != nil {
-			cmds = append(cmds, updateHistory(fmt.Errorf("invalid elicit submission: %w", err)))
-			break
-		}
-
-		response, err := m.smoke.SubmitElicit(submission)
-		if err != nil {
-			cmds = append(cmds, updateHistory(err))
-			break
-		}
-
-		m.input.ClearElicit()
-		cmds = append(cmds, m.input.SetWaiting(true))
-		cmds = append(cmds, updateHistory(history.ElicitResponseMessage{Response: response}))
-	case input.ElicitCanceledMessage:
-		if err := m.smoke.CancelElicit(); err != nil {
-			cmds = append(cmds, updateHistory(err))
-			break
-		}
-
-		m.input.ClearElicit()
-		cmds = append(cmds, m.input.SetWaiting(true))
-		cmds = append(cmds, updateHistory(history.ElicitResponseMessage{Response: "Canceled"}))
 	}
 
 	return tea.Batch(cmds...)
@@ -243,8 +216,35 @@ func (m *Model) handleElicitMessage(msg elicit.Message) tea.Cmd {
 	switch msg := msg.(type) {
 	case elicit.RequestMessage:
 		cmds = append(cmds, m.input.SetWaiting(false))
-		cmds = append(cmds, updateHistory(history.ElicitPromptMessage{Request: msg.Request}))
-		cmds = append(cmds, m.input.BeginElicit(input.ElicitState{Request: msg.Request}))
+		cmds = append(cmds, updateHistory(msg))
+		cmds = append(cmds, m.input.BeginElicit(input.ElicitState{Request: msg}))
+	case elicit.UserInputMessage:
+		request := m.input.ElicitRequest()
+
+		response, err := elicit.ParseResponse(msg.Content, request.Options)
+		if err != nil {
+			cmds = append(cmds, updateHistory(fmt.Errorf("invalid elicit response: %w", err)))
+			break
+		}
+
+		if err := m.smoke.SubmitElicitResponse(response); err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		m.input.ClearElicit()
+		cmds = append(cmds, m.input.SetWaiting(true))
+		// cmds = append(cmds, updateHistory(response))
+		cmds = append(cmds, updateHistory(elicit.UserResponseMessage{Response: response}))
+	case elicit.UserCanceledMessage:
+		if err := m.smoke.CancelElicit(); err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		m.input.ClearElicit()
+		cmds = append(cmds, m.input.SetWaiting(true))
+		cmds = append(cmds, updateHistory(msg))
 	}
 
 	return tea.Batch(cmds...)

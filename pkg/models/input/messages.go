@@ -31,13 +31,3 @@ type CompletionMessage struct {
 }
 
 func (c CompletionMessage) isInputMessage() {}
-
-type ElicitSubmissionMessage struct {
-	Content string
-}
-
-func (e ElicitSubmissionMessage) isInputMessage() {}
-
-type ElicitCanceledMessage struct{}
-
-func (e ElicitCanceledMessage) isInputMessage() {}

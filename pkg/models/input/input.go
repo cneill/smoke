@@ -255,9 +255,9 @@ func (m *Model) Waiting() bool { return m.waiting }
 
 func (m *Model) InElicitMode() bool { return m.elicitState != nil }
 
-func (m *Model) ElicitRequest() elicit.Request {
+func (m *Model) ElicitRequest() elicit.RequestMessage {
 	if m.elicitState == nil {
-		return elicit.Request{}
+		return elicit.RequestMessage{}
 	}
 
 	return m.elicitState.Request
@@ -317,7 +317,7 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 			m.textarea.Reset()
 			m.ClearElicit()
 
-			return uimsg.MsgToCmd(ElicitCanceledMessage{})
+			return uimsg.MsgToCmd(elicit.UserCanceledMessage{})
 		}
 
 		if !m.Focused() {
@@ -455,7 +455,7 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 	switch {
 	// user is answering a question
 	case m.InElicitMode():
-		return uimsg.MsgToCmd(ElicitSubmissionMessage{Content: content})
+		return uimsg.MsgToCmd(elicit.UserInputMessage{Content: content})
 	// user has sent a prompt command like "/help"
 	case strings.HasPrefix(content, "/"):
 		return m.handlePromptCommand(content)

@@ -18,7 +18,7 @@ type ManagerOpts struct {
 	ToolInitializers []Initializer
 	PlanManager      *plan.Manager
 	SkillCatalog     skills.Catalog
-	ElicitRuntime    *elicit.Runtime
+	ElicitManager    *elicit.Manager
 }
 
 func (m *ManagerOpts) OK() error {
@@ -44,7 +44,7 @@ type Manager struct {
 	toolMutex     sync.RWMutex
 	planManager   *plan.Manager
 	skillCatalog  skills.Catalog
-	elicitRuntime *elicit.Runtime
+	elicitManager *elicit.Manager
 
 	teaEmitter uimsg.TeaEmitter
 }
@@ -63,7 +63,7 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 		toolMutex:     sync.RWMutex{},
 		planManager:   opts.PlanManager,
 		skillCatalog:  opts.SkillCatalog,
-		elicitRuntime: opts.ElicitRuntime,
+		elicitManager: opts.ElicitManager,
 	}
 
 	if opts.ToolInitializers != nil {
@@ -118,8 +118,8 @@ func (m *Manager) InitTools(initializers ...Initializer) {
 			wsc.SetSkillCatalog(m.skillCatalog)
 		}
 
-		if wer, ok := tool.(WantsElicitRuntime); ok && m.elicitRuntime != nil {
-			wer.SetElicitRuntime(m.elicitRuntime)
+		if wem, ok := tool.(WantsElicitManager); ok && m.elicitManager != nil {
+			wem.SetElicitManager(m.elicitManager)
 		}
 
 		tools = append(tools, tool)

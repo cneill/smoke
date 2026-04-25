@@ -54,7 +54,7 @@ type Smoke struct {
 	llmConfig     *llms.Config
 	llm           llms.LLM
 	mcpClients    []*mcp.CommandClient
-	elicitRuntime *elicit.Runtime
+	elicitManager *elicit.Manager
 }
 
 func (s *Smoke) OK() error {
@@ -293,46 +293,33 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 	}
 }
 
-func (s *Smoke) SubmitElicit(submission *elicit.Submission) (string, error) {
-	if s.elicitRuntime == nil {
-		return "", fmt.Errorf("elicit runtime not available")
+func (s *Smoke) SubmitElicitResponse(response *elicit.Response) error {
+	if s.elicitManager == nil {
+		return fmt.Errorf("elicit manager not available")
 	}
 
-	request, ok := s.elicitRuntime.ActiveRequest()
+	_, ok := s.elicitManager.ActiveRequest()
 	if !ok {
-		return "", fmt.Errorf("no active elicit request")
+		return fmt.Errorf("no active elicit request")
 	}
 
-	if submission == nil {
-		return "", fmt.Errorf("missing elicit submission")
+	if response == nil {
+		return fmt.Errorf("missing elicit response")
 	}
 
-	if err := s.elicitRuntime.Complete(submission); err != nil {
-		return "", fmt.Errorf("failed to complete elicit request: %w", err)
+	if err := s.elicitManager.Complete(response); err != nil {
+		return fmt.Errorf("failed to complete elicit request: %w", err)
 	}
 
-	if submission.Selection == 0 {
-		if submission.Response != "" {
-			return "None of the above: " + submission.Response, nil
-		}
-
-		return "None of the above", nil
-	}
-
-	response := fmt.Sprintf("%d. %s", submission.Selection, request.Options[submission.Selection-1])
-	if submission.Response != "" {
-		response += ": " + submission.Response
-	}
-
-	return response, nil
+	return nil
 }
 
 func (s *Smoke) CancelElicit() error {
-	if s.elicitRuntime == nil {
-		return fmt.Errorf("elicit runtime not available")
+	if s.elicitManager == nil {
+		return fmt.Errorf("elicit manager not available")
 	}
 
-	if err := s.elicitRuntime.Cancel(); err != nil {
+	if err := s.elicitManager.Cancel(); err != nil {
 		return fmt.Errorf("failed to cancel elicit request: %w", err)
 	}
 

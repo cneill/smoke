@@ -15,7 +15,7 @@ const (
 )
 
 type Elicit struct {
-	runtime *elicit.Runtime
+	manager *elicit.Manager
 }
 
 func New(_, _ string) (tools.Tool, error) {
@@ -60,26 +60,23 @@ func (e *Elicit) Params() tools.Params {
 	}
 }
 
-func (e *Elicit) SetElicitRuntime(runtime *elicit.Runtime) {
-	e.runtime = runtime
+func (e *Elicit) SetElicitManager(manager *elicit.Manager) {
+	e.manager = manager
 }
 
 func (e *Elicit) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
-	if e.runtime == nil {
-		return nil, fmt.Errorf("elicit runtime not set")
+	if e.manager == nil {
+		return nil, fmt.Errorf("elicit manager not set")
 	}
 
 	question := args.GetString(ParamQuestion)
-	options := args.GetStringSlice(ParamOptions)
-
-	switch {
-	case question == nil || *question == "":
+	if question == nil {
 		return nil, fmt.Errorf("%w: missing question", tools.ErrArguments)
-	case len(options) == 0 || len(options) > 5:
-		return nil, fmt.Errorf("%w: options must contain between 1 and 5 items", tools.ErrArguments)
 	}
 
-	resultChan, err := e.runtime.Begin(elicit.Request{Question: *question, Options: options})
+	options := args.GetStringSlice(ParamOptions)
+
+	responseChan, err := e.manager.Begin(elicit.RequestMessage{Question: *question, Options: options})
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin elicit request: %w", err)
 	}
@@ -87,7 +84,7 @@ func (e *Elicit) Run(ctx context.Context, args tools.Args) (*tools.Output, error
 	select {
 	case <-ctx.Done():
 		return nil, fmt.Errorf("elicit canceled: %w", ctx.Err())
-	case res := <-resultChan:
+	case res := <-responseChan:
 		payload, err := json.Marshal(res)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal elicit result: %w", err)

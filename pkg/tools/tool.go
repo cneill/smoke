@@ -56,11 +56,11 @@ type (
 		SetTeaEmitter(emitter uimsg.TeaEmitter)
 	}
 
-	WantsElicitRuntime interface {
+	WantsElicitManager interface {
 		Tool
 
-		// SetElicitRuntime provides the session-scoped elicit runtime to a tool that needs interactive user input.
-		SetElicitRuntime(runtime *elicit.Runtime)
+		// SetElicitManager provides the session-scoped elicit manager to a tool that needs interactive user input.
+		SetElicitManager(manager *elicit.Manager)
 	}
 
 	WantsSkillCatalog interface {
