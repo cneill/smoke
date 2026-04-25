@@ -122,10 +122,6 @@ func (m *Manager) InitTools(initializers ...Initializer) {
 			wer.SetElicitRuntime(m.elicitRuntime)
 		}
 
-		if wte, ok := tool.(WantsTeaEmitter); ok && m.teaEmitter != nil {
-			wte.SetTeaEmitter(m.teaEmitter)
-		}
-
 		tools = append(tools, tool)
 	}
 
