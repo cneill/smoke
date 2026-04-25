@@ -76,7 +76,7 @@ func (e *Elicit) Run(ctx context.Context, args tools.Args) (*tools.Output, error
 
 	options := args.GetStringSlice(ParamOptions)
 
-	responseChan, err := e.manager.Begin(elicit.RequestMessage{Question: *question, Options: options})
+	responseChan, err := e.manager.Begin(*question, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin elicit request: %w", err)
 	}

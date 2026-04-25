@@ -37,7 +37,11 @@ func (m *Manager) SetOnBegin(fn func(RequestMessage)) {
 	m.onBegin = fn
 }
 
-func (m *Manager) Begin(req RequestMessage) (<-chan *Response, error) {
+func (m *Manager) Begin(question string, options []string) (<-chan *Response, error) {
+	req := RequestMessage{
+		Question: question,
+		Options:  options,
+	}
 	if err := req.OK(); err != nil {
 		return nil, err
 	}
