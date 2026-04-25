@@ -293,25 +293,23 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 	}
 }
 
-func (s *Smoke) SubmitElicitResponse(response *elicit.Response) error {
+func (s *Smoke) HandleElicitUserInput(msg elicit.UserInputMessage) (elicit.UserResponseMessage, error) {
+	var responseMsg elicit.UserResponseMessage
+
 	if s.elicitManager == nil {
-		return fmt.Errorf("elicit manager not available")
+		return responseMsg, fmt.Errorf("elicit manager not available")
 	}
 
-	_, ok := s.elicitManager.ActiveRequest()
-	if !ok {
-		return fmt.Errorf("no active elicit request")
-	}
-
-	if response == nil {
-		return fmt.Errorf("missing elicit response")
+	response, err := s.elicitManager.ParseUserInput(msg)
+	if err != nil {
+		return responseMsg, fmt.Errorf("failed to handle user elicit response: %w", err)
 	}
 
 	if err := s.elicitManager.Complete(response); err != nil {
-		return fmt.Errorf("failed to complete elicit request: %w", err)
+		return responseMsg, fmt.Errorf("failed to complete elicit request: %w", err)
 	}
 
-	return nil
+	return elicit.UserResponseMessage{Response: response}, nil
 }
 
 func (s *Smoke) CancelElicit() error {

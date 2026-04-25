@@ -328,25 +328,12 @@ func renderElicitMessage(msg elicit.Message, info bubbleInfo) bubbleInfo {
 	case elicit.RequestMessage:
 		info.title = "Question"
 		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
-
-		builder := &strings.Builder{}
-		fmt.Fprintln(builder, msg.Question)
-
-		builder.WriteRune('\n')
-
-		for i, option := range msg.Options {
-			fmt.Fprintf(builder, "%d. %s\n", i+1, option)
-		}
-
-		fmt.Fprint(builder, "none. None of the above")
-		info.content = builder.String()
-
-		return info
+		info.content = msg.String()
 
 	case elicit.UserCanceledMessage:
 		info.title = "Canceled"
 		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#ff0000"))
-		info.content = "User canceled elicitation request"
+		info.content = msg.String()
 
 	case elicit.UserResponseMessage:
 		info.title = "Response"

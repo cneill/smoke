@@ -218,29 +218,17 @@ func (m *Model) handleElicitMessage(msg elicit.Message) tea.Cmd {
 		cmds = append(cmds, m.input.SetWaiting(false))
 		cmds = append(cmds, updateHistory(msg))
 
-		if err := m.input.BeginElicit(msg); err != nil {
-			cmds = append(cmds, updateHistory(err))
-		}
+		m.input.BeginElicit()
 	case elicit.UserInputMessage:
-		request := m.input.ElicitRequest()
-		if request == nil {
-			break
-		}
-
-		response, err := elicit.ParseResponse(msg.Content, request.Options)
+		response, err := m.smoke.HandleElicitUserInput(msg)
 		if err != nil {
-			cmds = append(cmds, updateHistory(fmt.Errorf("invalid elicit response: %w", err)))
-			break
-		}
-
-		if err := m.smoke.SubmitElicitResponse(response); err != nil {
 			cmds = append(cmds, updateHistory(err))
 			break
 		}
 
 		m.input.ClearElicit()
 		cmds = append(cmds, m.input.SetWaiting(true))
-		cmds = append(cmds, updateHistory(elicit.UserResponseMessage{Response: response}))
+		cmds = append(cmds, updateHistory(response))
 	case elicit.UserCanceledMessage:
 		if err := m.smoke.CancelElicit(); err != nil {
 			cmds = append(cmds, updateHistory(err))

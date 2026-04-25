@@ -2,8 +2,18 @@ package elicit
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 )
+
+type Response struct {
+	Selection      int    `json:"selection"`
+	Selected       string `json:"selected,omitempty"`
+	Elaboration    string `json:"elaboration,omitempty"`
+	NoneOfTheAbove bool   `json:"none_of_the_above"`
+	Canceled       bool   `json:"canceled"`
+}
 
 type Manager struct {
 	mu      sync.RWMutex
@@ -61,6 +71,40 @@ func (m *Manager) ActiveRequest() (RequestMessage, bool) {
 	}
 
 	return m.pending.request, true
+}
+
+func (m *Manager) ParseUserInput(msg UserInputMessage) (*Response, error) {
+	request, ok := m.ActiveRequest()
+	if !ok {
+		return nil, fmt.Errorf("no active elicit request to answer")
+	}
+
+	numOptions := len(request.Options)
+
+	trimmed := strings.TrimSpace(msg.Content)
+	if trimmed == "" {
+		return nil, fmt.Errorf("enter a number 1-%d or 'none', with optional elaboration following ':'", numOptions)
+	}
+
+	selectionToken := trimmed
+	response := ""
+
+	before, after, ok := strings.Cut(trimmed, ":")
+	if ok {
+		selectionToken = strings.TrimSpace(before)
+		response = strings.TrimSpace(after)
+	}
+
+	if strings.EqualFold(selectionToken, "none") {
+		return &Response{Elaboration: response, NoneOfTheAbove: true}, nil
+	}
+
+	n, err := strconv.Atoi(selectionToken)
+	if err != nil || n < 1 || n > numOptions {
+		return nil, fmt.Errorf("enter a number 1-%d or 'none', with optional elaboration following ':'", numOptions)
+	}
+
+	return &Response{Selection: n, Selected: request.Options[n-1], Elaboration: response}, nil
 }
 
 func (m *Manager) Complete(response *Response) error {
