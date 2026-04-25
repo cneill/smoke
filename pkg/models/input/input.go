@@ -311,6 +311,8 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 			return m.handleContentSubmit()
 		}
 	case tea.KeyEsc:
+		// check if the user is currently in the process of answering a question from the elicit tool
+		// TODO: figure out if this should override VIM/scroll switching - may be annoying
 		if m.InElicitMode() && m.Focused() && m.mode == modeInsert {
 			m.textarea.Reset()
 			m.ClearElicit()
@@ -450,18 +452,20 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 	m.userHistory = append(m.userHistory, content)
 	m.userHistoryIndex = nil
 
-	if m.InElicitMode() {
+	switch {
+	// user is answering a question
+	case m.InElicitMode():
 		return uimsg.MsgToCmd(ElicitSubmissionMessage{Content: content})
-	}
-
-	if strings.HasPrefix(content, "/") {
+	// user has sent a prompt command like "/help"
+	case strings.HasPrefix(content, "/"):
 		return m.handlePromptCommand(content)
+	// user has sent a normal message of some kind
+	default:
+		return uimsg.MsgToCmd(UserMessage{
+			SourceID: MainSourceID,
+			Content:  content,
+		})
 	}
-
-	return uimsg.MsgToCmd(UserMessage{
-		SourceID: MainSourceID,
-		Content:  content,
-	})
 }
 
 // handlePromptCommand checks for a command specified by the user (e.g. "/exit") and returns the appropriate message
