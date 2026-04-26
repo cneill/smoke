@@ -126,7 +126,7 @@ func DefaultConfig() *Config {
 }
 
 func LoadConfig() (*Config, error) {
-	configPath, err := getConfigPath()
+	configPath, err := GetConfigFilePath()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config file path: %w", err)
 	}
@@ -170,25 +170,6 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return config, nil
-}
-
-func getConfigPath() (string, error) {
-	var result string
-
-	home, _ := os.UserHomeDir()
-
-	// $XDG_CONFIG_HOME/smoke/config.json OR $HOME/.config/smoke/config.json
-	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-		result = filepath.Join(xdgConfig, "smoke", "config.json")
-	} else if home != "" {
-		result = filepath.Join(home, ".config", "smoke", "config.json")
-	}
-
-	if result == "" {
-		return "", fmt.Errorf("could not construct config file path from $XDG_CONFIG_HOME or $HOME")
-	}
-
-	return result, nil
 }
 
 func createDefaultConfigFile(configPath string) (*os.File, error) {
