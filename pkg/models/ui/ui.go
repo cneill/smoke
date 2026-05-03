@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"os/exec"
 
@@ -53,9 +54,19 @@ func New(opts *Opts) (*Model, error) {
 		return nil, fmt.Errorf("options error: %w", err)
 	}
 
-	width, height, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get terminal size: %w", err)
+	var (
+		width  = 200
+		height = 50
+		err    error
+	)
+
+	if fd := os.Stdout.Fd(); fd > math.MaxInt {
+		slog.Warn("terminal stdout file descriptor larger than math.MaxInt; giving dummy width/height values")
+	} else {
+		width, height, err = term.GetSize(int(fd))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get terminal size: %w", err)
+		}
 	}
 
 	bannerModel := banner.New()

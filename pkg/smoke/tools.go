@@ -11,7 +11,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools/handlers"
 )
 
-func (s *Smoke) NewToolManager(mode modes.Mode) (*tools.Manager, error) {
+func (s *Smoke) NewToolManager(ctx context.Context, mode modes.Mode) (*tools.Manager, error) {
 	initializers := s.ModeToolInitializers(mode)
 
 	toolOpts := &tools.ManagerOpts{
@@ -29,10 +29,10 @@ func (s *Smoke) NewToolManager(mode modes.Mode) (*tools.Manager, error) {
 	}
 
 	if len(s.mcpClients) > 0 {
-		ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
+		timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
-		mcpTools, err := s.GetMCPTools(ctx, mode, s.mcpClients...)
+		mcpTools, err := s.GetMCPTools(timeoutCtx, mode, s.mcpClients...)
 		if err != nil {
 			slog.Error("failed to get MCP tools", "error", err)
 		}

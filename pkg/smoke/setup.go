@@ -20,7 +20,7 @@ import (
 	"github.com/cneill/smoke/pkg/providers/grok"
 )
 
-func (s *Smoke) setup() error {
+func (s *Smoke) setup(ctx context.Context) error {
 	if err := s.OK(); err != nil {
 		return fmt.Errorf("%w: %w", ErrOptions, err)
 	}
@@ -38,11 +38,11 @@ func (s *Smoke) setup() error {
 
 	s.setupElicitManager()
 
-	if err := s.setupMCPClients(); err != nil {
+	if err := s.setupMCPClients(ctx); err != nil {
 		return fmt.Errorf("failed to set up MCP clients: %w", err)
 	}
 
-	if err := s.setupSession(); err != nil {
+	if err := s.setupSession(ctx); err != nil {
 		return fmt.Errorf("failed to set up main smoke session: %w", err)
 	}
 
@@ -121,12 +121,12 @@ func (s *Smoke) setupElicitManager() {
 	s.elicitManager = manager
 }
 
-func (s *Smoke) setupSession() error {
+func (s *Smoke) setupSession(ctx context.Context) error {
 	slog.Debug("setting up main session", "name", s.mainSessionName)
 
 	mode := modes.DefaultMode()
 
-	toolManager, err := s.NewToolManager(mode)
+	toolManager, err := s.NewToolManager(ctx, mode)
 	if err != nil {
 		return fmt.Errorf("failed to set up tools manager for main smoke session: %w", err)
 	}
@@ -156,7 +156,7 @@ func (s *Smoke) setupSession() error {
 	return nil
 }
 
-func (s *Smoke) setupMCPClients() error {
+func (s *Smoke) setupMCPClients(ctx context.Context) error {
 	if s.config == nil || s.config.MCP == nil {
 		slog.Debug("no MCP configuration defined")
 		return nil
@@ -176,7 +176,7 @@ func (s *Smoke) setupMCPClients() error {
 			Directory: s.projectPath,
 		}
 
-		client, err := mcp.NewCommandClient(context.TODO(), opts)
+		client, err := mcp.NewCommandClient(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("failed to set up MCP client %q: %w", opts.Name, err)
 		}

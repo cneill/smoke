@@ -21,7 +21,7 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 	sessionName := mainSession.Name + "_summary"
 	systemMessage := prompts.SummarizeSystemPrompt(msg.OriginalMessages...).Markdown()
 
-	toolManager, err := s.NewToolManager(modes.ModeSummarize)
+	toolManager, err := s.NewToolManager(context.TODO(), modes.ModeSummarize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tools manager for summarization conversation: %w", err)
 	}

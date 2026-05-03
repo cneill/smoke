@@ -118,7 +118,7 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 		smoke.WithLLMConfig(llmConfig),
 	}
 
-	smokeInstance, err := smoke.New(opts...) //nolint:contextcheck
+	smokeInstance, err := smoke.New(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up smoke: %w", err)
 	}
@@ -160,7 +160,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	program := tea.NewProgram(uiModel, tea.WithReportFocus(), tea.WithMouseCellMotion())
 
 	// Give Smoke the ability to send messages directly into the bubbletea event loop.
-	if _, err := smokeInstance.Update(smoke.WithTeaEmitter(program.Send)); err != nil { //nolint:contextcheck // TODO: revisit this?
+	if _, err := smokeInstance.Update(ctx, smoke.WithTeaEmitter(program.Send)); err != nil {
 		return fmt.Errorf("%w: failed to update smoke controller with bubbletea emitter: %w", ErrInit, err)
 	}
 

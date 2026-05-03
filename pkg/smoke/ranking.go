@@ -58,7 +58,7 @@ func (s *Smoke) batchSession(msg rank.RequestMessage) (*llms.Session, error) {
 	systemMessage := prompts.RankSystemPrompt(msg.Description, msg.Batch...).Markdown()
 
 	// TODO: For now, this is pretty much irrelevant - there are no ranking tools. Figure out how to rationalize.
-	toolManager, err := s.NewToolManager(modes.ModeRanking)
+	toolManager, err := s.NewToolManager(context.TODO(), modes.ModeRanking)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tools manager for ranking conversation, batch %d: %w", msg.BatchIdx, err)
 	}

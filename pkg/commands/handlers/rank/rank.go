@@ -353,14 +353,17 @@ listenLoop:
 
 	topItems := ranked[:min(opts.top, len(ranked))]
 
-	resultMsg := "**Top ranked items:**\n\n"
+	builder := &strings.Builder{}
+	builder.Grow(1024)
+	builder.WriteString("**Top ranked items:**\n\n")
+
 	for i, item := range topItems {
-		resultMsg += fmt.Sprintf("\t%d. %s (score=%.2f)\n", i+1, item.Contents, item.RankingScore())
+		fmt.Fprintf(builder, "\t%d. %s (score=%.2f)\n", i+1, item.Contents, item.RankingScore())
 	}
 
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: opts.promptMessage,
-		Message:       resultMsg,
+		Message:       builder.String(),
 	}
 
 	r.teaEmitter(update)

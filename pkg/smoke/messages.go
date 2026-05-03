@@ -3,7 +3,6 @@ package smoke
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/uimsg"
-	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/llms"
 )
@@ -38,15 +37,6 @@ type ToolCallResponseMessage struct {
 }
 
 func (t ToolCallResponseMessage) isSmokeMessage() {}
-
-// TODO: better name
-type SendCommandMessageResponseMessage struct {
-	OriginalMessage commands.SendSessionMessage
-	Session         *llms.Session
-	Err             *uimsg.Error
-}
-
-func (s SendCommandMessageResponseMessage) isSmokeMessage() {}
 
 func MsgToCmd(msg tea.Msg) tea.Cmd {
 	return func() tea.Msg {

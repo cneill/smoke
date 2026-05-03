@@ -84,6 +84,7 @@ func (c Catalog) Completer() func(string) []string {
 				if len(description) > 50 {
 					description = description[0:50] + "..."
 				}
+
 				completionText := fmt.Sprintf("%s - %s", skill.Name, description)
 				results = append(results, completionText)
 			}

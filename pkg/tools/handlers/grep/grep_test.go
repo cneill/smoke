@@ -139,7 +139,7 @@ func TestGrep_Run(t *testing.T) { //nolint:funlen
 		},
 		{
 			name:        "binary_file",
-			initContent: "\x00\n\x00\nmatch",
+			initContent: "\x00\n\x00\nmatch", //nolint:dupword
 			args: tools.Args{
 				grep.ParamRegex: `match`,
 				grep.ParamPath:  "binary_file_test.txt",

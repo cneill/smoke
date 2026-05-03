@@ -59,7 +59,7 @@ func (c *ChatGPT) RequiresSessionSystem() bool { return true }
 // set automatically and must be left nil by the caller.
 //
 // The caller is responsible for launching the conversation via go conv.Start(newCtx).
-func NewConversation(ctx context.Context, client openai.Client, opts *base.ConversationOpts) (*conversation, context.Context, error) {
+func NewConversation(ctx context.Context, client openai.Client, opts *base.ConversationOpts) (llms.Conversation, context.Context, error) {
 	// Two-step construction: the send funcs close over conv, so we build conv first and set the
 	// funcs before calling base.NewConversation.
 	conv := &conversation{client: client}

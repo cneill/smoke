@@ -1,5 +1,6 @@
 package tools
 
+//nolint:dupword
 // import (
 // 	"bytes"
 // 	"context"

@@ -11,6 +11,7 @@ import (
 )
 
 type Config struct {
+	// TODO: expose Providers, use the API keys if provided
 	Providers *Providers `json:"-"`
 	MCP       *MCP       `json:"mcp"`
 }
@@ -23,7 +24,6 @@ func (c *Config) OK() error {
 	return nil
 }
 
-// TODO: ACTUALLY USE THESE API KEYS
 type Providers struct {
 	AnthropicKey string `json:"anthropic_key"`
 	OpenAIKey    string `json:"openai_key"`

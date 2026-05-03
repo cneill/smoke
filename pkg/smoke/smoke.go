@@ -68,7 +68,7 @@ func (s *Smoke) OK() error {
 	return nil
 }
 
-func New(opts ...OptFunc) (*Smoke, error) {
+func New(ctx context.Context, opts ...OptFunc) (*Smoke, error) {
 	smoke := &Smoke{
 		sessions:      map[string]*llms.Session{},
 		conversations: map[string]llms.Conversation{},
@@ -82,14 +82,14 @@ func New(opts ...OptFunc) (*Smoke, error) {
 		}
 	}
 
-	if err := smoke.setup(); err != nil {
+	if err := smoke.setup(ctx); err != nil {
 		return nil, fmt.Errorf("smoke setup failed: %w", err)
 	}
 
 	return smoke, nil
 }
 
-func (s *Smoke) Update(opts ...OptFunc) (*Smoke, error) {
+func (s *Smoke) Update(ctx context.Context, opts ...OptFunc) (*Smoke, error) {
 	var (
 		smoke  *Smoke
 		optErr error
@@ -102,7 +102,7 @@ func (s *Smoke) Update(opts ...OptFunc) (*Smoke, error) {
 		}
 	}
 
-	if err := smoke.setup(); err != nil {
+	if err := smoke.setup(ctx); err != nil {
 		return nil, fmt.Errorf("smoke setup failed: %w", err)
 	}
 
