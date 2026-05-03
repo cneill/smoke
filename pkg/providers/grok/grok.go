@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/providers/base"
 	"github.com/cneill/smoke/pkg/providers/chatgpt"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -16,9 +17,9 @@ const (
 )
 
 type Grok struct {
-	config  *llms.Config
-	logger  *slog.Logger
-	chatgpt *chatgpt.ChatGPT
+	config *llms.Config
+	logger *slog.Logger
+	client openai.Client
 }
 
 func configOK(config *llms.Config) error {
@@ -43,15 +44,10 @@ func New(config *llms.Config) (llms.LLM, error) {
 		option.WithBaseURL(API_URL),
 	)
 
-	wrapped := &chatgpt.ChatGPT{
-		Config: config,
-		Client: client,
-	}
-
 	grok := &Grok{
-		config:  config,
-		logger:  slog.Default().WithGroup(llms.LLMTypeGrok),
-		chatgpt: wrapped,
+		config: config,
+		logger: slog.Default().WithGroup(llms.LLMTypeGrok),
+		client: client,
 	}
 
 	return grok, nil
@@ -63,13 +59,20 @@ func (g *Grok) LLMInfo() *llms.LLMInfo {
 		ModelName: g.config.Model,
 	}
 }
+
 func (g *Grok) RequiresSessionSystem() bool { return true }
 
 func (g *Grok) StartConversation(ctx context.Context, session *llms.Session) llms.Conversation {
-	return g.chatgpt.StartConversation(ctx, session)
-}
+	conv, err := chatgpt.NewConversation(ctx, g.client, &base.ConversationOpts{
+		Session: session,
+		LLMInfo: g.LLMInfo(),
+		Config:  g.config,
+		Stream:  true,
+	})
+	if err != nil {
+		// Config was already validated in New(), so this should never happen.
+		panic(fmt.Sprintf("grok: failed to create conversation: %v", err))
+	}
 
-// TODO: some way of controlling this for the wrapped ChatGPT?
-// func (g *Grok) shouldStream() bool {
-// 	return true
-// }
+	return conv
+}
