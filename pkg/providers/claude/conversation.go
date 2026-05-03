@@ -9,110 +9,13 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/providers/base"
 )
 
-const maxIterations = 2048
-
 type conversation struct {
-	id           string
-	stream       bool
-	cancel       context.CancelCauseFunc
-	eventChan    chan llms.Event
-	continueChan chan struct{}
-	session      *llms.Session // TODO: read-only snapshot of Session as provided by Smoke
-	llmInfo      *llms.LLMInfo
-	client       anthropic.Client
-	config       *llms.Config
+	*base.Conversation
 
-	hasPendingToolCalls bool
-}
-
-func (c *conversation) ID() string { return c.id }
-
-func (c *conversation) Events() <-chan llms.Event { return c.eventChan }
-
-func (c *conversation) Cancel(err error) { c.cancel(err) }
-
-func (c *conversation) Continue(ctx context.Context) error {
-	select {
-	case c.continueChan <- struct{}{}:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("conversation context error: %w", ctx.Err())
-	}
-}
-
-func (c *conversation) Close() { c.cancel(nil) }
-
-func (c *conversation) newMessage(opts ...llms.MessageOpt) *llms.Message {
-	msg := llms.NewMessage(
-		llms.WithLLMInfo(c.llmInfo),
-	)
-
-	for _, opt := range opts {
-		msg = opt(msg)
-	}
-
-	return msg
-}
-
-func (c *conversation) waitForContinue(ctx context.Context) error {
-	select {
-	case <-c.continueChan:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("context error while waiting for continue: %w", ctx.Err())
-	}
-}
-
-func (c *conversation) emit(ctx context.Context, e llms.Event) {
-	select {
-	case c.eventChan <- e:
-	case <-ctx.Done():
-	}
-}
-
-func (c *conversation) run(ctx context.Context) {
-	defer close(c.eventChan)
-
-	for range maxIterations {
-		if c.stream {
-			if err := c.sendStream(ctx); err != nil {
-				c.emit(ctx, llms.EventError{
-					Err: fmt.Errorf("failed to send message (streaming): %w", err),
-				})
-			}
-		} else {
-			if err := c.sendNoStream(ctx); err != nil {
-				c.emit(ctx, llms.EventError{
-					Err: fmt.Errorf("failed to send message (non-streaming): %w", err),
-				})
-			}
-		}
-
-		if !c.hasPendingToolCalls {
-			break
-		}
-
-		if err := c.waitForContinue(ctx); err != nil {
-			c.emit(ctx, llms.EventError{
-				Err: fmt.Errorf("failed while waiting for tool call results: %w", err),
-			})
-		}
-
-		// TODO: this COULD return unrelated runs if Smoke messes up - need to check this?
-		callMessages := c.session.LastRunByRole(llms.RoleTool)
-
-		c.emit(ctx, llms.EventToolCallResults{
-			Messages: callMessages,
-		})
-	}
-
-	select {
-	case c.eventChan <- llms.EventDone{}:
-	case <-ctx.Done():
-		slog.Debug("context cancelled before sending done event", "error", ctx.Err())
-	}
+	client anthropic.Client
 }
 
 func (c *conversation) sendNoStream(ctx context.Context) error {
@@ -123,7 +26,7 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 		return fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
-	c.emit(ctx, llms.EventUsageUpdate{
+	c.Emit(ctx, llms.EventUsageUpdate{
 		InputTokens:  result.Usage.InputTokens,
 		OutputTokens: result.Usage.OutputTokens,
 	})
@@ -168,7 +71,7 @@ func (c *conversation) sendStream(ctx context.Context) error {
 
 		switch deltaType := chunkType.Delta.AsAny().(type) {
 		case anthropic.TextDelta:
-			c.emit(ctx, llms.EventTextDelta{
+			c.Emit(ctx, llms.EventTextDelta{
 				ID:   accumulator.ID,
 				Text: deltaType.Text,
 			})
@@ -191,7 +94,7 @@ func (c *conversation) sendStream(ctx context.Context) error {
 		return fmt.Errorf("%w: %s", llms.ErrPromptRefused, accumulator.Content[0].Text)
 	}
 
-	c.emit(ctx, llms.EventUsageUpdate{
+	c.Emit(ctx, llms.EventUsageUpdate{
 		InputTokens:  accumulator.Usage.InputTokens,
 		OutputTokens: accumulator.Usage.OutputTokens,
 	})
@@ -204,15 +107,18 @@ func (c *conversation) sendStream(ctx context.Context) error {
 }
 
 func (c *conversation) getMessageNewParams() anthropic.MessageNewParams {
+	session := c.Session()
+	config := c.Config()
+
 	return anthropic.MessageNewParams{
-		Messages:  c.getSessionMessages(c.session),
-		MaxTokens: c.config.MaxTokens,
-		Model:     c.config.Model,
+		Messages:  c.getSessionMessages(session),
+		MaxTokens: config.MaxTokens,
+		Model:     config.Model,
 		System: []anthropic.TextBlockParam{
-			{Text: c.session.SystemMessage},
+			{Text: session.SystemMessage},
 		},
-		Tools:        c.newMessageTools(c.session),
-		Temperature:  anthropic.Float(c.config.Temperature),
+		Tools:        c.newMessageTools(session),
+		Temperature:  anthropic.Float(config.Temperature),
 		CacheControl: anthropic.NewCacheControlEphemeralParam(),
 	}
 }
@@ -291,7 +197,7 @@ func (c *conversation) providerToolCallsToGeneric(toolCalls ...anthropic.ToolUse
 	results := make(llms.ToolCalls, len(toolCalls))
 
 	for callNum, toolCall := range toolCalls {
-		args, err := c.session.Tools.GetArgs(toolCall.Name, toolCall.Input)
+		args, err := c.Session().Tools.GetArgs(toolCall.Name, toolCall.Input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", toolCall.Name, err)
 		}
@@ -338,14 +244,14 @@ func (c *conversation) handleResponse(ctx context.Context, id string, blocks []a
 		}
 	}
 
-	msg := c.newMessage(
+	msg := c.NewMessage(
 		llms.WithID(id),
 		llms.WithRole(llms.RoleAssistant),
 		llms.WithTextContent(textBuilder.String()),
 	)
 
 	if len(providerToolCalls) > 0 {
-		c.hasPendingToolCalls = true
+		c.HasPendingToolCalls = true
 
 		toolCalls, err := c.providerToolCallsToGeneric(providerToolCalls...)
 		if err != nil {
@@ -354,12 +260,12 @@ func (c *conversation) handleResponse(ctx context.Context, id string, blocks []a
 
 		msg = msg.Update(llms.WithToolCalls(toolCalls...))
 
-		c.emit(ctx, llms.EventToolCallsRequested{
+		c.Emit(ctx, llms.EventToolCallsRequested{
 			Message: msg,
 		})
 	} else {
-		c.hasPendingToolCalls = false
-		c.emit(ctx, llms.EventFinalMessage{
+		c.HasPendingToolCalls = false
+		c.Emit(ctx, llms.EventFinalMessage{
 			Message: msg,
 		})
 	}

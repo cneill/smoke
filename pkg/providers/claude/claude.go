@@ -9,6 +9,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/providers/base"
 )
 
 type Claude struct {
@@ -57,21 +58,26 @@ func (c *Claude) LLMInfo() *llms.LLMInfo {
 func (c *Claude) RequiresSessionSystem() bool { return false }
 
 func (c *Claude) StartConversation(ctx context.Context, session *llms.Session) llms.Conversation {
-	newCtx, cancel := context.WithCancelCause(ctx)
+	// Two-step construction: the send funcs close over conv, so we build conv first, then wire the
+	// base in.
+	conv := &conversation{client: c.client}
 
-	conv := &conversation{
-		id:           session.Name,
-		stream:       c.shouldStream(),
-		cancel:       cancel,
-		eventChan:    make(chan llms.Event),
-		continueChan: make(chan struct{}),
-		session:      session, // TODO: read-only view
-		llmInfo:      c.LLMInfo(),
-		client:       c.client,
-		config:       c.config,
+	baseConv, newCtx, err := base.NewConversation(ctx, &base.ConversationOpts{
+		Session:      session,
+		LLMInfo:      c.LLMInfo(),
+		Config:       c.config,
+		Stream:       c.shouldStream(),
+		SendStream:   conv.sendStream,
+		SendNoStream: conv.sendNoStream,
+	})
+	if err != nil {
+		// Config was already validated in New(), so this should never happen.
+		panic(fmt.Sprintf("claude: failed to create base conversation: %v", err))
 	}
 
-	go conv.run(newCtx)
+	conv.Conversation = baseConv
+
+	go conv.Start(newCtx)
 
 	return conv
 }

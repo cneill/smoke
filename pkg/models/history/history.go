@@ -97,6 +97,7 @@ func getGlamourRenderer(width int) (*glamour.TermRenderer, error) {
 		glamour.WithWordWrap(width),
 		glamour.WithEmoji(),
 		glamour.WithAutoStyle(),
+		glamour.WithPreservedNewLines(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set up markdown renderer: %w", err)

@@ -6,118 +6,16 @@ import (
 	"log/slog"
 
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/providers/base"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 )
 
-const maxIterations = 2048
-
 type conversation struct {
-	id           string
-	stream       bool
-	cancel       context.CancelCauseFunc
-	eventChan    chan llms.Event
-	continueChan chan struct{}
-	session      *llms.Session // TODO: read-only snapshot of Session as provided by Smoke
-	llmInfo      *llms.LLMInfo
-	client       openai.Client
-	config       *llms.Config
+	*base.Conversation
 
-	hasPendingToolCalls bool
-}
-
-func (c *conversation) ID() string { return c.id }
-
-func (c *conversation) Events() <-chan llms.Event { return c.eventChan }
-
-func (c *conversation) Cancel(err error) { c.cancel(err) }
-
-func (c *conversation) Continue(ctx context.Context) error {
-	select {
-	case c.continueChan <- struct{}{}:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("conversation context error: %w", ctx.Err())
-	}
-}
-
-func (c *conversation) Close() {
-	c.cancel(nil)
-}
-
-func (c *conversation) newMessage(opts ...llms.MessageOpt) *llms.Message {
-	msg := llms.NewMessage(
-		llms.WithLLMInfo(c.llmInfo),
-	)
-
-	for _, opt := range opts {
-		msg = opt(msg)
-	}
-
-	return msg
-}
-
-func (c *conversation) waitForContinue(ctx context.Context) error {
-	select {
-	case <-c.continueChan:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("context error while waiting for continue: %w", ctx.Err())
-	}
-}
-
-// func (c *conversation) emit(ctx context.Context, e llms.Event) bool {
-func (c *conversation) emit(ctx context.Context, e llms.Event) {
-	select {
-	case c.eventChan <- e:
-		// return true
-	case <-ctx.Done():
-		// return false
-	}
-}
-
-func (c *conversation) run(ctx context.Context) {
-	defer close(c.eventChan)
-
-	for range maxIterations {
-		if c.stream {
-			if err := c.sendStream(ctx); err != nil {
-				c.emit(ctx, llms.EventError{
-					Err: fmt.Errorf("failed to send message (streaming): %w", err),
-				})
-			}
-		} else {
-			if err := c.sendNoStream(ctx); err != nil {
-				c.emit(ctx, llms.EventError{
-					Err: fmt.Errorf("failed to send message (non-streaming): %w", err),
-				})
-			}
-		}
-
-		if !c.hasPendingToolCalls {
-			break
-		}
-
-		if err := c.waitForContinue(ctx); err != nil {
-			c.emit(ctx, llms.EventError{
-				Err: fmt.Errorf("failed while waiting for tool call results: %w", err),
-			})
-		}
-
-		// TODO: this COULD return unrelated runs if Smoke messes up - need to check this?
-		callMessages := c.session.LastRunByRole(llms.RoleTool)
-
-		c.emit(ctx, llms.EventToolCallResults{
-			Messages: callMessages,
-		})
-	}
-
-	select {
-	case c.eventChan <- llms.EventDone{}:
-	case <-ctx.Done():
-		slog.Debug("context cancelled before sending done event", "error", ctx.Err())
-	}
+	client openai.Client
 }
 
 func (c *conversation) sendNoStream(ctx context.Context) error {
@@ -136,7 +34,7 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 		return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
 	}
 
-	c.emit(ctx, llms.EventUsageUpdate{
+	c.Emit(ctx, llms.EventUsageUpdate{
 		InputTokens:  result.Usage.PromptTokens,
 		OutputTokens: result.Usage.CompletionTokens,
 	})
@@ -179,7 +77,7 @@ func (c *conversation) sendStream(ctx context.Context) error {
 			return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
 		}
 
-		c.emit(ctx, llms.EventTextDelta{
+		c.Emit(ctx, llms.EventTextDelta{
 			ID:   accumulator.ID,
 			Text: chunk.Choices[0].Delta.Content,
 		})
@@ -193,7 +91,7 @@ func (c *conversation) sendStream(ctx context.Context) error {
 		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
 	}
 
-	c.emit(ctx, llms.EventUsageUpdate{
+	c.Emit(ctx, llms.EventUsageUpdate{
 		InputTokens:  accumulator.Usage.PromptTokens,
 		OutputTokens: accumulator.Usage.CompletionTokens,
 	})
@@ -208,13 +106,16 @@ func (c *conversation) sendStream(ctx context.Context) error {
 }
 
 func (c *conversation) getNewCompletionParams() openai.ChatCompletionNewParams {
+	session := c.Session()
+	config := c.Config()
+
 	return openai.ChatCompletionNewParams{
-		MaxCompletionTokens: openai.Int(c.config.MaxTokens),
-		Messages:            c.getSessionMessages(c.session),
-		Model:               c.config.Model,
+		MaxCompletionTokens: openai.Int(config.MaxTokens),
+		Messages:            c.getSessionMessages(session),
+		Model:               config.Model,
 		N:                   openai.Int(1),
-		Tools:               c.completionTools(c.session),
-		Temperature:         openai.Float(c.config.Temperature),
+		Tools:               c.completionTools(session),
+		Temperature:         openai.Float(config.Temperature),
 	}
 }
 
@@ -263,7 +164,7 @@ func (c *conversation) providerToolCallsToGeneric(toolCalls ...openai.ChatComple
 
 		name := toolCall.OfFunction.Function.Name
 
-		args, err := c.session.Tools.GetArgs(name, []byte(toolCall.OfFunction.Function.Arguments))
+		args, err := c.Session().Tools.GetArgs(name, []byte(toolCall.OfFunction.Function.Arguments))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", name, err)
 		}
@@ -335,22 +236,22 @@ func (c *conversation) handleResponse(ctx context.Context, id string, response o
 		return fmt.Errorf("failed to handle assistant tool calls: %w", err)
 	}
 
-	msg := c.newMessage(
+	msg := c.NewMessage(
 		llms.WithID(id),
 		llms.WithRole(llms.RoleAssistant),
 		llms.WithTextContent(response.Content),
 	)
 
 	if len(toolCalls) > 0 {
-		c.hasPendingToolCalls = true
+		c.HasPendingToolCalls = true
 		msg = msg.Update(llms.WithToolCalls(toolCalls...))
 
-		c.emit(ctx, llms.EventToolCallsRequested{
+		c.Emit(ctx, llms.EventToolCallsRequested{
 			Message: msg,
 		})
 	} else {
-		c.hasPendingToolCalls = false
-		c.emit(ctx, llms.EventFinalMessage{
+		c.HasPendingToolCalls = false
+		c.Emit(ctx, llms.EventFinalMessage{
 			Message: msg,
 		})
 	}
