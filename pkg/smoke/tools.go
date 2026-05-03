@@ -11,8 +11,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools/handlers"
 )
 
-func (s *Smoke) NewToolManager() (*tools.Manager, error) {
-	mode := s.GetMode()
+func (s *Smoke) NewToolManager(mode modes.Mode) (*tools.Manager, error) {
 	initializers := s.ModeToolInitializers(mode)
 
 	toolOpts := &tools.ManagerOpts{

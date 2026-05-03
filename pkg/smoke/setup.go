@@ -124,12 +124,12 @@ func (s *Smoke) setupElicitManager() {
 func (s *Smoke) setupSession() error {
 	slog.Debug("setting up main session", "name", s.mainSessionName)
 
-	toolManager, err := s.NewToolManager()
+	mode := modes.DefaultMode()
+
+	toolManager, err := s.NewToolManager(mode)
 	if err != nil {
 		return fmt.Errorf("failed to set up tools manager for main smoke session: %w", err)
 	}
-
-	mode := modes.DefaultMode()
 
 	systemPrompt, err := s.SystemPrompt(mode)
 	if err != nil {
