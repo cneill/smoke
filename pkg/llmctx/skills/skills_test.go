@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cneill/smoke/pkg/skills"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 )
 
 func TestParseSkillContents(t *testing.T) { //nolint:funlen

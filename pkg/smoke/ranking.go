@@ -9,8 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands/handlers/rank"
+	"github.com/cneill/smoke/pkg/llmctx/modes"
+	"github.com/cneill/smoke/pkg/llmctx/prompts"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers"
 )
@@ -78,7 +79,7 @@ func (s *Smoke) batchSession(msg rank.RequestMessage) (*llms.Session, error) {
 		SystemMessage:   systemMessage,
 		SystemAsMessage: mainSession.SystemAsMessage, // TODO: check LLM for this? something else?
 		Tools:           toolManager,
-		Mode:            llms.ModeRanking,
+		Mode:            modes.ModeRanking,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)

@@ -11,7 +11,6 @@ import (
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/mcp"
 )
 
 // OptFunc is used to configure aspects of Smoke.
@@ -51,14 +50,13 @@ func WithConfig(config *config.Config) OptFunc {
 	}
 }
 
-// WithSessionInfo configures the details of the session we'll work with.
-func WithSessionInfo(name, systemPrompt string) OptFunc {
+// WithSessionName configures the name of the main session.
+func WithSessionName(name string) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		smoke.sessionMutex.Lock()
 		defer smoke.sessionMutex.Unlock()
 
 		smoke.mainSessionName = name
-		smoke.mainSystemPrompt = systemPrompt
 
 		return smoke, nil
 	}
@@ -73,7 +71,7 @@ func WithDebug(value bool) OptFunc {
 }
 
 // WithLLMConfig validates the LLM config and sets up the [llms.LLM] we'll work with. This option must come after
-// WithProjectPath and WithSessionInfo.
+// WithProjectPath and WithSessionName.
 func WithLLMConfig(config *llms.Config) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		if err := config.OK(); err != nil {
@@ -82,14 +80,6 @@ func WithLLMConfig(config *llms.Config) OptFunc {
 
 		smoke.llmConfig = config
 
-		return smoke, nil
-	}
-}
-
-// WithMCPClient adds an MCP client to Smoke. Its tools will be added to the tool manager attached to Smoke's session.
-func WithMCPClient(client *mcp.CommandClient) OptFunc {
-	return func(smoke *Smoke) (*Smoke, error) {
-		smoke.mcpClients = append(smoke.mcpClients, client)
 		return smoke, nil
 	}
 }

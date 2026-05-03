@@ -53,10 +53,7 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	manager.SetTeaEmitter(func(tea.Msg) {})
 
 	dummy := dummyTool{params: params}
-
-	manager.InitTools(func(_, _ string) (tools.Tool, error) {
-		return dummy, nil
-	})
+	manager.SetTools(dummy)
 
 	return manager
 }

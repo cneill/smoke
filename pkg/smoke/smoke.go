@@ -4,7 +4,6 @@ package smoke
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -18,11 +17,13 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/elicit"
+	"github.com/cneill/smoke/pkg/llmctx/agentsmd"
+	"github.com/cneill/smoke/pkg/llmctx/modes"
+	"github.com/cneill/smoke/pkg/llmctx/prompts"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/plan"
-	"github.com/cneill/smoke/pkg/prompts"
-	"github.com/cneill/smoke/pkg/skills"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers"
 )
@@ -38,12 +39,12 @@ type Smoke struct {
 
 	planManager *plan.Manager
 
-	skillCatalog skills.Catalog
+	skillCatalog    skills.Catalog
+	agentsmdCatalog agentsmd.Catalog
 
-	mainSessionName  string
-	mainSystemPrompt string
-	sessions         map[string]*llms.Session
-	sessionMutex     sync.RWMutex
+	mainSessionName string
+	sessions        map[string]*llms.Session
+	sessionMutex    sync.RWMutex
 
 	conversations     map[string]llms.Conversation
 	conversationMutex sync.RWMutex
@@ -63,8 +64,6 @@ func (s *Smoke) OK() error {
 		return fmt.Errorf("no project path set")
 	case s.mainSessionName == "":
 		return fmt.Errorf("no main session name set")
-	case s.mainSystemPrompt == "":
-		return fmt.Errorf("no main system prompt set")
 	case s.llmConfig == nil:
 		return fmt.Errorf("no LLM config set")
 	}
@@ -293,6 +292,9 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 	}
 }
 
+// HandleElicitUserInput takes the raw message sent by the user in response to an elicitation request, parses the
+// selected option (or N/A) from it, forwards the message back to the waiting elicit Tool via elicitManager, and returns
+// UserResponseMessage with the parsed Response back to the UI to be rendered in the history.
 func (s *Smoke) HandleElicitUserInput(msg elicit.UserInputMessage) (elicit.UserResponseMessage, error) {
 	var responseMsg elicit.UserResponseMessage
 
@@ -348,7 +350,7 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 		SystemMessage:   systemMessage,
 		SystemAsMessage: mainSession.SystemAsMessage, // TODO: check LLM for this? something else?
 		Tools:           toolManager,
-		Mode:            llms.ModeSummarize,
+		Mode:            modes.ModeSummarize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)
@@ -543,7 +545,16 @@ func (s *Smoke) SetSession(newSession *llms.Session) error {
 	return nil
 }
 
-func (s *Smoke) SetMode(mode llms.Mode) error {
+func (s *Smoke) GetMode() modes.Mode {
+	session := s.getMainSession()
+	if session == nil {
+		return modes.DefaultMode()
+	}
+
+	return session.GetMode()
+}
+
+func (s *Smoke) SetMode(mode modes.Mode) error {
 	session := s.getMainSession()
 	if session == nil {
 		return ErrNoSession
@@ -551,32 +562,23 @@ func (s *Smoke) SetMode(mode llms.Mode) error {
 
 	session.SetMode(mode)
 
-	var (
-		enabledTools  []tools.Initializer
-		systemMessage string
-	)
-
-	switch mode {
-	case llms.ModePlanning:
-		enabledTools = handlers.PlanningTools()
-		systemMessage = prompts.PlanningSystemPrompt().Markdown()
-	case llms.ModeReview:
-		enabledTools = handlers.ReviewTools()
-		systemMessage = prompts.ReviewSystemPrompt().Markdown()
-	case llms.ModeWork:
-		enabledTools = handlers.WorkTools()
-		systemMessage = prompts.WorkSystemPrompt().Markdown()
-	default:
-		return fmt.Errorf("tried to set smoke to unknown mode %q", mode)
+	systemPrompt, err := s.SystemPrompt(mode)
+	if err != nil {
+		return err
 	}
 
-	if err := session.SetSystemMessage(systemMessage); err != nil {
-		return fmt.Errorf("failed to set system message for review mode: %w", err)
+	if err := session.SetSystemMessage(systemPrompt); err != nil {
+		return fmt.Errorf("failed to set system message for mode %q: %w", mode, err)
 	}
 
-	session.Tools.InitTools(enabledTools...)
+	enabledTools := s.ModeToolInitializers(mode)
+	tools := session.Tools.InitTools(enabledTools...)
+	session.Tools.SetTools(tools...)
 
-	mcpTools, err := s.getMCPTools()
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
+
+	mcpTools, err := s.GetMCPTools(ctx, mode, s.mcpClients...)
 	if err != nil {
 		slog.Error("failed to list MCP tools", "error", err)
 	}
@@ -598,14 +600,16 @@ func (s *Smoke) ShiftMode() error {
 
 	var (
 		oldMode = session.GetMode()
-		newMode llms.Mode
+		newMode modes.Mode
 	)
 
 	switch oldMode {
-	case llms.ModePlanning, llms.ModeRanking, llms.ModeReview, llms.ModeSummarize:
-		newMode = llms.ModeWork
-	case llms.ModeWork:
-		newMode = llms.ModePlanning
+	case modes.ModeRanking, modes.ModeReview, modes.ModeSummarize:
+		newMode = modes.ModeWork
+	case modes.ModeWork:
+		newMode = modes.ModePlanning
+	case modes.ModePlanning:
+		newMode = modes.ModeReview
 	}
 
 	slog.Debug("shifting mode", "from", oldMode, "to", newMode)
@@ -645,39 +649,4 @@ func (s *Smoke) getMainSession() *llms.Session {
 	}
 
 	return nil
-}
-
-func (s *Smoke) getMCPTools() (tools.Tools, error) {
-	results := tools.Tools{}
-
-	session := s.getMainSession()
-
-	for _, mcpClient := range s.mcpClients {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-
-		var (
-			mcpTools tools.Tools
-			err      error
-		)
-
-		switch session.GetMode() {
-		case llms.ModePlanning, llms.ModeReview:
-			mcpTools, err = mcpClient.PlanTools(ctx)
-		case llms.ModeWork:
-			mcpTools, err = mcpClient.Tools(ctx)
-		}
-
-		if err != nil {
-			if !errors.Is(err, context.Canceled) {
-				return nil, fmt.Errorf("error retrieving tools from MCP client %q: %w", mcpClient.Name(), err)
-			}
-
-			return nil, fmt.Errorf("context cancelled waiting for tools from MCP client %q: %w", mcpClient.Name(), err)
-		}
-
-		results = append(results, mcpTools...)
-	}
-
-	return results, nil
 }

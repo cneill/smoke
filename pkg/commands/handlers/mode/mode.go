@@ -11,6 +11,7 @@ import (
 
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/utils"
 )
@@ -22,7 +23,7 @@ type Message struct {
 	commands.MessageType
 
 	PromptMessage commands.PromptMessage
-	Mode          llms.Mode
+	Mode          modes.Mode
 	Message       string
 }
 
@@ -47,9 +48,9 @@ func (m *Mode) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Sessio
 		return nil, fmt.Errorf("%w: must supply mode argument", commands.ErrArguments)
 	}
 
-	mode := llms.Mode(msg.Args[0])
+	mode := modes.Mode(msg.Args[0])
 
-	if !slices.Contains(llms.SelectableModes(), mode) {
+	if !slices.Contains(modes.SelectableModes(), mode) {
 		return nil, fmt.Errorf("%w: invalid mode %q, must choose one of %s", commands.ErrArguments, mode, selectableModes(", "))
 	}
 
@@ -63,7 +64,7 @@ func (m *Mode) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Sessio
 }
 
 func selectableModes(sep string) string {
-	selectable := utils.ToStrings(llms.SelectableModes())
+	selectable := utils.ToStrings(modes.SelectableModes())
 	slices.Sort(selectable)
 
 	return strings.Join(selectable, sep)

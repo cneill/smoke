@@ -11,9 +11,9 @@ import (
 const agentsFileName = "AGENTS.md"
 
 // Discover scans for AGENTS.md files in two locations:
-//  1. <config_dir>/AGENTS.md (user-level)
+//  1. <configDir>/AGENTS.md (user-level)
 //  2. <projectPath>/AGENTS.md (project-level)
-func Discover(projectPath string) (Catalog, error) {
+func Discover(projectPath string) Catalog {
 	results := make(Catalog, 0, 2)
 
 	// Check user-level file
@@ -29,6 +29,7 @@ func Discover(projectPath string) (Catalog, error) {
 		} else {
 			results = append(results, &File{
 				Path:     homeFile,
+				Type:     TypeUser,
 				Contents: contents,
 			})
 		}
@@ -43,9 +44,10 @@ func Discover(projectPath string) (Catalog, error) {
 	} else {
 		results = append(results, &File{
 			Path:     projectFile,
+			Type:     TypeProject,
 			Contents: contents,
 		})
 	}
 
-	return results, nil
+	return results
 }

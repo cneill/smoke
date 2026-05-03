@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -25,7 +26,7 @@ type Session struct {
 	OutputTokens int64        `json:"output_tokens"`
 
 	modeMutex sync.RWMutex `json:"-"`
-	mode      Mode         `json:"-"`
+	mode      modes.Mode   `json:"-"`
 }
 
 type SessionOpts struct {
@@ -33,7 +34,7 @@ type SessionOpts struct {
 	SystemMessage   string
 	SystemAsMessage bool
 	Tools           *tools.Manager
-	Mode            Mode
+	Mode            modes.Mode
 }
 
 func (s *SessionOpts) OK() error {
@@ -257,14 +258,14 @@ func (s *Session) ReplaceMessages(searches, replacements []*Message) {
 	s.Messages = newMessages
 }
 
-func (s *Session) SetMode(mode Mode) {
+func (s *Session) SetMode(mode modes.Mode) {
 	s.modeMutex.Lock()
 	defer s.modeMutex.Unlock()
 
 	s.mode = mode
 }
 
-func (s *Session) GetMode() Mode {
+func (s *Session) GetMode() modes.Mode {
 	s.modeMutex.RLock()
 	defer s.modeMutex.RUnlock()
 

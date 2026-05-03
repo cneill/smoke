@@ -8,8 +8,8 @@ import (
 
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/elicit"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/plan"
-	"github.com/cneill/smoke/pkg/skills"
 )
 
 type ManagerOpts struct {
@@ -67,7 +67,8 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 	}
 
 	if opts.ToolInitializers != nil {
-		manager.InitTools(opts.ToolInitializers...)
+		tools := manager.InitTools(opts.ToolInitializers...)
+		manager.SetTools(tools...)
 	} else {
 		manager.tools = Tools{}
 	}
@@ -97,10 +98,7 @@ func (m *Manager) GetTools() Tools {
 	return m.tools
 }
 
-func (m *Manager) InitTools(initializers ...Initializer) {
-	m.toolMutex.Lock()
-	defer m.toolMutex.Unlock()
-
+func (m *Manager) InitTools(initializers ...Initializer) Tools {
 	tools := Tools{}
 
 	for _, init := range initializers {
@@ -125,16 +123,25 @@ func (m *Manager) InitTools(initializers ...Initializer) {
 		tools = append(tools, tool)
 	}
 
-	m.tools = tools
+	slog.Debug("initialized tools", "tools", tools.Names())
 
-	slog.Debug("setting tools", "tools", m.tools.Names())
+	return tools
 }
 
-func (m *Manager) AddTools(newTools ...Tool) {
+func (m *Manager) SetTools(tools ...Tool) {
 	m.toolMutex.Lock()
 	defer m.toolMutex.Unlock()
 
-	m.tools = append(m.tools, newTools...)
+	m.tools = tools
+	slog.Debug("set manager tools", "tools", Tools(tools).Names())
+}
+
+func (m *Manager) AddTools(tools ...Tool) {
+	m.toolMutex.Lock()
+	defer m.toolMutex.Unlock()
+
+	m.tools = append(m.tools, tools...)
+	slog.Debug("adding manager tools", "tools", Tools(tools).Names())
 }
 
 func (m *Manager) GetParams(toolName string) (Params, error) {
