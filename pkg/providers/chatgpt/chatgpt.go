@@ -57,7 +57,9 @@ func (c *ChatGPT) RequiresSessionSystem() bool { return true }
 // callers (e.g. the grok provider) to reuse the ChatGPT wire protocol while supplying their own
 // LLMInfo, config, or stream preference. The opts.SendStream and opts.SendNoStream fields are
 // set automatically and must be left nil by the caller.
-func NewConversation(ctx context.Context, client openai.Client, opts *base.ConversationOpts) (llms.Conversation, error) {
+//
+// The caller is responsible for launching the conversation via go conv.Start(newCtx).
+func NewConversation(ctx context.Context, client openai.Client, opts *base.ConversationOpts) (*conversation, context.Context, error) {
 	// Two-step construction: the send funcs close over conv, so we build conv first and set the
 	// funcs before calling base.NewConversation.
 	conv := &conversation{client: client}
@@ -66,33 +68,27 @@ func NewConversation(ctx context.Context, client openai.Client, opts *base.Conve
 
 	baseConv, newCtx, err := base.NewConversation(ctx, opts)
 	if err != nil {
-		return nil, fmt.Errorf("chatgpt: failed to create base conversation: %w", err)
+		return nil, nil, fmt.Errorf("chatgpt: failed to create base conversation: %w", err)
 	}
 
 	conv.Conversation = baseConv
 
-	go conv.Start(newCtx)
-
-	return conv, nil
+	return conv, newCtx, nil
 }
 
 func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) llms.Conversation {
-	conv, err := NewConversation(ctx, c.Client, &base.ConversationOpts{
+	conv, newCtx, err := NewConversation(ctx, c.Client, &base.ConversationOpts{
 		Session: session,
 		LLMInfo: c.LLMInfo(),
 		Config:  c.Config,
-		Stream:  c.shouldStream(),
+		Stream:  true,
 	})
 	if err != nil {
 		// Config was already validated in New(), so this should never happen.
 		panic(fmt.Sprintf("chatgpt: failed to create conversation: %v", err))
 	}
 
-	return conv
-}
+	go conv.Start(newCtx)
 
-func (c *ChatGPT) shouldStream() bool {
-	// GPT-5 requires photo ID verification for streaming...
-	// return !strings.Contains(c.Config.Model, "gpt-5")
-	return true
+	return conv
 }

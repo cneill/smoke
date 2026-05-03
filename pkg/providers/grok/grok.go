@@ -63,7 +63,7 @@ func (g *Grok) LLMInfo() *llms.LLMInfo {
 func (g *Grok) RequiresSessionSystem() bool { return true }
 
 func (g *Grok) StartConversation(ctx context.Context, session *llms.Session) llms.Conversation {
-	conv, err := chatgpt.NewConversation(ctx, g.client, &base.ConversationOpts{
+	conv, newCtx, err := chatgpt.NewConversation(ctx, g.client, &base.ConversationOpts{
 		Session: session,
 		LLMInfo: g.LLMInfo(),
 		Config:  g.config,
@@ -73,6 +73,8 @@ func (g *Grok) StartConversation(ctx context.Context, session *llms.Session) llm
 		// Config was already validated in New(), so this should never happen.
 		panic(fmt.Sprintf("grok: failed to create conversation: %v", err))
 	}
+
+	go conv.Start(newCtx)
 
 	return conv
 }
