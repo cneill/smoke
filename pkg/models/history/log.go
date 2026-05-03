@@ -1,6 +1,7 @@
 package history
 
 import (
+	"slices"
 	"sync"
 
 	"github.com/cneill/smoke/pkg/llms"
@@ -58,7 +59,7 @@ func (l *Log) RefreshLog(log []any) {
 }
 
 func (l *Log) llmMessageIndexByID(id string) int {
-	for logIdx := len(l.log) - 1; logIdx >= 0; logIdx-- {
+	for logIdx := range slices.Backward(l.log) {
 		logMessage, ok := l.log[logIdx].(*llms.Message)
 		if !ok {
 			continue

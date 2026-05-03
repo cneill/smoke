@@ -58,7 +58,9 @@ func (c *conversation) sendStream(ctx context.Context) error {
 
 	for stream.Next() {
 		chunk := stream.Current()
-		accumulator.AddChunk(chunk)
+		if !accumulator.AddChunk(chunk) {
+			slog.Warn("failed to accumulate new conversation chunk")
+		}
 
 		// TODO: need either of these "JustFinishedX" checks?
 		if _, ok := accumulator.JustFinishedContent(); ok {
