@@ -36,6 +36,8 @@ func SystemPreset() Preset {
 			SectionInstructions: {
 				P("Think about your responses carefully before you respond. Whether planning or working, think " +
 					"through each action step-by-step."),
+				P("If the user references a skill you have available with $[tool_name] in your conversation, activate " +
+					"that skill."),
 				Pf("To ask a question of the user, consider using the %q tool. You don't have to use it for "+
 					"open-ended questions, but you should tend toward using it and giving suggestions, especially "+
 					"when planning.", tools.NameElicit),
