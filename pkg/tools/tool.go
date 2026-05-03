@@ -7,8 +7,8 @@ import (
 
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/elicit"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/plan"
-	"github.com/cneill/smoke/pkg/skills"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 

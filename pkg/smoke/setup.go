@@ -1,20 +1,23 @@
 package smoke
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/cneill/smoke/pkg/commands"
 	cmdhandlers "github.com/cneill/smoke/pkg/commands/handlers"
 	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/llmctx/agentsmd"
+	"github.com/cneill/smoke/pkg/llmctx/modes"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/providers/chatgpt"
 	"github.com/cneill/smoke/pkg/providers/claude"
 	"github.com/cneill/smoke/pkg/providers/grok"
-	"github.com/cneill/smoke/pkg/skills"
-	"github.com/cneill/smoke/pkg/tools"
-	toolhandlers "github.com/cneill/smoke/pkg/tools/handlers"
 )
 
 func (s *Smoke) setup() error {
@@ -26,6 +29,7 @@ func (s *Smoke) setup() error {
 		return fmt.Errorf("failed to set up plan manager for smoke: %w", err)
 	}
 
+	s.setupAgentsmd()
 	s.setupSkills()
 
 	if err := s.setupLLM(); err != nil {
@@ -34,12 +38,12 @@ func (s *Smoke) setup() error {
 
 	s.setupElicitManager()
 
-	if err := s.setupSession(); err != nil {
-		return fmt.Errorf("failed to set up main smoke session: %w", err)
+	if err := s.setupMCPClients(); err != nil {
+		return fmt.Errorf("failed to set up MCP clients: %w", err)
 	}
 
-	if err := s.setupMCP(); err != nil {
-		return fmt.Errorf("failed to set up MCP servers: %w", err)
+	if err := s.setupSession(); err != nil {
+		return fmt.Errorf("failed to set up main smoke session: %w", err)
 	}
 
 	if err := s.setupCommands(); err != nil {
@@ -47,19 +51,6 @@ func (s *Smoke) setup() error {
 	}
 
 	return nil
-}
-
-func (s *Smoke) setupElicitManager() {
-	manager := elicit.NewManager()
-	manager.SetOnBegin(func(req elicit.RequestMessage) {
-		if s.teaEmitter == nil {
-			return
-		}
-
-		s.teaEmitter(req)
-	})
-
-	s.elicitManager = manager
 }
 
 func (s *Smoke) setupPlanManager() error {
@@ -81,9 +72,12 @@ func (s *Smoke) setupPlanManager() error {
 	return nil
 }
 
+func (s *Smoke) setupAgentsmd() {
+	s.agentsmdCatalog = agentsmd.Discover(s.projectPath)
+}
+
 func (s *Smoke) setupSkills() {
-	catalog := skills.Discover(s.projectPath)
-	s.skillCatalog = catalog
+	s.skillCatalog = skills.Discover(s.projectPath)
 }
 
 func (s *Smoke) setupLLM() error {
@@ -112,41 +106,85 @@ func (s *Smoke) setupLLM() error {
 	return nil
 }
 
+// setupElicitManager ensures that the elicitManager, and thus the elicit Tool, have a bubbletea emitter to send
+// messages to the UI
+func (s *Smoke) setupElicitManager() {
+	manager := elicit.NewManager()
+	manager.SetOnBegin(func(req elicit.RequestMessage) {
+		if s.teaEmitter == nil {
+			return
+		}
+
+		s.teaEmitter(req)
+	})
+
+	s.elicitManager = manager
+}
+
 func (s *Smoke) setupSession() error {
-	toolManager, err := s.setupToolsManager()
+	slog.Debug("setting up main session", "name", s.mainSessionName)
+
+	mode := modes.DefaultMode()
+
+	toolManager, err := s.NewToolManager(mode)
 	if err != nil {
 		return fmt.Errorf("failed to set up tools manager for main smoke session: %w", err)
 	}
 
+	systemPrompt, err := s.SystemPrompt(mode)
+	if err != nil {
+		return fmt.Errorf("failed to get system prompt during setup: %w", err)
+	}
+
 	session, err := llms.NewSession(&llms.SessionOpts{
 		Name:            s.mainSessionName,
-		SystemMessage:   s.mainSystemPrompt,
-		Tools:           toolManager,
+		SystemMessage:   systemPrompt,
 		SystemAsMessage: s.llm.RequiresSessionSystem(),
-		Mode:            llms.ModeWork,
+		Tools:           toolManager,
+		Mode:            mode,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to initialize main smoke session: %w", err)
 	}
 
 	s.sessionMutex.Lock()
-	defer s.sessionMutex.Unlock()
 
 	s.sessions[s.mainSessionName] = session
+
+	s.sessionMutex.Unlock()
 
 	return nil
 }
 
-func (s *Smoke) setupMCP() error {
-	// Once we've set up the session / etc, add MCP tools as well, if any
-	mcpTools, err := s.getMCPTools()
-	if err != nil {
-		return fmt.Errorf("failed to list MCP tools: %w", err)
+func (s *Smoke) setupMCPClients() error {
+	if s.config == nil || s.config.MCP == nil {
+		slog.Debug("no MCP configuration defined")
+		return nil
 	}
 
-	session := s.getMainSession()
+	clients := []*mcp.CommandClient{}
 
-	session.Tools.AddTools(mcpTools...)
+	for _, serverConfig := range s.config.MCP.Servers {
+		// Don't initialize clients for servers the user has disabled
+		if !serverConfig.Enabled {
+			slog.Debug("MCP server is disabled", "name", serverConfig.Name)
+			continue
+		}
+
+		opts := &mcp.CommandClientOpts{
+			MCPServer: serverConfig,
+			Directory: s.projectPath,
+		}
+
+		client, err := mcp.NewCommandClient(context.TODO(), opts)
+		if err != nil {
+			return fmt.Errorf("failed to set up MCP client %q: %w", opts.Name, err)
+		}
+
+		clients = append(clients, client)
+	}
+
+	s.mcpClients = clients
 
 	return nil
 }
@@ -162,47 +200,4 @@ func (s *Smoke) setupCommands() error {
 	}
 
 	return nil
-}
-
-func (s *Smoke) setupToolsManager() (*tools.Manager, error) {
-	var (
-		initList []tools.Initializer
-		session  = s.getMainSession()
-	)
-
-	if session != nil {
-		switch session.GetMode() {
-		case llms.ModeWork:
-			// TODO: rename "normal" to "work"
-			initList = toolhandlers.WorkTools()
-		case llms.ModePlanning:
-			initList = toolhandlers.PlanningTools()
-		case llms.ModeReview:
-			initList = toolhandlers.ReviewTools()
-		case llms.ModeSummarize:
-			initList = toolhandlers.SummarizeTools()
-		}
-	} else {
-		initList = toolhandlers.WorkTools()
-	}
-
-	toolOpts := &tools.ManagerOpts{
-		ProjectPath:      s.projectPath,
-		SessionName:      s.mainSessionName,
-		ToolInitializers: initList,
-		PlanManager:      s.planManager,
-		SkillCatalog:     s.skillCatalog,
-		ElicitManager:    s.elicitManager,
-	}
-
-	toolManager, err := tools.NewManager(toolOpts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize tools manager for main smoke session: %w", err)
-	}
-
-	if s.teaEmitter != nil {
-		toolManager.SetTeaEmitter(s.teaEmitter)
-	}
-
-	return toolManager, nil
 }

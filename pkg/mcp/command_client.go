@@ -40,6 +40,7 @@ type CommandClient struct {
 }
 
 func NewCommandClient(ctx context.Context, opts *CommandClientOpts) (*CommandClient, error) {
+	// TODO: refuse to initialize if not marked "Enabled"?
 	if err := opts.OK(); err != nil {
 		return nil, fmt.Errorf("options error for MCP client: %w", err)
 	}
@@ -87,6 +88,8 @@ func NewCommandClient(ctx context.Context, opts *CommandClientOpts) (*CommandCli
 		session: session,
 		opts:    opts,
 	}
+
+	slog.Debug("initialized MCP client", "name", opts.Name, "allowed_tools", opts.AllowedTools)
 
 	return client, nil
 }

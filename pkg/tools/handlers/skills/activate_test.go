@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cneill/smoke/pkg/skills"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/tools"
 	skillshandler "github.com/cneill/smoke/pkg/tools/handlers/skills"
 )

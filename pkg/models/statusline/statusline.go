@@ -6,13 +6,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/smoke"
 )
 
 type Model struct {
 	focused        bool
-	modelMode      llms.Mode
+	modelMode      modes.Mode
 	width          int
 	completionText string
 	inputTokens    int64
@@ -23,7 +23,7 @@ type Model struct {
 func New(width int) *Model {
 	model := &Model{
 		focused:   true,
-		modelMode: llms.ModeWork,
+		modelMode: modes.ModeWork,
 		width:     width,
 		styles:    InitStyles(),
 	}

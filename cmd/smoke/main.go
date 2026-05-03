@@ -13,9 +13,7 @@ import (
 	"github.com/cneill/smoke/internal/version"
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/mcp"
 	"github.com/cneill/smoke/pkg/models/ui"
-	"github.com/cneill/smoke/pkg/prompts"
 	"github.com/cneill/smoke/pkg/smoke"
 	"github.com/urfave/cli/v3"
 )
@@ -87,36 +85,6 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 	return llmConfig, nil
 }
 
-func getMCPClients(ctx context.Context, projectPath string, mcpConfigs *config.MCP) ([]*mcp.CommandClient, error) {
-	if mcpConfigs == nil {
-		return nil, nil
-	}
-
-	results := []*mcp.CommandClient{}
-
-	for _, serverConfig := range mcpConfigs.Servers {
-		// Don't initialize clients for servers the user has disabled
-		if !serverConfig.Enabled {
-			slog.Debug("MCP server is disabled", "name", serverConfig.Name)
-			continue
-		}
-
-		opts := &mcp.CommandClientOpts{
-			MCPServer: serverConfig,
-			Directory: projectPath,
-		}
-
-		client, err := mcp.NewCommandClient(ctx, opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set up MCP client %q: %w", opts.Name, err)
-		}
-
-		results = append(results, client)
-	}
-
-	return results, nil
-}
-
 func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, error) {
 	args := cmd.Args()
 
@@ -146,19 +114,8 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 		smoke.WithConfig(loadedConfig),
 		smoke.WithDebug(cmd.Bool(FlagDebug)),
 		smoke.WithProjectPath(projectPath),
-		smoke.WithSessionInfo(sessionName, prompts.WorkSystemPrompt().Markdown()),
+		smoke.WithSessionName(sessionName),
 		smoke.WithLLMConfig(llmConfig),
-	}
-
-	if loadedConfig.MCP != nil {
-		mcpClients, err := getMCPClients(ctx, projectPath, loadedConfig.MCP)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize MCP clients: %w", err)
-		}
-
-		for _, client := range mcpClients {
-			opts = append(opts, smoke.WithMCPClient(client))
-		}
 	}
 
 	smokeInstance, err := smoke.New(opts...) //nolint:contextcheck

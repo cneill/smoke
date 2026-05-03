@@ -4,6 +4,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/llms"
 )
 
@@ -54,7 +55,7 @@ func MsgToCmd(msg tea.Msg) tea.Cmd {
 }
 
 type ModeMessage struct {
-	Mode llms.Mode
+	Mode modes.Mode
 }
 
 func (m ModeMessage) isSmokeMessage() {}

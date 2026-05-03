@@ -9,10 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands/handlers/rank"
+	"github.com/cneill/smoke/pkg/llmctx/modes"
+	"github.com/cneill/smoke/pkg/llmctx/prompts"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/cneill/smoke/pkg/prompts"
-	"github.com/cneill/smoke/pkg/tools"
-	"github.com/cneill/smoke/pkg/tools/handlers"
 )
 
 func (s *Smoke) HandleRankRequestMessage(msg rank.RequestMessage) (tea.Cmd, error) {
@@ -59,26 +58,17 @@ func (s *Smoke) batchSession(msg rank.RequestMessage) (*llms.Session, error) {
 	systemMessage := prompts.RankSystemPrompt(msg.Description, msg.Batch...).Markdown()
 
 	// TODO: For now, this is pretty much irrelevant - there are no ranking tools. Figure out how to rationalize.
-	managerOpts := &tools.ManagerOpts{
-		ProjectPath:      s.projectPath,
-		SessionName:      sessionName,
-		ToolInitializers: handlers.RankingTools(),
-		PlanManager:      s.planManager,
-	}
-
-	toolManager, err := tools.NewManager(managerOpts)
+	toolManager, err := s.NewToolManager(modes.ModeRanking)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize tools manager for ranking conversation, batch %d: %w", msg.BatchIdx, err)
 	}
-
-	toolManager.SetTeaEmitter(s.teaEmitter)
 
 	newSession, err := llms.NewSession(&llms.SessionOpts{
 		Name:            sessionName,
 		SystemMessage:   systemMessage,
 		SystemAsMessage: mainSession.SystemAsMessage, // TODO: check LLM for this? something else?
 		Tools:           toolManager,
-		Mode:            llms.ModeRanking,
+		Mode:            modes.ModeRanking,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)

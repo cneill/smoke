@@ -1,4 +1,10 @@
-package llms
+package modes
+
+import (
+	"strings"
+
+	"github.com/cneill/smoke/pkg/utils"
+)
 
 type Mode string
 
@@ -10,7 +16,13 @@ const (
 	ModeRanking   = "ranking"
 )
 
-func AllModes() []Mode {
+type Modes []Mode
+
+func (m Modes) String() string {
+	return strings.Join(utils.ToStrings(m), ", ")
+}
+
+func AllModes() Modes {
 	return []Mode{
 		ModeWork,
 		ModePlanning,
@@ -20,10 +32,12 @@ func AllModes() []Mode {
 	}
 }
 
-func SelectableModes() []Mode {
+func SelectableModes() Modes {
 	return []Mode{
 		ModeWork,
 		ModePlanning,
 		ModeReview,
 	}
 }
+
+func DefaultMode() Mode { return ModeWork }
