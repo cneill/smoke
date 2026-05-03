@@ -15,12 +15,12 @@ type Styles struct {
 
 func InitStyles() Styles {
 	var (
-		black       = lipgloss.Color("#000000")
-		brightgreen = lipgloss.Color("#00aaaa")
-		darkgray    = lipgloss.Color("#333333")
-		lightgray   = lipgloss.Color("#aaaaaa")
-		orange      = lipgloss.Color("#cc4400")
-		white       = lipgloss.Color("#ffffff")
+		black     = lipgloss.Color("#000000")
+		usageText = lipgloss.Color("#8bd2e6")
+		darkgray  = lipgloss.Color("#333333")
+		lightgray = lipgloss.Color("#aaaaaa")
+		orange    = lipgloss.Color("#cc4400")
+		white     = lipgloss.Color("#ffffff")
 	)
 
 	borderBase := lipgloss.NewStyle().
@@ -48,7 +48,7 @@ func InitStyles() Styles {
 			Background(darkgray),
 
 		UsageFocused: usageBase.
-			Foreground(brightgreen).
+			Foreground(usageText).
 			Bold(true),
 		UsageBlurred: usageBase.
 			Foreground(lightgray),
