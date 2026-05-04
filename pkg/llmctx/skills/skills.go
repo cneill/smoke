@@ -117,29 +117,58 @@ func ParseSkillFile(path string) (*Skill, error) {
 
 // ParseSkillContents parses the raw string contents of a SKILL.md file into a Skill.
 func ParseSkillContents(contents string) (*Skill, error) {
-	const delimiter = "---"
+	yamlContent, bodyStart, err := getFrontmatter(contents)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidFrontmatter, err)
+	}
+
+	skill := &Skill{}
+	if err := yaml.Unmarshal([]byte(yamlContent), skill); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidFrontmatter, err)
+	}
+
+	// Find where the closing delimiter line actually ends so we can grab the body.
+	remaining := contents[bodyStart:]
+	if idx := strings.Index(remaining, "\n"); idx >= 0 {
+		remaining = remaining[idx+1:]
+	} else {
+		remaining = ""
+	}
+
+	skill.Body = remaining
+
+	if err := skill.OK(); err != nil {
+		return nil, err
+	}
+
+	return skill, nil
+}
+
+func getFrontmatter(contents string) (string, int, error) {
+	var (
+		delimiter  = "---"
+		yamlEndIdx = -1
+	)
 
 	// The file must start with the frontmatter opening delimiter.
 	if !strings.HasPrefix(contents, delimiter) {
-		return nil, fmt.Errorf("%w: file must start with %q", ErrInvalidFrontmatter, delimiter)
+		return "", yamlEndIdx, fmt.Errorf("file must start with %q", delimiter)
 	}
 
 	nlIdx := strings.Index(contents, "\n")
 	if nlIdx == -1 {
-		return nil, fmt.Errorf("%w: no frontmatter content after %q header", ErrInvalidFrontmatter, delimiter)
+		return "", yamlEndIdx, fmt.Errorf("no frontmatter content after %q header", delimiter)
 	}
 
 	trailing := contents[len(delimiter):nlIdx]
 
 	if strings.TrimSpace(trailing) != "" {
-		return nil, fmt.Errorf("%w: invalid contents after %q in frontmatter header: %q", ErrInvalidFrontmatter, delimiter, trailing)
+		return "", yamlEndIdx, fmt.Errorf("invalid contents after %q in frontmatter header: %q", delimiter, trailing)
 	}
 
 	afterOpener := contents[nlIdx:]
 
 	// Find the closing delimiter. We look for "---" at the start of a line.
-	closingIdx := -1
-
 	lines := strings.SplitAfter(afterOpener, "\n")
 	charCount := 0
 
@@ -152,7 +181,7 @@ func ParseSkillContents(contents string) (*Skill, error) {
 			rest := strings.TrimSpace(after)
 
 			if rest == "" {
-				closingIdx = charCount
+				yamlEndIdx = nlIdx + charCount
 				break
 			}
 		}
@@ -160,31 +189,11 @@ func ParseSkillContents(contents string) (*Skill, error) {
 		charCount += len(line)
 	}
 
-	if closingIdx < 0 {
-		return nil, fmt.Errorf("%w: no closing %q found", ErrInvalidFrontmatter, delimiter)
+	if yamlEndIdx < 0 {
+		return "", yamlEndIdx, fmt.Errorf("no closing %q found", delimiter)
 	}
 
-	yamlContent := afterOpener[:closingIdx]
-	bodyStart := closingIdx + len(delimiter)
+	yamlContent := afterOpener[:yamlEndIdx]
 
-	// Find where the closing delimiter line actually ends so we can grab the body.
-	remaining := afterOpener[bodyStart:]
-	if idx := strings.Index(remaining, "\n"); idx >= 0 {
-		remaining = remaining[idx+1:]
-	} else {
-		remaining = ""
-	}
-
-	skill := &Skill{}
-	if err := yaml.Unmarshal([]byte(yamlContent), skill); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidFrontmatter, err)
-	}
-
-	if err := skill.OK(); err != nil {
-		return nil, err
-	}
-
-	skill.Body = remaining
-
-	return skill, nil
+	return yamlContent, yamlEndIdx + len(delimiter), nil
 }

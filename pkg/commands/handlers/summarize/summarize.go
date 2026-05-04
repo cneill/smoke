@@ -62,8 +62,8 @@ func (s *Summarize) Usage() string {
 	return "summarize [--first N | --last N | --before TIME | --after TIME]"
 }
 
-// TODO: make this work like /rank, don't push all the logic to Smoke
 func (s *Summarize) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
+	// TODO: make this work like /rank, don't push all the logic to Smoke
 	// TODO: make a read-only view of messages...?
 	opts, err := s.parseOpts(msg)
 	if err != nil {

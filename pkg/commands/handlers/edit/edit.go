@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 
@@ -53,24 +54,75 @@ func (e *Edit) Help() string {
 }
 
 func (e *Edit) Usage() string {
-	return "edit [last|all]"
+	return fmt.Sprintf("edit [%s|%s]", editLast, editAll)
 }
 
 func (e *Edit) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
-	var (
-		target  string
-		content []byte
-	)
-
-	if len(msg.Args) > 0 {
-		switch msg.Args[0] {
-		case editLast, editAll:
-			target = msg.Args[0]
-		default:
-			return nil, fmt.Errorf("%w: unknown edit target %q, must specify %q or %q",
-				commands.ErrArguments, msg.Args[0], editLast, editAll)
-		}
+	target, err := getTarget(msg)
+	if err != nil {
+		return nil, err
 	}
+
+	content, err := getTargetContent(target, session)
+	if err != nil {
+		return nil, err
+	}
+
+	tmpFile, err := os.CreateTemp("", session.Name+"_*.md")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary edit file: %w", err)
+	}
+
+	path := tmpFile.Name()
+
+	defer func() {
+		tmpFile.Close()
+
+		if err := os.Remove(path); err != nil {
+			slog.Error("failed to clean up temporary edit file", "file", path, "error", err)
+		}
+	}()
+
+	if _, err := tmpFile.Write(content); err != nil {
+		return nil, fmt.Errorf("failed to write temporary edit file: %w", err)
+	}
+
+	editor := "nvim"
+	if envEditor := os.Getenv("EDITOR"); envEditor != "" {
+		editor = envEditor
+	}
+
+	if _, err := exec.LookPath(editor); err != nil {
+		return nil, fmt.Errorf("failed to find editor %q: %w", editor, err)
+	}
+
+	req := RequestMessage{
+		PromptMessage: msg,
+		Path:          path,
+		Editor:        editor,
+		Description:   "last assistant message",
+	}
+
+	return uimsg.MsgToCmd(req), nil
+}
+
+func getTarget(msg commands.PromptMessage) (string, error) {
+	if len(msg.Args) == 0 {
+		return "", fmt.Errorf("%w: must specify an edit target, either %q or %q",
+			commands.ErrArguments, editLast, editAll)
+	}
+
+	switch msg.Args[0] {
+	case editLast, editAll:
+		return msg.Args[0], nil
+	default:
+		return "", fmt.Errorf("%w: unknown edit target %q, must specify %q or %q",
+			commands.ErrArguments, msg.Args[0], editLast, editAll)
+	}
+}
+
+func getTargetContent(target string, session *llms.Session) ([]byte, error) {
+	var content []byte
 
 	switch target {
 	case editLast:
@@ -90,33 +142,5 @@ func (e *Edit) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 		content = buf.Bytes()
 	}
 
-	tmpFile, err := os.CreateTemp("", session.Name+"_*.md")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer tmpFile.Close()
-
-	if _, err := tmpFile.Write(content); err != nil {
-		return nil, fmt.Errorf("failed to write temp file: %w", err)
-	}
-
-	path := tmpFile.Name()
-
-	editor := "nvim"
-	if envEditor := os.Getenv("EDITOR"); envEditor != "" {
-		editor = envEditor
-	}
-
-	if _, err := exec.LookPath(editor); err != nil {
-		return nil, fmt.Errorf("failed to find editor %q: %w", editor, err)
-	}
-
-	req := RequestMessage{
-		PromptMessage: msg,
-		Path:          path,
-		Editor:        editor,
-		Description:   "last assistant message",
-	}
-
-	return uimsg.MsgToCmd(req), nil
+	return content, nil
 }
