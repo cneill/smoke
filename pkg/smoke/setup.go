@@ -18,6 +18,7 @@ import (
 	"github.com/cneill/smoke/pkg/providers/chatgpt"
 	"github.com/cneill/smoke/pkg/providers/claude"
 	"github.com/cneill/smoke/pkg/providers/grok"
+	"github.com/cneill/smoke/pkg/providers/ollama"
 )
 
 func (s *Smoke) setup(ctx context.Context) error {
@@ -93,6 +94,8 @@ func (s *Smoke) setupLLM() error {
 		llm, err = claude.New(s.llmConfig)
 	case llms.LLMTypeGrok:
 		llm, err = grok.New(s.llmConfig)
+	case llms.LLMTypeOllama:
+		llm, err = ollama.New(s.llmConfig)
 	default:
 		err = fmt.Errorf("unknown provider: %s", s.llmConfig.Provider)
 	}

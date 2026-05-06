@@ -28,7 +28,7 @@ func validate(cmd *cli.Command) error {
 		return err
 	}
 
-	if cmd.String(details.apiKeyFlag) == "" {
+	if details.apiKeyFlag != "" && cmd.String(details.apiKeyFlag) == "" {
 		return fmt.Errorf("must supply --%s flag or $%s environment variable", details.apiKeyFlag, details.apiKeyEnvVar)
 	}
 
@@ -76,6 +76,7 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 
 	llmConfig := &llms.Config{
 		APIKey:      cmd.String(details.apiKeyFlag),
+		BaseURL:     cmd.String(details.baseURLFlag),
 		MaxTokens:   cmd.Int64(FlagMaxTokens),
 		Provider:    llms.LLMType(provider),
 		Temperature: cmd.Float64(FlagTemperature),
