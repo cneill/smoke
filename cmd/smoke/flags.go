@@ -18,6 +18,7 @@ const (
 	FlagOpenAIKey    = "openai-api-key"
 	FlagAnthropicKey = "anthropic-api-key"
 	FlagXAIKey       = "xai-api-key"
+	FlagOllamaHost   = "ollama-host"
 
 	EnvDebug        = "SMOKE_DEBUG"
 	EnvMaxTokens    = "SMOKE_MAX_TOKENS"
@@ -28,6 +29,7 @@ const (
 	EnvOpenAIKey    = "OPENAI_API_KEY"
 	EnvAnthropicKey = "ANTHROPIC_API_KEY"
 	EnvXAIKey       = "XAI_API_KEY"
+	EnvOllamaHost   = "OLLAMA_HOST"
 )
 
 func flags() []cli.Flag {
@@ -121,6 +123,13 @@ func providerFlags() []cli.Flag {
 			Category: category,
 			Usage:    fmt.Sprintf("The API key for xAI. Required when provider is %q", llms.LLMTypeGrok),
 			Sources:  cli.EnvVars(EnvXAIKey),
+		},
+		&cli.StringFlag{
+			Name:     FlagOllamaHost,
+			Category: category,
+			Usage:    fmt.Sprintf("The base URL for the Ollama API. Used when provider is %q", llms.LLMTypeOllama),
+			Sources:  cli.EnvVars(EnvOllamaHost),
+			Value:    "http://localhost:11434/v1",
 		},
 	}
 }

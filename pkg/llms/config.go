@@ -4,6 +4,7 @@ import "fmt"
 
 type Config struct {
 	APIKey      string
+	BaseURL     string
 	MaxTokens   int64
 	Model       string
 	Provider    LLMType
@@ -12,7 +13,7 @@ type Config struct {
 
 func (c *Config) OK() error {
 	switch {
-	case c.APIKey == "":
+	case c.APIKey == "" && c.BaseURL == "":
 		return fmt.Errorf("missing api key")
 	case c.MaxTokens <= 0:
 		return fmt.Errorf("max tokens must be >0")

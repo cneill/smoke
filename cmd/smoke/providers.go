@@ -65,6 +65,14 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 			"grok-4-1-fast-reasoning":  {"4.1", "fast"},
 		},
 	},
+	llms.LLMTypeOllama: {
+		// No API key required; model must be specified explicitly via --model.
+		apiKeyFlag:   "",
+		apiKeyEnvVar: "",
+		baseURLFlag:  FlagOllamaHost,
+		defaultModel: "",
+		aliases:      modelAliases{},
+	},
 }
 
 // TODO: make this customizable by the user in config?
@@ -93,11 +101,21 @@ func (p providerMappings) details(provider string) (*providerDetails, error) {
 type providerDetails struct {
 	apiKeyFlag   string
 	apiKeyEnvVar string
+	baseURLFlag  string
 	defaultModel string
 	aliases      modelAliases
 }
 
 func (p providerDetails) getModel(search string) (string, error) {
+	// Provider has no predefined models (e.g. ollama): pass through verbatim.
+	if len(p.aliases) == 0 {
+		if search == "" {
+			return "", fmt.Errorf("this provider requires --model to be specified explicitly")
+		}
+
+		return search, nil
+	}
+
 	for model, aliases := range p.aliases {
 		if model == search {
 			return model, nil

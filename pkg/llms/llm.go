@@ -13,6 +13,7 @@ const (
 	LLMTypeChatGPT = "chatgpt"
 	LLMTypeClaude  = "claude"
 	LLMTypeGrok    = "grok"
+	LLMTypeOllama  = "ollama"
 )
 
 type LLM interface {
