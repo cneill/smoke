@@ -62,6 +62,11 @@ func (c *conversation) sendStream(ctx context.Context) error {
 			slog.Warn("failed to accumulate new conversation chunk")
 		}
 
+		// ignore usage chunks
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+
 		// TODO: need either of these "JustFinishedX" checks?
 		if _, ok := accumulator.JustFinishedContent(); ok {
 			slog.Debug("got end of content",
@@ -118,6 +123,10 @@ func (c *conversation) getNewCompletionParams() openai.ChatCompletionNewParams {
 		N:                   openai.Int(1),
 		Tools:               c.completionTools(session),
 		Temperature:         openai.Float(config.Temperature),
+		ParallelToolCalls:   openai.Bool(true),
+		StreamOptions: openai.ChatCompletionStreamOptionsParam{
+			IncludeUsage: openai.Bool(true),
+		},
 	}
 }
 
