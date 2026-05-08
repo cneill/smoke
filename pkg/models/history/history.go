@@ -20,7 +20,6 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/session"
 	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
-	"github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/wordwrap"
 )
 
@@ -200,12 +199,22 @@ func (m *Model) logContent() string {
 
 	for _, item := range m.log.Messages() {
 		info := bubbleInfo{
+			headerStyle: lipgloss.NewStyle().
+				Width(defaultBubbleWidth).
+				Padding(0, 2).
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("#3f4856")).
+				Background(lipgloss.Color("#11161d")),
 			titleStyle: lipgloss.NewStyle().
-				Background(lipgloss.Color("#000000")),
+				Bold(true).
+				Foreground(lipgloss.Color("#8fb7ff")).
+				Background(lipgloss.Color("#11161d")),
 			subtitleStyle: lipgloss.NewStyle().
-				Background(lipgloss.Color("#000000")).
-				Foreground(lipgloss.Color("#444444")).
+				Foreground(lipgloss.Color("#7d8796")).
+				Background(lipgloss.Color("#11161d")).
 				Italic(true),
+			contentStyle: lipgloss.NewStyle().
+				MarginTop(1),
 			useMarkdown: false,
 		}
 
@@ -345,12 +354,16 @@ func renderElicitMessage(msg elicit.Message, info bubbleInfo) bubbleInfo {
 	return info
 }
 
+const defaultBubbleWidth = 64
+
 type bubbleInfo struct {
+	headerStyle   lipgloss.Style
 	title         string
 	titleStyle    lipgloss.Style
 	subtitle      string
 	subtitleStyle lipgloss.Style
 	content       string
+	contentStyle  lipgloss.Style
 	useMarkdown   bool
 }
 
@@ -359,35 +372,15 @@ type bubbleInfo struct {
 func (m *Model) renderBubble(info bubbleInfo) string {
 	builder := &strings.Builder{}
 	content := info.content
-	bubbleWidth := 64
-	line := strings.Repeat("─", bubbleWidth)
-
-	titleWidth := runewidth.StringWidth(info.title)
-	titlePaddingLeft := (bubbleWidth - titleWidth) / 2
-	titlePaddingRight := titlePaddingLeft
-
-	if (bubbleWidth-titleWidth)%2 != 0 {
-		titlePaddingRight++
-	}
-
-	subtitleWidth := runewidth.StringWidth(info.subtitle)
-	subtitlePaddingLeft := (bubbleWidth - subtitleWidth) / 2
-	subtitlePaddingRight := subtitlePaddingLeft
-
-	if (bubbleWidth-subtitleWidth)%2 != 0 {
-		subtitlePaddingRight++
-	}
-
-	fmt.Fprintln(builder, info.titleStyle.Render("╭"+line+"╮"))
-	fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("│%*s%s%*s│", titlePaddingLeft, "", info.title, titlePaddingRight, "")))
+	headerParts := []string{info.titleStyle.Render(info.title)}
 
 	if info.subtitle != "" {
-		fmt.Fprint(builder, info.titleStyle.Render(fmt.Sprintf("│%*s", subtitlePaddingLeft, "")))
-		fmt.Fprintf(builder, "%s", info.subtitleStyle.Render(info.subtitle))
-		fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("%*s│", subtitlePaddingRight, "")))
+		headerParts = append(headerParts, info.subtitleStyle.Render(info.subtitle))
 	}
 
-	fmt.Fprintln(builder, info.titleStyle.Render("╰"+line+"╯"))
+	header := info.headerStyle.Render(strings.Join(headerParts, "\n"))
+
+	fmt.Fprintln(builder, header)
 
 	if info.useMarkdown {
 		if mdContent, err := m.mdRenderer.Render(content); err == nil {
@@ -397,7 +390,7 @@ func (m *Model) renderBubble(info bubbleInfo) string {
 		content = wordwrap.String(content, m.viewport.Width)
 	}
 
-	fmt.Fprintln(builder, content)
+	fmt.Fprintln(builder, info.contentStyle.Render(content))
 
 	return builder.String()
 }
