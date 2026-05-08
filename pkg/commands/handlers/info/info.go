@@ -34,6 +34,9 @@ func (i *Info) Usage() string {
 }
 
 func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
+	builder := &strings.Builder{}
+	builder.Grow(1024)
+
 	includeSystem := false
 
 	for _, arg := range msg.Args {
@@ -42,30 +45,26 @@ func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 		}
 	}
 
-	name := session.Name
 	messageCount := session.MessageCount()
 	inputTokens, outputTokens := session.Usage()
 	totalTokens := inputTokens + outputTokens
-	duration := time.Since(session.CreatedAt)
-	toolNames := session.Tools.GetTools().Names()
+	toolNames := strings.Join(session.Tools.GetTools().Names(), ", ")
 
-	info := "**Session name:** " + name + "\n\n"
-	info += fmt.Sprintf("**Mode:** %s\n\n", session.GetMode())
-	info += fmt.Sprintf("**Messages:** user %d, assistant %d, tool call %d\n\n",
+	builder.WriteString("**Session name:** " + session.Name + "\n")
+	builder.WriteString("**Mode:** " + string(session.GetMode()) + "\n")
+	fmt.Fprintf(builder, "**Messages:** user %d, assistant %d, tool call %d\n",
 		messageCount.UserMessages, messageCount.AssistantMessages, messageCount.ToolCallMessages)
-	info += fmt.Sprintf("**Tokens:** input %d, output %d, total %d\n\n", inputTokens, outputTokens, totalTokens)
-	info += fmt.Sprintf("**Duration:** %s\n\n", duration)
-	info += fmt.Sprintf("**Tools available:** %s\n\n", strings.Join(toolNames, ", "))
+	fmt.Fprintf(builder, "**Tokens:** input %d, output %d, total %d\n", inputTokens, outputTokens, totalTokens)
+	builder.WriteString("**Duration:** " + time.Since(session.CreatedAt).String() + "\n")
+	builder.WriteString("**Tools available:** " + toolNames + "\n")
 
 	if includeSystem {
-		info += fmt.Sprintf("\n**System message:**\n\n%s\n\n", session.SystemMessage)
+		builder.WriteString("\n\n****System prompt:**\n" + session.SystemMessage + "\n")
 	}
-
-	// TODO: ability to get information not contained in the session object
 
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: msg,
-		Message:       info,
+		Message:       builder.String(),
 	}
 
 	return uimsg.MsgToCmd(update), nil

@@ -145,6 +145,7 @@ func (s *Smoke) setupSession(ctx context.Context) error {
 		SystemAsMessage: s.llm.RequiresSessionSystem(),
 		Tools:           toolManager,
 		Mode:            mode,
+		Config:          s.llmConfig,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to initialize main smoke session: %w", err)

@@ -19,7 +19,8 @@ type Session struct {
 	Messages        []*Message   `json:"messages"`
 	messageMutex    sync.RWMutex `json:"-"`
 
-	Tools *tools.Manager `json:"-"`
+	Tools  *tools.Manager `json:"-"`
+	Config *Config        `json:"-"`
 
 	usageMutex   sync.RWMutex `json:"-"`
 	InputTokens  int64        `json:"input_tokens"`
@@ -35,6 +36,7 @@ type SessionOpts struct {
 	SystemAsMessage bool
 	Tools           *tools.Manager
 	Mode            modes.Mode
+	Config          *Config
 }
 
 func (s *SessionOpts) OK() error {
@@ -64,6 +66,7 @@ func NewSession(opts *SessionOpts) (*Session, error) {
 		SystemAsMessage: opts.SystemAsMessage,
 		Messages:        []*Message{},
 		Tools:           opts.Tools,
+		Config:          opts.Config,
 
 		CreatedAt: time.Now(),
 
