@@ -12,7 +12,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
@@ -43,6 +42,7 @@ func (o *Opts) OK() error {
 type Model struct {
 	viewport   viewport.Model
 	mdRenderer *glamour.TermRenderer
+	styles     Styles
 
 	initContent string
 	log         *Log
@@ -64,6 +64,7 @@ func New(opts *Opts) (*Model, error) {
 	model := &Model{
 		viewport:   getViewport(opts),
 		mdRenderer: mdRenderer,
+		styles:     InitStyles(),
 
 		initContent: opts.InitContent,
 		log:         NewLog(),
@@ -198,49 +199,35 @@ func (m *Model) logContent() string {
 	builder := &strings.Builder{}
 
 	for _, item := range m.log.Messages() {
-		info := bubbleInfo{
-			headerStyle: lipgloss.NewStyle().
-				Width(defaultBubbleWidth).
-				Padding(0, 2).
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.Color("#3f4856")).
-				Background(lipgloss.Color("#11161d")),
-			titleStyle: lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#8fb7ff")).
-				Background(lipgloss.Color("#11161d")),
-			subtitleStyle: lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#7d8796")).
-				Background(lipgloss.Color("#11161d")).
-				Italic(true),
-			contentStyle: lipgloss.NewStyle().
-				MarginTop(1),
-			useMarkdown: false,
-		}
+		var bubble Bubble
 
 		switch item := item.(type) {
 		case *llms.Message:
-			info = renderLLMMessage(item, info)
+			bubble = renderLLMMessage(item, m.styles)
 		case commands.Message:
-			info = renderCommandMessage(item, info)
+			bubble = renderCommandMessage(item, m.styles)
 		case elicit.Message:
-			info = renderElicitMessage(item, info)
+			bubble = renderElicitMessage(item, m.styles)
 		case *uimsg.Error:
-			info.title = "⛔ Error"
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#af0000"))
-			info.content = item.Error()
+			bubble = Bubble{
+				Style:       m.styles.ErrorBubble,
+				TitleText:   "⛔ Error",
+				ContentText: item.Error(),
+			}
 
 		case string:
-			info.title = "Unknown message"
-			info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#999999"))
-			info.content = item
+			bubble = Bubble{
+				Style:       m.styles.UnknownBubble,
+				TitleText:   "Unknown message",
+				ContentText: item,
+			}
 
 		default:
 			slog.Error("UNKNOWN MESSAGE TYPE", "item", item, "type", fmt.Sprintf("%T", item))
+			continue
 		}
 
-		fmt.Fprint(builder, m.renderBubble(info))
+		fmt.Fprint(builder, m.renderBubble(bubble))
 
 		builder.WriteRune('\n')
 	}
@@ -248,64 +235,70 @@ func (m *Model) logContent() string {
 	return builder.String()
 }
 
-func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
-	info.content = msg.TextContent
-	info.subtitle = msg.Added.Format(time.DateTime)
+func renderLLMMessage(msg *llms.Message, styles Styles) Bubble {
+	var (
+		style     BubbleStyle
+		titleText string
+	)
 
 	switch msg.Role {
 	case llms.RoleUser:
-		info.title = "👤 User"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#0087ff"))
-		info.useMarkdown = true
+		style = styles.UserBubble
+		titleText = "👤 User"
 	case llms.RoleAssistant:
-		info.title = fmt.Sprintf("🤖 %s (%s)", msg.LLMInfo.Type, msg.LLMInfo.ModelName)
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#00af00"))
-		info.useMarkdown = true
+		style = styles.AssistantBubble
+		titleText = fmt.Sprintf("🤖 %s (%s)", msg.LLMInfo.Type, msg.LLMInfo.ModelName)
 
 		// TODO: render each of these with their arguments
 		if msg.HasToolCalls() {
-			info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolCalls.Names(), ", "))
+			msg.TextContent += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolCalls.Names(), ", "))
 		}
 	case llms.RoleTool:
-		info.title = "🔧 Tool"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#00afaf"))
+		style = styles.ToolBubble
+		titleText = "🔧 Tool"
 
 		if msg.HasToolCalls() {
 			// This should only ever have 1 tool call result, but we'll check just in case...
+			// TODO: FIGURE OUT WHY THIS IS SHOWING THE SAME TOOL CALL MULTIPLE TIMES??
 			for _, toolCall := range msg.ToolCalls {
-				info.content += fmt.Sprintf("\nTool call to %q with args: %s", toolCall.Name, toolCall.Args.String())
+				msg.TextContent += fmt.Sprintf("\nTool call to %q with args: %s", toolCall.Name, toolCall.Args.String())
 			}
 		}
 	case llms.RoleSystem:
-		info.title = "🖥️ System"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#af00af"))
+		style = styles.SystemBubble
+		titleText = "🖥️ System"
 	case llms.RoleUnknown:
-		info.title = "❓ UNKNOWN ROLE"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#af0000"))
+		style = styles.ErrorBubble
+		titleText = "❓ UNKNOWN ROLE"
 	}
 
-	return info
+	return Bubble{
+		Style:        style,
+		TitleText:    titleText,
+		SubtitleText: msg.Added.Format(time.DateTime),
+		ContentText:  msg.TextContent,
+	}
 }
 
-func renderCommandMessage(msg commands.Message, info bubbleInfo) bubbleInfo {
+func renderCommandMessage(msg commands.Message, styles Styles) Bubble {
 	switch msg := msg.(type) {
 	case commands.HistoryUpdateMessage:
-		info.title = msg.PromptMessage.Command + " command result"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#dd9911"))
-		info.content = msg.Message
+		style := styles.CommandBubble
 		// TODO: make sure this makes sense?
-		info.useMarkdown = true
+		style.UseMarkdown = true
+
+		return Bubble{
+			Style:       style,
+			TitleText:   msg.PromptMessage.Command + " command result",
+			ContentText: msg.Message,
+		}
 
 	case commands.SessionUpdateMessage:
+		var titleText string
+
 		switch msg.PromptMessage.Command {
 		case session.Name:
-			info.title = "Started new session"
+			titleText = "Started new session"
 		case load.Name:
 			sessionFile := "<unknown>"
 
@@ -313,76 +306,81 @@ func renderCommandMessage(msg commands.Message, info bubbleInfo) bubbleInfo {
 				sessionFile = msg.PromptMessage.Args[0]
 			}
 
-			info.title = "Loaded session from file " + sessionFile
+			titleText = "Loaded session from file " + sessionFile
 		default:
-			info.title = "Updated session"
+			titleText = "Updated session"
 		}
 
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#ffffff"))
-		info.content = msg.Message
+		return Bubble{
+			Style:       styles.SessionBubble,
+			TitleText:   titleText,
+			ContentText: msg.Message,
+		}
 
 	case mode.Message:
 		modeTitle := strings.Title(string(msg.Mode)) //nolint:staticcheck
-		info.title = modeTitle + " mode"
-		info.subtitle = msg.Message
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#ffffff"))
+
+		return Bubble{
+			Style:        styles.SessionBubble,
+			TitleText:    modeTitle + " mode",
+			SubtitleText: msg.Message,
+		}
 	}
 
-	return info
+	return Bubble{}
 }
 
-func renderElicitMessage(msg elicit.Message, info bubbleInfo) bubbleInfo {
+func renderElicitMessage(msg elicit.Message, styles Styles) Bubble {
 	switch msg := msg.(type) {
 	case elicit.RequestMessage:
-		info.title = "Question"
-		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
-		info.content = msg.String()
+		return Bubble{
+			Style:       styles.ElicitBubble,
+			TitleText:   "Question",
+			ContentText: msg.String(),
+		}
 
 	case elicit.UserCanceledMessage:
-		info.title = "Canceled"
-		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#ff0000"))
-		info.content = msg.String()
+		return Bubble{
+			Style:       styles.ElicitCanceledBubble,
+			TitleText:   "Canceled",
+			ContentText: msg.String(),
+		}
 
 	case elicit.UserResponseMessage:
-		info.title = "Response"
-		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
-		info.content = msg.String()
+		return Bubble{
+			Style:       styles.ElicitBubble,
+			TitleText:   "Response",
+			ContentText: msg.String(),
+		}
 	}
 
-	return info
+	return Bubble{}
 }
 
-const defaultBubbleWidth = 64
-
-type bubbleInfo struct {
-	headerStyle   lipgloss.Style
-	title         string
-	titleStyle    lipgloss.Style
-	subtitle      string
-	subtitleStyle lipgloss.Style
-	content       string
-	contentStyle  lipgloss.Style
-	useMarkdown   bool
+// Bubble pairs a BubbleStyle with the runtime content to be rendered.
+type Bubble struct {
+	Style        BubbleStyle
+	TitleText    string
+	SubtitleText string
+	ContentText  string
 }
 
 // renderBubble displays messages and errors with a nice title/subtitle bubble before the item's content. It word-wraps
 // the content of the actual message to ensure it doesn't run off the screen.
-func (m *Model) renderBubble(info bubbleInfo) string {
+func (m *Model) renderBubble(bubble Bubble) string {
 	builder := &strings.Builder{}
-	content := info.content
-	headerParts := []string{info.titleStyle.Render(info.title)}
+	content := bubble.ContentText
+	headerParts := []string{bubble.Style.Title.Render(bubble.TitleText)}
 
-	if info.subtitle != "" {
-		headerParts = append(headerParts, info.subtitleStyle.Render(info.subtitle))
+	if bubble.SubtitleText != "" {
+		headerParts = append(headerParts, bubble.Style.Subtitle.Render(bubble.SubtitleText))
 	}
 
-	header := info.headerStyle.Render(strings.Join(headerParts, "\n"))
+	header := bubble.Style.Container.Render(strings.Join(headerParts, "\n"))
 
 	fmt.Fprintln(builder, header)
 
-	if info.useMarkdown {
+	if bubble.Style.UseMarkdown {
 		if mdContent, err := m.mdRenderer.Render(content); err == nil {
 			content = mdContent
 		}
@@ -390,7 +388,7 @@ func (m *Model) renderBubble(info bubbleInfo) string {
 		content = wordwrap.String(content, m.viewport.Width)
 	}
 
-	fmt.Fprintln(builder, info.contentStyle.Render(content))
+	fmt.Fprintln(builder, bubble.Style.Content.Render(content))
 
 	return builder.String()
 }
