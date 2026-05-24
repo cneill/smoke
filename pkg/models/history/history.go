@@ -235,10 +235,44 @@ func (m *Model) logContent() string {
 	return builder.String()
 }
 
+func renderAssistantToolCallSummary(msg *llms.Message, contentText string) string {
+	if !msg.HasToolCalls() {
+		return contentText
+	}
+
+	return contentText + "\n\nTools called: " + strings.Join(msg.ToolCalls.Names(), ", ") + "\n"
+}
+
+func renderToolMessageDetails(msg *llms.Message, contentText string) string {
+	if !msg.HasToolCalls() {
+		return contentText
+	}
+
+	// This message should only have 1 tool call, but we check just in case
+	toolCallDetails := make([]string, 0, len(msg.ToolCalls))
+	for _, toolCall := range msg.ToolCalls {
+		toolCallDetails = append(toolCallDetails, fmt.Sprintf("Tool call to %q with args: %s", toolCall.Name, toolCall.Args.String()))
+	}
+
+	if len(toolCallDetails) == 0 {
+		return contentText
+	}
+
+	contentText = strings.TrimSpace(contentText)
+	if contentText != "" {
+		contentText += "\n\n"
+	}
+
+	contentText += strings.Join(toolCallDetails, "\n")
+
+	return contentText
+}
+
 func renderLLMMessage(msg *llms.Message, styles Styles) Bubble {
 	var (
-		style     BubbleStyle
-		titleText string
+		style       BubbleStyle
+		titleText   string
+		contentText = msg.TextContent
 	)
 
 	switch msg.Role {
@@ -248,22 +282,11 @@ func renderLLMMessage(msg *llms.Message, styles Styles) Bubble {
 	case llms.RoleAssistant:
 		style = styles.AssistantBubble
 		titleText = fmt.Sprintf("🤖 %s (%s)", msg.LLMInfo.Type, msg.LLMInfo.ModelName)
-
-		// TODO: render each of these with their arguments
-		if msg.HasToolCalls() {
-			msg.TextContent += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolCalls.Names(), ", "))
-		}
+		contentText = renderAssistantToolCallSummary(msg, contentText)
 	case llms.RoleTool:
 		style = styles.ToolBubble
 		titleText = "🔧 Tool"
-
-		if msg.HasToolCalls() {
-			// This should only ever have 1 tool call result, but we'll check just in case...
-			// TODO: FIGURE OUT WHY THIS IS SHOWING THE SAME TOOL CALL MULTIPLE TIMES??
-			for _, toolCall := range msg.ToolCalls {
-				msg.TextContent += fmt.Sprintf("\nTool call to %q with args: %s", toolCall.Name, toolCall.Args.String())
-			}
-		}
+		contentText = renderToolMessageDetails(msg, contentText)
 	case llms.RoleSystem:
 		style = styles.SystemBubble
 		titleText = "🖥️ System"
@@ -276,7 +299,7 @@ func renderLLMMessage(msg *llms.Message, styles Styles) Bubble {
 		Style:        style,
 		TitleText:    titleText,
 		SubtitleText: msg.Added.Format(time.DateTime),
-		ContentText:  msg.TextContent,
+		ContentText:  contentText,
 	}
 }
 
