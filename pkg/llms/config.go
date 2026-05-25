@@ -7,6 +7,7 @@ type Config struct {
 	BaseURL     string
 	MaxTokens   int64
 	Model       string
+	NoStream    bool
 	Provider    LLMType
 	Temperature float64
 }
