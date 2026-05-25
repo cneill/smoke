@@ -116,7 +116,7 @@ func (c *conversation) getNewCompletionParams() openai.ChatCompletionNewParams {
 	session := c.Session()
 	config := c.Config()
 
-	return openai.ChatCompletionNewParams{
+	params := openai.ChatCompletionNewParams{
 		MaxCompletionTokens: openai.Int(config.MaxTokens),
 		Messages:            c.getSessionMessages(session),
 		Model:               config.Model,
@@ -124,10 +124,15 @@ func (c *conversation) getNewCompletionParams() openai.ChatCompletionNewParams {
 		Tools:               c.completionTools(session),
 		Temperature:         openai.Float(config.Temperature),
 		ParallelToolCalls:   openai.Bool(true),
-		StreamOptions: openai.ChatCompletionStreamOptionsParam{
-			IncludeUsage: openai.Bool(true),
-		},
 	}
+
+	if !config.NoStream {
+		params.StreamOptions = openai.ChatCompletionStreamOptionsParam{
+			IncludeUsage: openai.Bool(true),
+		}
+	}
+
+	return params
 }
 
 // getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation
