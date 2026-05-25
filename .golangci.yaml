@@ -8,6 +8,7 @@ linters:
     - exhaustruct  # annoying - forces full struct initializations
     - forbidigo    # annoying
     - godot        # annoying - ending all comments with periods
+    - gomodguard   # deprecated
     - ireturn      # I hate this linter
     - mnd          # annoying - magic numbers more annoying to alert on than deal with
     - musttag      # annoying and seemingly broken warnings about `json:` tags on structs
