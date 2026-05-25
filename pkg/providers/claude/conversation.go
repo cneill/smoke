@@ -76,6 +76,8 @@ func (c *conversation) sendStream(ctx context.Context) error {
 				Text: deltaType.Text,
 			})
 		// TODO: handle InputJSONDelta type?
+		case anthropic.ThinkingDelta:
+			// slog.Debug("Thinking...", "text", deltaType.Thinking)
 		default:
 			slog.Warn("unknown delta type", "type", fmt.Sprintf("%T", chunkType.Delta.AsAny()))
 			continue
@@ -120,6 +122,7 @@ func (c *conversation) getMessageNewParams() anthropic.MessageNewParams {
 		Tools:        c.newMessageTools(session),
 		Temperature:  anthropic.Float(config.Temperature),
 		CacheControl: anthropic.NewCacheControlEphemeralParam(),
+		Thinking:     anthropic.ThinkingConfigParamOfEnabled(config.MaxTokens / 4),
 	}
 }
 
