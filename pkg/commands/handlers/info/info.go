@@ -4,6 +4,7 @@ package info
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,37 +35,36 @@ func (i *Info) Usage() string {
 }
 
 func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
-	builder := &strings.Builder{}
-	builder.Grow(1024)
-
-	includeSystem := false
-
-	for _, arg := range msg.Args {
-		if arg == "--system" {
-			includeSystem = true
-		}
-	}
-
-	messageCount := session.MessageCount()
+	includeSystem := slices.Contains(msg.Args, "--system")
+	messages := session.MessageCount()
 	inputTokens, outputTokens := session.Usage()
 	totalTokens := inputTokens + outputTokens
-	toolNames := strings.Join(session.Tools.GetTools().Names(), ", ")
 
-	builder.WriteString("**Session name:** " + session.Name + "\n")
-	builder.WriteString("**Mode:** " + string(session.GetMode()) + "\n")
-	fmt.Fprintf(builder, "**Messages:** user %d, assistant %d, tool call %d\n",
-		messageCount.UserMessages, messageCount.AssistantMessages, messageCount.ToolCallMessages)
-	fmt.Fprintf(builder, "**Tokens:** input %d, output %d, total %d\n", inputTokens, outputTokens, totalTokens)
-	builder.WriteString("**Duration:** " + time.Since(session.CreatedAt).String() + "\n")
-	builder.WriteString("**Tools available:** " + toolNames + "\n")
+	toolNames := "none"
+	if tools := session.Tools.GetTools(); len(tools) > 0 {
+		toolNames = strings.Join(session.Tools.GetTools().Names(), ", ")
+	}
+
+	var sb strings.Builder
+	sb.Grow(1024)
+
+	fmt.Fprintf(&sb, "**Session name:** %s\n", session.Name)
+	fmt.Fprintf(&sb, "**Provider:** %s\n", session.Config.Provider)
+	fmt.Fprintf(&sb, "**Model:** %s\n", session.Config.Model)
+	fmt.Fprintf(&sb, "**Mode:** %s\n", session.GetMode())
+	fmt.Fprintf(&sb, "**Messages:** user %d, assistant %d, tool call %d\n",
+		messages.UserMessages, messages.AssistantMessages, messages.ToolCallMessages)
+	fmt.Fprintf(&sb, "**Tokens:** input %d, output %d, total %d\n", inputTokens, outputTokens, totalTokens)
+	fmt.Fprintf(&sb, "**Duration:** %s\n", time.Since(session.CreatedAt).String())
+	fmt.Fprintf(&sb, "**Tools available:** %s\n", toolNames)
 
 	if includeSystem {
-		builder.WriteString("\n\n****System prompt:**\n" + session.SystemMessage + "\n")
+		fmt.Fprintf(&sb, "\n\n**System prompt:**\n\n%s\n", session.SystemMessage)
 	}
 
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: msg,
-		Message:       builder.String(),
+		Message:       sb.String(),
 	}
 
 	return uimsg.MsgToCmd(update), nil
