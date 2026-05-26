@@ -59,10 +59,11 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 	llms.LLMTypeGrok: {
 		apiKeyFlag:   FlagXAIKey,
 		apiKeyEnvVar: EnvXAIKey,
-		defaultModel: "grok-4.20-0309-reasoning",
+		defaultModel: "grok-build-0.1",
 		aliases: modelAliases{
+			"grok-build-0.1":           {"build", "fast"},
+			"grok-4.3":                 {"4.3", "430"},
 			"grok-4.20-0309-reasoning": {"4.2", "420"},
-			"grok-4-1-fast-reasoning":  {"4.1", "fast"},
 		},
 	},
 	llms.LLMTypeOllama: {
