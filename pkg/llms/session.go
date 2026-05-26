@@ -47,6 +47,8 @@ func (s *SessionOpts) OK() error {
 		return fmt.Errorf("missing system message")
 	case s.Tools == nil:
 		return fmt.Errorf("missing tools manager")
+	case s.Config == nil:
+		return fmt.Errorf("missing LLM config")
 	case s.Mode == "":
 		return fmt.Errorf("missing mode")
 	}
