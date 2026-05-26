@@ -280,9 +280,10 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				}
 			case llms.EventUsageUpdate:
 				session.UpdateUsage(event.InputTokens, event.OutputTokens)
+				input, output := session.Usage()
 				s.teaEmitter(UsageUpdateMessage{
-					InputTokens:  event.InputTokens,
-					OutputTokens: event.OutputTokens,
+					InputTokens:  input,
+					OutputTokens: output,
 				})
 			}
 		}
