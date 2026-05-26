@@ -45,26 +45,43 @@ func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 		toolNames = strings.Join(session.Tools.GetTools().Names(), ", ")
 	}
 
-	var sb strings.Builder
-	sb.Grow(1024)
-
-	fmt.Fprintf(&sb, "**Session name:** %s\n", session.Name)
-	fmt.Fprintf(&sb, "**Provider:** %s\n", session.Config.Provider)
-	fmt.Fprintf(&sb, "**Model:** %s\n", session.Config.Model)
-	fmt.Fprintf(&sb, "**Mode:** %s\n", session.GetMode())
-	fmt.Fprintf(&sb, "**Messages:** user %d, assistant %d, tool call %d\n",
-		messages.UserMessages, messages.AssistantMessages, messages.ToolCallMessages)
-	fmt.Fprintf(&sb, "**Tokens:** input %d, output %d, total %d\n", inputTokens, outputTokens, totalTokens)
-	fmt.Fprintf(&sb, "**Duration:** %s\n", time.Since(session.CreatedAt).String())
-	fmt.Fprintf(&sb, "**Tools available:** %s\n", toolNames)
+	content := &uimsg.HistoryContent{
+		Blocks: []uimsg.HistoryBlock{
+			{
+				Type:  uimsg.HistoryBlockFields,
+				Title: "Session info",
+				Fields: []uimsg.HistoryField{
+					uimsg.NewField("Session name", session.Name),
+					uimsg.NewField("Provider", string(session.Config.Provider)),
+					uimsg.NewField("Model", session.Config.Model),
+					uimsg.NewField("Mode", string(session.GetMode())),
+					uimsg.NewField(
+						"Messages",
+						fmt.Sprintf("User=%d, Assistant=%d, Tool call=%d",
+							messages.UserMessages, messages.AssistantMessages, messages.ToolCallMessages),
+					),
+					uimsg.NewField(
+						"Tokens",
+						fmt.Sprintf("Input=%d, Output=%d, Total=%d", inputTokens, outputTokens, totalTokens),
+					),
+					uimsg.NewField("Duration", time.Since(session.CreatedAt).String()),
+					uimsg.NewField("Tools available", toolNames),
+				},
+			},
+		},
+	}
 
 	if includeSystem {
-		fmt.Fprintf(&sb, "\n\n**System prompt:**\n\n%s\n", session.SystemMessage)
+		content.Blocks = append(content.Blocks, uimsg.HistoryBlock{
+			Type:  uimsg.HistoryBlockMarkdown,
+			Title: "System prompt",
+			Text:  session.SystemMessage,
+		})
 	}
 
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: msg,
-		Message:       sb.String(),
+		Content:       content,
 	}
 
 	return uimsg.MsgToCmd(update), nil
