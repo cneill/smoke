@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -52,9 +53,23 @@ func (e *Export) Run(_ context.Context, msg commands.PromptMessage, session *llm
 		return nil, fmt.Errorf("failed to export session to file %q: %w", path, err)
 	}
 
+	content := &uimsg.HistoryContent{
+		Blocks: []uimsg.HistoryBlock{
+			{
+				Type:  uimsg.HistoryBlockFields,
+				Title: "Export complete",
+				Fields: []uimsg.HistoryField{
+					uimsg.NewField("Path", path),
+					uimsg.NewField("Format", "JSON"),
+					uimsg.NewField("Messages", strconv.Itoa(len(session.Messages))),
+				},
+			},
+		},
+	}
+
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: msg,
-		Message:       "Exported session to file " + path + " in JSON format.",
+		Content:       content,
 	}
 
 	return uimsg.MsgToCmd(update), nil

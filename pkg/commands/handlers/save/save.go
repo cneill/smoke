@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -52,9 +53,23 @@ func (s *Save) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 		return nil, fmt.Errorf("failed to save session to file %q: %w", path, err)
 	}
 
+	content := &uimsg.HistoryContent{
+		Blocks: []uimsg.HistoryBlock{
+			{
+				Type:  uimsg.HistoryBlockFields,
+				Title: "Save complete",
+				Fields: []uimsg.HistoryField{
+					uimsg.NewField("Path", path),
+					uimsg.NewField("Format", "Markdown"),
+					uimsg.NewField("Messages", strconv.Itoa(len(session.Messages))),
+				},
+			},
+		},
+	}
+
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: msg,
-		Message:       "Saved session to file " + path + " in Markdown format.",
+		Content:       content,
 	}
 
 	return uimsg.MsgToCmd(update), nil

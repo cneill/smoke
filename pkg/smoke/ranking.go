@@ -68,6 +68,7 @@ func (s *Smoke) batchSession(msg rank.RequestMessage) (*llms.Session, error) {
 		SystemMessage:   systemMessage,
 		SystemAsMessage: mainSession.SystemAsMessage, // TODO: check LLM for this? something else?
 		Tools:           toolManager,
+		Config:          mainSession.Config,
 		Mode:            modes.ModeRanking,
 	})
 	if err != nil {
