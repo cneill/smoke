@@ -1,6 +1,10 @@
 ---
 name: Test and lint
 on: [push]
+env:
+  GOFUMPT_VERSION: v0.10.0
+  GOIMPORTS_VERSION: v0.45.0
+  GOLANGCILINT_VERSION: v2.12.2
 jobs:
   test-and-lint:
     runs-on: ubuntu-latest
@@ -18,9 +22,9 @@ jobs:
 
       - name: Install tool dependencies
         run: |
-          go install mvdan.cc/gofumpt@latest
-          go install golang.org/x/tools/cmd/goimports@latest
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.11.4
+          go install "mvdan.cc/gofumpt@${{ env.GOFUMPT_VERSION }}"
+          go install "golang.org/x/tools/cmd/goimports@${{ env.GOIMPORTS_VERSION }}"
+          curl -sSfL "https://raw.githubusercontent.com/golangci/golangci-lint/${{ env.GOLANGCILINT_VERSION }}/install.sh" | sh -s -- -b $(go env GOPATH)/bin "${{ env.GOLANGCILINT_VERSION }}"
 
       - name: Test
         run: go test -v ./...
