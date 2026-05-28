@@ -216,6 +216,8 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 					Messages: event.Messages,
 				})
 			case llms.EventToolCallsRequested:
+				pendingMessage = nil
+
 				if err := session.AddMessage(event.Message); err != nil {
 					slog.Error("failed to add assistant tool call message to session", "error", err)
 					conversation.Cancel(err)
