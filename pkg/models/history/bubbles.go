@@ -19,7 +19,8 @@ import (
 type bubbleContentKind uint8
 
 const (
-	bubbleContentPlainText bubbleContentKind = iota
+	bubbleContentEmpty bubbleContentKind = iota
+	bubbleContentPlainText
 	bubbleContentMarkdown
 	bubbleContentStructured
 )
@@ -50,8 +51,20 @@ type Bubble struct {
 	Content      BubbleContent
 }
 
+func (b Bubble) IsEmpty() bool {
+	return b.TitleIsEmpty() && b.ContentIsEmpty()
+}
+
+func (b Bubble) TitleIsEmpty() bool {
+	return b.TitleText == "" && b.SubtitleText == ""
+}
+
 func (b Bubble) ContentText() string {
 	return b.Content.text
+}
+
+func (b Bubble) ContentIsEmpty() bool {
+	return b.Content.kind == bubbleContentEmpty
 }
 
 func (b Bubble) ContentIsMarkdown() bool {
@@ -93,6 +106,7 @@ func BubbleForHistoryItem(item any, styles Styles) Bubble {
 }
 
 func assistantRoleContentText(msg *llms.Message, contentText string) string {
+	// TODO: currently, tool calls are never populated on the assistant message... not sure if they should be
 	if !msg.HasToolCalls() {
 		return contentText
 	}
@@ -149,6 +163,11 @@ func bubbleForLLMMessage(msg *llms.Message, styles Styles) Bubble {
 		style = styles.AssistantBubble
 		titleText = fmt.Sprintf("🤖 %s (%s)", msg.LLMInfo.Type, msg.LLMInfo.ModelName)
 		contentText = assistantRoleContentText(msg, contentText)
+
+		// TODO: move this outside the switch?
+		if strings.TrimSpace(contentText) == "" {
+			return Bubble{}
+		}
 	case llms.RoleTool:
 		style = styles.ToolBubble
 		titleText = "🔧 Tool"

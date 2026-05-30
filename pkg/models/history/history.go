@@ -185,6 +185,12 @@ func (m *Model) renderLogContent() string {
 
 	for _, item := range m.log.Messages() {
 		bubble := BubbleForHistoryItem(item, styles)
+		// Currently used for epmty Assistant messages
+		// TODO: make this less convoluted
+		if bubble.IsEmpty() {
+			continue
+		}
+
 		fmt.Fprint(builder, m.renderer.RenderBubble(bubble))
 		builder.WriteRune('\n')
 	}

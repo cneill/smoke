@@ -22,12 +22,14 @@ const (
 )
 
 type bubbleExpectation struct {
-	name       string
-	item       any
-	wantTitle  string
-	wantText   string
-	markdown   bool
-	structured bool
+	name         string
+	item         any
+	wantTitle    string
+	wantText     string
+	markdown     bool
+	structured   bool
+	empty        bool
+	contentEmpty bool
 }
 
 func TestBubbleForHistoryItem(t *testing.T) {
@@ -47,11 +49,13 @@ func TestBubbleForHistoryItem(t *testing.T) {
 			assert.Equal(t, tt.wantText, bubble.ContentText())
 			assert.Equal(t, tt.markdown, bubble.ContentIsMarkdown())
 			assert.Equal(t, tt.structured, bubble.ContentIsStructured())
+			assert.Equal(t, tt.empty, bubble.IsEmpty())
+			assert.Equal(t, tt.contentEmpty, bubble.ContentIsEmpty())
 		})
 	}
 }
 
-func bubbleForHistoryItemTests(now time.Time) []bubbleExpectation {
+func bubbleForHistoryItemTests(now time.Time) []bubbleExpectation { //nolint:funlen
 	return []bubbleExpectation{
 		{
 			name: "user llm message",
@@ -93,9 +97,11 @@ func bubbleForHistoryItemTests(now time.Time) []bubbleExpectation {
 			structured: true,
 		},
 		{
-			name:      "mode message",
-			item:      mode.Message{Mode: "chat", Message: "Switched"},
-			wantTitle: "Chat mode",
+			name:         "mode message",
+			item:         mode.Message{Mode: "chat", Message: "Switched"},
+			wantTitle:    "Chat mode",
+			empty:        false,
+			contentEmpty: true,
 		},
 		{
 			name:      "elicit request",
@@ -120,6 +126,25 @@ func bubbleForHistoryItemTests(now time.Time) []bubbleExpectation {
 			item:      123,
 			wantTitle: internalErrorTitle,
 			wantText:  "history received unsupported message type int",
+		},
+		{
+			name: "empty assistant message = empty bubble",
+			item: func() *llms.Message {
+				msg := llms.NewMessage(
+					llms.WithID("msg-1"),
+					llms.WithRole(llms.RoleAssistant),
+					llms.WithTextContent(""),
+					llms.WithLLMInfo(&llms.LLMInfo{
+						Type:      llms.LLMTypeOllama,
+						ModelName: "happy model",
+					}),
+				)
+				msg.Added = now
+
+				return msg
+			}(),
+			empty:        true,
+			contentEmpty: true,
 		},
 	}
 }
