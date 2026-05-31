@@ -13,7 +13,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/formatting"
 	"github.com/cneill/smoke/pkg/utils"
@@ -37,9 +37,10 @@ func (g *Grep) Name() string { return tools.NameGrep }
 func (g *Grep) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 
-	return fmt.Sprintf(`Search a file or directory for a regular expression. Lines matching %q are prefixed with "*", `+
-		"while context lines that do not include matches only include line numbers. Optionally, provide %q for "+
-		"the number of lines of context (default 0, only matched lines). Does not match multi-line regexes.%s",
+	return fmt.Sprintf(
+		`Search a file or directory for a regular expression. Lines matching %q are prefixed with "*", `+
+			"while context lines that do not include matches only include line numbers. Optionally, provide %q for "+
+			"the number of lines of context (default 0, only matched lines). Does not match multi-line regexes.%s",
 		ParamRegex, ParamContextLines, examples,
 	)
 }
@@ -94,7 +95,7 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
-	fullPath, err := fs.GetRelativePath(g.ProjectPath, *path)
+	fullPath, err := files.GetRelativePath(g.ProjectPath, *path)
 	if err != nil {
 		return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
@@ -232,7 +233,7 @@ func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLi
 func (g *Grep) getDirResults(fullPath string, pattern *regexp.Regexp, contextLines int64) (map[string][][]string, error) {
 	results := map[string][][]string{}
 
-	iter, err := fs.ExcludesWalker(g.ProjectPath, fullPath)
+	iter, err := files.ExcludesWalker(g.ProjectPath, fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to grep directory %q: %w", fullPath, err)
 	}

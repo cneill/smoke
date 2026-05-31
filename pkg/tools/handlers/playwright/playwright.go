@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/playwright-community/playwright-go"
 )
@@ -53,7 +53,7 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 		return nil, fmt.Errorf("%w: must supply URL", tools.ErrArguments)
 	}
 
-	screenshotPath, err := fs.GetRelativePath(p.ProjectPath, fmt.Sprintf("screenshot-%s.png", time.Now().Format(time.RFC3339)))
+	screenshotPath, err := files.GetRelativePath(p.ProjectPath, fmt.Sprintf("screenshot-%s.png", time.Now().Format(time.RFC3339)))
 	if err != nil {
 		return nil, fmt.Errorf("%w: invalid screenshot path: %w", tools.ErrFileSystem, err)
 	}

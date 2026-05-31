@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -69,7 +69,7 @@ func (g *GoFumpt) Run(ctx context.Context, args tools.Args) (*tools.Output, erro
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {
-		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
+		relPath, err := files.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}

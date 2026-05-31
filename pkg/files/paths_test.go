@@ -1,10 +1,10 @@
-package fs_test
+package files_test
 
 import (
 	"errors"
 	"testing"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 )
 
 func TestGetRelative(t *testing.T) { //nolint:funlen
@@ -21,19 +21,19 @@ func TestGetRelative(t *testing.T) { //nolint:funlen
 			name:        "empty_project_path",
 			projectPath: "",
 			targetPath:  "/a/b/c",
-			expectedErr: fs.ErrInsecureProjectPath,
+			expectedErr: files.ErrInsecureProjectPath,
 		},
 		{
 			name:        "root_project_path",
 			projectPath: "/",
 			targetPath:  "/a/b/c",
-			expectedErr: fs.ErrInsecureProjectPath,
+			expectedErr: files.ErrInsecureProjectPath,
 		},
 		{
 			name:        "relative_project_path",
 			projectPath: "a/b/c",
 			targetPath:  "/d/e/f",
-			expectedErr: fs.ErrNonAbsoluteProjectPath,
+			expectedErr: files.ErrNonAbsoluteProjectPath,
 		},
 		{
 			name:           "empty_target_path",
@@ -51,43 +51,43 @@ func TestGetRelative(t *testing.T) { //nolint:funlen
 			name:        "double_dot_target_path",
 			projectPath: "/a/b/c",
 			targetPath:  "..",
-			expectedErr: fs.ErrInsecureTargetPath,
+			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "triple_dot_target_path",
 			projectPath: "/a/b/c",
 			targetPath:  "...",
-			expectedErr: fs.ErrInsecureTargetPath,
+			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "root_with_relative_lead",
 			projectPath: "/a/b/c",
 			targetPath:  "/..0",
-			expectedErr: fs.ErrInsecureTargetPath,
+			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "root_with_relative_lead",
 			projectPath: "/a/b/c",
 			targetPath:  "C:\\..0",
-			expectedErr: fs.ErrInsecureTargetPath,
+			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "relative_dir_access",
 			projectPath: "/a/b/c",
 			targetPath:  "../../../../etc/passwd",
-			expectedErr: fs.ErrInsecureTargetPath,
+			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "relative_windows_dir_access",
 			projectPath: "/a/b/c",
 			targetPath:  "..\\..\\..\\..\\etc\\passwd",
-			expectedErr: fs.ErrInsecureTargetPath,
+			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "extra_dots_relative_dir_access",
 			projectPath: "/a/b/c",
 			targetPath:  "./..././etc/passwd",
-			expectedErr: fs.ErrInsecureTargetPath,
+			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:           "extra_leading_dots",
@@ -131,7 +131,7 @@ func TestGetRelative(t *testing.T) { //nolint:funlen
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := fs.GetRelativePath(test.projectPath, test.targetPath)
+			result, err := files.GetRelativePath(test.projectPath, test.targetPath)
 			if test.expectedErr != nil {
 				if !errors.Is(err, test.expectedErr) {
 					t.Fatalf("expecting error %v, got %v", test.expectedErr, err)
@@ -150,8 +150,8 @@ func FuzzGetRelative(f *testing.F) {
 	f.Add("C:\\project_dir", "/absolute/path")
 	f.Add("C:\\absolute_path\\lol", "\\absolute\\path")
 	f.Fuzz(func(t *testing.T, projectPath, targetPath string) {
-		out, err := fs.GetRelativePath(projectPath, targetPath)
-		if err != nil && errors.Is(err, fs.ErrOutsideBounds) {
+		out, err := files.GetRelativePath(projectPath, targetPath)
+		if err != nil && errors.Is(err, files.ErrOutsideBounds) {
 			t.Errorf("%q, %v", out, err)
 		}
 

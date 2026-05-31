@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers/replacelines"
 
@@ -50,7 +50,7 @@ func TestReplaceLinesTool_Run(t *testing.T) { //nolint:funlen
 				replacelines.ParamReplace:   "1",
 			},
 			expectedContent: "a\nb\nc",
-			errors:          []error{tools.ErrArguments, fs.ErrInsecureTargetPath},
+			errors:          []error{tools.ErrArguments, files.ErrInsecureTargetPath},
 		},
 		{
 			name:        "all_args_nonexistent_file",

@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -33,9 +33,10 @@ func (g *GoImports) Name() string { return tools.NameGoImports }
 func (g *GoImports) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 
-	return fmt.Sprintf("Runs the goimports command to fix imports against the file/directory specified in %q, or the "+
-		"whole project directory if not specified. Changes are written in place (-w) and the list of files formatted "+
-		"is returned (-l).%s",
+	return fmt.Sprintf(
+		"Runs the goimports command to fix imports against the file/directory specified in %q, or the "+
+			"whole project directory if not specified. Changes are written in place (-w) and the list of files formatted "+
+			"is returned (-l).%s",
 		ParamPath, examples,
 	)
 }
@@ -69,7 +70,7 @@ func (g *GoImports) Run(ctx context.Context, args tools.Args) (*tools.Output, er
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {
-		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
+		relPath, err := files.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}

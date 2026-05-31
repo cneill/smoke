@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/handlers/edit"
 
@@ -44,7 +44,7 @@ func TestEditToolRun(t *testing.T) { //nolint:funlen
 				edit.ParamEdits: []any{map[string]any{edit.ParamOldText: "alpha", edit.ParamNewText: "beta"}},
 			},
 			expectedContent: "alpha beta gamma",
-			errorIs:         []error{tools.ErrArguments, fs.ErrInsecureTargetPath},
+			errorIs:         []error{tools.ErrArguments, files.ErrInsecureTargetPath},
 		},
 		{
 			name:        "missing_edits",

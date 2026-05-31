@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -75,7 +75,7 @@ func (g *GitDiff) Run(ctx context.Context, args tools.Args) (*tools.Output, erro
 			return nil, fmt.Errorf("%w: path contained invalid characters that might allow command execution", tools.ErrArguments)
 		}
 
-		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
+		relPath, err := files.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}

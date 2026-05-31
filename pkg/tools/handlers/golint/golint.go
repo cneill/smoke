@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -45,8 +45,9 @@ func (g *GoLint) Name() string { return tools.NameGoLint }
 func (g *GoLint) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 
-	return fmt.Sprintf("Runs the golangci-lint linter against the file/directory specified in %q, or the whole "+
-		"project directory if not specified.%s",
+	return fmt.Sprintf(
+		"Runs the golangci-lint linter against the file/directory specified in %q, or the whole "+
+			"project directory if not specified.%s",
 		ParamPath, examples,
 	)
 }
@@ -116,7 +117,7 @@ func (g *GoLint) Run(ctx context.Context, args tools.Args) (*tools.Output, error
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {
-		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
+		relPath, err := files.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}
@@ -195,7 +196,7 @@ func (g *GoLint) Run(ctx context.Context, args tools.Args) (*tools.Output, error
 		targetIssues = results.Issues
 	} else {
 		for _, issue := range results.Issues {
-			issuePath, err := fs.GetRelativePath(g.ProjectPath, issue.Pos.Filename)
+			issuePath, err := files.GetRelativePath(g.ProjectPath, issue.Pos.Filename)
 			if err != nil {
 				continue
 			}

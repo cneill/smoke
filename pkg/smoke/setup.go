@@ -8,7 +8,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands"
 	cmdhandlers "github.com/cneill/smoke/pkg/commands/handlers"
 	"github.com/cneill/smoke/pkg/elicit"
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/llmctx/agentsmd"
 	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
@@ -58,7 +58,7 @@ func (s *Smoke) setupPlanManager() error {
 	// TODO: better way of setting this name...
 	planFileName := s.mainSessionName + "_plan.json"
 
-	relPath, err := fs.GetRelativePath(s.projectPath, planFileName)
+	relPath, err := files.GetRelativePath(s.projectPath, planFileName)
 	if err != nil {
 		return fmt.Errorf("invalid session plan file path (%s): %w", planFileName, err)
 	}

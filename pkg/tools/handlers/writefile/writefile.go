@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"os"
 
-	smokefs "github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -28,8 +28,9 @@ func (w *WriteFile) Name() string { return tools.NameWriteFile }
 func (w *WriteFile) Description() string {
 	examples := tools.CollectExamples(w.Examples()...)
 
-	return fmt.Sprintf("Create a new file at the path specified in %q and write the contents in %q to it. Cannot edit "+
-		"existing files.%s", ParamPath, ParamContents, examples,
+	return fmt.Sprintf(
+		"Create a new file at the path specified in %q and write the contents in %q to it. Cannot edit "+
+			"existing files.%s", ParamPath, ParamContents, examples,
 	)
 }
 
@@ -68,7 +69,7 @@ func (w *WriteFile) Run(_ context.Context, args tools.Args) (*tools.Output, erro
 		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
-	fullPath, err := smokefs.GetRelativePath(w.ProjectPath, *path)
+	fullPath, err := files.GetRelativePath(w.ProjectPath, *path)
 	if err != nil {
 		return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}

@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/cneill/smoke/pkg/tools/formatting"
 )
@@ -114,7 +114,7 @@ func (r *ReplaceLines) Run(_ context.Context, args tools.Args) (*tools.Output, e
 		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
-	fullPath, err := fs.GetRelativePath(r.ProjectPath, *path)
+	fullPath, err := files.GetRelativePath(r.ProjectPath, *path)
 	if err != nil {
 		return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}

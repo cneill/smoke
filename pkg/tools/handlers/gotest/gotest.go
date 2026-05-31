@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -34,9 +34,10 @@ func (g *GoTest) Name() string { return tools.NameGoTest }
 func (g *GoTest) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 
-	return fmt.Sprintf("Runs `go test` against the file/directory specified in %q, or the whole project if not "+
-		"specified. If a file is provided, tests in its containing directory will be run. Output is the raw `go test` "+
-		"stream with coverage information.%s",
+	return fmt.Sprintf(
+		"Runs `go test` against the file/directory specified in %q, or the whole project if not "+
+			"specified. If a file is provided, tests in its containing directory will be run. Output is the raw `go test` "+
+			"stream with coverage information.%s",
 		ParamPath, examples,
 	)
 }
@@ -44,8 +45,8 @@ func (g *GoTest) Description() string {
 func (g *GoTest) Examples() tools.Examples {
 	return tools.Examples{
 		{
-			Description: `Run "go test" on the "pkg/fs" directory`,
-			Args:        tools.Args{ParamPath: "pkg/fs"},
+			Description: `Run "go test" on the "pkg/files" directory`,
+			Args:        tools.Args{ParamPath: "pkg/files"},
 		},
 	}
 }
@@ -77,7 +78,7 @@ func (g *GoTest) Run(ctx context.Context, args tools.Args) (*tools.Output, error
 
 	// path is optional
 	if path := args.GetString(ParamPath); path != nil {
-		relPath, err := fs.GetRelativePath(g.ProjectPath, *path)
+		relPath, err := files.GetRelativePath(g.ProjectPath, *path)
 		if err != nil {
 			return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 		}

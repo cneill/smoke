@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -58,14 +58,14 @@ func (l *ListFiles) Run(_ context.Context, args tools.Args) (*tools.Output, erro
 		return nil, fmt.Errorf("no path supplied")
 	}
 
-	fullPath, err := fs.GetRelativePath(l.ProjectPath, *path)
+	fullPath, err := files.GetRelativePath(l.ProjectPath, *path)
 	if err != nil {
 		return nil, fmt.Errorf("path error: %w", err)
 	}
 
 	builder := strings.Builder{}
 
-	iter, err := fs.ExcludesWalker(l.ProjectPath, fullPath)
+	iter, err := files.ExcludesWalker(l.ProjectPath, fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to walk files: %w", err)
 	}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/files"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -59,7 +59,7 @@ func (m *Mkdir) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
-	fullPath, err := fs.GetRelativePath(m.ProjectPath, *path)
+	fullPath, err := files.GetRelativePath(m.ProjectPath, *path)
 	if err != nil {
 		return nil, fmt.Errorf("%w: path error: %w", err, tools.ErrArguments)
 	}
