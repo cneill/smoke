@@ -42,7 +42,7 @@ func NewIgnorer(opts Opts) (*Ignorer, error) {
 		return nil, fmt.Errorf("ignorer option error: %w", err)
 	}
 
-	ignoreFiles := getIgnoreFiles(opts.ConfigDir, opts.ProjectDir)
+	ignoreFiles := GetIgnoreFiles(opts.ConfigDir, opts.ProjectDir)
 
 	ignorer := &Ignorer{
 		configDir:  opts.ConfigDir,
@@ -74,7 +74,7 @@ func (i *Ignorer) Ignored(path string, isDir bool) bool {
 	return i.matcher.Match(pathSegments(path), isDir)
 }
 
-func getIgnoreFiles(configDir, projectDir string) []IgnoreFile {
+func GetIgnoreFiles(configDir, projectDir string) []IgnoreFile {
 	var ignoreFiles []IgnoreFile
 
 	if configDir != "" {
