@@ -7,6 +7,8 @@ import (
 	"github.com/cneill/smoke/pkg/files"
 )
 
+const testRoot = "/a/b/c"
+
 func TestGetRelative(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
@@ -20,13 +22,13 @@ func TestGetRelative(t *testing.T) { //nolint:funlen
 		{
 			name:        "empty_project_path",
 			projectPath: "",
-			targetPath:  "/a/b/c",
+			targetPath:  testRoot,
 			expectedErr: files.ErrInsecureProjectPath,
 		},
 		{
 			name:        "root_project_path",
 			projectPath: "/",
-			targetPath:  "/a/b/c",
+			targetPath:  testRoot,
 			expectedErr: files.ErrInsecureProjectPath,
 		},
 		{
@@ -37,94 +39,100 @@ func TestGetRelative(t *testing.T) { //nolint:funlen
 		},
 		{
 			name:           "empty_target_path",
-			projectPath:    "/a/b/c",
+			projectPath:    testRoot,
 			targetPath:     "",
-			expectedResult: "/a/b/c",
+			expectedResult: testRoot,
 		},
 		{
 			name:           "dot_target_path",
-			projectPath:    "/a/b/c",
+			projectPath:    testRoot,
 			targetPath:     ".",
-			expectedResult: "/a/b/c",
+			expectedResult: testRoot,
 		},
 		{
 			name:        "double_dot_target_path",
-			projectPath: "/a/b/c",
+			projectPath: testRoot,
 			targetPath:  "..",
 			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "triple_dot_target_path",
-			projectPath: "/a/b/c",
+			projectPath: testRoot,
 			targetPath:  "...",
 			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "root_with_relative_lead",
-			projectPath: "/a/b/c",
+			projectPath: testRoot,
 			targetPath:  "/..0",
 			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "root_with_relative_lead",
-			projectPath: "/a/b/c",
+			projectPath: testRoot,
 			targetPath:  "C:\\..0",
 			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "relative_dir_access",
-			projectPath: "/a/b/c",
+			projectPath: testRoot,
 			targetPath:  "../../../../etc/passwd",
 			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "relative_windows_dir_access",
-			projectPath: "/a/b/c",
+			projectPath: testRoot,
 			targetPath:  "..\\..\\..\\..\\etc\\passwd",
 			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:        "extra_dots_relative_dir_access",
-			projectPath: "/a/b/c",
+			projectPath: testRoot,
 			targetPath:  "./..././etc/passwd",
 			expectedErr: files.ErrInsecureTargetPath,
 		},
 		{
 			name:           "extra_leading_dots",
-			projectPath:    "/a/b/c",
+			projectPath:    testRoot,
 			targetPath:     "./././d/e/f",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "extra_trailing_dots",
-			projectPath:    "/a/b/c",
+			projectPath:    testRoot,
 			targetPath:     "/d/e/f/./././",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "absolute_target_path",
-			projectPath:    "/a/b/c",
+			projectPath:    testRoot,
 			targetPath:     "/d/e/f",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "relative_target_path",
-			projectPath:    "/a/b/c",
+			projectPath:    testRoot,
 			targetPath:     "d/e/f/",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "target_path_double_separator_absolute",
-			projectPath:    "/a/b/c",
+			projectPath:    testRoot,
 			targetPath:     "//d//e//f",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "target_path_double_separator_relative",
-			projectPath:    "/a/b/c",
+			projectPath:    testRoot,
 			targetPath:     "d//e//f",
 			expectedResult: "/a/b/c/d/e/f",
 		},
+		// {
+		// 	name:           "target_path_null_byte",
+		// 	projectPath:    testRoot,
+		// 	targetPath:     "d/\x00/f",
+		// 	expectedResult: "/a/b/c/d/f",
+		// },
 	}
 
 	for _, test := range tests {
@@ -144,7 +152,7 @@ func TestGetRelative(t *testing.T) { //nolint:funlen
 }
 
 func FuzzGetRelative(f *testing.F) {
-	f.Add("/", "/a/b/c")
+	f.Add("/", testRoot)
 	f.Add("", "../../d/e/f")
 	f.Add("a/b/c", "../../../../d/e/f/../../../")
 	f.Add("C:\\project_dir", "/absolute/path")

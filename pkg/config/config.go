@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/cneill/smoke/pkg/files"
 )
 
 type Config struct {
@@ -126,7 +128,7 @@ func DefaultConfig() *Config {
 }
 
 func LoadConfig() (*Config, error) {
-	configPath, err := GetConfigFilePath()
+	configPath, err := files.ConfigFilePath()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config file path: %w", err)
 	}

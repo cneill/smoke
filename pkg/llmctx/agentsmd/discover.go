@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cneill/smoke/pkg/config"
+	"github.com/cneill/smoke/pkg/files"
 )
 
 const agentsFileName = "AGENTS.md"
@@ -17,7 +17,7 @@ func Discover(projectPath string) Catalog {
 	results := make(Catalog, 0, 2)
 
 	// Check user-level file
-	configDir, err := config.GetConfigDirPath()
+	configDir, err := files.ConfigDirPath()
 	if err != nil {
 		slog.Error("failed to search config dir for AGENTS.md files", "error", err)
 	} else {
