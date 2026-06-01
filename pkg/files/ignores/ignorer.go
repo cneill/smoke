@@ -70,8 +70,12 @@ func (i *Ignorer) Refresh() {
 	i.matcher = gitignore.NewMatcher(ignorePatterns)
 }
 
-func (i *Ignorer) Ignored(path string, isDir bool) bool {
-	return i.matcher.Match(pathSegments(path), isDir)
+func (i *Ignorer) Ignored(path string, isDir bool) (bool, error) {
+	if !filepath.IsAbs(path) {
+		return false, fmt.Errorf("path %q is not absolute", path)
+	}
+
+	return i.matcher.Match(pathSegments(path), isDir), nil
 }
 
 func GetIgnoreFiles(configDir, projectDir string) []IgnoreFile {

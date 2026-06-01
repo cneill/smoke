@@ -65,39 +65,39 @@ func TestIgnorerFiles(t *testing.T) {
 		name            string
 		configContents  string
 		projectContents string
-		path            string
+		relPath         string
 		isDir           bool
 		expected        bool
 	}{
 		{
 			name:     "no ignore files means nothing is ignored",
-			path:     "tmp/cache.log",
+			relPath:  "tmp/cache.log",
 			expected: false,
 		},
 		{
 			name:           "config ignore file is discovered and parsed",
 			configContents: "\n# comment\n*.log\n",
-			path:           "tmp/cache.log",
+			relPath:        "tmp/cache.log",
 			expected:       true,
 		},
 		{
-			name:            "project ignore file is discovered but does not match relative paths",
+			name:            "project ignore file matches absolute path under project dir",
 			projectContents: "\n# comment\nbuild/\n",
-			path:            "build",
+			relPath:         "build",
 			isDir:           true,
-			expected:        false,
+			expected:        true,
 		},
 		{
 			name:            "both ignore files are discovered",
 			configContents:  logPattern,
 			projectContents: "build/\n",
-			path:            "build/output.log",
+			relPath:         "build/output.log",
 			expected:        true,
 		},
 		{
 			name:           "blank lines and comments are ignored during parsing",
 			configContents: "\n   \n# comment\n\n*.tmp\n",
-			path:           "scratch.tmp",
+			relPath:        "scratch.tmp",
 			expected:       true,
 		},
 	}
@@ -116,8 +116,11 @@ func TestIgnorerFiles(t *testing.T) {
 			}
 
 			ignorer := newIgnorer(t, env)
+			absPath := filepath.Join(env.projectDir, test.relPath)
 
-			assert.Equal(t, test.expected, ignorer.Ignored(test.path, test.isDir))
+			ignored, err := ignorer.Ignored(absPath, test.isDir)
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, ignored)
 		})
 	}
 }
@@ -132,6 +135,7 @@ func TestIgnorerIgnored(t *testing.T) { //nolint:funlen
 		path            string
 		isDir           bool
 		expected        bool
+		expectedErr     string
 	}{
 		{
 			name:           "config patterns apply globally across directories",
@@ -146,29 +150,29 @@ func TestIgnorerIgnored(t *testing.T) { //nolint:funlen
 			expected:       false,
 		},
 		{
-			name:            "project patterns do not match project relative paths with current path scoping",
+			name:            "project directory pattern matches absolute path under project dir",
 			projectContents: distPattern,
 			path:            "dist",
 			isDir:           true,
-			expected:        false,
+			expected:        true,
 		},
 		{
-			name:            "project file patterns do not match relative descendants with current path scoping",
+			name:            "project directory pattern matches absolute descendant paths",
 			projectContents: distPattern,
 			path:            "dist/output/app.js",
-			expected:        false,
+			expected:        true,
 		},
 		{
-			name:            "project scoped basename patterns do not match relative project paths",
+			name:            "project scoped basename pattern matches nested directories",
 			projectContents: "vendor/\n",
 			path:            "pkg/vendor/lib.go",
-			expected:        false,
+			expected:        true,
 		},
 		{
-			name:            "project scoped file patterns do not match relative nested project files",
+			name:            "project scoped glob pattern matches nested files",
 			projectContents: "*.local\n",
 			path:            "config/dev.local",
-			expected:        false,
+			expected:        true,
 		},
 		{
 			name:            "config patterns still match when project patterns are also loaded",
@@ -184,6 +188,20 @@ func TestIgnorerIgnored(t *testing.T) { //nolint:funlen
 			path:            "cmd/server.go",
 			expected:        false,
 		},
+		{
+			name:           "nested path remains visible",
+			configContents: "dist/output/*.js",
+			path:           "app.js",
+			expected:       false,
+		},
+		{
+			name:            "relative path returns an error",
+			configContents:  logPattern,
+			projectContents: distPattern,
+			path:            "dist/server.log",
+			expected:        false,
+			expectedErr:     "path \"dist/server.log\" is not absolute",
+		},
 	}
 
 	for _, test := range tests {
@@ -202,7 +220,20 @@ func TestIgnorerIgnored(t *testing.T) { //nolint:funlen
 
 			ignorer := newIgnorer(t, env)
 
-			assert.Equal(t, test.expected, ignorer.Ignored(test.path, test.isDir))
+			path := test.path
+			if test.expectedErr == "" {
+				path = filepath.Join(env.projectDir, test.path)
+			}
+
+			ignored, err := ignorer.Ignored(path, test.isDir)
+			assert.Equal(t, test.expected, ignored)
+
+			if test.expectedErr != "" {
+				require.EqualError(t, err, test.expectedErr)
+				return
+			}
+
+			require.NoError(t, err)
 		})
 	}
 }
