@@ -59,7 +59,7 @@ func NewProjectFS(opts Opts) (*ProjectFS, error) {
 	}
 
 	ignorer, err := ignores.NewIgnorer(ignores.Opts{
-		ConfigDir:  opts.ProjectDir,
+		ConfigDir:  opts.ConfigDir,
 		ProjectDir: opts.ProjectDir,
 	})
 	if err != nil {
