@@ -26,3 +26,16 @@ func OptionalRegularFile(path string) (bool, error) {
 
 	return true, nil
 }
+
+func RequiredDir(path string) error {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to stat: %w", err)
+	}
+
+	if !stat.IsDir() {
+		return fmt.Errorf("path is not a directory")
+	}
+
+	return nil
+}
