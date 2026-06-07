@@ -21,11 +21,6 @@ type conversation struct {
 	client openai.Client
 }
 
-type responsesStreamState struct {
-	assistantMsgID string
-	finalResponse  *responses.Response
-}
-
 func (c *conversation) sendNoStream(ctx context.Context) error {
 	options := c.getNewResponsesParams()
 
@@ -34,20 +29,7 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 		return fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
-	c.Emit(ctx, llms.EventUsageUpdate{
-		InputTokens:  response.Usage.InputTokens,
-		OutputTokens: response.Usage.OutputTokens,
-	})
-
-	if len(response.Output) == 0 {
-		return fmt.Errorf("%w: no output returned", llms.ErrEmptyResponse)
-	}
-
-	if err := c.handleResponseOutput(ctx, response.Output); err != nil {
-		return err
-	}
-
-	return nil
+	return c.handleFinalResponse(ctx, response)
 }
 
 func (c *conversation) sendStream(ctx context.Context) error {
@@ -56,11 +38,29 @@ func (c *conversation) sendStream(ctx context.Context) error {
 	stream := c.client.Responses.NewStreaming(ctx, options, option.WithMaxRetries(5))
 	defer stream.Close()
 
-	state := &responsesStreamState{}
+	var finalResponse *responses.Response
 
 	for stream.Next() {
-		if err := c.handleResponsesStreamEvent(ctx, state, stream.Current()); err != nil {
-			return err
+		switch evt := stream.Current().AsAny().(type) {
+		case responses.ResponseTextDeltaEvent:
+			c.Emit(ctx, llms.EventTextDelta{
+				ID:   evt.ItemID,
+				Text: evt.Delta,
+			})
+		case responses.ResponseCompletedEvent:
+			finalResponse = &evt.Response
+		case responses.ResponseIncompleteEvent:
+			slog.Warn("responses stream ended incomplete",
+				"response_id", evt.Response.ID, "reason", evt.Response.IncompleteDetails.Reason)
+			finalResponse = &evt.Response
+		case responses.ResponseFailedEvent:
+			if evt.Response.Error.Message != "" {
+				return fmt.Errorf("%w: %s", llms.ErrCompletion, evt.Response.Error.Message)
+			}
+
+			return fmt.Errorf("%w: response failed", llms.ErrCompletion)
+		default:
+			slog.Debug("ignoring unhandled Responses stream event", "type", fmt.Sprintf("%T", evt))
 		}
 	}
 
@@ -68,76 +68,11 @@ func (c *conversation) sendStream(ctx context.Context) error {
 		return fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
 	}
 
-	return c.finishResponsesStream(ctx, state)
-}
-
-func (c *conversation) handleResponsesStreamEvent(
-	ctx context.Context,
-	state *responsesStreamState,
-	event responses.ResponseStreamEventUnion,
-) error {
-	switch evt := event.AsAny().(type) {
-	case responses.ResponseCreatedEvent:
-		state.assistantMsgID = evt.Response.ID
-	case responses.ResponseTextDeltaEvent:
-		c.Emit(ctx, llms.EventTextDelta{
-			ID:   state.assistantMsgID,
-			Text: evt.Delta,
-		})
-	case responses.ResponseRefusalDeltaEvent:
-		// Refusals are handled from the finalized output.
-	case responses.ResponseOutputItemAddedEvent:
-		c.captureResponsesStreamOutputItem(state, evt.Item)
-	case responses.ResponseOutputItemDoneEvent:
-		c.captureResponsesStreamOutputItem(state, evt.Item)
-	case responses.ResponseCompletedEvent:
-		state.finalResponse = &evt.Response
-	case responses.ResponseFailedEvent:
-		if evt.Response.Error.Message != "" {
-			return fmt.Errorf("%w: %s", llms.ErrCompletion, evt.Response.Error.Message)
-		}
-
-		return fmt.Errorf("%w: response failed", llms.ErrCompletion)
-	case responses.ResponseIncompleteEvent:
-		slog.Warn("responses stream ended incomplete",
-			"response_id", evt.Response.ID, "reason", evt.Response.IncompleteDetails.Reason)
-		state.finalResponse = &evt.Response
-	default:
-		slog.Debug("ignoring unhandled Responses stream event", "type", fmt.Sprintf("%T", event.AsAny()))
-	}
-
-	return nil
-}
-
-func (c *conversation) captureResponsesStreamOutputItem(
-	state *responsesStreamState,
-	item responses.ResponseOutputItemUnion,
-) {
-	msg, ok := item.AsAny().(responses.ResponseOutputMessage)
-	if !ok {
-		return
-	}
-
-	if msg.ID != "" {
-		state.assistantMsgID = msg.ID
-	}
-}
-
-func (c *conversation) finishResponsesStream(ctx context.Context, state *responsesStreamState) error {
-	if state.finalResponse == nil {
+	if finalResponse == nil {
 		return fmt.Errorf("%w: missing final response from stream", llms.ErrEmptyResponse)
 	}
 
-	if len(state.finalResponse.Output) == 0 {
-		return fmt.Errorf("%w: no output returned", llms.ErrEmptyResponse)
-	}
-
-	c.Emit(ctx, llms.EventUsageUpdate{
-		InputTokens:  state.finalResponse.Usage.InputTokens,
-		OutputTokens: state.finalResponse.Usage.OutputTokens,
-	})
-
-	return c.handleResponseOutput(ctx, state.finalResponse.Output)
+	return c.handleFinalResponse(ctx, finalResponse)
 }
 
 func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
@@ -146,7 +81,7 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 
 	params := responses.ResponseNewParams{
 		MaxOutputTokens: openai.Int(config.MaxTokens),
-		Input:           c.getSessionInput(session),
+		Input:           c.getInputFromSession(session),
 		Model:           config.Model,
 		Store:           openai.Bool(false),
 		Temperature:     openai.Float(config.Temperature),
@@ -156,6 +91,7 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 	// Grok doesn't support this
 	if c.Config().Provider == llms.LLMTypeChatGPT {
 		params.Reasoning = shared.ReasoningParam{
+			// TODO: make this configurable
 			Effort:  shared.ReasoningEffortMedium,
 			Summary: shared.ReasoningSummaryConcise,
 		}
@@ -164,7 +100,7 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 	return params
 }
 
-func (c *conversation) getSessionInput(session *llms.Session) responses.ResponseNewParamsInputUnion {
+func (c *conversation) getInputFromSession(session *llms.Session) responses.ResponseNewParamsInputUnion {
 	inputItems := responses.ResponseInputParam{}
 
 	for _, msg := range session.Messages {
@@ -176,7 +112,7 @@ func (c *conversation) getSessionInput(session *llms.Session) responses.Response
 						OfString: openai.String(msg.TextContent),
 					},
 					Role: responses.EasyInputMessageRoleAssistant,
-					// TODO: handle Phase?!
+					// TODO: handle Phase in llms.Message?!
 				},
 			})
 
@@ -267,114 +203,77 @@ func (c *conversation) responsesTools(sessionTools tools.Tools) []responses.Tool
 	return responsesTools
 }
 
-func (c *conversation) handleResponseOutput(ctx context.Context, output []responses.ResponseOutputItemUnion) error {
-	msg, toolCalls, err := c.responseMessageAndToolCalls(output)
+func (c *conversation) handleFinalResponse(ctx context.Context, response *responses.Response) error {
+	if response == nil || len(response.Output) == 0 {
+		return fmt.Errorf("%w: no output returned", llms.ErrEmptyResponse)
+	}
+
+	c.Emit(ctx, llms.EventUsageUpdate{
+		InputTokens:  response.Usage.InputTokens,
+		OutputTokens: response.Usage.OutputTokens,
+	})
+
+	msg, err := c.outputToMessage(response.Output)
 	if err != nil {
 		return err
 	}
 
-	if len(toolCalls) > 0 {
+	if msg.HasToolCalls() {
 		c.HasPendingToolCalls = true
-		msg = msg.Update(llms.WithToolCalls(toolCalls...))
-
 		c.Emit(ctx, llms.EventToolCallsRequested{
 			Message: msg,
 		})
-
-		return nil
+	} else {
+		c.HasPendingToolCalls = false
+		c.Emit(ctx, llms.EventFinalMessage{
+			Message: msg,
+		})
 	}
-
-	c.HasPendingToolCalls = false
-	c.Emit(ctx, llms.EventFinalMessage{
-		Message: msg,
-	})
 
 	return nil
 }
 
-func (c *conversation) responseMessageAndToolCalls(output []responses.ResponseOutputItemUnion) (*llms.Message, llms.ToolCalls, error) {
+func (c *conversation) outputToMessage(output []responses.ResponseOutputItemUnion) (*llms.Message, error) {
 	var (
-		sb         strings.Builder
-		gotMessage = false
-		msg        = c.NewMessage(
+		msgOpts = []llms.MessageOpt{
 			llms.WithRole(llms.RoleAssistant),
-		)
-		toolCalls = llms.ToolCalls{}
+		}
+
+		messageBuilder strings.Builder
+		toolCalls      llms.ToolCalls
 	)
 
 	for _, item := range output {
-		nextMsg, err := c.responseMessageFromOutputItem(msg, &sb, &gotMessage, item)
-		if err != nil {
-			return nil, nil, err
-		}
+		switch outputItem := item.AsAny().(type) {
+		case responses.ResponseOutputMessage:
+			msgOpts = append(msgOpts, llms.WithID(outputItem.ID))
 
-		msg = nextMsg
+			for _, contentItem := range outputItem.Content {
+				switch content := contentItem.AsAny().(type) {
+				case responses.ResponseOutputText:
+					messageBuilder.WriteString(content.Text)
+				case responses.ResponseOutputRefusal:
+					return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, content.Refusal)
+				}
+			}
+		case responses.ResponseFunctionToolCall:
+			args, err := c.Session().Tools.GetArgs(outputItem.Name, []byte(outputItem.Arguments))
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", outputItem.Name, err)
+			}
 
-		nextToolCalls, handled, err := c.responseToolCallsFromOutputItem(item)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if handled {
-			toolCalls = append(toolCalls, nextToolCalls...)
-		}
-	}
-
-	msg = msg.Update(llms.WithTextContent(sb.String()))
-
-	return msg, toolCalls, nil
-}
-
-func (c *conversation) responseMessageFromOutputItem(
-	msg *llms.Message,
-	sb *strings.Builder,
-	gotMessage *bool,
-	item responses.ResponseOutputItemUnion,
-) (*llms.Message, error) {
-	providerMsg, ok := item.AsAny().(responses.ResponseOutputMessage)
-	if !ok {
-		if reasoning, ok := item.AsAny().(responses.ResponseReasoningItem); ok {
-			slog.Debug("Got reasoning", "reasoning", reasoning.Summary)
-		}
-
-		return msg, nil
-	}
-
-	if *gotMessage {
-		slog.Error("multiple assistant messages detected", "output_item", providerMsg)
-		return nil, fmt.Errorf("got more than one message in output, not sure what to do with this")
-	}
-
-	msg = msg.Update(llms.WithID(providerMsg.ID))
-
-	for _, contentItem := range providerMsg.Content {
-		switch content := contentItem.AsAny().(type) {
-		case responses.ResponseOutputText:
-			sb.WriteString(content.Text)
-		case responses.ResponseOutputRefusal:
-			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, content.Refusal)
+			toolCalls = append(toolCalls, llms.ToolCall{
+				ID:   outputItem.CallID,
+				Name: outputItem.Name,
+				Args: args,
+			})
+		case responses.ResponseReasoningItem:
+			// slog.Debug("Got reasoning", "reasoning", outputItem.Summary)
 		}
 	}
 
-	*gotMessage = true
+	msgOpts = append(msgOpts, llms.WithTextContent(messageBuilder.String()))
+	msgOpts = append(msgOpts, llms.WithToolCalls(toolCalls...))
 
-	return msg, nil
-}
-
-func (c *conversation) responseToolCallsFromOutputItem(item responses.ResponseOutputItemUnion) (llms.ToolCalls, bool, error) {
-	toolCall, ok := item.AsAny().(responses.ResponseFunctionToolCall)
-	if !ok {
-		return nil, false, nil
-	}
-
-	args, err := c.Session().Tools.GetArgs(toolCall.Name, []byte(toolCall.Arguments))
-	if err != nil {
-		return nil, false, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", toolCall.Name, err)
-	}
-
-	return llms.ToolCalls{{
-		ID:   toolCall.CallID,
-		Name: toolCall.Name,
-		Args: args,
-	}}, true, nil
+	return c.NewMessage(msgOpts...), nil
 }
