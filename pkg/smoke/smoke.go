@@ -203,14 +203,9 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 						llms.WithTextContent(event.Text),
 					)
 				} else {
-					updateOpts := []llms.MessageOpt{
+					pendingMessage = pendingMessage.Update(
 						llms.WithChunkContent(event.Text),
-					}
-					if event.ID != "" && pendingMessage.ID != event.ID {
-						updateOpts = append(updateOpts, llms.WithID(event.ID))
-					}
-
-					pendingMessage = pendingMessage.Update(updateOpts...)
+					)
 				}
 
 				s.teaEmitter(AssistantUpdatedStreamMessage{
