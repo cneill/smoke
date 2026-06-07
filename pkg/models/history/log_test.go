@@ -58,3 +58,35 @@ func TestLog_AddMessage_Update(t *testing.T) {
 
 	assert.Len(t, log.Messages(), 3)
 }
+
+func TestLog_AddMessage_StreamMessageIDReplacement(t *testing.T) {
+	t.Parallel()
+
+	log := history.NewLog()
+
+	streamed := llms.NewMessage(
+		llms.WithID("response-id"),
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithTextContent("hello"),
+	)
+	final := streamed.Update(
+		llms.WithID("assistant-msg-id"),
+		llms.WithChunkContent(" world"),
+	)
+
+	log.AddMessage(streamed)
+	log.AddMessage(final)
+
+	messages := log.Messages()
+	assert.Len(t, messages, 2)
+
+	firstMsg, ok := messages[0].(*llms.Message)
+	assert.True(t, ok)
+	assert.Equal(t, "response-id", firstMsg.ID)
+	assert.Equal(t, "hello", firstMsg.TextContent)
+
+	secondMsg, ok := messages[1].(*llms.Message)
+	assert.True(t, ok)
+	assert.Equal(t, "assistant-msg-id", secondMsg.ID)
+	assert.Equal(t, "hello world", secondMsg.TextContent)
+}
