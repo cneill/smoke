@@ -93,46 +93,20 @@ func (c *conversation) handleResponsesStreamEvent(
 	case responses.ResponseCompletedEvent:
 		state.finalResponse = &evt.Response
 	case responses.ResponseFailedEvent:
-		return c.responseFailedError(evt)
+		if evt.Response.Error.Message != "" {
+			return fmt.Errorf("%w: %s", llms.ErrCompletion, evt.Response.Error.Message)
+		}
+
+		return fmt.Errorf("%w: response failed", llms.ErrCompletion)
 	case responses.ResponseIncompleteEvent:
-		slog.Warn("responses stream ended incomplete", "response_id", evt.Response.ID, "reason", evt.Response.IncompleteDetails.Reason)
+		slog.Warn("responses stream ended incomplete",
+			"response_id", evt.Response.ID, "reason", evt.Response.IncompleteDetails.Reason)
 		state.finalResponse = &evt.Response
-	default:
-		c.handleIgnoredResponsesStreamEvent(event)
-	}
-
-	return nil
-}
-
-func (c *conversation) responseFailedError(evt responses.ResponseFailedEvent) error {
-	if evt.Response.Error.Message != "" {
-		return fmt.Errorf("%w: %s", llms.ErrCompletion, evt.Response.Error.Message)
-	}
-
-	return fmt.Errorf("%w: response failed", llms.ErrCompletion)
-}
-
-func (c *conversation) handleIgnoredResponsesStreamEvent(event responses.ResponseStreamEventUnion) {
-	switch event.AsAny().(type) {
-	case responses.ResponseInProgressEvent,
-		responses.ResponseQueuedEvent,
-		responses.ResponseFunctionCallArgumentsDeltaEvent,
-		responses.ResponseFunctionCallArgumentsDoneEvent,
-		responses.ResponseOutputTextAnnotationAddedEvent,
-		responses.ResponseTextDoneEvent,
-		responses.ResponseRefusalDoneEvent,
-		responses.ResponseContentPartAddedEvent,
-		responses.ResponseContentPartDoneEvent,
-		responses.ResponseReasoningSummaryPartAddedEvent,
-		responses.ResponseReasoningSummaryPartDoneEvent,
-		responses.ResponseReasoningSummaryTextDeltaEvent,
-		responses.ResponseReasoningSummaryTextDoneEvent,
-		responses.ResponseReasoningTextDeltaEvent,
-		responses.ResponseReasoningTextDoneEvent:
-		return
 	default:
 		slog.Debug("ignoring unhandled Responses stream event", "type", fmt.Sprintf("%T", event.AsAny()))
 	}
+
+	return nil
 }
 
 func (c *conversation) captureResponsesStreamOutputItem(
@@ -192,7 +166,6 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 
 func (c *conversation) getSessionInput(session *llms.Session) responses.ResponseNewParamsInputUnion {
 	inputItems := responses.ResponseInputParam{}
-	// inputItems := make(responses.ResponseInputParam, len(session.Messages))
 
 	for _, msg := range session.Messages {
 		switch msg.Role {
@@ -218,7 +191,6 @@ func (c *conversation) getSessionInput(session *llms.Session) responses.Response
 					})
 				}
 			}
-			// TODO: handle tool calls
 		case llms.RoleSystem:
 			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
 				OfMessage: &responses.EasyInputMessageParam{
