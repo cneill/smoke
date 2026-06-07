@@ -12,6 +12,7 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/responses"
+	"github.com/openai/openai-go/v3/shared"
 )
 
 type conversation struct {
@@ -169,7 +170,7 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 	session := c.Session()
 	config := c.Config()
 
-	return responses.ResponseNewParams{
+	params := responses.ResponseNewParams{
 		MaxOutputTokens: openai.Int(config.MaxTokens),
 		Input:           c.getSessionInput(session),
 		Model:           config.Model,
@@ -177,6 +178,16 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 		Temperature:     openai.Float(config.Temperature),
 		Tools:           c.responsesTools(session.Tools.GetTools()),
 	}
+
+	// Grok doesn't support this
+	if c.Config().Provider == llms.LLMTypeChatGPT {
+		params.Reasoning = shared.ReasoningParam{
+			Effort:  shared.ReasoningEffortMedium,
+			Summary: shared.ReasoningSummaryConcise,
+		}
+	}
+
+	return params
 }
 
 func (c *conversation) getSessionInput(session *llms.Session) responses.ResponseNewParamsInputUnion {
@@ -351,7 +362,7 @@ func (c *conversation) responseMessageFromOutputItem(
 	providerMsg, ok := item.AsAny().(responses.ResponseOutputMessage)
 	if !ok {
 		if reasoning, ok := item.AsAny().(responses.ResponseReasoningItem); ok {
-			slog.Debug("Got reasoning", "reasoning", reasoning.Content)
+			slog.Debug("Got reasoning", "reasoning", reasoning.Summary)
 		}
 
 		return msg, nil
