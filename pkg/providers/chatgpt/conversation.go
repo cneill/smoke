@@ -143,7 +143,7 @@ func (c *conversation) captureResponsesStreamOutputItem(
 		return
 	}
 
-	if state.assistantMsgID == "" && msg.ID != "" {
+	if msg.ID != "" {
 		state.assistantMsgID = msg.ID
 	}
 }
@@ -164,65 +164,6 @@ func (c *conversation) finishResponsesStream(ctx context.Context, state *respons
 
 	return c.handleResponseOutput(ctx, state.finalResponse.Output)
 }
-
-// func (c *conversation) sendStream(ctx context.Context) error {
-// 	options := c.getNewCompletionParams()
-//
-// 	stream := c.client.Chat.Completions.NewStreaming(ctx, options, option.WithMaxRetries(5))
-// 	defer stream.Close()
-//
-// 	accumulator := openai.ChatCompletionAccumulator{}
-//
-// 	for stream.Next() {
-// 		chunk := stream.Current()
-// 		if !accumulator.AddChunk(chunk) {
-// 			slog.Warn("failed to accumulate new conversation chunk")
-// 		}
-//
-// 		// TODO: need either of these "JustFinishedX" checks?
-// 		if _, ok := accumulator.JustFinishedContent(); ok {
-// 			slog.Debug("got end of content",
-// 				"current_delta", chunk.Choices[0].Delta.Content,
-// 				"finish_reason", chunk.Choices[0].FinishReason)
-// 		}
-//
-// 		if _, ok := accumulator.JustFinishedToolCall(); ok {
-// 			slog.Debug("got end of tool call info",
-// 				"current_delta", chunk.Choices[0].Delta.Content,
-// 				"tool_calls", accumulator.Choices[0].Message.ToolCalls)
-// 		}
-//
-// 		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
-// 			return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
-// 		}
-//
-// 		c.Emit(ctx, llms.EventTextDelta{
-// 			ID:   accumulator.ID,
-// 			Text: chunk.Choices[0].Delta.Content,
-// 		})
-// 	}
-//
-// 	if err := stream.Err(); err != nil {
-// 		return fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
-// 	}
-//
-// 	if len(accumulator.Choices) == 0 {
-// 		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
-// 	}
-//
-// 	c.Emit(ctx, llms.EventUsageUpdate{
-// 		InputTokens:  accumulator.Usage.PromptTokens,
-// 		OutputTokens: accumulator.Usage.CompletionTokens,
-// 	})
-//
-// 	response := accumulator.Choices[0].Message
-//
-// 	if err := c.handleResponse(ctx, accumulator.ID, response); err != nil {
-// 		return err
-// 	}
-//
-// 	return nil
-// }
 
 func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 	session := c.Session()
