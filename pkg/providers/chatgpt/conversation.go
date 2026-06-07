@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/providers/base"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/responses"
 )
 
 type conversation struct {
@@ -18,30 +20,29 @@ type conversation struct {
 	client openai.Client
 }
 
-func (c *conversation) sendNoStream(ctx context.Context) error {
-	options := c.getNewCompletionParams()
+type responsesStreamState struct {
+	assistantMsgID string
+	finalResponse  *responses.Response
+}
 
-	result, err := c.client.Chat.Completions.New(ctx, options, option.WithMaxRetries(5))
+func (c *conversation) sendNoStream(ctx context.Context) error {
+	options := c.getNewResponsesParams()
+
+	response, err := c.client.Responses.New(ctx, options, option.WithMaxRetries(5))
 	if err != nil {
 		return fmt.Errorf("%w: %w", llms.ErrCompletion, err)
 	}
 
-	if len(result.Choices) == 0 {
-		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
-	}
-
-	if refusal := result.Choices[0].Message.Refusal; refusal != "" {
-		return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
-	}
-
 	c.Emit(ctx, llms.EventUsageUpdate{
-		InputTokens:  result.Usage.PromptTokens,
-		OutputTokens: result.Usage.CompletionTokens,
+		InputTokens:  response.Usage.InputTokens,
+		OutputTokens: response.Usage.OutputTokens,
 	})
 
-	response := result.Choices[0].Message
+	if len(response.Output) == 0 {
+		return fmt.Errorf("%w: no output returned", llms.ErrEmptyResponse)
+	}
 
-	if err := c.handleResponse(ctx, result.ID, response); err != nil {
+	if err := c.handleResponseOutput(ctx, response.Output); err != nil {
 		return err
 	}
 
@@ -49,161 +50,273 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 }
 
 func (c *conversation) sendStream(ctx context.Context) error {
-	options := c.getNewCompletionParams()
+	options := c.getNewResponsesParams()
 
-	stream := c.client.Chat.Completions.NewStreaming(ctx, options, option.WithMaxRetries(5))
+	stream := c.client.Responses.NewStreaming(ctx, options, option.WithMaxRetries(5))
 	defer stream.Close()
 
-	accumulator := openai.ChatCompletionAccumulator{}
+	state := &responsesStreamState{}
 
 	for stream.Next() {
-		chunk := stream.Current()
-		if !accumulator.AddChunk(chunk) {
-			slog.Warn("failed to accumulate new conversation chunk")
+		if err := c.handleResponsesStreamEvent(ctx, state, stream.Current()); err != nil {
+			return err
 		}
-
-		// TODO: need either of these "JustFinishedX" checks?
-		if _, ok := accumulator.JustFinishedContent(); ok {
-			slog.Debug("got end of content",
-				"current_delta", chunk.Choices[0].Delta.Content,
-				"finish_reason", chunk.Choices[0].FinishReason)
-		}
-
-		if _, ok := accumulator.JustFinishedToolCall(); ok {
-			slog.Debug("got end of tool call info",
-				"current_delta", chunk.Choices[0].Delta.Content,
-				"tool_calls", accumulator.Choices[0].Message.ToolCalls)
-		}
-
-		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
-			return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
-		}
-
-		c.Emit(ctx, llms.EventTextDelta{
-			ID:   accumulator.ID,
-			Text: chunk.Choices[0].Delta.Content,
-		})
 	}
 
 	if err := stream.Err(); err != nil {
 		return fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
 	}
 
-	if len(accumulator.Choices) == 0 {
-		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
-	}
+	return c.finishResponsesStream(ctx, state)
+}
 
-	c.Emit(ctx, llms.EventUsageUpdate{
-		InputTokens:  accumulator.Usage.PromptTokens,
-		OutputTokens: accumulator.Usage.CompletionTokens,
-	})
-
-	response := accumulator.Choices[0].Message
-
-	if err := c.handleResponse(ctx, accumulator.ID, response); err != nil {
-		return err
+func (c *conversation) handleResponsesStreamEvent(
+	ctx context.Context,
+	state *responsesStreamState,
+	event responses.ResponseStreamEventUnion,
+) error {
+	switch evt := event.AsAny().(type) {
+	case responses.ResponseCreatedEvent:
+		state.assistantMsgID = evt.Response.ID
+	case responses.ResponseTextDeltaEvent:
+		c.Emit(ctx, llms.EventTextDelta{
+			ID:   state.assistantMsgID,
+			Text: evt.Delta,
+		})
+	case responses.ResponseRefusalDeltaEvent:
+		// Refusals are handled from the finalized output.
+	case responses.ResponseOutputItemAddedEvent:
+		c.captureResponsesStreamOutputItem(state, evt.Item)
+	case responses.ResponseOutputItemDoneEvent:
+		c.captureResponsesStreamOutputItem(state, evt.Item)
+	case responses.ResponseCompletedEvent:
+		state.finalResponse = &evt.Response
+	case responses.ResponseFailedEvent:
+		return c.responseFailedError(evt)
+	case responses.ResponseIncompleteEvent:
+		slog.Warn("responses stream ended incomplete", "response_id", evt.Response.ID, "reason", evt.Response.IncompleteDetails.Reason)
+		state.finalResponse = &evt.Response
+	default:
+		c.handleIgnoredResponsesStreamEvent(event)
 	}
 
 	return nil
 }
 
-func (c *conversation) getNewCompletionParams() openai.ChatCompletionNewParams {
-	session := c.Session()
-	config := c.Config()
+func (c *conversation) responseFailedError(evt responses.ResponseFailedEvent) error {
+	if evt.Response.Error.Message != "" {
+		return fmt.Errorf("%w: %s", llms.ErrCompletion, evt.Response.Error.Message)
+	}
 
-	return openai.ChatCompletionNewParams{
-		MaxCompletionTokens: openai.Int(config.MaxTokens),
-		Messages:            c.getSessionMessages(session),
-		Model:               config.Model,
-		N:                   openai.Int(1),
-		Tools:               c.completionTools(session),
-		Temperature:         openai.Float(config.Temperature),
+	return fmt.Errorf("%w: response failed", llms.ErrCompletion)
+}
+
+func (c *conversation) handleIgnoredResponsesStreamEvent(event responses.ResponseStreamEventUnion) {
+	switch event.AsAny().(type) {
+	case responses.ResponseInProgressEvent,
+		responses.ResponseQueuedEvent,
+		responses.ResponseFunctionCallArgumentsDeltaEvent,
+		responses.ResponseFunctionCallArgumentsDoneEvent,
+		responses.ResponseOutputTextAnnotationAddedEvent,
+		responses.ResponseTextDoneEvent,
+		responses.ResponseRefusalDoneEvent,
+		responses.ResponseContentPartAddedEvent,
+		responses.ResponseContentPartDoneEvent,
+		responses.ResponseReasoningSummaryPartAddedEvent,
+		responses.ResponseReasoningSummaryPartDoneEvent,
+		responses.ResponseReasoningSummaryTextDeltaEvent,
+		responses.ResponseReasoningSummaryTextDoneEvent,
+		responses.ResponseReasoningTextDeltaEvent,
+		responses.ResponseReasoningTextDoneEvent:
+		return
+	default:
+		slog.Debug("ignoring unhandled Responses stream event", "type", fmt.Sprintf("%T", event.AsAny()))
 	}
 }
 
-// getSessionMessages converts the generic messages in 'session' to messages appropriate for a ChatGPT conversation
-// history.
-func (c *conversation) getSessionMessages(session *llms.Session) []openai.ChatCompletionMessageParamUnion {
-	results := make([]openai.ChatCompletionMessageParamUnion, len(session.Messages))
+func (c *conversation) captureResponsesStreamOutputItem(
+	state *responsesStreamState,
+	item responses.ResponseOutputItemUnion,
+) {
+	msg, ok := item.AsAny().(responses.ResponseOutputMessage)
+	if !ok {
+		return
+	}
 
-	for num, msg := range session.Messages {
+	if state.assistantMsgID == "" && msg.ID != "" {
+		state.assistantMsgID = msg.ID
+	}
+}
+
+func (c *conversation) finishResponsesStream(ctx context.Context, state *responsesStreamState) error {
+	if state.finalResponse == nil {
+		return fmt.Errorf("%w: missing final response from stream", llms.ErrEmptyResponse)
+	}
+
+	if len(state.finalResponse.Output) == 0 {
+		return fmt.Errorf("%w: no output returned", llms.ErrEmptyResponse)
+	}
+
+	c.Emit(ctx, llms.EventUsageUpdate{
+		InputTokens:  state.finalResponse.Usage.InputTokens,
+		OutputTokens: state.finalResponse.Usage.OutputTokens,
+	})
+
+	return c.handleResponseOutput(ctx, state.finalResponse.Output)
+}
+
+// func (c *conversation) sendStream(ctx context.Context) error {
+// 	options := c.getNewCompletionParams()
+//
+// 	stream := c.client.Chat.Completions.NewStreaming(ctx, options, option.WithMaxRetries(5))
+// 	defer stream.Close()
+//
+// 	accumulator := openai.ChatCompletionAccumulator{}
+//
+// 	for stream.Next() {
+// 		chunk := stream.Current()
+// 		if !accumulator.AddChunk(chunk) {
+// 			slog.Warn("failed to accumulate new conversation chunk")
+// 		}
+//
+// 		// TODO: need either of these "JustFinishedX" checks?
+// 		if _, ok := accumulator.JustFinishedContent(); ok {
+// 			slog.Debug("got end of content",
+// 				"current_delta", chunk.Choices[0].Delta.Content,
+// 				"finish_reason", chunk.Choices[0].FinishReason)
+// 		}
+//
+// 		if _, ok := accumulator.JustFinishedToolCall(); ok {
+// 			slog.Debug("got end of tool call info",
+// 				"current_delta", chunk.Choices[0].Delta.Content,
+// 				"tool_calls", accumulator.Choices[0].Message.ToolCalls)
+// 		}
+//
+// 		if refusal, ok := accumulator.JustFinishedRefusal(); ok {
+// 			return fmt.Errorf("%w: %s", llms.ErrPromptRefused, refusal)
+// 		}
+//
+// 		c.Emit(ctx, llms.EventTextDelta{
+// 			ID:   accumulator.ID,
+// 			Text: chunk.Choices[0].Delta.Content,
+// 		})
+// 	}
+//
+// 	if err := stream.Err(); err != nil {
+// 		return fmt.Errorf("%w: streaming: %w", llms.ErrCompletion, err)
+// 	}
+//
+// 	if len(accumulator.Choices) == 0 {
+// 		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
+// 	}
+//
+// 	c.Emit(ctx, llms.EventUsageUpdate{
+// 		InputTokens:  accumulator.Usage.PromptTokens,
+// 		OutputTokens: accumulator.Usage.CompletionTokens,
+// 	})
+//
+// 	response := accumulator.Choices[0].Message
+//
+// 	if err := c.handleResponse(ctx, accumulator.ID, response); err != nil {
+// 		return err
+// 	}
+//
+// 	return nil
+// }
+
+func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
+	session := c.Session()
+	config := c.Config()
+
+	return responses.ResponseNewParams{
+		MaxOutputTokens: openai.Int(config.MaxTokens),
+		Input:           c.getSessionInput(session),
+		Model:           config.Model,
+		Store:           openai.Bool(false),
+		Temperature:     openai.Float(config.Temperature),
+		Tools:           c.responsesTools(session.Tools.GetTools()),
+	}
+}
+
+func (c *conversation) getSessionInput(session *llms.Session) responses.ResponseNewParamsInputUnion {
+	inputItems := responses.ResponseInputParam{}
+	// inputItems := make(responses.ResponseInputParam, len(session.Messages))
+
+	for _, msg := range session.Messages {
 		switch msg.Role {
 		case llms.RoleAssistant:
-			assistantMsg := openai.AssistantMessage(msg.TextContent)
+			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
+				OfMessage: &responses.EasyInputMessageParam{
+					Content: responses.EasyInputMessageContentUnionParam{
+						OfString: openai.String(msg.TextContent),
+					},
+					Role: responses.EasyInputMessageRoleAssistant,
+					// TODO: handle Phase?!
+				},
+			})
 
 			if msg.HasToolCalls() {
-				assistantMsg.OfAssistant.ToolCalls = c.genericToolCallsToProvider(msg.ToolCalls...)
+				for _, toolCall := range msg.ToolCalls {
+					inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
+						OfFunctionCall: &responses.ResponseFunctionToolCallParam{
+							CallID:    toolCall.ID,
+							Name:      toolCall.Name,
+							Arguments: toolCall.Args.String(),
+						},
+					})
+				}
 			}
-
-			results[num] = assistantMsg
+			// TODO: handle tool calls
 		case llms.RoleSystem:
-			results[num] = openai.SystemMessage(msg.TextContent)
-		case llms.RoleUser:
-			results[num] = openai.UserMessage(msg.TextContent)
+			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
+				OfMessage: &responses.EasyInputMessageParam{
+					Content: responses.EasyInputMessageContentUnionParam{
+						OfString: openai.String(msg.TextContent),
+					},
+					Role: responses.EasyInputMessageRoleSystem,
+				},
+			})
 		case llms.RoleTool:
-			if n := len(msg.ToolCalls); n > 1 {
-				slog.Warn("more than one tool call referenced in message with tool role; skipping", "num", n, "names", msg.ToolCalls.Names())
+			if n := len(msg.ToolCalls); n != 1 {
+				slog.Warn(
+					"got wrong number of tool calls referenced in message with tool role (expecting 1); skipping",
+					"num", n, "names", msg.ToolCalls.Names(),
+				)
+
 				continue
 			}
 
-			results[num] = openai.ToolMessage(msg.TextContent, msg.ToolCalls[0].ID)
+			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
+				OfFunctionCallOutput: &responses.ResponseInputItemFunctionCallOutputParam{
+					CallID: msg.ToolCalls[0].ID,
+					Output: responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
+						OfString: openai.String(msg.TextContent),
+					},
+				},
+			})
+		case llms.RoleUser:
+			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
+				OfMessage: &responses.EasyInputMessageParam{
+					Content: responses.EasyInputMessageContentUnionParam{
+						OfString: openai.String(msg.TextContent),
+					},
+					Role: responses.EasyInputMessageRoleUser,
+				},
+			})
 		case llms.RoleUnknown:
 			slog.Warn("got message with unknown role", "message", msg.TextContent)
 		}
 	}
 
-	return results
-}
-
-func (c *conversation) providerToolCallsToGeneric(toolCalls ...openai.ChatCompletionMessageToolCallUnionParam) (llms.ToolCalls, error) {
-	results := make(llms.ToolCalls, len(toolCalls))
-
-	for callNum, toolCall := range toolCalls {
-		if toolCall.OfFunction == nil {
-			tcType := toolCall.GetType()
-			return nil, fmt.Errorf("got a tool call of type other than function: %s", *tcType)
-		}
-
-		name := toolCall.OfFunction.Function.Name
-
-		args, err := c.Session().Tools.GetArgs(name, []byte(toolCall.OfFunction.Function.Arguments))
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", name, err)
-		}
-
-		results[callNum] = llms.ToolCall{
-			ID:   toolCall.OfFunction.ID,
-			Name: name,
-			Args: args,
-		}
+	return responses.ResponseNewParamsInputUnion{
+		OfInputItemList: inputItems,
 	}
-
-	return results, nil
 }
 
-func (c *conversation) genericToolCallsToProvider(toolCalls ...llms.ToolCall) []openai.ChatCompletionMessageToolCallUnionParam {
-	results := make([]openai.ChatCompletionMessageToolCallUnionParam, len(toolCalls))
+func (c *conversation) responsesTools(sessionTools tools.Tools) []responses.ToolUnionParam {
+	responsesTools := make([]responses.ToolUnionParam, 0, len(sessionTools))
 
-	for i, toolCall := range toolCalls {
-		results[i] = openai.ChatCompletionMessageToolCallUnionParam{
-			OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
-				ID: toolCall.ID,
-				Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
-					Arguments: toolCall.Args.String(),
-					Name:      toolCall.Name,
-				},
-				// Type: constant.Function(),
-			},
-		}
-	}
-
-	return results
-}
-
-func (c *conversation) completionTools(session *llms.Session) []openai.ChatCompletionToolUnionParam {
-	results := []openai.ChatCompletionToolUnionParam{}
-
-	for _, tool := range session.Tools.GetTools() {
+	for _, tool := range sessionTools {
 		params := tool.Params()
 
 		properties, err := params.JSONSchemaProperties()
@@ -212,37 +325,29 @@ func (c *conversation) completionTools(session *llms.Session) []openai.ChatCompl
 			continue
 		}
 
-		toolDef := openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
-			Name:        tool.Name(),
-			Description: openai.String(tool.Description()),
-			Parameters: openai.FunctionParameters{
-				"type":       tools.ParamTypeObject,
-				"properties": properties,
-				"required":   params.RequiredKeys(),
+		toolUnion := responses.ToolUnionParam{
+			OfFunction: &responses.FunctionToolParam{
+				Name:        tool.Name(),
+				Description: openai.String(tool.Description()),
+				Strict:      openai.Bool(false),
+				Parameters: openai.FunctionParameters{
+					"type":       tools.ParamTypeObject,
+					"properties": properties,
+					"required":   params.RequiredKeys(),
+				},
 			},
-		})
-		results = append(results, toolDef)
+		}
+		responsesTools = append(responsesTools, toolUnion)
 	}
 
-	return results
+	return responsesTools
 }
 
-func (c *conversation) handleResponse(ctx context.Context, id string, response openai.ChatCompletionMessage) error {
-	if response.ToParam().OfAssistant == nil {
-		return fmt.Errorf("%w: no assistant message", llms.ErrEmptyResponse)
-	}
-
-	// We convert this ToParam() because it's the only way to get streaming responses to work...
-	toolCalls, err := c.providerToolCallsToGeneric(response.ToParam().OfAssistant.ToolCalls...)
+func (c *conversation) handleResponseOutput(ctx context.Context, output []responses.ResponseOutputItemUnion) error {
+	msg, toolCalls, err := c.responseMessageAndToolCalls(output)
 	if err != nil {
-		return fmt.Errorf("failed to handle assistant tool calls: %w", err)
+		return err
 	}
-
-	msg := c.NewMessage(
-		llms.WithID(id),
-		llms.WithRole(llms.RoleAssistant),
-		llms.WithTextContent(response.Content),
-	)
 
 	if len(toolCalls) > 0 {
 		c.HasPendingToolCalls = true
@@ -251,12 +356,101 @@ func (c *conversation) handleResponse(ctx context.Context, id string, response o
 		c.Emit(ctx, llms.EventToolCallsRequested{
 			Message: msg,
 		})
-	} else {
-		c.HasPendingToolCalls = false
-		c.Emit(ctx, llms.EventFinalMessage{
-			Message: msg,
-		})
+
+		return nil
 	}
 
+	c.HasPendingToolCalls = false
+	c.Emit(ctx, llms.EventFinalMessage{
+		Message: msg,
+	})
+
 	return nil
+}
+
+func (c *conversation) responseMessageAndToolCalls(output []responses.ResponseOutputItemUnion) (*llms.Message, llms.ToolCalls, error) {
+	var (
+		sb         strings.Builder
+		gotMessage = false
+		msg        = c.NewMessage(
+			llms.WithRole(llms.RoleAssistant),
+		)
+		toolCalls = llms.ToolCalls{}
+	)
+
+	for _, item := range output {
+		nextMsg, err := c.responseMessageFromOutputItem(msg, &sb, &gotMessage, item)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		msg = nextMsg
+
+		nextToolCalls, handled, err := c.responseToolCallsFromOutputItem(item)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if handled {
+			toolCalls = append(toolCalls, nextToolCalls...)
+		}
+	}
+
+	msg = msg.Update(llms.WithTextContent(sb.String()))
+
+	return msg, toolCalls, nil
+}
+
+func (c *conversation) responseMessageFromOutputItem(
+	msg *llms.Message,
+	sb *strings.Builder,
+	gotMessage *bool,
+	item responses.ResponseOutputItemUnion,
+) (*llms.Message, error) {
+	providerMsg, ok := item.AsAny().(responses.ResponseOutputMessage)
+	if !ok {
+		if reasoning, ok := item.AsAny().(responses.ResponseReasoningItem); ok {
+			slog.Debug("Got reasoning", "reasoning", reasoning.Content)
+		}
+
+		return msg, nil
+	}
+
+	if *gotMessage {
+		slog.Error("multiple assistant messages detected", "output_item", providerMsg)
+		return nil, fmt.Errorf("got more than one message in output, not sure what to do with this")
+	}
+
+	msg = msg.Update(llms.WithID(providerMsg.ID))
+
+	for _, contentItem := range providerMsg.Content {
+		switch content := contentItem.AsAny().(type) {
+		case responses.ResponseOutputText:
+			sb.WriteString(content.Text)
+		case responses.ResponseOutputRefusal:
+			return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, content.Refusal)
+		}
+	}
+
+	*gotMessage = true
+
+	return msg, nil
+}
+
+func (c *conversation) responseToolCallsFromOutputItem(item responses.ResponseOutputItemUnion) (llms.ToolCalls, bool, error) {
+	toolCall, ok := item.AsAny().(responses.ResponseFunctionToolCall)
+	if !ok {
+		return nil, false, nil
+	}
+
+	args, err := c.Session().Tools.GetArgs(toolCall.Name, []byte(toolCall.Arguments))
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", toolCall.Name, err)
+	}
+
+	return llms.ToolCalls{{
+		ID:   toolCall.CallID,
+		Name: toolCall.Name,
+		Args: args,
+	}}, true, nil
 }
