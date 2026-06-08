@@ -78,6 +78,7 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 		APIKey:      cmd.String(details.apiKeyFlag),
 		BaseURL:     cmd.String(details.baseURLFlag),
 		MaxTokens:   cmd.Int64(FlagMaxTokens),
+		NoStream:    cmd.Bool(FlagNoStream),
 		Provider:    llms.LLMType(provider),
 		Temperature: cmd.Float64(FlagTemperature),
 		Model:       model,

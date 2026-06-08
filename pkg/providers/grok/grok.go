@@ -67,7 +67,7 @@ func (g *Grok) StartConversation(ctx context.Context, session *llms.Session) llm
 		Session: session,
 		LLMInfo: g.LLMInfo(),
 		Config:  g.config,
-		Stream:  true,
+		Stream:  !g.config.NoStream,
 	})
 	if err != nil {
 		// Config was already validated in New(), so this should never happen.

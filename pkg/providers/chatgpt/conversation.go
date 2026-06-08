@@ -57,7 +57,6 @@ func (c *conversation) sendStream(ctx context.Context) error {
 			if evt.Response.Error.Message != "" {
 				return fmt.Errorf("%w: %s", llms.ErrCompletion, evt.Response.Error.Message)
 			}
-
 			return fmt.Errorf("%w: response failed", llms.ErrCompletion)
 		default:
 			slog.Debug("ignoring unhandled Responses stream event", "type", fmt.Sprintf("%T", evt))

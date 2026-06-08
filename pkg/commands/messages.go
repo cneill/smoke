@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/llms"
 )
 
@@ -29,6 +30,7 @@ type HistoryUpdateMessage struct {
 
 	PromptMessage PromptMessage
 	Message       string
+	Content       *uimsg.HistoryContent
 }
 
 // SessionUpdateMessage is used by a prompt command to update the session used by Smoke

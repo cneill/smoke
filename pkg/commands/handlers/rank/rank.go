@@ -36,25 +36,6 @@ const (
 	MultilineSeparator = "\n----\n"
 )
 
-type RequestMessage struct {
-	commands.MessageType
-
-	PromptMessage commands.PromptMessage
-	Iteration     int
-	BatchIdx      int
-	Batch         Items
-	Description   string
-	ResponseChan  chan<- ResponseMessage `json:"-"`
-	Retries       int
-}
-
-type ResponseMessage struct {
-	RequestMessage
-
-	Message string
-	Err     error
-}
-
 type Rank struct {
 	teaEmitter uimsg.TeaEmitter
 }
@@ -102,7 +83,7 @@ func (r *Rank) Run(ctx context.Context, msg commands.PromptMessage, _ *llms.Sess
 	}
 
 	if len(msg.Args) < 2 {
-		return nil, fmt.Errorf("%w: usage: %s", commands.ErrArguments, r.Usage())
+		return nil, fmt.Errorf("%w: missing argument, usage: %s", commands.ErrArguments, r.Usage())
 	}
 
 	// Don't want the ranking to stop when the manager cancels the parent context...
@@ -115,12 +96,30 @@ func (r *Rank) Run(ctx context.Context, msg commands.PromptMessage, _ *llms.Sess
 
 	go r.looper(ctx, opts)
 
+	content := &uimsg.HistoryContent{
+		Blocks: []uimsg.HistoryBlock{
+			{
+				Type:  uimsg.HistoryBlockFields,
+				Title: "Ranking started",
+				Fields: []uimsg.HistoryField{
+					uimsg.NewField("Items", strconv.Itoa(len(opts.allItems))),
+					uimsg.NewField("Batch size", strconv.Itoa(opts.batchSize)),
+					uimsg.NewField("Iterations", strconv.Itoa(opts.numIterations)),
+					uimsg.NewField("Top requested", strconv.Itoa(opts.top)),
+					uimsg.NewField("List path", opts.listPath),
+				},
+			},
+			{
+				Type:  uimsg.HistoryBlockText,
+				Title: "Description",
+				Text:  opts.description,
+			},
+		},
+	}
+
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: msg,
-		Message: fmt.Sprintf(
-			"Starting requested ranking of %d items with batch size of %d and %d iterations, returning top %d items...",
-			len(opts.allItems), opts.batchSize, opts.numIterations, opts.top,
-		),
+		Content:       content,
 	}
 
 	return uimsg.MsgToCmd(update), nil
@@ -130,7 +129,7 @@ func (r *Rank) parseOpts(msg commands.PromptMessage) (*opts, error) {
 	opts := defaultOpts()
 	opts.promptMessage = msg
 
-	lastFlagIdx := 0
+	lastFlagIdx := -1
 
 	for idx := 0; idx < len(msg.Args); idx++ {
 		switch msg.Args[idx] {
@@ -353,17 +352,34 @@ listenLoop:
 
 	topItems := ranked[:min(opts.top, len(ranked))]
 
-	builder := &strings.Builder{}
-	builder.Grow(1024)
-	builder.WriteString("**Top ranked items:**\n\n")
+	blocks := []uimsg.HistoryBlock{
+		{
+			Type:  uimsg.HistoryBlockFields,
+			Title: "Ranking complete",
+			Fields: []uimsg.HistoryField{
+				uimsg.NewField("Successful batches", strconv.Itoa(successes)),
+				uimsg.NewField("Failed batches", strconv.Itoa(failures)),
+				uimsg.NewField("Top returned", strconv.Itoa(len(topItems))),
+			},
+		},
+	}
 
 	for i, item := range topItems {
-		fmt.Fprintf(builder, "\t%d. %s (score=%.2f)\n", i+1, item.Contents, item.RankingScore())
+		blocks = append(blocks, uimsg.HistoryBlock{
+			Type:  uimsg.HistoryBlockFields,
+			Title: fmt.Sprintf("Rank %d", i+1),
+			Fields: []uimsg.HistoryField{
+				uimsg.NewField("Item", item.Contents),
+				uimsg.NewField("Score", fmt.Sprintf("%.2f", item.RankingScore())),
+			},
+		})
 	}
 
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: opts.promptMessage,
-		Message:       builder.String(),
+		Content: &uimsg.HistoryContent{
+			Blocks: blocks,
+		},
 	}
 
 	r.teaEmitter(update)

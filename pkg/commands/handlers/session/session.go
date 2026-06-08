@@ -46,6 +46,7 @@ func (s *Session) Run(_ context.Context, msg commands.PromptMessage, session *ll
 
 	newSession, err := llms.NewSession(&llms.SessionOpts{
 		Name:            session.Name,
+		Config:          session.Config,
 		SystemMessage:   session.SystemMessage,
 		Tools:           session.Tools,
 		SystemAsMessage: session.SystemAsMessage,

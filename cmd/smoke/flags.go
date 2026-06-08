@@ -12,6 +12,7 @@ const (
 	FlagDebug        = "debug"
 	FlagMaxTokens    = "max-tokens"
 	FlagModel        = "model"
+	FlagNoStream     = "no-stream"
 	FlagSessionName  = "session"
 	FlagProvider     = "provider"
 	FlagTemperature  = "temperature"
@@ -23,6 +24,7 @@ const (
 	EnvDebug        = "SMOKE_DEBUG"
 	EnvMaxTokens    = "SMOKE_MAX_TOKENS"
 	EnvModel        = "SMOKE_MODEL"
+	EnvNoStream     = "SMOKE_NO_STREAM"
 	EnvSessionName  = "SMOKE_SESSION"
 	EnvProvider     = "SMOKE_PROVIDER"
 	EnvTemperature  = "SMOKE_TEMPERATURE"
@@ -90,6 +92,13 @@ func llmConfigFlags() []cli.Flag {
 			Aliases:  []string{"t"},
 			Sources:  cli.EnvVars(EnvMaxTokens),
 			Value:    8192,
+		},
+		&cli.BoolFlag{
+			Name:     FlagNoStream,
+			Usage:    "Disable streamed responses",
+			Category: category,
+			Aliases:  []string{"S"},
+			Sources:  cli.EnvVars(EnvNoStream),
 		},
 		&cli.Float64Flag{
 			Name:     FlagTemperature,

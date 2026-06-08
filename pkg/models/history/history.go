@@ -4,7 +4,6 @@ package history
 
 import (
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -12,16 +11,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/cneill/smoke/internal/uimsg"
-	"github.com/cneill/smoke/pkg/commands"
-	"github.com/cneill/smoke/pkg/commands/handlers/load"
-	"github.com/cneill/smoke/pkg/commands/handlers/mode"
-	"github.com/cneill/smoke/pkg/commands/handlers/session"
-	"github.com/cneill/smoke/pkg/elicit"
-	"github.com/cneill/smoke/pkg/llms"
-	"github.com/mattn/go-runewidth"
-	"github.com/muesli/reflow/wordwrap"
 )
 
 type Opts struct {
@@ -42,8 +31,8 @@ func (o *Opts) OK() error {
 }
 
 type Model struct {
-	viewport   viewport.Model
-	mdRenderer *glamour.TermRenderer
+	viewport viewport.Model
+	renderer *Renderer
 
 	initContent string
 	log         *Log
@@ -57,14 +46,14 @@ func New(opts *Opts) (*Model, error) {
 		return nil, fmt.Errorf("options error: %w", err)
 	}
 
-	mdRenderer, err := getGlamourRenderer(opts.Width)
+	renderer, err := NewRenderer(opts.Width)
 	if err != nil {
 		return nil, err
 	}
 
 	model := &Model{
-		viewport:   getViewport(opts),
-		mdRenderer: mdRenderer,
+		viewport: getViewport(opts),
+		renderer: renderer,
 
 		initContent: opts.InitContent,
 		log:         NewLog(),
@@ -116,7 +105,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ContentUpdate:
 		m.log.AddMessage(msg.Message)
-		m.viewport.SetContent(m.logContent())
+		m.viewport.SetContent(m.renderLogContent())
 		// only scroll down if we were already at the bottom before updating the history
 		if wasAtBottom {
 			m.viewport.GotoBottom()
@@ -124,7 +113,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case ContentRefresh:
 		m.log.RefreshLog(msg.Log)
 
-		if logContent := m.logContent(); strings.TrimSpace(logContent) != "" {
+		if logContent := m.renderLogContent(); strings.TrimSpace(logContent) != "" {
 			m.viewport.SetContent(logContent)
 		} else {
 			m.viewport.SetContent(m.initContent)
@@ -155,12 +144,7 @@ func (m *Model) Resize(width, height int) {
 	m.viewport.Width = width
 	m.viewport.Height = height
 
-	// TODO: figure out how to make this reasonably performant....
-	// newRenderer, err := getGlamourRenderer(width)
-	// if err == nil {
-	// 	m.mdRenderer.Close()
-	// 	m.mdRenderer = newRenderer
-	// }
+	m.renderer.Resize(width)
 }
 
 func (m *Model) GetWidth() int {
@@ -195,209 +179,21 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) logContent() string {
+func (m *Model) renderLogContent() string {
 	builder := &strings.Builder{}
+	styles := m.renderer.Styles()
 
 	for _, item := range m.log.Messages() {
-		info := bubbleInfo{
-			titleStyle: lipgloss.NewStyle().
-				Background(lipgloss.Color("#000000")),
-			subtitleStyle: lipgloss.NewStyle().
-				Background(lipgloss.Color("#000000")).
-				Foreground(lipgloss.Color("#444444")).
-				Italic(true),
-			useMarkdown: false,
+		bubble := BubbleForHistoryItem(item, styles)
+		// Currently used for epmty Assistant messages
+		// TODO: make this less convoluted
+		if bubble.IsEmpty() {
+			continue
 		}
 
-		switch item := item.(type) {
-		case *llms.Message:
-			info = renderLLMMessage(item, info)
-		case commands.Message:
-			info = renderCommandMessage(item, info)
-		case elicit.Message:
-			info = renderElicitMessage(item, info)
-		case *uimsg.Error:
-			info.title = "⛔ Error"
-			info.titleStyle = info.titleStyle.
-				Foreground(lipgloss.Color("#af0000"))
-			info.content = item.Error()
-
-		case string:
-			info.title = "Unknown message"
-			info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#999999"))
-			info.content = item
-
-		default:
-			slog.Error("UNKNOWN MESSAGE TYPE", "item", item, "type", fmt.Sprintf("%T", item))
-		}
-
-		fmt.Fprint(builder, m.renderBubble(info))
-
+		fmt.Fprint(builder, m.renderer.RenderBubble(bubble))
 		builder.WriteRune('\n')
 	}
-
-	return builder.String()
-}
-
-func renderLLMMessage(msg *llms.Message, info bubbleInfo) bubbleInfo {
-	info.content = msg.TextContent
-	info.subtitle = msg.Added.Format(time.DateTime)
-
-	switch msg.Role {
-	case llms.RoleUser:
-		info.title = "👤 User"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#0087ff"))
-		info.useMarkdown = true
-	case llms.RoleAssistant:
-		info.title = fmt.Sprintf("🤖 %s (%s)", msg.LLMInfo.Type, msg.LLMInfo.ModelName)
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#00af00"))
-		info.useMarkdown = true
-
-		// TODO: render each of these with their arguments
-		if msg.HasToolCalls() {
-			info.content += fmt.Sprintf("\n\nTools called: %s\n\n", strings.Join(msg.ToolCalls.Names(), ", "))
-		}
-	case llms.RoleTool:
-		info.title = "🔧 Tool"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#00afaf"))
-
-		if msg.HasToolCalls() {
-			// This should only ever have 1 tool call result, but we'll check just in case...
-			for _, toolCall := range msg.ToolCalls {
-				info.content += fmt.Sprintf("\nTool call to %q with args: %s", toolCall.Name, toolCall.Args.String())
-			}
-		}
-	case llms.RoleSystem:
-		info.title = "🖥️ System"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#af00af"))
-	case llms.RoleUnknown:
-		info.title = "❓ UNKNOWN ROLE"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#af0000"))
-	}
-
-	return info
-}
-
-func renderCommandMessage(msg commands.Message, info bubbleInfo) bubbleInfo {
-	switch msg := msg.(type) {
-	case commands.HistoryUpdateMessage:
-		info.title = msg.PromptMessage.Command + " command result"
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#dd9911"))
-		info.content = msg.Message
-		// TODO: make sure this makes sense?
-		info.useMarkdown = true
-
-	case commands.SessionUpdateMessage:
-		switch msg.PromptMessage.Command {
-		case session.Name:
-			info.title = "Started new session"
-		case load.Name:
-			sessionFile := "<unknown>"
-
-			if len(msg.PromptMessage.Args) > 0 {
-				sessionFile = msg.PromptMessage.Args[0]
-			}
-
-			info.title = "Loaded session from file " + sessionFile
-		default:
-			info.title = "Updated session"
-		}
-
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#ffffff"))
-		info.content = msg.Message
-
-	case mode.Message:
-		modeTitle := strings.Title(string(msg.Mode)) //nolint:staticcheck
-		info.title = modeTitle + " mode"
-		info.subtitle = msg.Message
-		info.titleStyle = info.titleStyle.
-			Foreground(lipgloss.Color("#ffffff"))
-	}
-
-	return info
-}
-
-func renderElicitMessage(msg elicit.Message, info bubbleInfo) bubbleInfo {
-	switch msg := msg.(type) {
-	case elicit.RequestMessage:
-		info.title = "Question"
-		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
-		info.content = msg.String()
-
-	case elicit.UserCanceledMessage:
-		info.title = "Canceled"
-		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#ff0000"))
-		info.content = msg.String()
-
-	case elicit.UserResponseMessage:
-		info.title = "Response"
-		info.titleStyle = info.titleStyle.Foreground(lipgloss.Color("#afaf00"))
-		info.content = msg.String()
-	}
-
-	return info
-}
-
-type bubbleInfo struct {
-	title         string
-	titleStyle    lipgloss.Style
-	subtitle      string
-	subtitleStyle lipgloss.Style
-	content       string
-	useMarkdown   bool
-}
-
-// renderBubble displays messages and errors with a nice title/subtitle bubble before the item's content. It word-wraps
-// the content of the actual message to ensure it doesn't run off the screen.
-func (m *Model) renderBubble(info bubbleInfo) string {
-	builder := &strings.Builder{}
-	content := info.content
-	bubbleWidth := 64
-	line := strings.Repeat("─", bubbleWidth)
-
-	titleWidth := runewidth.StringWidth(info.title)
-	titlePaddingLeft := (bubbleWidth - titleWidth) / 2
-	titlePaddingRight := titlePaddingLeft
-
-	if (bubbleWidth-titleWidth)%2 != 0 {
-		titlePaddingRight++
-	}
-
-	subtitleWidth := runewidth.StringWidth(info.subtitle)
-	subtitlePaddingLeft := (bubbleWidth - subtitleWidth) / 2
-	subtitlePaddingRight := subtitlePaddingLeft
-
-	if (bubbleWidth-subtitleWidth)%2 != 0 {
-		subtitlePaddingRight++
-	}
-
-	fmt.Fprintln(builder, info.titleStyle.Render("╭"+line+"╮"))
-	fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("│%*s%s%*s│", titlePaddingLeft, "", info.title, titlePaddingRight, "")))
-
-	if info.subtitle != "" {
-		fmt.Fprint(builder, info.titleStyle.Render(fmt.Sprintf("│%*s", subtitlePaddingLeft, "")))
-		fmt.Fprintf(builder, "%s", info.subtitleStyle.Render(info.subtitle))
-		fmt.Fprintln(builder, info.titleStyle.Render(fmt.Sprintf("%*s│", subtitlePaddingRight, "")))
-	}
-
-	fmt.Fprintln(builder, info.titleStyle.Render("╰"+line+"╯"))
-
-	if info.useMarkdown {
-		if mdContent, err := m.mdRenderer.Render(content); err == nil {
-			content = mdContent
-		}
-	} else {
-		content = wordwrap.String(content, m.viewport.Width)
-	}
-
-	fmt.Fprintln(builder, content)
 
 	return builder.String()
 }
