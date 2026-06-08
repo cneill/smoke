@@ -66,7 +66,7 @@ func (c *Claude) StartConversation(ctx context.Context, session *llms.Session) l
 		Session:      session,
 		LLMInfo:      c.LLMInfo(),
 		Config:       c.config,
-		Stream:       c.shouldStream(),
+		Stream:       !c.config.NoStream,
 		SendStream:   conv.sendStream,
 		SendNoStream: conv.sendNoStream,
 	})
@@ -80,8 +80,4 @@ func (c *Claude) StartConversation(ctx context.Context, session *llms.Session) l
 	go conv.Start(newCtx)
 
 	return conv
-}
-
-func (c *Claude) shouldStream() bool {
-	return true
 }

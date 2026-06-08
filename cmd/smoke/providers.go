@@ -34,12 +34,7 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 			openai.ChatModelGPT5_4:      {"5.4", "gpt5.4", "gpt-5.4"},
 			openai.ChatModelGPT5_4Mini:  {"5.4-mini", "gpt5.4-mini", "gpt-5.4-mini"},
 			openai.ChatModelGPT5_4Nano:  {"5.4-nano", "gpt5.4-nano", "gpt-5.4-nano"},
-			openai.ChatModelO1:          {"o1", "gpto1", "gpt-o1"},
-			openai.ChatModelO1Mini:      {"o1-mini", "gpto1-mini", "gpt-o1-mini"},
-			openai.ChatModelO1Preview:   {"o1-preview", "gpto1-preview", "gpt-o1-preview"},
-			openai.ChatModelO3:          {"o3", "gpto3", "gpt-o3"},
-			openai.ChatModelO3Mini:      {"o3-mini", "gpto3-mini", "gpt-o3-mini"},
-			openai.ChatModelO4Mini:      {"o4-mini", "gpto4-mini", "gpt-o4-mini"},
+			"gpt-5.5":                   {"5.5", "gpt5.5", "gpt-5.5"}, // Some day OpenAI will update their SDK...
 		},
 	},
 	llms.LLMTypeClaude: {
@@ -59,10 +54,11 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 	llms.LLMTypeGrok: {
 		apiKeyFlag:   FlagXAIKey,
 		apiKeyEnvVar: EnvXAIKey,
-		defaultModel: "grok-4.20-0309-reasoning",
+		defaultModel: "grok-build-0.1",
 		aliases: modelAliases{
+			"grok-build-0.1":           {"build", "fast"},
+			"grok-4.3":                 {"4.3", "430"},
 			"grok-4.20-0309-reasoning": {"4.2", "420"},
-			"grok-4-1-fast-reasoning":  {"4.1", "fast"},
 		},
 	},
 	llms.LLMTypeOllama: {

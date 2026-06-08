@@ -81,7 +81,7 @@ func (c *ChatGPT) StartConversation(ctx context.Context, session *llms.Session) 
 		Session: session,
 		LLMInfo: c.LLMInfo(),
 		Config:  c.Config,
-		Stream:  true,
+		Stream:  !c.Config.NoStream,
 	})
 	if err != nil {
 		// Config was already validated in New(), so this should never happen.

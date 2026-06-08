@@ -4,6 +4,7 @@ package info
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,38 +35,53 @@ func (i *Info) Usage() string {
 }
 
 func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
-	includeSystem := false
-
-	for _, arg := range msg.Args {
-		if arg == "--system" {
-			includeSystem = true
-		}
-	}
-
-	name := session.Name
-	messageCount := session.MessageCount()
+	includeSystem := slices.Contains(msg.Args, "--system")
+	messages := session.MessageCount()
 	inputTokens, outputTokens := session.Usage()
 	totalTokens := inputTokens + outputTokens
-	duration := time.Since(session.CreatedAt)
-	toolNames := session.Tools.GetTools().Names()
 
-	info := "**Session name:** " + name + "\n\n"
-	info += fmt.Sprintf("**Mode:** %s\n\n", session.GetMode())
-	info += fmt.Sprintf("**Messages:** user %d, assistant %d, tool call %d\n\n",
-		messageCount.UserMessages, messageCount.AssistantMessages, messageCount.ToolCallMessages)
-	info += fmt.Sprintf("**Tokens:** input %d, output %d, total %d\n\n", inputTokens, outputTokens, totalTokens)
-	info += fmt.Sprintf("**Duration:** %s\n\n", duration)
-	info += fmt.Sprintf("**Tools available:** %s\n\n", strings.Join(toolNames, ", "))
-
-	if includeSystem {
-		info += fmt.Sprintf("\n**System message:**\n\n%s\n\n", session.SystemMessage)
+	toolNames := "none"
+	if tools := session.Tools.GetTools(); len(tools) > 0 {
+		toolNames = strings.Join(session.Tools.GetTools().Names(), ", ")
 	}
 
-	// TODO: ability to get information not contained in the session object
+	content := &uimsg.HistoryContent{
+		Blocks: []uimsg.HistoryBlock{
+			{
+				Type:  uimsg.HistoryBlockFields,
+				Title: "Session info",
+				Fields: []uimsg.HistoryField{
+					uimsg.NewField("Session name", session.Name),
+					uimsg.NewField("Provider", string(session.Config.Provider)),
+					uimsg.NewField("Model", session.Config.Model),
+					uimsg.NewField("Mode", string(session.GetMode())),
+					uimsg.NewField(
+						"Messages",
+						fmt.Sprintf("User=%d, Assistant=%d, Tool call=%d",
+							messages.UserMessages, messages.AssistantMessages, messages.ToolCallMessages),
+					),
+					uimsg.NewField(
+						"Tokens",
+						fmt.Sprintf("Input=%d, Output=%d, Total=%d", inputTokens, outputTokens, totalTokens),
+					),
+					uimsg.NewField("Duration", time.Since(session.CreatedAt).String()),
+					uimsg.NewField("Tools available", toolNames),
+				},
+			},
+		},
+	}
+
+	if includeSystem {
+		content.Blocks = append(content.Blocks, uimsg.HistoryBlock{
+			Type:  uimsg.HistoryBlockMarkdown,
+			Title: "System prompt",
+			Text:  session.SystemMessage,
+		})
+	}
 
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: msg,
-		Message:       info,
+		Content:       content,
 	}
 
 	return uimsg.MsgToCmd(update), nil

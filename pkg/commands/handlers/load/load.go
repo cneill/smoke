@@ -12,6 +12,7 @@ import (
 
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/llms"
 )
 
@@ -52,6 +53,7 @@ func (l *Load) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 
 	// TODO: there's almost certainly more setup necessary here...
 	loaded.Tools = session.Tools
+	loaded.SetMode(modes.DefaultMode())
 
 	slog.Debug("loaded session from file", "path", path, "num_messages", len(loaded.Messages))
 

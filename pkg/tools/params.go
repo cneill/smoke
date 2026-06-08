@@ -45,7 +45,10 @@ func (p Param) OK() error { //nolint:cyclop
 	case p.Type == "":
 		return fmt.Errorf("missing type")
 	case !slices.Contains(
-		[]ParamType{ParamTypeArray, ParamTypeBoolean, ParamTypeNull, ParamTypeNumber, ParamTypeObject, ParamTypeString}, p.Type):
+		[]ParamType{
+			ParamTypeArray, ParamTypeBoolean, ParamTypeNull, ParamTypeNumber, ParamTypeObject, ParamTypeString,
+		}, p.Type,
+	):
 		return fmt.Errorf("invalid param type: %q", p.Type)
 	case p.ItemType != "" && p.Type != ParamTypeArray:
 		return fmt.Errorf("item type defined for non-array param type")

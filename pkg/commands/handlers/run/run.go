@@ -39,6 +39,12 @@ func (r *Run) Run(ctx context.Context, msg commands.PromptMessage, session *llms
 
 	toolName := msg.Args[0]
 	rawArgs := strings.Join(msg.Args[1:], " ")
+	outputType := uimsg.HistoryBlockText
+
+	// TODO: figure out if this is worth handling in a more elegant way; I don't think most tools output Markdown
+	if toolName == "plan_read" {
+		outputType = uimsg.HistoryBlockMarkdown
+	}
 
 	args, err := session.Tools.GetArgs(toolName, []byte(rawArgs))
 	if err != nil {
@@ -61,9 +67,27 @@ func (r *Run) Run(ctx context.Context, msg commands.PromptMessage, session *llms
 			return uimsg.ToError(fmt.Errorf("failed to add run message: %w", err))
 		}
 
+		content := &uimsg.HistoryContent{
+			Blocks: []uimsg.HistoryBlock{
+				{
+					Type:  uimsg.HistoryBlockFields,
+					Title: "Tool run",
+					Fields: []uimsg.HistoryField{
+						uimsg.NewField("Tool", toolName),
+						uimsg.NewField("Args", rawArgs),
+					},
+				},
+				{
+					Type:  outputType,
+					Title: "Output",
+					Text:  output.Text,
+				},
+			},
+		}
+
 		update := commands.HistoryUpdateMessage{
 			PromptMessage: msg,
-			Message:       fmt.Sprintf("User called tool %q with args %q:\n\n%s\n", toolName, rawArgs, output.Text),
+			Content:       content,
 		}
 
 		return update

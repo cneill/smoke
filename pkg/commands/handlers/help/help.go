@@ -39,13 +39,9 @@ func (h *Help) Usage() string {
 }
 
 func (h *Help) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {
-	helps := make([]string, len(h.initializers))
+	entries := make([]uimsg.HistoryBlock, len(h.initializers))
 
 	idx := 0
-
-	cmdUsage := func(name, help, usage string) string {
-		return fmt.Sprintf("`/%s` - **%s**\n\t* **Usage:** `%s`", name, help, usage)
-	}
 
 	for name, initializer := range h.initializers {
 		cmd, err := initializer()
@@ -53,21 +49,26 @@ func (h *Help) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Sessio
 			return nil, fmt.Errorf("failed to initialize command %q for help: %w", name, err)
 		}
 
-		helps[idx] = cmdUsage(name, cmd.Help(), cmd.Usage())
+		entries[idx] = uimsg.HistoryBlock{
+			Type:  uimsg.HistoryBlockFields,
+			Title: "/" + name,
+			Fields: []uimsg.HistoryField{
+				uimsg.NewField("Summary", cmd.Help()),
+				uimsg.NewField("Usage", "/"+cmd.Usage()),
+			},
+		}
 		idx++
 	}
 
-	slices.Sort(helps)
-
-	builder := &strings.Builder{}
-
-	for _, help := range helps {
-		fmt.Fprintf(builder, "* %s\n", help)
-	}
+	slices.SortFunc(entries, func(a, b uimsg.HistoryBlock) int {
+		return strings.Compare(a.Title, b.Title)
+	})
 
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: msg,
-		Message:       builder.String(),
+		Content: &uimsg.HistoryContent{
+			Blocks: entries,
+		},
 	}
 
 	return uimsg.MsgToCmd(update), nil

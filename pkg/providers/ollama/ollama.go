@@ -78,7 +78,7 @@ func (o *Ollama) StartConversation(ctx context.Context, session *llms.Session) l
 		Session: session,
 		LLMInfo: o.LLMInfo(),
 		Config:  o.config,
-		Stream:  true,
+		Stream:  !o.config.NoStream,
 	})
 	if err != nil {
 		// Config was already validated in New(), so this should never happen.

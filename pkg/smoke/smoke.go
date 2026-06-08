@@ -216,6 +216,8 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 					Messages: event.Messages,
 				})
 			case llms.EventToolCallsRequested:
+				pendingMessage = nil
+
 				if err := session.AddMessage(event.Message); err != nil {
 					slog.Error("failed to add assistant tool call message to session", "error", err)
 					conversation.Cancel(err)
@@ -280,9 +282,10 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				}
 			case llms.EventUsageUpdate:
 				session.UpdateUsage(event.InputTokens, event.OutputTokens)
+				input, output := session.Usage()
 				s.teaEmitter(UsageUpdateMessage{
-					InputTokens:  event.InputTokens,
-					OutputTokens: event.OutputTokens,
+					InputTokens:  input,
+					OutputTokens: output,
 				})
 			}
 		}
