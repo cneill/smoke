@@ -6,7 +6,55 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestSessionMessageHandling(t *testing.T) {
+	t.Parallel()
+
+	session := &llms.Session{}
+	msg1 := llms.NewMessage(
+		llms.WithID("id-user-1"),
+		llms.WithRole(llms.RoleUser),
+		llms.WithTextContent("say hello"),
+	)
+
+	msg2 := llms.NewMessage(
+		llms.WithID("id-assistant-1"),
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithTextContent("hello"),
+	)
+
+	msg3 := llms.NewMessage(
+		llms.WithID("id-assistant-2"),
+		llms.WithRole(llms.RoleAssistant),
+		llms.WithTextContent("bye"),
+	)
+
+	require.NoError(t, session.AddMessage(msg1))
+	require.NoError(t, session.AddMessage(msg2))
+	require.NoError(t, session.AddMessage(msg3))
+
+	last := session.Last()
+	assert.Equal(t, "id-assistant-2", last.ID)
+	assert.Equal(t, llms.RoleAssistant, last.Role)
+	assert.NotZero(t, last.Added)
+
+	lastAssistant := session.LastByRole(llms.RoleAssistant)
+	assert.Equal(t, "id-assistant-2", lastAssistant.ID)
+
+	lastAssistantRun := session.LastRunByRole(llms.RoleAssistant)
+	assert.Len(t, lastAssistantRun, 2)
+	assert.Equal(t, "id-assistant-1", lastAssistantRun[0].ID)
+	assert.Equal(t, "id-assistant-2", lastAssistantRun[1].ID)
+
+	assert.Nil(t, session.LastByRole(llms.RoleSystem))
+
+	counts := session.MessageCount()
+	assert.Equal(t, 2, counts.AssistantMessages)
+	assert.Equal(t, 1, counts.UserMessages)
+	assert.Equal(t, 0, counts.ToolCallMessages)
+}
 
 func TestSession_ReplaceMessages(t *testing.T) {
 	t.Parallel()
