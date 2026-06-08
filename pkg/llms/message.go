@@ -203,7 +203,6 @@ func WithLLMInfo(info *LLMInfo) MessageOpt {
 
 func WithChunkContent(content string) MessageOpt {
 	return func(message *Message) *Message {
-		// TODO: mutex?
 		message.TextContent += content
 		return message
 	}

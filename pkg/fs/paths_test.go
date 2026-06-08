@@ -10,6 +10,8 @@ import (
 func TestGetRelative(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
+	dummyProjectPath := "/a/b/c"
+
 	tests := []struct {
 		name           string
 		projectPath    string
@@ -20,13 +22,13 @@ func TestGetRelative(t *testing.T) { //nolint:funlen
 		{
 			name:        "empty_project_path",
 			projectPath: "",
-			targetPath:  "/a/b/c",
+			targetPath:  dummyProjectPath,
 			expectedErr: fs.ErrInsecureProjectPath,
 		},
 		{
 			name:        "root_project_path",
 			projectPath: "/",
-			targetPath:  "/a/b/c",
+			targetPath:  dummyProjectPath,
 			expectedErr: fs.ErrInsecureProjectPath,
 		},
 		{
@@ -37,91 +39,91 @@ func TestGetRelative(t *testing.T) { //nolint:funlen
 		},
 		{
 			name:           "empty_target_path",
-			projectPath:    "/a/b/c",
+			projectPath:    dummyProjectPath,
 			targetPath:     "",
-			expectedResult: "/a/b/c",
+			expectedResult: dummyProjectPath,
 		},
 		{
 			name:           "dot_target_path",
-			projectPath:    "/a/b/c",
+			projectPath:    dummyProjectPath,
 			targetPath:     ".",
-			expectedResult: "/a/b/c",
+			expectedResult: dummyProjectPath,
 		},
 		{
 			name:        "double_dot_target_path",
-			projectPath: "/a/b/c",
+			projectPath: dummyProjectPath,
 			targetPath:  "..",
 			expectedErr: fs.ErrInsecureTargetPath,
 		},
 		{
 			name:        "triple_dot_target_path",
-			projectPath: "/a/b/c",
+			projectPath: dummyProjectPath,
 			targetPath:  "...",
 			expectedErr: fs.ErrInsecureTargetPath,
 		},
 		{
 			name:        "root_with_relative_lead",
-			projectPath: "/a/b/c",
+			projectPath: dummyProjectPath,
 			targetPath:  "/..0",
 			expectedErr: fs.ErrInsecureTargetPath,
 		},
 		{
 			name:        "root_with_relative_lead",
-			projectPath: "/a/b/c",
+			projectPath: dummyProjectPath,
 			targetPath:  "C:\\..0",
 			expectedErr: fs.ErrInsecureTargetPath,
 		},
 		{
 			name:        "relative_dir_access",
-			projectPath: "/a/b/c",
+			projectPath: dummyProjectPath,
 			targetPath:  "../../../../etc/passwd",
 			expectedErr: fs.ErrInsecureTargetPath,
 		},
 		{
 			name:        "relative_windows_dir_access",
-			projectPath: "/a/b/c",
+			projectPath: dummyProjectPath,
 			targetPath:  "..\\..\\..\\..\\etc\\passwd",
 			expectedErr: fs.ErrInsecureTargetPath,
 		},
 		{
 			name:        "extra_dots_relative_dir_access",
-			projectPath: "/a/b/c",
+			projectPath: dummyProjectPath,
 			targetPath:  "./..././etc/passwd",
 			expectedErr: fs.ErrInsecureTargetPath,
 		},
 		{
 			name:           "extra_leading_dots",
-			projectPath:    "/a/b/c",
+			projectPath:    dummyProjectPath,
 			targetPath:     "./././d/e/f",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "extra_trailing_dots",
-			projectPath:    "/a/b/c",
+			projectPath:    dummyProjectPath,
 			targetPath:     "/d/e/f/./././",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "absolute_target_path",
-			projectPath:    "/a/b/c",
+			projectPath:    dummyProjectPath,
 			targetPath:     "/d/e/f",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "relative_target_path",
-			projectPath:    "/a/b/c",
+			projectPath:    dummyProjectPath,
 			targetPath:     "d/e/f/",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "target_path_double_separator_absolute",
-			projectPath:    "/a/b/c",
+			projectPath:    dummyProjectPath,
 			targetPath:     "//d//e//f",
 			expectedResult: "/a/b/c/d/e/f",
 		},
 		{
 			name:           "target_path_double_separator_relative",
-			projectPath:    "/a/b/c",
+			projectPath:    dummyProjectPath,
 			targetPath:     "d//e//f",
 			expectedResult: "/a/b/c/d/e/f",
 		},

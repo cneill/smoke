@@ -454,7 +454,6 @@ func (s *Smoke) SkillCompleter() func(string) []string {
 }
 
 func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedreturns
-	// TODO: this feels wrong...
 	return s.getMainSession().Usage()
 }
 

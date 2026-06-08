@@ -107,7 +107,6 @@ func (m *Manager) HandleCommand(session *llms.Session, msg PromptMessage) (tea.C
 		return nil, fmt.Errorf("%w: %s", ErrUnknownCommand, msg.Command)
 	}
 
-	// TODO: timeout?
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
