@@ -32,6 +32,7 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 		SystemAsMessage: mainSession.SystemAsMessage, // TODO: check LLM for this? something else?
 		Tools:           toolManager,
 		Mode:            modes.ModeSummarize,
+		Config:          mainSession.Config,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize new session for summarization: %w", err)

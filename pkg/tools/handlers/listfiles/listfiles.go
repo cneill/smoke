@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"github.com/cneill/smoke/pkg/fs"
@@ -63,7 +62,7 @@ func (l *ListFiles) Run(_ context.Context, args tools.Args) (*tools.Output, erro
 		return nil, fmt.Errorf("path error: %w", err)
 	}
 
-	builder := strings.Builder{}
+	var sb strings.Builder
 
 	iter, err := fs.ExcludesWalker(l.ProjectPath, fullPath)
 	if err != nil {
@@ -81,20 +80,10 @@ func (l *ListFiles) Run(_ context.Context, args tools.Args) (*tools.Output, erro
 			return nil, fmt.Errorf("failed to get info about path %q: %w", entry.RelPath, err)
 		}
 
-		if _, err := builder.WriteString("[" + info.Mode().String() + "] "); err != nil {
-			return nil, fmt.Errorf("failed to add file mode: %w", err)
-		}
-
-		if _, err := builder.WriteString(strconv.FormatInt(info.Size(), 10) + "B "); err != nil {
-			return nil, fmt.Errorf("failed to add file size: %w", err)
-		}
-
-		if _, err := builder.WriteString("/" + entry.RelPath + "\n"); err != nil {
-			return nil, fmt.Errorf("failed to add path: %w", err)
-		}
+		fmt.Fprintf(&sb, "[%s] %dB /%s\n", info.Mode().String(), info.Size(), entry.RelPath)
 	}
 
-	content := builder.String()
+	content := sb.String()
 	if strings.TrimSpace(content) == "" {
 		content = fmt.Sprintf("Provided path %q is empty.", *path)
 	}

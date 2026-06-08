@@ -13,8 +13,11 @@ type Config struct {
 }
 
 func (c *Config) OK() error {
+	// Not validating temperature here, ranges vary by provider
 	switch {
 	case c.APIKey == "" && c.BaseURL == "":
+		// Currently, a BaseURL indicates that we're using ollama, which does not require an API key
+		// TODO: make this more explicit
 		return fmt.Errorf("missing api key")
 	case c.MaxTokens <= 0:
 		return fmt.Errorf("max tokens must be >0")
@@ -22,7 +25,6 @@ func (c *Config) OK() error {
 		return fmt.Errorf("missing model")
 	case c.Provider == "":
 		return fmt.Errorf("missing provider")
-		// don't validate temperature here, ranges vary by provider
 	}
 
 	return nil

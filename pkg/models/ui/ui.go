@@ -112,7 +112,7 @@ func (m *Model) Init() tea.Cmd {
 	return cmds
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop
 	cmds := []tea.Cmd{}
 
 	inputModel, inputCmd := m.input.Update(msg)
@@ -137,8 +137,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		lineHeight := m.input.LineHeight()
 		m.history.Resize(msg.Width, msg.Height-(lineHeight+1)) // +1 for the border
 		m.input.Resize(msg.Width, lineHeight)
-
-		// m.resize(msg)
 	case tea.KeyMsg:
 		switch msg.Type { //nolint:exhaustive,gocritic
 		case tea.KeyCtrlC:
@@ -287,7 +285,7 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 }
 
 // Handle messages from prompt command handlers.
-func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
+func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd { //nolint:cyclop,funlen
 	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {

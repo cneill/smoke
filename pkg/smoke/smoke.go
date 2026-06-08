@@ -232,6 +232,11 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 						toolCallErr  error
 					)
 
+					messageOpts := []llms.MessageOpt{
+						llms.WithRole(llms.RoleTool),
+						llms.WithToolCalls(toolCall),
+					}
+
 					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
 					switch {
 					case err != nil:
@@ -251,22 +256,17 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 						imageContent = imageBytes
 					}
 
-					messageOpts := []llms.MessageOpt{
-						llms.WithRole(llms.RoleTool),
-						llms.WithToolCalls(toolCall),
-					}
-
 					if textContent != "" {
 						messageOpts = append(messageOpts, llms.WithTextContent(textContent))
 					} else if imageContent != nil {
 						messageOpts = append(messageOpts, llms.WithImageContent(imageContent))
 					}
 
-					resultsMsg := llms.NewMessage(messageOpts...)
-
 					if toolCallErr != nil {
-						resultsMsg = resultsMsg.Update(llms.WithError(toolCallErr))
+						messageOpts = append(messageOpts, llms.WithError(toolCallErr))
 					}
+
+					resultsMsg := llms.NewMessage(messageOpts...)
 
 					if err := session.AddMessage(resultsMsg); err != nil {
 						slog.Error("failed to add tool call result message to session", "error", err)
