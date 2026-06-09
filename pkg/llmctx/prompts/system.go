@@ -60,7 +60,8 @@ func PlanningSystemPrompt() *Prompt {
 	builder.Add(SectionTaskContext, P("You are currently in `plan_process`."))
 
 	// Description
-	builder.Add(SectionDescription,
+	builder.Add(
+		SectionDescription,
 		P("Here's the step-by-step process you should follow for conducting your planning:"),
 		P("If anything is unclear about the user's request, ask questions now. Do not add task items like \"decide "+
 			"whether to...\". Resolve any glaring ambiguities before you begin writing your plan for implementation."),
@@ -77,7 +78,8 @@ func PlanningSystemPrompt() *Prompt {
 	)
 
 	// Rules
-	builder.Add(SectionRules,
+	builder.Add(
+		SectionRules,
 		List(
 			Itemf("Do not assume that you will have access to the outputs of every tool call you make. If there is "+
 				"critical context you will need to complete a task or subtask, add it as a context item with "+
@@ -100,7 +102,8 @@ func WorkSystemPrompt() *Prompt {
 	builder.Add(SectionTaskContext, P("You are currently in `work_process`."))
 
 	// Description
-	builder.Add(SectionDescription,
+	builder.Add(
+		SectionDescription,
 		P("Here's the step-by-step process you should follow for conducting your work:"),
 		List(
 			Itemf("Try to read the existing plan with the `%s` tool. If there is no plan information, stop and ask the "+
@@ -126,7 +129,8 @@ func WorkSystemPrompt() *Prompt {
 	)
 
 	// Rules
-	builder.Add(SectionRules,
+	builder.Add(
+		SectionRules,
 		List(
 			Itemf("If you discover a new piece of information relevant to other tasks, or if you change something about how "+
 				"another task will need to be implemented, use `%s` to add context items to those tasks as needed.", tools.NamePlanAdd),
@@ -144,12 +148,14 @@ func ReviewSystemPrompt() *Prompt {
 	builder.ApplyPreset(SystemPreset(), Append)
 
 	// Task
-	builder.Add(SectionTaskContext,
+	builder.Add(
+		SectionTaskContext,
 		P("You are currently in `review_process`."),
 	)
 
 	// Description
-	builder.Add(SectionDescription,
+	builder.Add(
+		SectionDescription,
 		P(`Review the user's code and note any areas that match one of the "red flags" described below, and make `+
 			"suggestions for how the user could improve it. Note the name of the red flag that was violated and why you "+
 			"think the code is affected by that red flag. Note the severity of issues you discover, and list red flag "+
@@ -157,11 +163,12 @@ func ReviewSystemPrompt() *Prompt {
 
 		Pf("If the user asks for another review, re-read all the requested files for the latest changes with "+
 			"`%s` before providing your assessment. DO NOT WORK FROM MEMORY. The user will have made changes "+
-			"you need to re-evaluate.", tools.NameReadFile),
+			"you need to re-evaluate.", tools.NameCat),
 	)
 
 	// Rules (red flags). These come from the second edition of John Ousterhout's book, "A Philosophy of Software Design"
-	builder.Add(SectionRules,
+	builder.Add(
+		SectionRules,
 		P("The following are all red flags you should look out for in the code you're reviewing:"),
 		List(
 			// p. 25
@@ -217,12 +224,14 @@ func SummarizeSystemPrompt(messages ...*llms.Message) *Prompt {
 	builder.ApplyPreset(SystemPreset(), Append)
 
 	// Task
-	builder.Add(SectionTaskContext,
+	builder.Add(
+		SectionTaskContext,
 		P("You are currently in `summarize_process`."),
 	)
 
 	// Description
-	builder.Add(SectionDescription,
+	builder.Add(
+		SectionDescription,
 		P("Please summarize the conversation up to this point. Don't worry about conveying the play-by-play of each "+
 			`message in order with e.g. "The user said... then the next message said...". Focus on summarizing the `+
 			"**important content** of the provided message history. Specifically pay attention to the outputs of tool calls "+
@@ -232,7 +241,8 @@ func SummarizeSystemPrompt(messages ...*llms.Message) *Prompt {
 	)
 
 	// Rules for summarization
-	builder.Add(SectionRules,
+	builder.Add(
+		SectionRules,
 		Pf("Before you begin, use the `%s` tool to determine what pieces of information would be most relevant to your summary.",
 			tools.NamePlanRead),
 		P(`Use Markdown headings to split your summary into logical groupings like "Package context & definitions", `+
@@ -260,16 +270,19 @@ func SummarizeSystemPrompt(messages ...*llms.Message) *Prompt {
 func RankSystemPrompt(description string, items ...*rank.Item) *Prompt {
 	builder := NewBuilder("rank_system")
 
-	builder.Add(SectionTaskContext,
+	builder.Add(
+		SectionTaskContext,
 		P("You are currently in `rank_process`."),
 	)
 
-	builder.Add(SectionDescription,
+	builder.Add(
+		SectionDescription,
 		P("The user would like you to rank a list of items based on the following description:"),
 		P(description),
 	)
 
-	builder.Add(SectionRules,
+	builder.Add(
+		SectionRules,
 		P("The following rules should dictate ALL of your responses:"),
 		List(
 			Item("Respond with the BEST or MOST RELEVANT item FIRST and the WORST or LEAST RELEVANT item LAST, based "+
@@ -290,19 +303,22 @@ func RankSystemPrompt(description string, items ...*rank.Item) *Prompt {
 		{ID: "321aef", Contents: "wine"},
 	}
 
-	builder.Add(SectionExamples,
+	builder.Add(
+		SectionExamples,
 		P(`**Example 1:** the user requests a ranking of items based on their relevance to the word "fruit", with `+
 			"the following items:"),
 		P("`"+example1.JSON()+"`"),
 		P("A reasonable response would be: `"+`["abc123", "321aef", "eee654", "def456", "fff321"]`+"` (without backticks)."),
 	)
 
-	builder.Add(SectionTask,
+	builder.Add(
+		SectionTask,
 		P("Here are the items you should rank:"),
 		P("`"+rank.Items(items).JSON()+"`"),
 	)
 
-	builder.Add(SectionFormatting,
+	builder.Add(
+		SectionFormatting,
 		List(
 			Item("ALWAYS respond in JSON format. The exact format of your response should be "+
 				"`"+`["<first_id>", "<second_id>", "<third_id>", ...]`+"`, with ALL IDs from the original list, in "+

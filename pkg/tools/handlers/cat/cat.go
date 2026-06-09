@@ -1,4 +1,4 @@
-package readfile
+package cat
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	ParamPath      = "path"
+	ParamFilePath  = "file_path"
 	ParamStartLine = "start_line"
 	ParamEndLine   = "end_line"
 )
@@ -26,7 +26,7 @@ func New(projectPath, _ string) (tools.Tool, error) {
 	return &ReadFile{ProjectPath: projectPath}, nil
 }
 
-func (r *ReadFile) Name() string { return tools.NameReadFile }
+func (r *ReadFile) Name() string { return tools.NameCat }
 func (r *ReadFile) Description() string {
 	examples := tools.CollectExamples(r.Examples()...)
 
@@ -38,12 +38,12 @@ func (r *ReadFile) Examples() tools.Examples {
 	return tools.Examples{
 		{
 			Description: `Read the whole "LICENSE" file in the root of the repository`,
-			Args:        tools.Args{ParamPath: "LICENSE"},
+			Args:        tools.Args{ParamFilePath: "LICENSE"},
 		},
 		{
 			Description: `Read the first 20 lines of the "src/main.go" file`,
 			Args: tools.Args{
-				ParamPath:      "src/main.go",
+				ParamFilePath:  "src/main.go",
 				ParamStartLine: 1,
 				ParamEndLine:   20,
 			},
@@ -51,7 +51,7 @@ func (r *ReadFile) Examples() tools.Examples {
 		{
 			Description: `Read from line 200 to the end of "data.log"`,
 			Args: tools.Args{
-				ParamPath:      "data.log",
+				ParamFilePath:  "data.log",
 				ParamStartLine: 200,
 			},
 		},
@@ -61,7 +61,7 @@ func (r *ReadFile) Examples() tools.Examples {
 func (r *ReadFile) Params() tools.Params {
 	return tools.Params{
 		{
-			Key:         ParamPath,
+			Key:         ParamFilePath,
 			Description: "The path of the file to read",
 			Type:        tools.ParamTypeString,
 			Required:    true,
@@ -82,7 +82,7 @@ func (r *ReadFile) Params() tools.Params {
 }
 
 func (r *ReadFile) Run(_ context.Context, args tools.Args) (*tools.Output, error) { //nolint:cyclop
-	path := args.GetString(ParamPath)
+	path := args.GetString(ParamFilePath)
 	if path == nil {
 		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers/cat"
 	"github.com/cneill/smoke/pkg/tools/handlers/edit"
 	"github.com/cneill/smoke/pkg/tools/handlers/elicit"
 	gitdiff "github.com/cneill/smoke/pkg/tools/handlers/git/diff"
@@ -16,13 +17,14 @@ import (
 	plancompletion "github.com/cneill/smoke/pkg/tools/handlers/plan/completion"
 	planread "github.com/cneill/smoke/pkg/tools/handlers/plan/read"
 	planupdate "github.com/cneill/smoke/pkg/tools/handlers/plan/update"
-	"github.com/cneill/smoke/pkg/tools/handlers/readfile"
-	skillshandler "github.com/cneill/smoke/pkg/tools/handlers/skills"
+	activate_skill "github.com/cneill/smoke/pkg/tools/handlers/skills"
 	"github.com/cneill/smoke/pkg/tools/handlers/writefile"
 )
 
 func AllTools() []tools.Initializer {
 	return []tools.Initializer{
+		activate_skill.New,
+		cat.New,
 		// ddg.New,
 		edit.New,
 		elicit.New,
@@ -40,8 +42,6 @@ func AllTools() []tools.Initializer {
 		planupdate.New,
 		// TODO: figure out how to actually support images w/ multimodal models
 		// playwright.New,
-		readfile.New,
-		skillshandler.New,
 		// replacelines.New,
 		// summarize.New,
 		writefile.New,
@@ -54,6 +54,8 @@ func WorkTools() []tools.Initializer {
 
 func PlanningTools() []tools.Initializer {
 	return []tools.Initializer{
+		activate_skill.New,
+		cat.New,
 		// ddg.New,
 		elicit.New,
 		gitdiff.New,
@@ -65,13 +67,13 @@ func PlanningTools() []tools.Initializer {
 		plancompletion.New,
 		planread.New,
 		planupdate.New,
-		readfile.New,
-		skillshandler.New,
 	}
 }
 
 func ReviewTools() []tools.Initializer {
 	return []tools.Initializer{
+		activate_skill.New,
+		cat.New,
 		// ddg.New,
 		elicit.New,
 		gitdiff.New,
@@ -83,8 +85,6 @@ func ReviewTools() []tools.Initializer {
 		plancompletion.New, // TODO: ?
 		planread.New,
 		planupdate.New,
-		readfile.New,
-		skillshandler.New,
 	}
 }
 

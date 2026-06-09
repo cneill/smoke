@@ -296,7 +296,7 @@ func (p *PlanAdd) Params() tools.Params { //nolint:funlen
 							"developed as part of `work_process`. %q is reference material about a 3rd party library"+
 							"or external service. %q is a constraint imposed either by the user or the underlying "+
 							"codebase. %q is something that is commonly used by other similar parts of the code.",
-						plan.ContextTypeCode, tools.NameReadFile, plan.ContextTypeDecision, plan.ContextTypeReference,
+						plan.ContextTypeCode, tools.NameCat, plan.ContextTypeDecision, plan.ContextTypeReference,
 						plan.ContextTypeConstraint, plan.ContextTypeConvention,
 					),
 					Type: tools.ParamTypeString,
