@@ -115,7 +115,7 @@ func (i *ItemUnion) MarshalJSON() ([]byte, error) {
 	return bytes, err
 }
 
-func (i *ItemUnion) UnmarshalJSON(data []byte) error {
+func (i *ItemUnion) UnmarshalJSON(data []byte) error { //nolint:cyclop
 	var itemTypeOnly struct {
 		ItemType ItemType `json:"item_type"`
 	}

@@ -37,9 +37,10 @@ func (g *Grep) Name() string { return tools.NameGrep }
 func (g *Grep) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 
-	return fmt.Sprintf(`Search a file or directory for a regular expression. Lines matching %q are prefixed with "*", `+
-		"while context lines that do not include matches only include line numbers. Optionally, provide %q for "+
-		"the number of lines of context (default 0, only matched lines). Does not match multi-line regexes.%s",
+	return fmt.Sprintf(
+		`Search a file or directory for a regular expression. Lines matching %q are prefixed with "*", `+
+			"while context lines that do not include matches only include line numbers. Optionally, provide %q for "+
+			"the number of lines of context (default 0, only matched lines). Does not match multi-line regexes.%s",
 		ParamRegex, ParamContextLines, examples,
 	)
 }
@@ -88,7 +89,67 @@ func (g *Grep) Params() tools.Params {
 	}
 }
 
-func (g *Grep) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
+func (g *Grep) Run(_ context.Context, args tools.Args) (*tools.Output, error) { //nolint:cyclop
+	grepArgs, err := g.parseArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	stat, err := os.Stat(grepArgs.fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, grepArgs.fullPath, err)
+	}
+
+	if !stat.Mode().IsRegular() && !stat.IsDir() {
+		return nil, fmt.Errorf("%w: invalid file for grep: %q (mode=%s)", tools.ErrFileSystem, grepArgs.fullPath, stat.Mode().String())
+	}
+
+	dirResults := map[string][][]string{}
+
+	if !stat.IsDir() {
+		fileResults, err := g.getFileResults(grepArgs.fullPath, grepArgs.regex, grepArgs.contextLines)
+		if err != nil {
+			return nil, err
+		}
+
+		dirResults[grepArgs.fullPath] = fileResults
+	} else {
+		dirResults, err = g.getDirResults(grepArgs.fullPath, grepArgs.regex, grepArgs.contextLines)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	sortedPaths := slices.Collect(maps.Keys(dirResults))
+	slices.Sort(sortedPaths)
+
+	var sb strings.Builder
+
+	for _, filePath := range sortedPaths {
+		fileResults := dirResults[filePath]
+
+		relPath, err := filepath.Rel(g.ProjectPath, filePath)
+		if err != nil {
+			return nil, fmt.Errorf("%w: invalid file path %q: %w", tools.ErrFileSystem, filePath, err)
+		}
+
+		fmt.Fprintf(&sb, "%s\n%s\n", relPath, formatting.LineSep)
+
+		for _, result := range fileResults {
+			fmt.Fprintf(&sb, "%s\n\n", strings.Join(result, "\n"))
+		}
+	}
+
+	return &tools.Output{Text: sb.String()}, nil
+}
+
+type grepArgs struct {
+	fullPath     string
+	regex        *regexp.Regexp
+	contextLines int64
+}
+
+func (g *Grep) parseArgs(args tools.Args) (*grepArgs, error) {
 	path := args.GetString(ParamPath)
 	if path == nil {
 		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
@@ -119,55 +180,14 @@ func (g *Grep) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 		contextLines = *contextLinesPtr
 	}
 
-	stat, err := os.Stat(fullPath)
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to stat path %q: %w", tools.ErrFileSystem, fullPath, err)
-	}
-
-	if !stat.Mode().IsRegular() && !stat.IsDir() {
-		return nil, fmt.Errorf("%w: invalid file for grep: %q (mode=%s)", tools.ErrFileSystem, fullPath, stat.Mode().String())
-	}
-
-	dirResults := map[string][][]string{}
-
-	if !stat.IsDir() {
-		fileResults, err := g.getFileResults(fullPath, compiled, contextLines)
-		if err != nil {
-			return nil, err
-		}
-
-		dirResults[fullPath] = fileResults
-	} else {
-		dirResults, err = g.getDirResults(fullPath, compiled, contextLines)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	sortedPaths := slices.Collect(maps.Keys(dirResults))
-	slices.Sort(sortedPaths)
-
-	builder := strings.Builder{}
-
-	for _, filePath := range sortedPaths {
-		fileResults := dirResults[filePath]
-
-		relPath, err := filepath.Rel(g.ProjectPath, filePath)
-		if err != nil {
-			return nil, fmt.Errorf("%w: invalid file path %q: %w", tools.ErrFileSystem, filePath, err)
-		}
-
-		builder.WriteString(relPath + "\n" + formatting.LineSep + "\n")
-
-		for _, result := range fileResults {
-			builder.WriteString(strings.Join(result, "\n") + "\n\n")
-		}
-	}
-
-	return &tools.Output{Text: builder.String()}, nil
+	return &grepArgs{
+		fullPath:     fullPath,
+		regex:        compiled,
+		contextLines: contextLines,
+	}, nil
 }
 
-func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLines int64) ([][]string, error) {
+func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLines int64) ([][]string, error) { //nolint:cyclop
 	contents, err := os.ReadFile(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)

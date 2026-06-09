@@ -21,6 +21,8 @@ type CommandClientOpts struct {
 
 func (c *CommandClientOpts) OK() error {
 	switch {
+	case c == nil:
+		return fmt.Errorf("no options for command client")
 	case c.Name == "":
 		return fmt.Errorf("missing name")
 	case c.Directory == "":
@@ -40,7 +42,6 @@ type CommandClient struct {
 }
 
 func NewCommandClient(ctx context.Context, opts *CommandClientOpts) (*CommandClient, error) {
-	// TODO: refuse to initialize if not marked "Enabled"?
 	if err := opts.OK(); err != nil {
 		return nil, fmt.Errorf("options error for MCP client: %w", err)
 	}
@@ -156,39 +157,33 @@ func (c *CommandClient) Close() error {
 	return nil
 }
 
+// toolAllowed defaults to true unless it is excluded from the explicit allowed list or included in the explicit denied
+// list.
 func (c *CommandClient) toolAllowed(toolName string) bool {
-	// TODO: revisit this? fail open / closed?
 	if c.opts == nil {
-		return true
+		return false
 	}
 
 	if len(c.opts.AllowedTools) > 0 {
-		ok := false
-
 		for _, pattern := range c.opts.AllowedTools {
 			if match, _ := filepath.Match(pattern, toolName); match {
-				ok = true
-				break
+				return true
 			}
 		}
 
-		return ok
+		return false
 	}
 
 	if len(c.opts.DeniedTools) > 0 {
-		ok := true
-
 		for _, denied := range c.opts.DeniedTools {
 			if match, _ := filepath.Match(denied, toolName); match {
-				ok = false
-				break
+				return false
 			}
 		}
 
-		return ok
+		return true
 	}
 
-	// TODO: revisit this? fail open / closed?
 	return true
 }
 
