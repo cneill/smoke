@@ -133,6 +133,8 @@ func (m *Manager) SetTools(tools ...Tool) {
 	defer m.toolMutex.Unlock()
 
 	m.tools = tools
+	m.tools.Sort()
+
 	slog.Debug("set manager tools", "tools", Tools(tools).Names())
 }
 
@@ -141,6 +143,8 @@ func (m *Manager) AddTools(tools ...Tool) {
 	defer m.toolMutex.Unlock()
 
 	m.tools = append(m.tools, tools...)
+	m.tools.Sort()
+
 	slog.Debug("adding manager tools", "tools", Tools(tools).Names())
 }
 

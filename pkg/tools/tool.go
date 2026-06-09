@@ -4,6 +4,8 @@ package tools
 
 import (
 	"context"
+	"slices"
+	"strings"
 
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/elicit"
@@ -36,6 +38,12 @@ func (t Tools) Names() []string {
 	}
 
 	return results
+}
+
+func (t Tools) Sort() {
+	slices.SortFunc(t, func(a, b Tool) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
 }
 
 // Initializer constructs a Tool for the given project/session. It may return an error if the tool cannot be safely
