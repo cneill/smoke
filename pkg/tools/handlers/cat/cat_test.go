@@ -16,7 +16,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tempDir := t.TempDir()
-	readFileTool := &cat.ReadFile{ProjectPath: tempDir}
+	readFileTool := &cat.Cat{ProjectPath: tempDir}
 
 	tests := []struct {
 		name           string
