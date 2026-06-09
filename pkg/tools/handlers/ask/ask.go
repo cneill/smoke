@@ -1,4 +1,4 @@
-package elicit
+package ask
 
 import (
 	"context"
@@ -14,25 +14,25 @@ const (
 	ParamOptions  = "options"
 )
 
-type Elicit struct {
+type Ask struct {
 	manager *elicit.Manager
 }
 
 func New(_, _ string) (tools.Tool, error) {
-	return &Elicit{}, nil
+	return &Ask{}, nil
 }
 
-func (e *Elicit) Name() string { return tools.NameElicit }
+func (a *Ask) Name() string { return tools.NameAsk }
 
-func (e *Elicit) Description() string {
-	examples := tools.CollectExamples(e.Examples()...)
+func (a *Ask) Description() string {
+	examples := tools.CollectExamples(a.Examples()...)
 	description := "Ask the user to choose one of several options or none of the above. " +
 		"Returns structured JSON text with the selection, optional follow-up text, and cancellation state."
 
 	return description + examples
 }
 
-func (e *Elicit) Examples() tools.Examples {
+func (a *Ask) Examples() tools.Examples {
 	return tools.Examples{{
 		Description: "Ask the user to choose a next step from a short list of options.",
 		Args: tools.Args{
@@ -42,7 +42,7 @@ func (e *Elicit) Examples() tools.Examples {
 	}}
 }
 
-func (e *Elicit) Params() tools.Params {
+func (a *Ask) Params() tools.Params {
 	return tools.Params{
 		{
 			Key:         ParamQuestion,
@@ -60,12 +60,12 @@ func (e *Elicit) Params() tools.Params {
 	}
 }
 
-func (e *Elicit) SetElicitManager(manager *elicit.Manager) {
-	e.manager = manager
+func (a *Ask) SetElicitManager(manager *elicit.Manager) {
+	a.manager = manager
 }
 
-func (e *Elicit) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
-	if e.manager == nil {
+func (a *Ask) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
+	if a.manager == nil {
 		return nil, fmt.Errorf("elicit manager not set")
 	}
 
@@ -76,7 +76,7 @@ func (e *Elicit) Run(ctx context.Context, args tools.Args) (*tools.Output, error
 
 	options := args.GetStringSlice(ParamOptions)
 
-	responseChan, err := e.manager.Begin(*question, options)
+	responseChan, err := a.manager.Begin(*question, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin elicit request: %w", err)
 	}

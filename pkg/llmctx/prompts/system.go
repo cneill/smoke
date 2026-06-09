@@ -40,7 +40,7 @@ func SystemPreset() Preset {
 					"that skill."),
 				Pf("To ask a question of the user, consider using the %q tool. You don't have to use it for "+
 					"open-ended questions, but you should tend toward using it and giving suggestions, especially "+
-					"when planning.", tools.NameElicit),
+					"when planning.", tools.NameAsk),
 			},
 			SectionFormatting: {
 				P("ALWAYS use ```[language]\\n...\\n``` Markdown code blocks for code snippets. NEVER RETURN CODE EXAMPLES, CODE " +
