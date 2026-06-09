@@ -14,7 +14,7 @@ const (
 	NameGoPLS            = "go_pls"
 	NameGoTest           = "go_test"
 	NameGrep             = "grep"
-	NameListFiles        = "list_files"
+	NameLS               = "ls"
 	NameMkdir            = "mkdir"
 	NamePlanAdd          = "plan_add"
 	NamePlanCompletion   = "plan_completion"

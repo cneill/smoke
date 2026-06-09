@@ -10,7 +10,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools/handlers/golint"
 	"github.com/cneill/smoke/pkg/tools/handlers/gotest"
 	"github.com/cneill/smoke/pkg/tools/handlers/grep"
-	"github.com/cneill/smoke/pkg/tools/handlers/listfiles"
+	"github.com/cneill/smoke/pkg/tools/handlers/ls"
 	"github.com/cneill/smoke/pkg/tools/handlers/mkdir"
 	planadd "github.com/cneill/smoke/pkg/tools/handlers/plan/add"
 	plancompletion "github.com/cneill/smoke/pkg/tools/handlers/plan/completion"
@@ -32,7 +32,7 @@ func AllTools() []tools.Initializer {
 		golint.New,
 		gotest.New,
 		grep.New,
-		listfiles.New,
+		ls.New,
 		mkdir.New,
 		planadd.New,
 		plancompletion.New,
@@ -60,7 +60,7 @@ func PlanningTools() []tools.Initializer {
 		golint.New,
 		gotest.New,
 		grep.New,
-		listfiles.New,
+		ls.New,
 		planadd.New,
 		plancompletion.New,
 		planread.New,
@@ -78,7 +78,7 @@ func ReviewTools() []tools.Initializer {
 		golint.New,
 		gotest.New,
 		grep.New,
-		listfiles.New,
+		ls.New,
 		planadd.New,
 		plancompletion.New, // TODO: ?
 		planread.New,
