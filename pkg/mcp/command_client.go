@@ -110,9 +110,9 @@ func (c *CommandClient) Tools(ctx context.Context) (tools.Tools, error) {
 		}
 
 		clientTool, err := NewTool(&ToolOpts{
-			MCPTool:       serverTool,
-			MCPSession:    c.session,
-			MCPServerName: c.name,
+			MCPTool:         serverTool,
+			MCPSession:      c.session,
+			MCPServerConfig: c.opts.MCPServer,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("invalid tool for server %q: %w", c.name, err)
