@@ -7,7 +7,6 @@ linters:
     - err113       # annoying - no dynamic errors, forces named errors or wrapping errors
     - exhaustruct  # annoying - forces full struct initializations
     - forbidigo    # annoying
-    - goconst      # annoying, particularly in tests
     - godot        # annoying - ending all comments with periods
     - gomodguard   # deprecated
     - ireturn      # I hate this linter
@@ -26,6 +25,9 @@ linters:
     funlen:
       lines: 80
       ignore-comments: true
+    goconst:
+      min-occurrences: 5
+      ignore-tests: true
     gosec:
       config:
         G302: "0644"
