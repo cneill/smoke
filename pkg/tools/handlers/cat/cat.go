@@ -18,23 +18,23 @@ const (
 	ParamEndLine   = "end_line"
 )
 
-type ReadFile struct {
+type Cat struct {
 	ProjectPath string
 }
 
 func New(projectPath, _ string) (tools.Tool, error) {
-	return &ReadFile{ProjectPath: projectPath}, nil
+	return &Cat{ProjectPath: projectPath}, nil
 }
 
-func (r *ReadFile) Name() string { return tools.NameCat }
-func (r *ReadFile) Description() string {
-	examples := tools.CollectExamples(r.Examples()...)
+func (c *Cat) Name() string { return tools.NameCat }
+func (c *Cat) Description() string {
+	examples := tools.CollectExamples(c.Examples()...)
 
 	return fmt.Sprintf("Read the contents of a file. If you just want to read the whole file, don't include %q/%q.%s",
 		ParamStartLine, ParamEndLine, examples)
 }
 
-func (r *ReadFile) Examples() tools.Examples {
+func (c *Cat) Examples() tools.Examples {
 	return tools.Examples{
 		{
 			Description: `Read the whole "LICENSE" file in the root of the repository`,
@@ -58,7 +58,7 @@ func (r *ReadFile) Examples() tools.Examples {
 	}
 }
 
-func (r *ReadFile) Params() tools.Params {
+func (c *Cat) Params() tools.Params {
 	return tools.Params{
 		{
 			Key:         ParamFilePath,
@@ -81,13 +81,13 @@ func (r *ReadFile) Params() tools.Params {
 	}
 }
 
-func (r *ReadFile) Run(_ context.Context, args tools.Args) (*tools.Output, error) { //nolint:cyclop
+func (c *Cat) Run(_ context.Context, args tools.Args) (*tools.Output, error) { //nolint:cyclop
 	path := args.GetString(ParamFilePath)
 	if path == nil {
 		return nil, fmt.Errorf("%w: no path supplied", tools.ErrArguments)
 	}
 
-	fullPath, err := fs.GetRelativePath(r.ProjectPath, *path)
+	fullPath, err := fs.GetRelativePath(c.ProjectPath, *path)
 	if err != nil {
 		return nil, fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
 	}
