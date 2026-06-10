@@ -4,9 +4,11 @@ package tools
 
 import (
 	"context"
+	"slices"
+	"strings"
 
 	"github.com/cneill/smoke/internal/uimsg"
-	"github.com/cneill/smoke/pkg/elicit"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -38,6 +40,12 @@ func (t Tools) Names() []string {
 	return results
 }
 
+func (t Tools) Sort() {
+	slices.SortFunc(t, func(a, b Tool) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
+}
+
 // Initializer constructs a Tool for the given project/session. It may return an error if the tool cannot be safely
 // constructed (e.g., dependency setup failure).
 type (
@@ -56,11 +64,11 @@ type (
 		SetTeaEmitter(emitter uimsg.TeaEmitter)
 	}
 
-	WantsElicitManager interface {
+	WantsAskManager interface {
 		Tool
 
-		// SetElicitManager provides the session-scoped elicit manager to a tool that needs interactive user input.
-		SetElicitManager(manager *elicit.Manager)
+		// SetAskManager provides the session-scoped ask manager to a tool that needs interactive user input.
+		SetAskManager(manager *ask.Manager)
 	}
 
 	WantsSkillCatalog interface {

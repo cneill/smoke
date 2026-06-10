@@ -13,9 +13,7 @@ import (
 )
 
 type Config struct {
-	// TODO: expose Providers, use the API keys if provided
-	Providers *Providers `json:"-"`
-	MCP       *MCP       `json:"mcp"`
+	MCP *MCP `json:"mcp"`
 }
 
 func (c *Config) OK() error {
@@ -24,12 +22,6 @@ func (c *Config) OK() error {
 	}
 
 	return nil
-}
-
-type Providers struct {
-	AnthropicKey string `json:"anthropic_key"`
-	OpenAIKey    string `json:"openai_key"`
-	XAIKey       string `json:"xai_key"`
 }
 
 type MCP struct {
@@ -69,8 +61,10 @@ type MCPServer struct {
 	PlanTools []string `json:"plan_tools"`
 	// Env contains environment variables that will be set for the command's process.
 	Env []Env `json:"env"`
-	// Type?
-	// Directory?
+	// NoNamespace disables the prefixing with "[MCPServer.Name]_" on all tool names
+	NoNamespace bool `json:"no_namespace"`
+	// TODO: Type?
+	// TODO: Directory?
 }
 
 type Env struct {
@@ -85,7 +79,7 @@ func (m *MCPServer) OK() error {
 	case m.Command == "":
 		return fmt.Errorf("missing command")
 	case len(m.AllowedTools) > 0 && len(m.DeniedTools) > 0:
-		return fmt.Errorf("must specify options in either allowed_tools OR denied_tools")
+		return fmt.Errorf("must specify either allowed_tools OR denied_tools, not both")
 	}
 
 	// Ensure that we don't have any malformed patterns in the allowed/denied tools globs
@@ -109,7 +103,6 @@ func (m *MCPServer) OK() error {
 
 func DefaultConfig() *Config {
 	return &Config{
-		Providers: &Providers{},
 		MCP: &MCP{
 			Servers: []*MCPServer{
 				{

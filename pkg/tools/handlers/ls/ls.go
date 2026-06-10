@@ -1,10 +1,9 @@
-package listfiles
+package ls
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"github.com/cneill/smoke/pkg/files"
@@ -12,38 +11,38 @@ import (
 )
 
 const (
-	ParamPath = "path"
+	ParamDirPath = "dir_path"
 )
 
-type ListFiles struct {
+type LS struct {
 	ProjectPath string
 }
 
 func New(projectPath, _ string) (tools.Tool, error) {
-	return &ListFiles{ProjectPath: projectPath}, nil
+	return &LS{ProjectPath: projectPath}, nil
 }
 
-func (l *ListFiles) Name() string { return tools.NameListFiles }
-func (l *ListFiles) Description() string {
+func (l *LS) Name() string { return tools.NameLS }
+func (l *LS) Description() string {
 	examples := tools.CollectExamples(l.Examples()...)
 
 	return fmt.Sprintf("List files in the directory %q recursively, with file mode + size info.%s",
-		ParamPath, examples)
+		ParamDirPath, examples)
 }
 
-func (l *ListFiles) Examples() tools.Examples {
+func (l *LS) Examples() tools.Examples {
 	return tools.Examples{
 		{
 			Description: `List all files in the "pkg/models" directory recursively`,
-			Args:        tools.Args{ParamPath: "pkg/models"},
+			Args:        tools.Args{ParamDirPath: "pkg/models"},
 		},
 	}
 }
 
-func (l *ListFiles) Params() tools.Params {
+func (l *LS) Params() tools.Params {
 	return tools.Params{
 		{
-			Key:         ParamPath,
+			Key:         ParamDirPath,
 			Description: "The path to the directory where you want to list files",
 			Type:        "string",
 			Required:    true,
@@ -52,8 +51,8 @@ func (l *ListFiles) Params() tools.Params {
 }
 
 // Run expects a directory 'dir' that exists within ProjectPath ("." for top-level listing).
-func (l *ListFiles) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
-	path := args.GetString(ParamPath)
+func (l *LS) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
+	path := args.GetString(ParamDirPath)
 	if path == nil {
 		return nil, fmt.Errorf("no path supplied")
 	}
@@ -63,7 +62,9 @@ func (l *ListFiles) Run(_ context.Context, args tools.Args) (*tools.Output, erro
 		return nil, fmt.Errorf("path error: %w", err)
 	}
 
-	builder := strings.Builder{}
+	// TODO: check for non-directory, symlink/escape/etc when fs rewritten
+
+	var sb strings.Builder
 
 	iter, err := files.ExcludesWalker(l.ProjectPath, fullPath)
 	if err != nil {
@@ -81,20 +82,10 @@ func (l *ListFiles) Run(_ context.Context, args tools.Args) (*tools.Output, erro
 			return nil, fmt.Errorf("failed to get info about path %q: %w", entry.RelPath, err)
 		}
 
-		if _, err := builder.WriteString("[" + info.Mode().String() + "] "); err != nil {
-			return nil, fmt.Errorf("failed to add file mode: %w", err)
-		}
-
-		if _, err := builder.WriteString(strconv.FormatInt(info.Size(), 10) + "B "); err != nil {
-			return nil, fmt.Errorf("failed to add file size: %w", err)
-		}
-
-		if _, err := builder.WriteString("/" + entry.RelPath + "\n"); err != nil {
-			return nil, fmt.Errorf("failed to add path: %w", err)
-		}
+		fmt.Fprintf(&sb, "[%s] %dB %s\n", info.Mode().String(), info.Size(), entry.RelPath)
 	}
 
-	content := builder.String()
+	content := sb.String()
 	if strings.TrimSpace(content) == "" {
 		content = fmt.Sprintf("Provided path %q is empty.", *path)
 	}

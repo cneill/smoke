@@ -25,6 +25,9 @@ linters:
     funlen:
       lines: 80
       ignore-comments: true
+    goconst:
+      min-occurrences: 5
+      ignore-tests: true
     gosec:
       config:
         G302: "0644"

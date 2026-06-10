@@ -78,7 +78,7 @@ func (p *PlanAdd) Examples() tools.Examples { //nolint:funlen
 			Args: tools.Args{
 				ParamTasks: []tools.Args{
 					{
-						ParamTasksID: "vendor_error_handling",
+						ParamTasksID: "vendor_error_handling", //nolint:goconst
 						ParamTasksContent: "Improve the error-handling for the VendorClient struct in the vendor " +
 							"package by using named errors to make it more testable and consistent.",
 					},
@@ -193,7 +193,7 @@ func (p *PlanAdd) Examples() tools.Examples { //nolint:funlen
 			Args: tools.Args{
 				ParamTasks: []tools.Args{
 					{
-						ParamTasksID:      "implement_rate_limiting",
+						ParamTasksID:      "implement_rate_limiting", //nolint:goconst
 						ParamTasksContent: "Add rate limiting to the API endpoints to prevent abuse",
 					},
 				},
@@ -253,7 +253,8 @@ func (p *PlanAdd) Params() tools.Params { //nolint:funlen
 					Key: ParamTasksID,
 					Description: fmt.Sprintf(
 						"A short, unique identifier for this task. Can be used to link sub-tasks with %q",
-						ParamTasksParentID),
+						ParamTasksParentID,
+					),
 					Type:     tools.ParamTypeString,
 					Required: true,
 				},
@@ -296,7 +297,8 @@ func (p *PlanAdd) Params() tools.Params { //nolint:funlen
 							"or external service. %q is a constraint imposed either by the user or the underlying "+
 							"codebase. %q is something that is commonly used by other similar parts of the code.",
 						plan.ContextTypeCode, tools.NameReadFile, plan.ContextTypeDecision, plan.ContextTypeReference,
-						plan.ContextTypeConstraint, plan.ContextTypeConvention),
+						plan.ContextTypeConstraint, plan.ContextTypeConvention,
+					),
 					Type: tools.ParamTypeString,
 					EnumStringValues: utils.ToStrings([]plan.ContextType{
 						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeDecision,

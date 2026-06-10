@@ -52,8 +52,8 @@ func (r *Renderer) RenderBubble(bubble Bubble) string {
 	return sb.String()
 }
 
-// TODO: stop tossing this between bubble creation and renderer - handle in one place
 func (r *Renderer) Styles() Styles {
+	// TODO: stop tossing this between bubble creation and renderer - handle in one place
 	return r.styles
 }
 
@@ -61,6 +61,8 @@ func (r *Renderer) renderBubbleContent(content BubbleContent) string {
 	contentWidth := r.contentWidth()
 
 	switch content.kind {
+	case bubbleContentEmpty:
+		return ""
 	case bubbleContentStructured:
 		return r.renderStructuredHistoryContent(content.structured, contentWidth)
 	case bubbleContentMarkdown:

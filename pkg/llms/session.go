@@ -139,9 +139,9 @@ func (s *Session) LastByRole(role Role) *Message {
 	s.messageMutex.RLock()
 	defer s.messageMutex.RUnlock()
 
-	for idx := len(s.Messages) - 1; idx >= 0; idx-- {
-		if s.Messages[idx].Role == role {
-			return s.Messages[idx]
+	for _, msg := range slices.Backward(s.Messages) {
+		if msg.Role == role {
+			return msg
 		}
 	}
 
@@ -155,13 +155,13 @@ func (s *Session) LastRunByRole(role Role) []*Message {
 
 	results := make([]*Message, 0, len(s.Messages))
 
-	for idx := len(s.Messages) - 1; idx >= 0; idx-- {
-		if len(results) > 0 && s.Messages[idx].Role != role {
+	for _, msg := range slices.Backward(s.Messages) {
+		if len(results) > 0 && msg.Role != role {
 			break
 		}
 
-		if s.Messages[idx].Role == role {
-			results = append(results, s.Messages[idx])
+		if msg.Role == role {
+			results = append(results, msg)
 		}
 	}
 

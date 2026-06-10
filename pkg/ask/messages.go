@@ -1,4 +1,4 @@
-package elicit
+package ask
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 )
 
 type Message interface {
-	isElicitMessage()
+	isAskMessage()
 }
 
 // RequestMessage contains the details of the question asked by the model.
@@ -47,23 +47,23 @@ func (r RequestMessage) String() string {
 	return builder.String()
 }
 
-func (r RequestMessage) isElicitMessage() {}
+func (r RequestMessage) isAskMessage() {}
 
-// UserInputMessage contains the raw content submitted by the user to answer an elicited question.
+// UserInputMessage contains the raw content submitted by the user to answer an asked question.
 type UserInputMessage struct {
 	Content string
 }
 
-func (u UserInputMessage) isElicitMessage() {}
+func (u UserInputMessage) isAskMessage() {}
 
-// UserCanceledMessage signals that the user cancelled the elicitation.
+// UserCanceledMessage signals that the user cancelled the ask request.
 type UserCanceledMessage struct{}
 
 func (u UserCanceledMessage) String() string {
-	return "User canceled elicitation request"
+	return "User canceled ask request"
 }
 
-func (u UserCanceledMessage) isElicitMessage() {}
+func (u UserCanceledMessage) isAskMessage() {}
 
 // UserResponseMessage wraps the Response parsed from the user's input.
 type UserResponseMessage struct {
@@ -91,4 +91,4 @@ func (u UserResponseMessage) String() string {
 	return str
 }
 
-func (u UserResponseMessage) isElicitMessage() {}
+func (u UserResponseMessage) isAskMessage() {}

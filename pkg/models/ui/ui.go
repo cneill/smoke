@@ -13,12 +13,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/edit"
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
 	"github.com/cneill/smoke/pkg/commands/handlers/rank"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
-	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
@@ -112,7 +112,7 @@ func (m *Model) Init() tea.Cmd {
 	return cmds
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop
 	cmds := []tea.Cmd{}
 
 	inputModel, inputCmd := m.input.Update(msg)
@@ -137,8 +137,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		lineHeight := m.input.LineHeight()
 		m.history.Resize(msg.Width, msg.Height-(lineHeight+1)) // +1 for the border
 		m.input.Resize(msg.Width, lineHeight)
-
-		// m.resize(msg)
 	case tea.KeyMsg:
 		switch msg.Type { //nolint:exhaustive,gocritic
 		case tea.KeyCtrlC:
@@ -150,8 +148,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.handleCommandMessage(msg))
 	case smoke.Message:
 		cmds = append(cmds, m.handleSmokeMessage(msg))
-	case elicit.Message:
-		cmds = append(cmds, m.handleElicitMessage(msg))
+	case ask.Message:
+		cmds = append(cmds, m.handleAskMessage(msg))
 	case *uimsg.Error:
 		slog.Error("got raw error in ui event loop", "err", msg.Err)
 		cmds = append(cmds, updateHistory(msg))
@@ -221,32 +219,32 @@ func (m *Model) handleSmokeMessage(msg smoke.Message) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (m *Model) handleElicitMessage(msg elicit.Message) tea.Cmd {
+func (m *Model) handleAskMessage(msg ask.Message) tea.Cmd {
 	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {
-	case elicit.RequestMessage:
+	case ask.RequestMessage:
 		cmds = append(cmds, m.input.SetWaiting(false))
 		cmds = append(cmds, updateHistory(msg))
 
-		m.input.BeginElicit()
-	case elicit.UserInputMessage:
-		response, err := m.smoke.HandleElicitUserInput(msg)
+		m.input.BeginAsk()
+	case ask.UserInputMessage:
+		response, err := m.smoke.HandleAskUserInput(msg)
 		if err != nil {
 			cmds = append(cmds, updateHistory(err))
 			break
 		}
 
-		m.input.ClearElicit()
+		m.input.ClearAsk()
 		cmds = append(cmds, m.input.SetWaiting(true))
 		cmds = append(cmds, updateHistory(response))
-	case elicit.UserCanceledMessage:
-		if err := m.smoke.CancelElicit(); err != nil {
+	case ask.UserCanceledMessage:
+		if err := m.smoke.CancelAsk(); err != nil {
 			cmds = append(cmds, updateHistory(err))
 			break
 		}
 
-		m.input.ClearElicit()
+		m.input.ClearAsk()
 		cmds = append(cmds, m.input.SetWaiting(true))
 		cmds = append(cmds, updateHistory(msg))
 	}
@@ -287,7 +285,7 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 }
 
 // Handle messages from prompt command handlers.
-func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd {
+func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd { //nolint:cyclop,funlen
 	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {

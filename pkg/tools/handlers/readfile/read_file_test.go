@@ -46,7 +46,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "invalid_path",
 			initContent: "test",
 			args: tools.Args{
-				readfile.ParamPath: "garbage.txt",
+				readfile.ParamFilePath: "garbage.txt",
 			},
 			expectedOutput: "",
 			err:            tools.ErrFileSystem,
@@ -55,7 +55,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "invalid_start",
 			initContent: "test",
 			args: tools.Args{
-				readfile.ParamPath:      "invalid_start_test.txt",
+				readfile.ParamFilePath:  "invalid_start_test.txt",
 				readfile.ParamStartLine: -1,
 			},
 			expectedOutput: "",
@@ -65,8 +65,8 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "invalid_end",
 			initContent: "test",
 			args: tools.Args{
-				readfile.ParamPath:    "invalid_end_test.txt",
-				readfile.ParamEndLine: -1,
+				readfile.ParamFilePath: "invalid_end_test.txt",
+				readfile.ParamEndLine:  -1,
 			},
 			expectedOutput: "",
 			err:            tools.ErrArguments,
@@ -75,7 +75,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "end_before_start",
 			initContent: "test",
 			args: tools.Args{
-				readfile.ParamPath:      "end_before_start.txt",
+				readfile.ParamFilePath:  "end_before_start.txt",
 				readfile.ParamStartLine: 2,
 				readfile.ParamEndLine:   1,
 			},
@@ -86,7 +86,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "start_beyond_eof",
 			initContent: "test1\ntest2\n",
 			args: tools.Args{
-				readfile.ParamPath:      "start_beyond_eof_test.txt",
+				readfile.ParamFilePath:  "start_beyond_eof_test.txt",
 				readfile.ParamStartLine: 4,
 				readfile.ParamEndLine:   6,
 			},
@@ -97,7 +97,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "end_at_eof",
 			initContent: "test1\ntest2",
 			args: tools.Args{
-				readfile.ParamPath:      "end_at_eof_test.txt",
+				readfile.ParamFilePath:  "end_at_eof_test.txt",
 				readfile.ParamStartLine: 1,
 				readfile.ParamEndLine:   2,
 			},
@@ -108,7 +108,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "end_beyond_eof",
 			initContent: "test1\ntest2",
 			args: tools.Args{
-				readfile.ParamPath:      "end_beyond_eof_test.txt",
+				readfile.ParamFilePath:  "end_beyond_eof_test.txt",
 				readfile.ParamStartLine: 1,
 				readfile.ParamEndLine:   4,
 			},
@@ -119,7 +119,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "binary_content",
 			initContent: "\x00\x01\x02\x03\x00",
 			args: tools.Args{
-				readfile.ParamPath: "binary_content_test.txt",
+				readfile.ParamFilePath: "binary_content_test.txt",
 			},
 			expectedOutput: "[binary content]",
 			err:            nil,
@@ -128,7 +128,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "full_file",
 			initContent: "test1\ntest2",
 			args: tools.Args{
-				readfile.ParamPath: "full_file_test.txt",
+				readfile.ParamFilePath: "full_file_test.txt",
 			},
 			expectedOutput: "1: test1\n2: test2\n",
 			err:            nil,
@@ -137,7 +137,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "single_line",
 			initContent: "test1\ntest2\ntest3",
 			args: tools.Args{
-				readfile.ParamPath:      "single_line_test.txt",
+				readfile.ParamFilePath:  "single_line_test.txt",
 				readfile.ParamStartLine: 2,
 				readfile.ParamEndLine:   2,
 			},
@@ -148,7 +148,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "line_num_width",
 			initContent: strings.Repeat("test\n", 20),
 			args: tools.Args{
-				readfile.ParamPath:      "line_num_width_test.txt",
+				readfile.ParamFilePath:  "line_num_width_test.txt",
 				readfile.ParamStartLine: 9,
 				readfile.ParamEndLine:   11,
 			},
@@ -159,7 +159,7 @@ func TestReadFileTool_Run(t *testing.T) { //nolint:funlen
 			name:        "no_end",
 			initContent: "test1\ntest2\ntest3\n",
 			args: tools.Args{
-				readfile.ParamPath:      "no_end_test.txt",
+				readfile.ParamFilePath:  "no_end_test.txt",
 				readfile.ParamStartLine: 2,
 			},
 			expectedOutput: "2: test2\n3: test3\n",

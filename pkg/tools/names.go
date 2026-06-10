@@ -2,9 +2,9 @@ package tools
 
 const (
 	NameActivateSkill    = "activate_skill"
+	NameAsk              = "ask"
 	NameDDG              = "duck_duck_go"
 	NameEdit             = "edit"
-	NameElicit           = "elicit"
 	NameEditPlan         = "edit_plan"
 	NameGitDiff          = "git_diff"
 	NameGoAST            = "go_ast"
@@ -14,7 +14,7 @@ const (
 	NameGoPLS            = "go_pls"
 	NameGoTest           = "go_test"
 	NameGrep             = "grep"
-	NameListFiles        = "list_files"
+	NameLS               = "ls"
 	NameMkdir            = "mkdir"
 	NamePlanAdd          = "plan_add"
 	NamePlanCompletion   = "plan_completion"
