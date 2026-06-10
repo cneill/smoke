@@ -20,12 +20,12 @@ type Styles struct {
 	SystemBubble    BubbleStyle
 
 	// Other message styles
-	CommandBubble        BubbleStyle
-	ErrorBubble          BubbleStyle
-	UnknownBubble        BubbleStyle
-	SessionBubble        BubbleStyle
-	ElicitBubble         BubbleStyle
-	ElicitCanceledBubble BubbleStyle
+	CommandBubble     BubbleStyle
+	ErrorBubble       BubbleStyle
+	UnknownBubble     BubbleStyle
+	SessionBubble     BubbleStyle
+	AskBubble         BubbleStyle
+	AskCanceledBubble BubbleStyle
 }
 
 type CommandContentStyles struct {
@@ -127,13 +127,13 @@ func InitStyles(width int) Styles { //nolint:funlen
 			Subtitle:  base.Subtitle,
 			Content:   base.Content,
 		},
-		ElicitBubble: BubbleStyle{
+		AskBubble: BubbleStyle{
 			Container: base.Container,
 			Title:     base.Title.Foreground(lipgloss.Color("#afaf00")),
 			Subtitle:  base.Subtitle,
 			Content:   base.Content,
 		},
-		ElicitCanceledBubble: BubbleStyle{
+		AskCanceledBubble: BubbleStyle{
 			Container: base.Container,
 			Title:     base.Title.Foreground(lipgloss.Color("#ff0000")),
 			Subtitle:  base.Subtitle,

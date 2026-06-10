@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/cneill/smoke/internal/uimsg"
-	"github.com/cneill/smoke/pkg/elicit"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/plan"
 )
@@ -18,7 +18,7 @@ type ManagerOpts struct {
 	ToolInitializers []Initializer
 	PlanManager      *plan.Manager
 	SkillCatalog     skills.Catalog
-	ElicitManager    *elicit.Manager
+	AskManager       *ask.Manager
 }
 
 func (m *ManagerOpts) OK() error {
@@ -39,12 +39,12 @@ type Manager struct {
 	ProjectPath string
 	SessionName string
 
-	initializers  []Initializer
-	tools         Tools
-	toolMutex     sync.RWMutex
-	planManager   *plan.Manager
-	skillCatalog  skills.Catalog
-	elicitManager *elicit.Manager
+	initializers []Initializer
+	tools        Tools
+	toolMutex    sync.RWMutex
+	planManager  *plan.Manager
+	skillCatalog skills.Catalog
+	askManager   *ask.Manager
 
 	teaEmitter uimsg.TeaEmitter
 }
@@ -59,11 +59,11 @@ func NewManager(opts *ManagerOpts) (*Manager, error) {
 		ProjectPath: opts.ProjectPath,
 		SessionName: opts.SessionName,
 
-		initializers:  opts.ToolInitializers,
-		toolMutex:     sync.RWMutex{},
-		planManager:   opts.PlanManager,
-		skillCatalog:  opts.SkillCatalog,
-		elicitManager: opts.ElicitManager,
+		initializers: opts.ToolInitializers,
+		toolMutex:    sync.RWMutex{},
+		planManager:  opts.PlanManager,
+		skillCatalog: opts.SkillCatalog,
+		askManager:   opts.AskManager,
 	}
 
 	if opts.ToolInitializers != nil {
@@ -116,8 +116,8 @@ func (m *Manager) InitTools(initializers ...Initializer) Tools {
 			wsc.SetSkillCatalog(m.skillCatalog)
 		}
 
-		if wem, ok := tool.(WantsElicitManager); ok && m.elicitManager != nil {
-			wem.SetElicitManager(m.elicitManager)
+		if wam, ok := tool.(WantsAskManager); ok && m.askManager != nil {
+			wam.SetAskManager(m.askManager)
 		}
 
 		tools = append(tools, tool)
@@ -133,6 +133,8 @@ func (m *Manager) SetTools(tools ...Tool) {
 	defer m.toolMutex.Unlock()
 
 	m.tools = tools
+	m.tools.Sort()
+
 	slog.Debug("set manager tools", "tools", Tools(tools).Names())
 }
 
@@ -141,6 +143,8 @@ func (m *Manager) AddTools(tools ...Tool) {
 	defer m.toolMutex.Unlock()
 
 	m.tools = append(m.tools, tools...)
+	m.tools.Sort()
+
 	slog.Debug("adding manager tools", "tools", Tools(tools).Names())
 }
 

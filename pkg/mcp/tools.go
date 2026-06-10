@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -23,9 +24,9 @@ type Tool struct {
 }
 
 type ToolOpts struct {
-	MCPTool       *mcp.Tool
-	MCPSession    *mcp.ClientSession
-	MCPServerName string
+	MCPTool         *mcp.Tool
+	MCPSession      *mcp.ClientSession
+	MCPServerConfig *config.MCPServer
 }
 
 func (t *ToolOpts) OK() error {
@@ -34,8 +35,8 @@ func (t *ToolOpts) OK() error {
 		return fmt.Errorf("missing MCP tool")
 	case t.MCPSession == nil:
 		return fmt.Errorf("missing MCP session")
-	case t.MCPServerName == "":
-		return fmt.Errorf("missing MCP server name")
+	case t.MCPServerConfig == nil:
+		return fmt.Errorf("missing MCP server config")
 	}
 
 	return nil
@@ -56,9 +57,14 @@ func NewTool(opts *ToolOpts) (*Tool, error) {
 		return nil, fmt.Errorf("invalid JSON schema: %w", err)
 	}
 
+	fullName := opts.MCPServerConfig.Name + "_" + opts.MCPTool.Name
+	if opts.MCPServerConfig.NoNamespace {
+		fullName = opts.MCPTool.Name
+	}
+
 	tool := &Tool{
-		fullName:   opts.MCPServerName + "_" + opts.MCPTool.Name,
-		clientName: opts.MCPServerName,
+		fullName:   fullName,
+		clientName: opts.MCPServerConfig.Name,
 		toolName:   opts.MCPTool.Name,
 		session:    opts.MCPSession,
 		underlying: opts.MCPTool,

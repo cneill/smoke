@@ -20,7 +20,7 @@ func (s *Smoke) NewToolManager(ctx context.Context, mode modes.Mode) (*tools.Man
 		ToolInitializers: initializers,
 		PlanManager:      s.planManager,
 		SkillCatalog:     s.skillCatalog,
-		ElicitManager:    s.elicitManager,
+		AskManager:       s.askManager,
 	}
 
 	toolManager, err := tools.NewManager(toolOpts)

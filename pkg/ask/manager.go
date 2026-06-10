@@ -1,4 +1,4 @@
-package elicit
+package ask
 
 import (
 	"fmt"
@@ -50,7 +50,7 @@ func (m *Manager) Begin(question string, options []string) (<-chan *Response, er
 	defer m.mu.Unlock()
 
 	if m.pending != nil {
-		return nil, fmt.Errorf("elicit request already pending")
+		return nil, fmt.Errorf("ask request already pending")
 	}
 
 	pending := &pendingRequest{
@@ -80,7 +80,7 @@ func (m *Manager) ActiveRequest() (RequestMessage, bool) {
 func (m *Manager) ParseUserInput(msg UserInputMessage) (*Response, error) {
 	request, ok := m.ActiveRequest()
 	if !ok {
-		return nil, fmt.Errorf("no active elicit request to answer")
+		return nil, fmt.Errorf("no active ask request to answer")
 	}
 
 	numOptions := len(request.Options)
@@ -116,7 +116,7 @@ func (m *Manager) Complete(response *Response) error {
 	defer m.mu.Unlock()
 
 	if m.pending == nil {
-		return fmt.Errorf("no active elicit request")
+		return fmt.Errorf("no active ask request")
 	}
 
 	m.pending.responseChan <- response
@@ -131,7 +131,7 @@ func (m *Manager) Cancel() error {
 	defer m.mu.Unlock()
 
 	if m.pending == nil {
-		return fmt.Errorf("no active elicit request")
+		return fmt.Errorf("no active ask request")
 	}
 
 	m.pending.responseChan <- &Response{Canceled: true}

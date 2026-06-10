@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
-	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/history"
 	"github.com/stretchr/testify/assert"
@@ -104,8 +104,8 @@ func bubbleForHistoryItemTests(now time.Time) []bubbleExpectation { //nolint:fun
 			contentEmpty: true,
 		},
 		{
-			name:      "elicit request",
-			item:      elicit.RequestMessage{Question: "Proceed?", Options: []string{"Yes"}},
+			name:      "ask request",
+			item:      ask.RequestMessage{Question: "Proceed?", Options: []string{"Yes"}},
 			wantTitle: "Question",
 			wantText:  "Proceed?\n\n1. Yes\nnone. None of the above",
 		},

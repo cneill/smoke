@@ -59,8 +59,10 @@ type MCPServer struct {
 	PlanTools []string `json:"plan_tools"`
 	// Env contains environment variables that will be set for the command's process.
 	Env []Env `json:"env"`
-	// Type?
-	// Directory?
+	// NoNamespace disables the prefixing with "[MCPServer.Name]_" on all tool names
+	NoNamespace bool `json:"no_namespace"`
+	// TODO: Type?
+	// TODO: Directory?
 }
 
 type Env struct {
