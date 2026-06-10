@@ -26,7 +26,7 @@ func (a *Ask) Name() string { return tools.NameAsk }
 
 func (a *Ask) Description() string {
 	examples := tools.CollectExamples(a.Examples()...)
-	description := "Ask the user to choose one of several options or none of the above. " +
+	description := "Ask the user to choose one of several options (max 5) or none of the above. " +
 		"Returns structured JSON text with the selection, optional follow-up text, and cancellation state."
 
 	return description + examples
