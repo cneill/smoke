@@ -13,9 +13,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/config"
-	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llmctx/agentsmd"
 	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
@@ -48,11 +48,11 @@ type Smoke struct {
 
 	teaEmitter uimsg.TeaEmitter
 
-	commands      *commands.Manager
-	llmConfig     *llms.Config
-	llm           llms.LLM
-	mcpClients    []*mcp.CommandClient
-	elicitManager *elicit.Manager
+	commands   *commands.Manager
+	llmConfig  *llms.Config
+	llm        llms.LLM
+	mcpClients []*mcp.CommandClient
+	askManager *ask.Manager
 }
 
 func (s *Smoke) OK() error {
@@ -292,35 +292,35 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 	}
 }
 
-// HandleElicitUserInput takes the raw message sent by the user in response to an elicitation request, parses the
-// selected option (or N/A) from it, forwards the message back to the waiting elicit Tool via elicitManager, and returns
-// UserResponseMessage with the parsed Response back to the UI to be rendered in the history.
-func (s *Smoke) HandleElicitUserInput(msg elicit.UserInputMessage) (elicit.UserResponseMessage, error) {
-	var responseMsg elicit.UserResponseMessage
+// HandleAskUserInput takes the raw message sent by the user in response to an ask request, parses the selected option
+// (or N/A) from it, forwards the message back to the waiting ask Tool via askManager, and returns UserResponseMessage
+// with the parsed Response back to the UI to be rendered in the history.
+func (s *Smoke) HandleAskUserInput(msg ask.UserInputMessage) (ask.UserResponseMessage, error) {
+	var responseMsg ask.UserResponseMessage
 
-	if s.elicitManager == nil {
-		return responseMsg, fmt.Errorf("elicit manager not available")
+	if s.askManager == nil {
+		return responseMsg, fmt.Errorf("ask manager not available")
 	}
 
-	response, err := s.elicitManager.ParseUserInput(msg)
+	response, err := s.askManager.ParseUserInput(msg)
 	if err != nil {
-		return responseMsg, fmt.Errorf("failed to handle user elicit response: %w", err)
+		return responseMsg, fmt.Errorf("failed to handle user ask response: %w", err)
 	}
 
-	if err := s.elicitManager.Complete(response); err != nil {
-		return responseMsg, fmt.Errorf("failed to complete elicit request: %w", err)
+	if err := s.askManager.Complete(response); err != nil {
+		return responseMsg, fmt.Errorf("failed to complete ask request: %w", err)
 	}
 
-	return elicit.UserResponseMessage{Response: response}, nil
+	return ask.UserResponseMessage{Response: response}, nil
 }
 
-func (s *Smoke) CancelElicit() error {
-	if s.elicitManager == nil {
-		return fmt.Errorf("elicit manager not available")
+func (s *Smoke) CancelAsk() error {
+	if s.askManager == nil {
+		return fmt.Errorf("ask manager not available")
 	}
 
-	if err := s.elicitManager.Cancel(); err != nil {
-		return fmt.Errorf("failed to cancel elicit request: %w", err)
+	if err := s.askManager.Cancel(); err != nil {
+		return fmt.Errorf("failed to cancel ask request: %w", err)
 	}
 
 	return nil

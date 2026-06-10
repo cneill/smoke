@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"github.com/cneill/smoke/pkg/tools"
+	"github.com/cneill/smoke/pkg/tools/handlers/ask"
 	"github.com/cneill/smoke/pkg/tools/handlers/cat"
 	"github.com/cneill/smoke/pkg/tools/handlers/edit"
-	"github.com/cneill/smoke/pkg/tools/handlers/elicit"
 	gitdiff "github.com/cneill/smoke/pkg/tools/handlers/git/diff"
 	"github.com/cneill/smoke/pkg/tools/handlers/gofumpt"
 	"github.com/cneill/smoke/pkg/tools/handlers/goimports"
@@ -24,10 +24,10 @@ import (
 func AllTools() []tools.Initializer {
 	return []tools.Initializer{
 		activate_skill.New,
+		ask.New,
 		cat.New,
 		// ddg.New,
 		edit.New,
-		elicit.New,
 		gitdiff.New,
 		gofumpt.New,
 		goimports.New,
@@ -55,9 +55,9 @@ func WorkTools() []tools.Initializer {
 func PlanningTools() []tools.Initializer {
 	return []tools.Initializer{
 		activate_skill.New,
+		ask.New,
 		cat.New,
 		// ddg.New,
-		elicit.New,
 		gitdiff.New,
 		golint.New,
 		gotest.New,
@@ -73,9 +73,9 @@ func PlanningTools() []tools.Initializer {
 func ReviewTools() []tools.Initializer {
 	return []tools.Initializer{
 		activate_skill.New,
+		ask.New,
 		cat.New,
 		// ddg.New,
-		elicit.New,
 		gitdiff.New,
 		golint.New,
 		gotest.New,

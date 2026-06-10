@@ -12,8 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
-	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/models/statusline"
 	"github.com/mattn/go-runewidth"
 )
@@ -52,7 +52,7 @@ func (o *Opts) OK() error {
 const (
 	insertPrompt = "➜ "
 	normalPrompt = "█ "
-	elicitPrompt = "? "
+	askPrompt    = "? "
 )
 
 type mode int
@@ -74,7 +74,7 @@ type Model struct {
 	lastD    time.Time
 
 	completionState *CompletionState
-	elicitActive    bool
+	askActive       bool
 
 	// Manages the full history of text submissions (LLM messages, prompt commands, etc) by the user for history
 	// scrolling purposes *only*
@@ -253,17 +253,17 @@ func (m *Model) Focused() bool {
 
 func (m *Model) Waiting() bool { return m.waiting }
 
-func (m *Model) BeginElicit() {
-	m.elicitActive = true
+func (m *Model) BeginAsk() {
+	m.askActive = true
 	m.setInputMode(modeInsert)
 	m.textarea.Focus()
 	m.statusline.SetFocus(true)
-	m.textarea.Prompt = elicitPrompt
+	m.textarea.Prompt = askPrompt
 	m.completionState.Reset()
 }
 
-func (m *Model) ClearElicit() {
-	m.elicitActive = false
+func (m *Model) ClearAsk() {
+	m.askActive = false
 	m.setInputMode(modeInsert)
 }
 
@@ -299,13 +299,13 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
 			return m.handleContentSubmit()
 		}
 	case tea.KeyEsc:
-		// check if the user is currently in the process of answering a question from the elicit tool
+		// check if the user is currently in the process of answering a question from the ask tool
 		// TODO: figure out if this should override VIM/scroll switching - may be annoying
-		if m.elicitActive && m.Focused() && m.mode == modeInsert {
+		if m.askActive && m.Focused() && m.mode == modeInsert {
 			m.textarea.Reset()
-			m.ClearElicit()
+			m.ClearAsk()
 
-			return uimsg.MsgToCmd(elicit.UserCanceledMessage{})
+			return uimsg.MsgToCmd(ask.UserCanceledMessage{})
 		}
 
 		if !m.Focused() {
@@ -442,8 +442,8 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 
 	switch {
 	// user is answering a question
-	case m.elicitActive:
-		return uimsg.MsgToCmd(elicit.UserInputMessage{Content: content})
+	case m.askActive:
+		return uimsg.MsgToCmd(ask.UserInputMessage{Content: content})
 	// user has sent a prompt command like "/help"
 	case strings.HasPrefix(content, "/"):
 		return m.handlePromptCommand(content)

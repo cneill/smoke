@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cneill/smoke/pkg/elicit"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -15,7 +15,7 @@ const (
 )
 
 type Ask struct {
-	manager *elicit.Manager
+	manager *ask.Manager
 }
 
 func New(_, _ string) (tools.Tool, error) {
@@ -60,13 +60,13 @@ func (a *Ask) Params() tools.Params {
 	}
 }
 
-func (a *Ask) SetElicitManager(manager *elicit.Manager) {
+func (a *Ask) SetAskManager(manager *ask.Manager) {
 	a.manager = manager
 }
 
 func (a *Ask) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
 	if a.manager == nil {
-		return nil, fmt.Errorf("elicit manager not set")
+		return nil, fmt.Errorf("ask manager not set")
 	}
 
 	question := args.GetString(ParamQuestion)
@@ -78,16 +78,16 @@ func (a *Ask) Run(ctx context.Context, args tools.Args) (*tools.Output, error) {
 
 	responseChan, err := a.manager.Begin(*question, options)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin elicit request: %w", err)
+		return nil, fmt.Errorf("failed to begin ask request: %w", err)
 	}
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("elicit canceled: %w", ctx.Err())
+		return nil, fmt.Errorf("ask canceled: %w", ctx.Err())
 	case res := <-responseChan:
 		payload, err := json.Marshal(res)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal elicit result: %w", err)
+			return nil, fmt.Errorf("failed to marshal ask result: %w", err)
 		}
 
 		return &tools.Output{Text: string(payload)}, nil

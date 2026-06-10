@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
 	cmdhandlers "github.com/cneill/smoke/pkg/commands/handlers"
-	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llmctx/agentsmd"
 	"github.com/cneill/smoke/pkg/llmctx/modes"
@@ -37,7 +37,7 @@ func (s *Smoke) setup(ctx context.Context) error {
 		return fmt.Errorf("failed to set up LLM: %w", err)
 	}
 
-	s.setupElicitManager()
+	s.setupAskManager()
 
 	if err := s.setupMCPClients(ctx); err != nil {
 		return fmt.Errorf("failed to set up MCP clients: %w", err)
@@ -109,11 +109,11 @@ func (s *Smoke) setupLLM() error {
 	return nil
 }
 
-// setupElicitManager ensures that the elicitManager, and thus the elicit Tool, have a bubbletea emitter to send
+// setupAskManager ensures that the askManager, and thus the ask Tool, have a bubbletea emitter to send
 // messages to the UI
-func (s *Smoke) setupElicitManager() {
-	manager := elicit.NewManager()
-	manager.SetOnBegin(func(req elicit.RequestMessage) {
+func (s *Smoke) setupAskManager() {
+	manager := ask.NewManager()
+	manager.SetOnBegin(func(req ask.RequestMessage) {
 		if s.teaEmitter == nil {
 			return
 		}
@@ -121,7 +121,7 @@ func (s *Smoke) setupElicitManager() {
 		s.teaEmitter(req)
 	})
 
-	s.elicitManager = manager
+	s.askManager = manager
 }
 
 func (s *Smoke) setupSession(ctx context.Context) error {

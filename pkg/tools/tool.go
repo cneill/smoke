@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/internal/uimsg"
-	"github.com/cneill/smoke/pkg/elicit"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -64,11 +64,11 @@ type (
 		SetTeaEmitter(emitter uimsg.TeaEmitter)
 	}
 
-	WantsElicitManager interface {
+	WantsAskManager interface {
 		Tool
 
-		// SetElicitManager provides the session-scoped elicit manager to a tool that needs interactive user input.
-		SetElicitManager(manager *elicit.Manager)
+		// SetAskManager provides the session-scoped ask manager to a tool that needs interactive user input.
+		SetAskManager(manager *ask.Manager)
 	}
 
 	WantsSkillCatalog interface {

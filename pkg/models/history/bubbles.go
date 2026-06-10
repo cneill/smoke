@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
 	"github.com/cneill/smoke/pkg/commands/handlers/session"
-	"github.com/cneill/smoke/pkg/elicit"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/utils"
 )
@@ -86,8 +86,8 @@ func BubbleForHistoryItem(item any, styles Styles) Bubble {
 		return bubbleForLLMMessage(item, styles)
 	case commands.Message:
 		return bubbleForCommandMessage(item, styles)
-	case elicit.Message:
-		return bubbleForElicitMessage(item, styles)
+	case ask.Message:
+		return bubbleForAskMessage(item, styles)
 	case *uimsg.Error:
 		return Bubble{
 			Style:     styles.ErrorBubble,
@@ -245,28 +245,28 @@ func bubbleForCommandMessage(msg commands.Message, styles Styles) Bubble {
 	}
 }
 
-func bubbleForElicitMessage(msg elicit.Message, styles Styles) Bubble {
+func bubbleForAskMessage(msg ask.Message, styles Styles) Bubble {
 	switch msg := msg.(type) {
-	case elicit.RequestMessage:
+	case ask.RequestMessage:
 		return Bubble{
-			Style:     styles.ElicitBubble,
+			Style:     styles.AskBubble,
 			TitleText: "Question",
 			Content:   PlainTextContent(msg.String()),
 		}
-	case elicit.UserCanceledMessage:
+	case ask.UserCanceledMessage:
 		return Bubble{
-			Style:     styles.ElicitCanceledBubble,
+			Style:     styles.AskCanceledBubble,
 			TitleText: "Canceled",
 			Content:   PlainTextContent(msg.String()),
 		}
-	case elicit.UserResponseMessage:
+	case ask.UserResponseMessage:
 		return Bubble{
-			Style:     styles.ElicitBubble,
+			Style:     styles.AskBubble,
 			TitleText: "Response",
 			Content:   PlainTextContent(msg.String()),
 		}
 	default:
-		return unsupportedMessageBubble(styles, "elicit.Message", msg)
+		return unsupportedMessageBubble(styles, "ask.Message", msg)
 	}
 }
 
