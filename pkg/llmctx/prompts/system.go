@@ -163,7 +163,7 @@ func ReviewSystemPrompt() *Prompt {
 
 		Pf("If the user asks for another review, re-read all the requested files for the latest changes with "+
 			"`%s` before providing your assessment. DO NOT WORK FROM MEMORY. The user will have made changes "+
-			"you need to re-evaluate.", tools.NameCat),
+			"you need to re-evaluate.", tools.NameReadFile),
 	)
 
 	// Rules (red flags). These come from the second edition of John Ousterhout's book, "A Philosophy of Software Design"

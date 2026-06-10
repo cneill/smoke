@@ -3,7 +3,6 @@ package tools
 const (
 	NameActivateSkill    = "activate_skill"
 	NameAsk              = "ask"
-	NameCat              = "cat"
 	NameDDG              = "duck_duck_go"
 	NameEdit             = "edit"
 	NameEditPlan         = "edit_plan"
@@ -22,6 +21,7 @@ const (
 	NamePlanRead         = "plan_read"
 	NamePlanUpdate       = "plan_update"
 	NamePlaywright       = "playwright"
+	NameReadFile         = "read_file"
 	NameReadPlan         = "read_plan"
 	NameRemovePlan       = "remove_plan"
 	NameReplaceLines     = "replace_lines"
