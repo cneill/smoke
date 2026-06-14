@@ -122,7 +122,12 @@ func (c *conversation) getMessageNewParams() anthropic.MessageNewParams {
 		Tools:        c.newMessageTools(session),
 		Temperature:  anthropic.Float(config.Temperature),
 		CacheControl: anthropic.NewCacheControlEphemeralParam(),
-		Thinking:     anthropic.ThinkingConfigParamOfEnabled(config.MaxTokens / 4),
+		OutputConfig: anthropic.OutputConfigParam{
+			Effort: anthropic.OutputConfigEffort(c.Config().Effort), // "low", "medium", "high", "xhigh", "max"
+		},
+		Thinking: anthropic.ThinkingConfigParamUnion{
+			OfAdaptive: &anthropic.ThinkingConfigAdaptiveParam{},
+		},
 	}
 }
 

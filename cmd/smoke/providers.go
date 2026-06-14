@@ -8,14 +8,24 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/utils"
 	"github.com/openai/openai-go/v3"
 )
 
 var providers = providerMappings{ //nolint:gochecknoglobals
 	llms.LLMTypeChatGPT: {
-		apiKeyFlag:   FlagOpenAIKey,
-		apiKeyEnvVar: EnvOpenAIKey,
-		defaultModel: openai.ChatModelGPT5_4,
+		apiKeyFlag:    FlagOpenAIKey,
+		apiKeyEnvVar:  EnvOpenAIKey,
+		defaultModel:  openai.ChatModelGPT5_4,
+		defaultEffort: string(openai.ReasoningEffortMedium),
+		effortOptions: utils.ToStrings(
+			openai.ReasoningEffortNone,
+			openai.ReasoningEffortMinimal,
+			openai.ReasoningEffortLow,
+			openai.ReasoningEffortMedium,
+			openai.ReasoningEffortHigh,
+			openai.ReasoningEffortXhigh,
+		),
 		aliases: modelAliases{
 			openai.ChatModelGPT4:        {"4", "gpt4", "gpt-4"},
 			openai.ChatModelGPT4o:       {"4o", "gpt4o", "gpt-4o"},
@@ -38,23 +48,39 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 		},
 	},
 	llms.LLMTypeClaude: {
-		apiKeyFlag:   FlagAnthropicKey,
-		apiKeyEnvVar: EnvAnthropicKey,
-		defaultModel: anthropic.ModelClaudeSonnet4_6,
+		apiKeyFlag:    FlagAnthropicKey,
+		apiKeyEnvVar:  EnvAnthropicKey,
+		defaultModel:  anthropic.ModelClaudeSonnet4_6,
+		defaultEffort: string(anthropic.OutputConfigEffortMedium),
+		effortOptions: utils.ToStrings(
+			anthropic.OutputConfigEffortLow,
+			anthropic.OutputConfigEffortMedium,
+			anthropic.OutputConfigEffortHigh,
+			anthropic.OutputConfigEffortXhigh,
+			anthropic.OutputConfigEffortMax,
+		),
 		aliases: modelAliases{
-			anthropic.ModelClaudeOpus4_7:          {"opus", "opus4.7", "o47"},
-			anthropic.ModelClaudeOpus4_6:          {"opus4.6", "o46"},
-			anthropic.ModelClaudeOpus4_5:          {"opus4.5", "o45"},
-			anthropic.ModelClaudeOpus4_1_20250805: {"opus4.1", "o41"},
-			anthropic.ModelClaudeSonnet4_6:        {"sonnet", "sonnet4.6", "s46"},
-			anthropic.ModelClaudeSonnet4_5:        {"sonnet4.5", "s45"},
-			anthropic.ModelClaudeHaiku4_5:         {"haiku", "haiku4.5", "h45"},
+			anthropic.ModelClaudeFable5:    {"fable", "fable5"},
+			anthropic.ModelClaudeOpus4_8:   {"opus", "opus4.8", "o48"},
+			anthropic.ModelClaudeOpus4_7:   {"opus4.7", "o47"},
+			anthropic.ModelClaudeOpus4_6:   {"opus4.6", "o46"},
+			anthropic.ModelClaudeOpus4_5:   {"opus4.5", "o45"},
+			anthropic.ModelClaudeSonnet4_6: {"sonnet", "sonnet4.6", "s46"},
+			anthropic.ModelClaudeSonnet4_5: {"sonnet4.5", "s45"},
+			anthropic.ModelClaudeHaiku4_5:  {"haiku", "haiku4.5", "h45"},
 		},
 	},
 	llms.LLMTypeGrok: {
-		apiKeyFlag:   FlagXAIKey,
-		apiKeyEnvVar: EnvXAIKey,
-		defaultModel: "grok-build-0.1",
+		apiKeyFlag:    FlagXAIKey,
+		apiKeyEnvVar:  EnvXAIKey,
+		defaultModel:  "grok-build-0.1",
+		defaultEffort: "medium",
+		effortOptions: []string{
+			"none",
+			"low",
+			"medium",
+			"high",
+		},
 		aliases: modelAliases{
 			"grok-build-0.1":           {"build", "fast"},
 			"grok-4.3":                 {"4.3", "430"},
@@ -95,11 +121,13 @@ func (p providerMappings) details(provider string) (*providerDetails, error) {
 }
 
 type providerDetails struct {
-	apiKeyFlag   string
-	apiKeyEnvVar string
-	baseURLFlag  string
-	defaultModel string
-	aliases      modelAliases
+	apiKeyFlag    string
+	apiKeyEnvVar  string
+	baseURLFlag   string
+	defaultModel  string
+	defaultEffort string
+	effortOptions []string
+	aliases       modelAliases
 }
 
 func (p providerDetails) getModel(search string) (string, error) {
@@ -127,6 +155,18 @@ func (p providerDetails) getModel(search string) (string, error) {
 	}
 
 	return "", fmt.Errorf("unknown model: %q\n\n%s", search, p.aliases)
+}
+
+func (p providerDetails) getEffort(effort string) (string, error) {
+	if effort == "" {
+		return p.defaultEffort, nil
+	}
+
+	if !slices.Contains(p.effortOptions, effort) {
+		return "", fmt.Errorf("effort options: %s", strings.Join(p.effortOptions, ", "))
+	}
+
+	return effort, nil
 }
 
 type modelAliases map[string][]string

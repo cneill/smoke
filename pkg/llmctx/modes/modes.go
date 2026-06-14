@@ -19,7 +19,7 @@ const (
 type Modes []Mode
 
 func (m Modes) String() string {
-	return strings.Join(utils.ToStrings(m), ", ")
+	return strings.Join(utils.ToStrings(m...), ", ")
 }
 
 func AllModes() Modes {

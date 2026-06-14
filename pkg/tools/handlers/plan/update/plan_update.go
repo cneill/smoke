@@ -174,10 +174,10 @@ func (p *PlanUpdate) Params() tools.Params { //nolint:funlen
 						plan.ContextTypeConstraint, plan.ContextTypeConvention,
 					),
 					Type: tools.ParamTypeString,
-					EnumStringValues: utils.ToStrings([]plan.ContextType{
+					EnumStringValues: utils.ToStrings(
 						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeDecision,
 						plan.ContextTypeReference,
-					}),
+					),
 					Required: false,
 				},
 

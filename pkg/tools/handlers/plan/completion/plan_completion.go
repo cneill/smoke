@@ -33,9 +33,10 @@ func (p *PlanCompletion) Name() string { return tools.NamePlanCompletion }
 func (p *PlanCompletion) Description() string {
 	examples := tools.CollectExamples(p.Examples()...)
 
-	return fmt.Sprintf("Mark tasks as completed by their IDs, with a note explaining the status of these tasks. If "+
-		"you need to completely redefine or remove a task or set of tasks based on user feedback, you can mark them "+
-		"as %q to make it clear that these tasks should be ignored during `work_process`.%s",
+	return fmt.Sprintf(
+		"Mark tasks as completed by their IDs, with a note explaining the status of these tasks. If "+
+			"you need to completely redefine or remove a task or set of tasks based on user feedback, you can mark them "+
+			"as %q to make it clear that these tasks should be ignored during `work_process`.%s",
 		plan.CompletionStatusObsolete, examples,
 	)
 }
@@ -63,9 +64,10 @@ func (p *PlanCompletion) Examples() tools.Examples {
 			},
 		},
 		{
-			Description: fmt.Sprintf("Mark a task and its child subtasks as obsolete after user feedback on the "+
-				"plan. This is essentially equivalent to deleting the task and will ensure that it does not show up "+
-				"in the output of %q.",
+			Description: fmt.Sprintf(
+				"Mark a task and its child subtasks as obsolete after user feedback on the "+
+					"plan. This is essentially equivalent to deleting the task and will ensure that it does not show up "+
+					"in the output of %q.",
 				tools.NamePlanRead,
 			),
 			Args: tools.Args{
@@ -130,10 +132,10 @@ func (p *PlanCompletion) Params() tools.Params {
 			),
 			Type:     tools.ParamTypeString,
 			Required: false,
-			EnumStringValues: utils.ToStrings([]plan.CompletionStatus{
+			EnumStringValues: utils.ToStrings(
 				plan.CompletionStatusSuccess, plan.CompletionStatusFailed, plan.CompletionStatusPartial,
 				plan.CompletionStatusObsolete,
-			}),
+			),
 		},
 	}
 }
