@@ -10,6 +10,7 @@ import (
 
 const (
 	FlagDebug        = "debug"
+	FlagEffort       = "effort"
 	FlagMaxTokens    = "max-tokens"
 	FlagModel        = "model"
 	FlagNoStream     = "no-stream"
@@ -22,6 +23,7 @@ const (
 	FlagOllamaHost   = "ollama-host"
 
 	EnvDebug        = "SMOKE_DEBUG"
+	EnvEffort       = "SMOKE_EFFORT"
 	EnvMaxTokens    = "SMOKE_MAX_TOKENS"
 	EnvModel        = "SMOKE_MODEL"
 	EnvNoStream     = "SMOKE_NO_STREAM"
@@ -70,6 +72,13 @@ func llmConfigFlags() []cli.Flag {
 	providers := getProviders()
 
 	return []cli.Flag{
+		&cli.StringFlag{
+			Name:     FlagEffort,
+			Usage:    "The effort used for 'thinking'. Varies by provider.",
+			Category: category,
+			Aliases:  []string{"e"},
+			Sources:  cli.EnvVars(EnvEffort),
+		},
 		&cli.StringFlag{
 			Name:     FlagModel,
 			Usage:    "The provider's model to use, or an alias for it",
