@@ -64,7 +64,7 @@ func (m *Mode) Run(_ context.Context, msg commands.PromptMessage, _ *llms.Sessio
 }
 
 func selectableModes(sep string) string {
-	selectable := utils.ToStrings(modes.SelectableModes())
+	selectable := utils.ToStrings(modes.SelectableModes()...)
 	slices.Sort(selectable)
 
 	return strings.Join(selectable, sep)

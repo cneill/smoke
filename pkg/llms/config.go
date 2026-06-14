@@ -5,6 +5,7 @@ import "fmt"
 type Config struct {
 	APIKey      string
 	BaseURL     string
+	Effort      string
 	MaxTokens   int64
 	Model       string
 	NoStream    bool

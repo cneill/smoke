@@ -88,12 +88,9 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 		Tools:           c.responsesTools(session.Tools.GetTools()),
 	}
 
-	// Grok doesn't support this
-	if c.Config().Provider == llms.LLMTypeChatGPT {
+	if c.Config().Provider == llms.LLMTypeChatGPT || c.Config().Provider == llms.LLMTypeGrok {
 		params.Reasoning = shared.ReasoningParam{
-			// TODO: make this configurable
-			Effort:  shared.ReasoningEffortMedium,
-			Summary: shared.ReasoningSummaryConcise,
+			Effort: shared.ReasoningEffort(c.Config().Effort), // "none", "minimal", "low", "medium", "high", "xhigh"
 		}
 	}
 

@@ -74,9 +74,15 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 		return nil, fmt.Errorf("failed to select model for provider %q: %w", provider, err)
 	}
 
+	effort, err := details.getEffort(cmd.String(FlagEffort))
+	if err != nil {
+		return nil, fmt.Errorf("invalid effort for provider %q: %w", provider, err)
+	}
+
 	llmConfig := &llms.Config{
 		APIKey:      cmd.String(details.apiKeyFlag),
 		BaseURL:     cmd.String(details.baseURLFlag),
+		Effort:      effort,
 		MaxTokens:   cmd.Int64(FlagMaxTokens),
 		NoStream:    cmd.Bool(FlagNoStream),
 		Provider:    llms.LLMType(provider),

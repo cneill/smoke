@@ -54,6 +54,7 @@ func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 					uimsg.NewField("Session name", session.Name),
 					uimsg.NewField("Provider", string(session.Config.Provider)),
 					uimsg.NewField("Model", session.Config.Model),
+					uimsg.NewField("Reasoning Effort", session.Config.Effort),
 					uimsg.NewField("Mode", string(session.GetMode())),
 					uimsg.NewField(
 						"Messages",
