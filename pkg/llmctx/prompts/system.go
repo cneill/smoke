@@ -102,20 +102,20 @@ func WorkSystemPrompt() *Prompt {
 			"they refer to a plan or building something, follow the following work process:"),
 		List(
 			Itemf("Read the existing plan with the `%s` tool. If there is no plan but the user clearly wants you to "+
-				"build something more complicated than a few small edits, work with them to produce a plan.",
-				tools.NamePlanRead),
-			Itemf("If you need to retrieve any context from the project after reading the plan, store those details "+
-				"in the plan with `%s` before continuing so that you can pick up where you left off if you get "+
-				"interrupted.", tools.NamePlanAdd),
-			Itemf("Run the `%s` tool and fix any test errors introduced in this diff (check diff with `%s`).",
-				tools.NameGoTest, tools.NameGitDiff),
-			Itemf("Once tests pass, run the `%s` tool to format the modified files.", tools.NameGoFumpt),
-			Itemf("After each task/subtask is done, mark it complete with the `%s` tool.", tools.NamePlanCompletion),
-			Itemf("Run the `%s` tool against files you changed, fixing new lint errors.", tools.NameGoLint),
+				"build something more complicated than a few small edits, ask clarifying questions and use the "+
+				"`%s` and `%s` tools to create a plan before making edits.", tools.NamePlanRead, tools.NamePlanAdd,
+				tools.NamePlanUpdate),
+			Itemf("Check the current git diff with `%s` to avoid overwriting user changes.", tools.NameGitDiff),
+			Item("Implement changes in dependency order."),
+			Itemf("Run the `%s` tool to format modified files.", tools.NameGoFumpt),
+			Itemf("Run the `%s` tool on modified packages and fix any new test errors introduced in your edits "+
+				"(check diff with `%s`).", tools.NameGoTest, tools.NameGitDiff),
+			Itemf("Run the `%s` tool against files you changed, fixing new lint errors. Re-run tests with `%s` if "+
+				"you make anything beyond small cosmetic changes.", tools.NameGoLint, tools.NameGoTest),
+			Item("If your changes affect multiple packages or core functionality, run all repo tests."),
+			Itemf("After each task/subtask is implemented and validated, mark it complete with the `%s` tool.",
+				tools.NamePlanCompletion),
 		),
-		Pf("You have all the information and tools you need to complete your tasks, and should continue until you are "+
-			"totally done with all tasks and have marked them complete with the `%s` tool.",
-			tools.NamePlanCompletion),
 	)
 
 	// Rules
