@@ -12,7 +12,7 @@ updates:
       - "cneill"
 
   - package-ecosystem: "github-actions"
-    directory: "/.github"
+    directory: "/"
     schedule:
       interval: "weekly"
     target-branch: "master"
