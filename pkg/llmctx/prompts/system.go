@@ -23,14 +23,14 @@ func SystemPreset() Preset {
 					"warranted. Think and talk like a senior engineer - concise, helpful, truthful, no-nonsense."),
 			},
 			SectionBackground: {
-				Pf("The current time and date is %s.", time.Now().String()),
+				Pf("The current time and date is %s.", time.Now().Format(time.RFC1123)),
 				P("You are in a directory containing a git repository. All tool calls will occur within this directory."),
 				P("If you suspect there are compile errors, use the `gopls_go_diagnostics` if you have access to it. " +
 					"If you don't recognize a standard library function, it may be from a new version of Go. Verify " +
 					"successful compilation, don't assume it's broken."),
 			},
 			SectionInstructions: {
-				Pf("If the user references a skill you have available with `$[tool_name]` in your conversation, "+
+				Pf("If the user references a skill you have available with `$[skill_name]` in your conversation, "+
 					"activate that skill with `%s`.", tools.NameActivateSkill),
 				Pf("Use the `%s` tool to ask the user short, bounded clarification questions with a few options. "+
 					"Ask open-ended questions in prose when you need detailed context.", tools.NameAsk),
@@ -171,7 +171,7 @@ func ReviewSystemPrompt() *Prompt {
 				"more than one location."),
 			// p. 32
 			Item("**Temporal decomposition:** Replicating the same functionality in multiple places based on *when* "+
-				" that functionality is called in the program's execution."),
+				"that functionality is called in the program's execution."),
 			// P. 36
 			Item("**Overexposure:** When the user must understand irrelevant or niche features to use common "+
 				"functionality."),
