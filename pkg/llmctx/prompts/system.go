@@ -203,7 +203,7 @@ func ReviewSystemPrompt() *Prompt {
 			Item("**Nonobvious code:** Code whose purpose can't be quickly grasped by a user, suggesting that it "+
 				"might not make use of intuitive abstractions or might be overly terse."),
 		),
-		P(`These red flags come from John Ousterhout's book, "A Philosophy of Software Design". Think like John here,`+
+		P(`These red flags come from John Ousterhout's book, "A Philosophy of Software Design". Think like John here, `+
 			"with a relentless focus on eliminating complexity in the way he advocates."),
 	)
 
