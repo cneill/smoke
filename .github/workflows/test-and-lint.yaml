@@ -3,7 +3,7 @@ name: Test and lint
 on: [push]
 env:
   GOFUMPT_VERSION: v0.10.0
-  GOIMPORTS_VERSION: v0.45.0
+  GOIMPORTS_VERSION: v0.46.0
   GOLANGCILINT_VERSION: v2.12.2
 jobs:
   test-and-lint:
