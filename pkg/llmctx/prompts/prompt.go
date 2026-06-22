@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const IndentStr = "    "
+
 // SectionType defines the canonical section names used when composing prompts.
 // Order is defined by orderedSections() below.
 type SectionType string
@@ -150,7 +152,7 @@ func (l ListItems) Clone() ListItems {
 
 func (l ListItems) RenderMarkdown(builder *strings.Builder, depth int) {
 	for _, item := range l {
-		indent := strings.Repeat(" ", depth*4)
+		indent := strings.Repeat(IndentStr, depth)
 		builder.WriteString(indent)
 		builder.WriteString("* ")
 		builder.WriteString(item.Text)
