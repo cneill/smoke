@@ -17,12 +17,14 @@ import (
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/commands/handlers/edit"
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
+	"github.com/cneill/smoke/pkg/commands/handlers/plan"
 	"github.com/cneill/smoke/pkg/commands/handlers/rank"
 	"github.com/cneill/smoke/pkg/commands/handlers/summarize"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/banner"
 	"github.com/cneill/smoke/pkg/models/history"
 	"github.com/cneill/smoke/pkg/models/input"
+	"github.com/cneill/smoke/pkg/models/planpicker"
 	"github.com/cneill/smoke/pkg/smoke"
 	"golang.org/x/term"
 )
@@ -44,9 +46,10 @@ func (o *Opts) OK() error {
 type Model struct {
 	smoke *smoke.Smoke
 
-	banner  *banner.Model
-	history *history.Model
-	input   *input.Model
+	banner     *banner.Model
+	history    *history.Model
+	input      *input.Model
+	planPicker *planpicker.Model
 }
 
 func New(opts *Opts) (*Model, error) {
@@ -113,6 +116,15 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop
+	if m.planPicker != nil {
+		if _, ok := msg.(planpicker.Message); !ok {
+			picker, cmd := m.planPicker.Update(msg)
+			m.planPicker = picker
+
+			return m, cmd
+		}
+	}
+
 	cmds := []tea.Cmd{}
 
 	inputModel, inputCmd := m.input.Update(msg)
@@ -146,6 +158,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop
 		cmds = append(cmds, m.handleInputMessage(msg))
 	case commands.Message:
 		cmds = append(cmds, m.handleCommandMessage(msg))
+	case planpicker.Message:
+		cmds = append(cmds, m.handlePlanPickerMessage(msg))
 	case smoke.Message:
 		cmds = append(cmds, m.handleSmokeMessage(msg))
 	case ask.Message:
@@ -159,6 +173,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop
 }
 
 func (m *Model) View() string {
+	if m.planPicker != nil {
+		return m.planPicker.View()
+	}
+
 	return fmt.Sprintf("%s%s%s", m.history.View(), gap, m.input.View())
 }
 
@@ -285,7 +303,7 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 }
 
 // Handle messages from prompt command handlers.
-func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd { //nolint:cyclop,funlen
+func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd { //nolint:cyclop,funlen,gocognit
 	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {
@@ -305,6 +323,13 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd { //nolint:cy
 		if err := m.smoke.SetSession(msg.Session); err != nil {
 			cmds = append(cmds, updateHistory(fmt.Errorf("failed to update session: %w", err)))
 			break
+		}
+
+		if msg.ResetPlan {
+			if err := m.smoke.StartNewPlan(); err != nil {
+				cmds = append(cmds, updateHistory(fmt.Errorf("failed to start fresh plan: %w", err)))
+				break
+			}
 		}
 
 		cmds = append(cmds, updateHistory(msg))
@@ -373,6 +398,90 @@ func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd { //nolint:cy
 		} else {
 			cmds = append(cmds, cmd)
 		}
+
+	case plan.Message:
+		return m.handlePlanMessage(msg)
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) handlePlanMessage(msg plan.Message) tea.Cmd {
+	cmds := []tea.Cmd{}
+
+	switch msg.Command {
+	case plan.CommandCurrent:
+		current := m.smoke.CurrentPlan()
+		cmds = append(cmds, updateHistory(commands.HistoryUpdateMessage{
+			PromptMessage: msg.PromptMessage,
+			Content: &uimsg.HistoryContent{Blocks: []uimsg.HistoryBlock{{
+				Type:  uimsg.HistoryBlockFields,
+				Title: "Current plan",
+				Fields: []uimsg.HistoryField{
+					uimsg.NewField("Plan ID", current.PlanID),
+					uimsg.NewField("Session", current.SessionName),
+					uimsg.NewField("Project", current.ProjectPath),
+					uimsg.NewField("Log path", current.LogPath),
+					uimsg.NewField("Metadata path", current.PlanID+".meta.json"),
+				},
+			}}},
+		}))
+	case plan.CommandNew:
+		if err := m.smoke.StartNewPlan(); err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		cmds = append(cmds, updateHistory(commands.HistoryUpdateMessage{
+			PromptMessage: msg.PromptMessage,
+			Message:       "Started a fresh plan for this session. The plan log will be created on the first plan write.",
+		}))
+	case plan.CommandResume:
+		plans, err := m.smoke.ListPlans()
+		if err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		if len(plans) == 0 {
+			cmds = append(cmds, updateHistory(commands.HistoryUpdateMessage{
+				PromptMessage: msg.PromptMessage,
+				Message:       "No saved plans for this project.",
+			}))
+
+			break
+		}
+
+		m.planPicker = planpicker.New(plans, m.history.GetWidth(), m.history.GetHeight()+m.input.GetHeight()+1)
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) handlePlanPickerMessage(msg planpicker.Message) tea.Cmd {
+	cmds := []tea.Cmd{}
+
+	switch msg := msg.(type) {
+	case planpicker.SelectedMessage:
+		m.planPicker = nil
+
+		metadata, err := m.smoke.ResumePlan(msg.Plan.PlanID)
+		if err != nil {
+			cmds = append(cmds, updateHistory(err))
+			break
+		}
+
+		cmds = append(cmds, updateHistory(commands.HistoryUpdateMessage{
+			PromptMessage: commands.PromptMessage{Command: "plan", Args: []string{"resume"}},
+			Message:       "Resumed plan " + metadata.PlanID + ".",
+		}))
+	case planpicker.CanceledMessage:
+		m.planPicker = nil
+
+		cmds = append(cmds, updateHistory(commands.HistoryUpdateMessage{
+			PromptMessage: commands.PromptMessage{Command: "plan", Args: []string{"resume"}},
+			Message:       "Canceled plan resume.",
+		}))
 	}
 
 	return tea.Batch(cmds...)

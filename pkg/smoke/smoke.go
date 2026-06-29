@@ -34,7 +34,9 @@ type Smoke struct {
 	debug       bool
 	projectPath string
 
+	planStore   *plan.Store
 	planManager *plan.Manager
+	activePlan  plan.Metadata
 
 	skillCatalog    skills.Catalog
 	agentsmdCatalog agentsmd.Catalog
