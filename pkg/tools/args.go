@@ -316,7 +316,12 @@ func (a Args) checkTypes(params Params) error {
 	for key, value := range a {
 		param := params.ByKey(key)
 		if !a.rightType(param, value) {
-			wrongTypeKeys = append(wrongTypeKeys, fmt.Sprintf("%s (expecting %s)", key, param.Type))
+			expectedType := param.Type
+			if param.Type == ParamTypeArray {
+				expectedType = "array of " + param.ItemType
+			}
+
+			wrongTypeKeys = append(wrongTypeKeys, fmt.Sprintf("%s (expecting %s)", key, expectedType))
 		}
 	}
 
@@ -350,7 +355,8 @@ func (a Args) rightType(param *Param, value any) bool { //nolint:cyclop
 		if rightType && param.ItemType != "" {
 			reflectVal := reflect.ValueOf(value)
 			for i := range reflectVal.Len() {
-				if !a.rightType(&Param{Type: param.ItemType}, reflectVal.Index(i).Interface()) {
+				item := reflectVal.Index(i).Interface()
+				if !a.rightType(&Param{Type: param.ItemType}, item) {
 					rightType = false
 					break
 				}
@@ -421,7 +427,26 @@ func (a Args) checkObjectValue(param *Param, argValue any) error {
 	return nil
 }
 
-// TODO: complete
-func (a Args) checkArrayValues(_ *Param, _ any) error {
+func (a Args) checkArrayValues(param *Param, argValue any) error {
+	if len(param.NestedParams) == 0 {
+		return nil
+	}
+
+	if param.ItemType != ParamTypeObject {
+		return nil
+	}
+
+	reflectVal := reflect.ValueOf(argValue)
+	if !reflectVal.IsValid() || (reflectVal.Kind() != reflect.Array && reflectVal.Kind() != reflect.Slice) {
+		return fmt.Errorf("%w: got non-array argument value", ErrWrongTypeKeys)
+	}
+
+	for i := range reflectVal.Len() {
+		item := reflectVal.Index(i).Interface()
+		if err := a.checkObjectValue(&Param{Type: ParamTypeObject, NestedParams: param.NestedParams}, item); err != nil {
+			return fmt.Errorf("invalid object at index %d: %w", i, err)
+		}
+	}
+
 	return nil
 }
