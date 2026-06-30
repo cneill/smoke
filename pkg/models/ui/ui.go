@@ -414,17 +414,24 @@ func (m *Model) handlePlanMessage(msg plan.Message) tea.Cmd {
 		current := m.smoke.CurrentPlan()
 		cmds = append(cmds, updateHistory(commands.HistoryUpdateMessage{
 			PromptMessage: msg.PromptMessage,
-			Content: &uimsg.HistoryContent{Blocks: []uimsg.HistoryBlock{{
-				Type:  uimsg.HistoryBlockFields,
-				Title: "Current plan",
-				Fields: []uimsg.HistoryField{
-					uimsg.NewField("Plan ID", current.PlanID),
-					uimsg.NewField("Session", current.SessionName),
-					uimsg.NewField("Project", current.ProjectPath),
-					uimsg.NewField("Log path", current.LogPath),
-					uimsg.NewField("Metadata path", current.PlanID+".meta.json"),
+			Content: &uimsg.HistoryContent{Blocks: []uimsg.HistoryBlock{
+				{
+					Type:  uimsg.HistoryBlockFields,
+					Title: "Current plan metadata",
+					Fields: []uimsg.HistoryField{
+						uimsg.NewField("Plan ID", current.PlanID),
+						uimsg.NewField("Session", current.SessionName),
+						uimsg.NewField("Project", current.ProjectPath),
+						uimsg.NewField("Log path", current.LogPath),
+						uimsg.NewField("Metadata path", current.PlanID+".meta.json"),
+					},
 				},
-			}}},
+				{
+					Type:  uimsg.HistoryBlockMarkdown,
+					Title: "Plan contents",
+					Text:  m.smoke.PlanManager().Markdown(),
+				},
+			}},
 		}))
 	case plan.CommandNew:
 		if err := m.smoke.StartNewPlan(); err != nil {

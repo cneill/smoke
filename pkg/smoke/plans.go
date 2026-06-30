@@ -58,6 +58,10 @@ func (s *Smoke) CurrentPlan() plan.Metadata {
 	return s.activePlan
 }
 
+func (s *Smoke) PlanManager() *plan.Manager {
+	return s.planManager
+}
+
 func (s *Smoke) setActivePlan(manager *plan.Manager, metadata plan.Metadata) {
 	s.planManager = manager
 	s.activePlan = metadata

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/cneill/smoke/pkg/plan"
 )
@@ -33,6 +32,7 @@ type Model struct {
 	selected int
 	width    int
 	height   int
+	styles   Styles
 }
 
 func New(plans []plan.Metadata, width, height int) *Model {
@@ -40,6 +40,7 @@ func New(plans []plan.Metadata, width, height int) *Model {
 		plans:  plans,
 		width:  width,
 		height: height,
+		styles: InitStyles(),
 	}
 }
 
@@ -77,41 +78,64 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	var builder strings.Builder
+	var sb strings.Builder
 
-	title := lipgloss.NewStyle().Bold(true).Render("Select a saved plan")
-	fmt.Fprintln(&builder, title)
-	fmt.Fprintln(&builder, "Use ↑/↓ or j/k to move, Enter to resume, Esc to cancel.")
-	fmt.Fprintln(&builder)
+	fmt.Fprintln(&sb, m.styles.Title.Render("Select a saved plan"))
+	fmt.Fprintln(&sb, m.styles.Help.Render("Use ↑/↓ or j/k to move, Enter to resume, Esc to cancel."))
+	fmt.Fprintln(&sb)
 
 	if len(m.plans) == 0 {
-		fmt.Fprintln(&builder, "No saved plans for this project.")
-		return builder.String()
+		fmt.Fprintln(&sb, m.styles.Empty.Render("No saved plans for this project."))
+		return m.styles.SizedContainer(m.width).Render(sb.String())
 	}
 
+	start, end := m.visiblePlanRange()
+	for index := start; index < end; index++ {
+		fmt.Fprintln(&sb, m.renderPlan(index))
+	}
+
+	if end-start < len(m.plans) {
+		fmt.Fprintln(&sb)
+		fmt.Fprintln(&sb, m.styles.Count.Render(fmt.Sprintf("Showing %d-%d of %d saved plans", start+1, end, len(m.plans))))
+	}
+
+	return m.styles.SizedContainer(m.width).Render(sb.String())
+}
+
+func (m *Model) visiblePlanCount() int {
 	limit := len(m.plans)
-	if m.height > 4 && limit > m.height-4 {
-		limit = m.height - 4
+	if m.height <= 6 || limit <= m.height-6 {
+		return limit
 	}
 
-	for index := range limit {
-		prefix := "  "
-		lineStyle := lipgloss.NewStyle()
+	return m.height - 6
+}
 
-		if index == m.selected {
-			prefix = "> "
-			lineStyle = lineStyle.Bold(true)
-		}
-
-		plan := m.plans[index]
-
-		line := fmt.Sprintf("%s%s", prefix, plan.DisplayName())
-		if plan.LogPath != "" {
-			line += "\n    " + plan.LogPath
-		}
-
-		fmt.Fprintln(&builder, lineStyle.Render(line))
+func (m *Model) visiblePlanRange() (int, int) {
+	limit := m.visiblePlanCount()
+	if limit >= len(m.plans) {
+		return 0, len(m.plans)
 	}
 
-	return builder.String()
+	start := max(0, m.selected-limit+1)
+
+	return start, start + limit
+}
+
+func (m *Model) renderPlan(index int) string {
+	selected := index == m.selected
+
+	cursor := "  "
+	if selected {
+		cursor = m.styles.Cursor.Render("> ")
+	}
+
+	plan := m.plans[index]
+
+	line := cursor + m.styles.PlanNameStyle(selected).Render(plan.DisplayName())
+	if plan.LogPath != "" {
+		line += "\n  " + m.styles.LogPathStyle(selected).Render("  "+plan.LogPath)
+	}
+
+	return m.styles.ItemStyle(selected).Render(line)
 }
