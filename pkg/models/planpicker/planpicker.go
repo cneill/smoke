@@ -102,19 +102,10 @@ func (m *Model) View() string {
 	return m.styles.SizedContainer(m.width).Render(sb.String())
 }
 
-func (m *Model) visiblePlanCount() int {
-	limit := len(m.plans)
-	if m.height <= 6 || limit <= m.height-6 {
-		return limit
-	}
-
-	return m.height - 6
-}
-
 func (m *Model) visiblePlanRange() (int, int) {
-	limit := m.visiblePlanCount()
-	if limit >= len(m.plans) {
-		return 0, len(m.plans)
+	limit := len(m.plans)
+	if limit > m.height-8 {
+		limit = max(1, (m.height-8)/2)
 	}
 
 	start := max(0, m.selected-limit+1)
@@ -127,7 +118,7 @@ func (m *Model) renderPlan(index int) string {
 
 	cursor := "  "
 	if selected {
-		cursor = m.styles.Cursor.Render("> ")
+		cursor = m.styles.Cursor.Render("➜ ")
 	}
 
 	plan := m.plans[index]

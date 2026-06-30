@@ -417,7 +417,7 @@ func (m *Model) handlePlanMessage(msg plan.Message) tea.Cmd {
 			Content: &uimsg.HistoryContent{Blocks: []uimsg.HistoryBlock{
 				{
 					Type:  uimsg.HistoryBlockFields,
-					Title: "Current plan metadata",
+					Title: "Plan metadata",
 					Fields: []uimsg.HistoryField{
 						uimsg.NewField("Plan ID", current.PlanID),
 						uimsg.NewField("Session", current.SessionName),
