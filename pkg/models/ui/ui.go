@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/internal/uimsg"
@@ -423,13 +424,19 @@ func (m *Model) handlePlanMessage(msg plan.Message) tea.Cmd {
 						uimsg.NewField("Session", current.SessionName),
 						uimsg.NewField("Project", current.ProjectPath),
 						uimsg.NewField("Log path", current.LogPath),
-						uimsg.NewField("Metadata path", current.PlanID+".meta.json"),
 					},
 				},
 				{
 					Type:  uimsg.HistoryBlockMarkdown,
 					Title: "Plan contents",
-					Text:  m.smoke.PlanManager().Markdown(),
+					Text: func() string {
+						content := m.smoke.PlanManager().Markdown()
+						if strings.TrimSpace(content) == "" {
+							return "Plan is empty."
+						}
+
+						return content
+					}(),
 				},
 			}},
 		}))
