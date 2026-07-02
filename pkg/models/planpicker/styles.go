@@ -3,16 +3,18 @@ package planpicker
 import "github.com/charmbracelet/lipgloss"
 
 type Styles struct {
-	Container lipgloss.Style
-	Title     lipgloss.Style
-	Help      lipgloss.Style
-	Empty     lipgloss.Style
-	Item      lipgloss.Style
-	Selected  lipgloss.Style
-	PlanName  lipgloss.Style
-	LogPath   lipgloss.Style
-	Cursor    lipgloss.Style
-	Count     lipgloss.Style
+	Container        lipgloss.Style
+	Title            lipgloss.Style
+	Help             lipgloss.Style
+	Empty            lipgloss.Style
+	Item             lipgloss.Style
+	ItemSelected     lipgloss.Style
+	PlanName         lipgloss.Style
+	PlanNameSelected lipgloss.Style
+	LogPath          lipgloss.Style
+	LogPathSelected  lipgloss.Style
+	Cursor           lipgloss.Style
+	Count            lipgloss.Style
 }
 
 func InitStyles() Styles {
@@ -21,10 +23,13 @@ func InitStyles() Styles {
 		panel      = lipgloss.Color("#11161d")
 		border     = lipgloss.Color("#3f4856")
 		orange     = lipgloss.Color("#ff9f1c")
+		darkorange = lipgloss.Color("#321b05")
 		gold       = lipgloss.Color("#ffd166")
+		darkgold   = lipgloss.Color("#d6b06a")
 		blue       = lipgloss.Color("#8fb7ff")
 		cyan       = lipgloss.Color("#8bd2e6")
 		white      = lipgloss.Color("#ffffff")
+		offwhite   = lipgloss.Color("#fff2cc")
 		text       = lipgloss.Color("#d7e0ea")
 		muted      = lipgloss.Color("#7d8796")
 		selectedBG = lipgloss.Color("#321b05")
@@ -51,7 +56,7 @@ func InitStyles() Styles {
 		Item: lipgloss.NewStyle().
 			Foreground(text).
 			Background(panel),
-		Selected: lipgloss.NewStyle().
+		ItemSelected: lipgloss.NewStyle().
 			Foreground(white).
 			Background(selectedBG).
 			Border(lipgloss.ThickBorder(), false, false, false, true).
@@ -61,9 +66,16 @@ func InitStyles() Styles {
 		PlanName: lipgloss.NewStyle().
 			Foreground(text).
 			Background(panel),
+		PlanNameSelected: lipgloss.NewStyle().
+			Foreground(offwhite).
+			Background(darkorange).
+			Bold(true),
 		LogPath: lipgloss.NewStyle().
 			Foreground(muted).
 			Background(panel),
+		LogPathSelected: lipgloss.NewStyle().
+			Foreground(darkgold).
+			Background(darkorange),
 		Cursor: lipgloss.NewStyle().
 			Foreground(gold).
 			Background(selectedBG).
@@ -84,7 +96,7 @@ func (s Styles) SizedContainer(width int) lipgloss.Style {
 
 func (s Styles) ItemStyle(selected bool) lipgloss.Style {
 	if selected {
-		return s.Selected
+		return s.ItemSelected
 	}
 
 	return s.Item
@@ -92,7 +104,7 @@ func (s Styles) ItemStyle(selected bool) lipgloss.Style {
 
 func (s Styles) PlanNameStyle(selected bool) lipgloss.Style {
 	if selected {
-		return s.PlanName.Foreground(lipgloss.Color("#fff2cc")).Background(lipgloss.Color("#321b05")).Bold(true)
+		return s.PlanNameSelected
 	}
 
 	return s.PlanName
@@ -100,7 +112,7 @@ func (s Styles) PlanNameStyle(selected bool) lipgloss.Style {
 
 func (s Styles) LogPathStyle(selected bool) lipgloss.Style {
 	if selected {
-		return s.LogPath.Foreground(lipgloss.Color("#d6b06a")).Background(lipgloss.Color("#321b05"))
+		return s.LogPathSelected
 	}
 
 	return s.LogPath
