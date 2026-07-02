@@ -20,6 +20,7 @@ type Manager struct {
 	IsWriting   bool
 	writer      io.Writer
 	writerMutex sync.Mutex
+	metadata    Metadata
 
 	items     []*ItemUnion
 	completed map[string]CompletionStatus // completed contains the Item's ID and its current (final) status
@@ -40,32 +41,32 @@ func NewManager(writer io.Writer) *Manager {
 	}
 }
 
-// ManagerFromPath manages the file system aspects of loading/creating a new plan file. Must supply an absolute path
-// here.
-func ManagerFromPath(path string) (*Manager, error) {
+// ManagerFromMetadata manages the file system aspects of loading/creating a new plan file. metadata.LogPath must be absolute.
+func ManagerFromMetadata(metadata Metadata) (*Manager, error) {
 	var manager *Manager
 
-	if !filepath.IsAbs(path) {
-		return nil, fmt.Errorf("plan file %q is not an absolute path", path)
+	if !filepath.IsAbs(metadata.LogPath) {
+		return nil, fmt.Errorf("plan file %q is not an absolute path", metadata.LogPath)
 	}
 
-	_, statErr := os.Stat(path)
+	_, statErr := os.Stat(metadata.LogPath)
 	switch {
 	case statErr != nil && !errors.Is(statErr, fs.ErrNotExist):
-		return nil, fmt.Errorf("error opening existing plan file %q: %w", path, statErr)
+		return nil, fmt.Errorf("error opening existing plan file %q: %w", metadata.LogPath, statErr)
 	case errors.Is(statErr, fs.ErrNotExist):
-		planFile, openErr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+		planFile, openErr := os.OpenFile(metadata.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 		if openErr != nil {
-			return nil, fmt.Errorf("failed to create plan file %q: %w", path, openErr)
+			return nil, fmt.Errorf("failed to create plan file %q: %w", metadata.LogPath, openErr)
 		}
 
-		slog.Debug("created new plan file", "path", path)
+		slog.Debug("created new plan file", "path", metadata.LogPath)
 
 		manager = NewManager(planFile)
+		manager.metadata = metadata
 	default:
-		planFile, openErr := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0o644)
+		planFile, openErr := os.OpenFile(metadata.LogPath, os.O_APPEND|os.O_RDWR, 0o644)
 		if openErr != nil {
-			return nil, fmt.Errorf("failed to open plan file %q: %w", path, openErr)
+			return nil, fmt.Errorf("failed to open plan file %q: %w", metadata.LogPath, openErr)
 		}
 
 		fromReader, readErr := ManagerFromReader(planFile)
@@ -73,10 +74,33 @@ func ManagerFromPath(path string) (*Manager, error) {
 			return nil, fmt.Errorf("failed to read existing plan file: %w", readErr)
 		}
 
-		slog.Debug("opened and parsed existing plan file", "path", path)
+		slog.Debug("opened and parsed existing plan file", "path", metadata.LogPath)
 
 		manager = fromReader
+		manager.metadata = metadata
 	}
+
+	return manager, nil
+}
+
+func LazyManagerFromMetadata(metadata Metadata) (*Manager, error) {
+	if !filepath.IsAbs(metadata.LogPath) {
+		return nil, fmt.Errorf("plan file %q is not an absolute path", metadata.LogPath)
+	}
+
+	if _, err := os.Stat(metadata.LogPath); err == nil {
+		manager, err := ManagerFromMetadata(metadata)
+		if err != nil {
+			return nil, err
+		}
+
+		return manager, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("error checking plan file %q: %w", metadata.LogPath, err)
+	}
+
+	manager := NewManager(nil)
+	manager.metadata = metadata
 
 	return manager, nil
 }
@@ -324,9 +348,11 @@ func (m *Manager) Teardown() error {
 
 	m.IsWriting = false
 
-	if closer, ok := m.writer.(io.WriteCloser); ok {
-		if err := closer.Close(); err != nil {
-			return fmt.Errorf("failed to close plan manager writer: %w", err)
+	if m.writer != nil {
+		if closer, ok := m.writer.(io.WriteCloser); ok {
+			if err := closer.Close(); err != nil {
+				return fmt.Errorf("failed to close plan manager writer: %w", err)
+			}
 		}
 	}
 
@@ -381,8 +407,58 @@ func (m *Manager) writeItem(item *ItemUnion) error {
 	m.writerMutex.Lock()
 	defer m.writerMutex.Unlock()
 
+	if err := m.ensureWriterLocked(); err != nil {
+		return err
+	}
+
 	if _, err := m.writer.Write(marshalled); err != nil {
 		return fmt.Errorf("failed to write item JSON: %w", err)
+	}
+
+	return nil
+}
+
+func (m *Manager) ensureWriterLocked() error {
+	if m.writer != nil {
+		return nil
+	}
+
+	if m.metadata.LogPath == "" {
+		return fmt.Errorf("plan manager has no writer or path")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(m.metadata.LogPath), 0o755); err != nil {
+		return fmt.Errorf("failed to create plan directory for %q: %w", m.metadata.LogPath, err)
+	}
+
+	planFile, err := os.OpenFile(m.metadata.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("failed to create plan file %q: %w", m.metadata.LogPath, err)
+	}
+
+	m.writer = planFile
+
+	if err := m.writeMetadata(); err != nil {
+		return fmt.Errorf("failed to write plan metadata: %w", err)
+	}
+
+	return nil
+}
+
+func (m *Manager) writeMetadata() error {
+	if err := os.MkdirAll(m.metadata.BucketPath, 0o755); err != nil {
+		return fmt.Errorf("failed to create plan bucket %q: %w", m.metadata.BucketPath, err)
+	}
+
+	data, err := json.MarshalIndent(m.metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal plan metadata: %w", err)
+	}
+
+	data = append(data, '\n')
+
+	if err := os.WriteFile(m.metadata.metadataPath, data, 0o644); err != nil {
+		return fmt.Errorf("failed to write plan metadata %q: %w", m.metadata.metadataPath, err)
 	}
 
 	return nil

@@ -301,8 +301,8 @@ func (p *PlanAdd) Params() tools.Params { //nolint:funlen
 					),
 					Type: tools.ParamTypeString,
 					EnumStringValues: utils.ToStrings(
-						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeDecision,
-						plan.ContextTypeReference,
+						plan.ContextTypeCode, plan.ContextTypeConstraint, plan.ContextTypeConvention,
+						plan.ContextTypeDecision, plan.ContextTypeReference,
 					),
 					Required: true,
 				},

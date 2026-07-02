@@ -68,6 +68,7 @@ func (s *Session) Run(_ context.Context, msg commands.PromptMessage, session *ll
 		Session:       newSession,
 		Message:       historyMsg,
 		ResetHistory:  command == sessionClear,
+		ResetPlan:     true,
 	}
 
 	return uimsg.MsgToCmd(update), nil

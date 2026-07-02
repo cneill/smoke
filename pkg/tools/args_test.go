@@ -7,6 +7,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const testKey = "test"
@@ -493,5 +494,130 @@ func TestArgs_GetArgsObjectSlice(t *testing.T) {
 				assert.NotNil(t, item.GetInt(nestedIntKey))
 			}
 		})
+	}
+}
+
+func TestParseArgsValidation(t *testing.T) {
+	t.Parallel()
+
+	type subtest struct {
+		name     string
+		input    string
+		errorStr string
+	}
+
+	tests := []struct {
+		name     string
+		params   tools.Params
+		subtests []subtest
+	}{
+		{
+			name: "required_string",
+			params: tools.Params{
+				{
+					Key:      testKey,
+					Type:     tools.ParamTypeString,
+					Required: true,
+				},
+			},
+			subtests: []subtest{
+				{
+					name:  "valid",
+					input: `{"` + testKey + `": "1"}`,
+				},
+				{
+					name:     "bool",
+					input:    `{"` + testKey + `": true}`,
+					errorStr: "keys with wrong types: " + testKey + " (expecting string)",
+				},
+				{
+					name:     "null",
+					input:    `{"` + testKey + `": null}`,
+					errorStr: "keys with wrong types: " + testKey + " (expecting string)",
+				},
+				{
+					name:     "array",
+					input:    `{"` + testKey + `": ["1", "2", "3"]}`,
+					errorStr: "keys with wrong types: " + testKey + " (expecting string)",
+				},
+				{
+					name:     "missing",
+					input:    `{}`,
+					errorStr: "missing required keys: " + testKey,
+				},
+			},
+		},
+		{
+			name: "required_string_array",
+			params: tools.Params{
+				{
+					Key:      testKey,
+					Type:     tools.ParamTypeArray,
+					Required: true,
+					ItemType: tools.ParamTypeString,
+				},
+			},
+			subtests: []subtest{
+				{
+					name:  "valid",
+					input: `{"` + testKey + `": ["1"]}`,
+				},
+				{
+					name:     "string",
+					input:    `{"` + testKey + `": "1"}`,
+					errorStr: "keys with wrong types: " + testKey + " (expecting array of string)",
+				},
+				{
+					name:     "int_array",
+					input:    `{"` + testKey + `": [1, 2, 3]}`,
+					errorStr: "keys with wrong types: " + testKey + " (expecting array of string)",
+				},
+			},
+		},
+		{
+			name: "required_obj_array_with_id_string",
+			params: tools.Params{
+				{
+					Key:      testKey,
+					Type:     tools.ParamTypeArray,
+					Required: true,
+					ItemType: tools.ParamTypeObject,
+					NestedParams: tools.Params{
+						{
+							Key:      "id",
+							Type:     tools.ParamTypeString,
+							Required: true,
+						},
+					},
+				},
+			},
+			subtests: []subtest{
+				{
+					name:  "valid",
+					input: `{"` + testKey + `": [{"id": "1"}]}`,
+				},
+				{
+					name:  "valid",
+					input: `{"` + testKey + `": [{}]}`,
+					errorStr: `invalid value for param "` + testKey + `": invalid object at index 0: unexpected ` +
+						"value: failed to parse nested object: missing required keys: id",
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		for _, subtest := range test.subtests {
+			t.Run(test.name+"_"+subtest.name, func(t *testing.T) {
+				t.Parallel()
+
+				_, err := tools.ParseArgs(test.params, []byte(subtest.input))
+				if subtest.errorStr == "" {
+					require.NoError(t, err)
+				} else {
+					require.EqualError(t, err, subtest.errorStr)
+				}
+			})
+		}
 	}
 }

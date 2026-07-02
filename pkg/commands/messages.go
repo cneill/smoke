@@ -40,6 +40,7 @@ type SessionUpdateMessage struct {
 	PromptMessage PromptMessage
 	Session       *llms.Session
 	ResetHistory  bool
+	ResetPlan     bool
 	Message       string
 }
 

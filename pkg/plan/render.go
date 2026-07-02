@@ -21,7 +21,7 @@ func (m *Manager) printPendingTasks(builder *strings.Builder) {
 		return
 	}
 
-	fmt.Fprintln(builder, "Pending plan tasks:")
+	fmt.Fprint(builder, "\n# Pending plan tasks\n\n")
 
 	for _, task := range pending {
 		if task.Parent != "" {
@@ -38,7 +38,7 @@ func (m *Manager) printCompletedTasks(builder *strings.Builder) {
 		return
 	}
 
-	fmt.Fprintln(builder, "Successfully completed plan tasks:")
+	fmt.Fprint(builder, "\n# Completed plan tasks\n\n")
 
 	ordered := []*TaskItem{}
 

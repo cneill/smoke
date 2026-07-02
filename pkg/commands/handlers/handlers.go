@@ -9,6 +9,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands/handlers/info"
 	"github.com/cneill/smoke/pkg/commands/handlers/load"
 	"github.com/cneill/smoke/pkg/commands/handlers/mode"
+	"github.com/cneill/smoke/pkg/commands/handlers/plan"
 	"github.com/cneill/smoke/pkg/commands/handlers/rank"
 	"github.com/cneill/smoke/pkg/commands/handlers/run"
 	"github.com/cneill/smoke/pkg/commands/handlers/save"
@@ -24,6 +25,7 @@ func AllCommands() map[string]commands.Initializer {
 		info.Name:      info.New,
 		load.Name:      load.New,
 		mode.Name:      mode.New,
+		plan.Name:      plan.New,
 		rank.Name:      rank.New,
 		run.Name:       run.New,
 		save.Name:      save.New,
