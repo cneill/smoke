@@ -456,12 +456,9 @@ func (m *Manager) writeMetadata() error {
 	}
 
 	data = append(data, '\n')
-	// TODO: THIS SUCKS, FIX THIS!!!!!!!!!! Need to either own ALL metadata writing (Store holds Manager?) or trigger
-	// Store to write metadata upon first Plan write
-	path := filepath.Join(m.metadata.BucketPath, m.metadata.PlanID+".meta.json")
 
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("failed to write plan metadata %q: %w", path, err)
+	if err := os.WriteFile(m.metadata.metadataPath, data, 0o644); err != nil {
+		return fmt.Errorf("failed to write plan metadata %q: %w", m.metadata.metadataPath, err)
 	}
 
 	return nil

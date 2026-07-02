@@ -69,6 +69,8 @@ type Store struct {
 }
 
 type Metadata struct {
+	metadataPath string `json:"-"`
+
 	Version     int       `json:"version"`
 	ProjectPath string    `json:"project_path"`
 	ProjectSlug string    `json:"project_slug"`
@@ -249,17 +251,18 @@ func (s *Store) newMetadata(sessionName, planID string) Metadata {
 	now := time.Now().UTC()
 
 	return Metadata{
-		Version:     metadataVersion,
-		ProjectPath: s.Bucket.ProjectPath,
-		ProjectSlug: s.Bucket.Slug(),
-		ProjectHash: s.Bucket.Hash(),
-		BucketName:  s.Bucket.Name(),
-		BucketPath:  s.Bucket.Path(),
-		SessionName: sessionName,
-		PlanID:      planID,
-		LogPath:     s.Bucket.PlanLogPath(planID),
-		CreatedAt:   now,
-		LastUsedAt:  now,
+		metadataPath: s.Bucket.PlanMetadataPath(planID),
+		Version:      metadataVersion,
+		ProjectPath:  s.Bucket.ProjectPath,
+		ProjectSlug:  s.Bucket.Slug(),
+		ProjectHash:  s.Bucket.Hash(),
+		BucketName:   s.Bucket.Name(),
+		BucketPath:   s.Bucket.Path(),
+		SessionName:  sessionName,
+		PlanID:       planID,
+		LogPath:      s.Bucket.PlanLogPath(planID),
+		CreatedAt:    now,
+		LastUsedAt:   now,
 	}
 }
 
