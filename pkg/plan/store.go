@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/cneill/smoke/pkg/config"
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 const metadataVersion = 1
@@ -105,11 +105,7 @@ func NewStore(projectPath string) (*Store, error) {
 }
 
 func (s *Store) NewLazyManager(sessionName string) (*Manager, Metadata, error) {
-	planID, err := newPlanID(sessionName)
-	if err != nil {
-		return nil, Metadata{}, err
-	}
-
+	planID := newPlanID(sessionName)
 	metadata := s.newMetadata(sessionName, planID)
 
 	manager, err := LazyManagerFromMetadata(metadata)
@@ -282,15 +278,9 @@ func cleanName(input string) string {
 	return strings.ToLower(trimmed)
 }
 
-func newPlanID(sessionName string) (string, error) {
-	var nonce [4]byte
-	if _, err := rand.Read(nonce[:]); err != nil {
-		return "", fmt.Errorf("failed to generate plan ID: %w", err)
-	}
-
+func newPlanID(sessionName string) string {
 	timeStamp := time.Now().UTC().Format("20060102T150405")
 	sessionSlug := cleanName(sessionName)
-	nonceHex := hex.EncodeToString(nonce[:])
 
-	return fmt.Sprintf("%s-%s-%s", timeStamp, sessionSlug, nonceHex), nil
+	return fmt.Sprintf("%s-%s-%s", timeStamp, sessionSlug, utils.RandID(8))
 }
