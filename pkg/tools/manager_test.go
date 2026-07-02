@@ -36,8 +36,8 @@ func getManager(t *testing.T, params tools.Params) *tools.Manager {
 	absPath, err := filepath.Abs(".")
 	require.NoError(t, err)
 
-	planFilePath := filepath.Join(t.TempDir(), "plan_file.json")
-	planManager, err := plan.ManagerFromPath(planFilePath)
+	planMetadata := plan.Metadata{LogPath: filepath.Join(t.TempDir(), "plan_file.json")}
+	planManager, err := plan.ManagerFromMetadata(planMetadata)
 	require.NoError(t, err)
 
 	opts := &tools.ManagerOpts{

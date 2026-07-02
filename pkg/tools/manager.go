@@ -91,6 +91,19 @@ func (m *Manager) SetTeaEmitter(emitter uimsg.TeaEmitter) {
 	}
 }
 
+func (m *Manager) SetPlanManager(manager *plan.Manager) {
+	m.toolMutex.Lock()
+	defer m.toolMutex.Unlock()
+
+	m.planManager = manager
+
+	for _, tool := range m.tools {
+		if wpm, ok := tool.(WantsPlanManager); ok {
+			wpm.SetPlanManager(manager)
+		}
+	}
+}
+
 func (m *Manager) GetTools() Tools {
 	m.toolMutex.RLock()
 	defer m.toolMutex.RUnlock()

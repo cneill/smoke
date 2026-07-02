@@ -32,3 +32,12 @@ func GetConfigFilePath() (string, error) {
 
 	return filepath.Join(configDir, "config.json"), nil
 }
+
+func GetPlansDirPath() (string, error) {
+	configDir, err := GetConfigDirPath()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(configDir, "plans"), nil
+}
