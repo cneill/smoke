@@ -25,8 +25,7 @@ type AssistantUpdatedStreamMessage struct {
 func (a AssistantUpdatedStreamMessage) isSmokeMessage() {}
 
 type UsageUpdateMessage struct {
-	InputTokens  int64
-	OutputTokens int64
+	ContextWindowTokens int64
 }
 
 func (u UsageUpdateMessage) isSmokeMessage() {}

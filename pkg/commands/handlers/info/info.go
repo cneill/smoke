@@ -37,8 +37,8 @@ func (i *Info) Usage() string {
 func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
 	includeSystem := slices.Contains(msg.Args, "--system")
 	messages := session.MessageCount()
-	inputTokens, outputTokens := session.Usage()
-	totalTokens := inputTokens + outputTokens
+	usage := session.GetUsage()
+	totalTokens := usage.TotalInputTokens + usage.TotalOutputTokens
 
 	toolNames := "none"
 	if tools := session.Tools.GetTools(); len(tools) > 0 {
@@ -62,8 +62,12 @@ func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 							messages.UserMessages, messages.AssistantMessages, messages.ToolCallMessages),
 					),
 					uimsg.NewField(
-						"Tokens",
-						fmt.Sprintf("Input=%d, Output=%d, Total=%d", inputTokens, outputTokens, totalTokens),
+						"Total session API usage",
+						fmt.Sprintf("Input=%d, Output=%d, Total=%d", usage.TotalInputTokens, usage.TotalOutputTokens, totalTokens),
+					),
+					uimsg.NewField(
+						"Current context window usage",
+						fmt.Sprintf("Tokens=%d", usage.CurrentContextWindowTokens),
 					),
 					uimsg.NewField("Duration", time.Since(session.CreatedAt).String()),
 					uimsg.NewField("Tools available", toolNames),

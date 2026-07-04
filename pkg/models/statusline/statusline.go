@@ -11,13 +11,12 @@ import (
 )
 
 type Model struct {
-	focused        bool
-	modelMode      modes.Mode
-	width          int
-	completionText string
-	inputTokens    int64
-	outputTokens   int64
-	styles         Styles
+	focused             bool
+	modelMode           modes.Mode
+	width               int
+	completionText      string
+	contextWindowTokens int64
+	styles              Styles
 }
 
 func New(width int) *Model {
@@ -42,8 +41,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case CompletionMessage:
 		m.completionText = msg.Text
 	case smoke.UsageUpdateMessage:
-		m.inputTokens = msg.InputTokens
-		m.outputTokens = msg.OutputTokens
+		m.contextWindowTokens = msg.ContextWindowTokens
 	case smoke.ModeMessage:
 		m.modelMode = msg.Mode
 	}
@@ -71,7 +69,7 @@ func (m *Model) View() string {
 
 	usagePadding := style.Border.Render(" ✱ ")
 
-	usageStyled := style.Usage.Render(fmt.Sprintf("in: %d, out: %d", m.inputTokens, m.outputTokens))
+	usageStyled := style.Usage.Render(fmt.Sprintf("ctx: %d", m.contextWindowTokens))
 	usage := usagePadding + usageStyled + " "
 	usageWidth := lipgloss.Width(usage)
 
