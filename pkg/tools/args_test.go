@@ -376,19 +376,18 @@ func TestArgs_GetArgsObject(t *testing.T) {
 func TestArgs_GetStringSlice(t *testing.T) {
 	t.Parallel()
 
-	// TODO?
-	// rawArgs := `{"test": ["1", "2", "3"]}`
-	//
-	// parsedArgs, err := tools.GetArgs([]byte(rawArgs), tools.Params{
-	// 	{
-	// 		Key:      testKey,
-	// 		Type:     tools.ParamTypeArray,
-	// 		ItemType: tools.ParamTypeString,
-	// 	},
-	// })
-	// if err != nil {
-	// 	t.Fatalf("failed to get args for test case: %v", err)
-	// }
+	rawArgs := `{"test": ["1", "2", "3"]}`
+
+	parsedArgs, err := tools.ParseArgs(tools.Params{
+		{
+			Key:      testKey,
+			Type:     tools.ParamTypeArray,
+			ItemType: tools.ParamTypeString,
+		},
+	}, []byte(rawArgs))
+	if err != nil {
+		t.Fatalf("failed to get args for test case: %v", err)
+	}
 
 	tests := []struct {
 		name     string
@@ -415,11 +414,11 @@ func TestArgs_GetStringSlice(t *testing.T) {
 			args:     tools.Args{testKey: []string{"1", "2", "3"}},
 			expected: []string{"1", "2", "3"},
 		},
-		// {
-		// 	name:     "parsed_args",
-		// 	args:     parsedArgs,
-		// 	expected: []string{"1", "2", "3"},
-		// },
+		{
+			name:     "parsed_args",
+			args:     parsedArgs,
+			expected: []string{"1", "2", "3"},
+		},
 	}
 
 	for _, test := range tests {

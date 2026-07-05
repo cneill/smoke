@@ -61,8 +61,6 @@ type MCPServer struct {
 	Env []Env `json:"env"`
 	// NoNamespace disables the prefixing with "[MCPServer.Name]_" on all tool names
 	NoNamespace bool `json:"no_namespace"`
-	// TODO: Type?
-	// TODO: Directory?
 }
 
 type Env struct {

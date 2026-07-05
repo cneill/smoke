@@ -23,7 +23,7 @@ func TestDetailsModelInfo(t *testing.T) {
 			name:              "default model",
 			provider:          llms.LLMTypeChatGPT,
 			search:            "",
-			wantModel:         "gpt-5.4",
+			wantModel:         "gpt-5.5",
 			wantContextTokens: 1050000,
 		},
 		{
