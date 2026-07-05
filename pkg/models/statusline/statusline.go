@@ -74,8 +74,9 @@ func (m *Model) View() string {
 
 	usageStyled := style.Usage.Render("ctx: " + utils.CommaFormatInt(m.contextWindowTokens))
 	maxStyled := style.Border.Render(" / ") + style.Usage.Render(utils.CommaFormatInt(m.maxContextWindow))
-	percentage := style.Usage.Render(fmt.Sprintf(" (%.2f%%) ", float64(m.contextWindowTokens)/float64(m.maxContextWindow)))
-	usage := usagePadding + usageStyled + maxStyled + percentage + " "
+	percentage := float64(m.contextWindowTokens) / float64(m.maxContextWindow) * 100
+	percentageStyled := style.Usage.Render(fmt.Sprintf(" (%.2f%%) ", percentage))
+	usage := usagePadding + usageStyled + maxStyled + percentageStyled + " "
 	usageWidth := lipgloss.Width(usage)
 
 	borderWidth := max(0, m.width-modeWidth-usageWidth-suggestionWidth)
