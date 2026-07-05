@@ -27,7 +27,11 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 	}
 
 	c.Emit(ctx, llms.EventUsageUpdate{
-		InputTokens:  result.Usage.InputTokens,
+		// Anthropic reports input tokens split across three buckets depending on prompt caching: total input
+		// tokens is the sum of InputTokens, CacheCreationInputTokens, and CacheReadInputTokens. Since we always
+		// set CacheControl on requests, most turns report the bulk of input under the cache fields, so we must
+		// sum all three or usage totals will fluctuate wildly instead of growing monotonically.
+		InputTokens:  result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
 		OutputTokens: result.Usage.OutputTokens,
 	})
 
@@ -97,7 +101,9 @@ func (c *conversation) sendStream(ctx context.Context) error {
 	}
 
 	c.Emit(ctx, llms.EventUsageUpdate{
-		InputTokens:  accumulator.Usage.InputTokens,
+		// See sendNoStream for why we sum all three input token buckets.
+		InputTokens: accumulator.Usage.InputTokens + accumulator.Usage.CacheCreationInputTokens +
+			accumulator.Usage.CacheReadInputTokens,
 		OutputTokens: accumulator.Usage.OutputTokens,
 	})
 

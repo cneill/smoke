@@ -128,3 +128,28 @@ func TestSession_ReplaceMessages(t *testing.T) {
 		})
 	}
 }
+
+func TestSessionUsage(t *testing.T) {
+	t.Parallel()
+
+	session := &llms.Session{}
+
+	usage := session.GetUsage()
+	assert.Zero(t, usage.TotalInputTokens)
+	assert.Zero(t, usage.TotalOutputTokens)
+	assert.Zero(t, usage.CurrentContextWindowTokens)
+
+	session.UpdateUsage(100, 25)
+
+	usage = session.GetUsage()
+	assert.Equal(t, int64(100), usage.TotalInputTokens)
+	assert.Equal(t, int64(25), usage.TotalOutputTokens)
+	assert.Equal(t, int64(125), usage.CurrentContextWindowTokens)
+
+	session.UpdateUsage(200, 50)
+
+	usage = session.GetUsage()
+	assert.Equal(t, int64(300), usage.TotalInputTokens)
+	assert.Equal(t, int64(75), usage.TotalOutputTokens)
+	assert.Equal(t, int64(250), usage.CurrentContextWindowTokens)
+}

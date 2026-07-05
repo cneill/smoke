@@ -284,10 +284,8 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				}
 			case llms.EventUsageUpdate:
 				session.UpdateUsage(event.InputTokens, event.OutputTokens)
-				input, output := session.Usage()
 				s.teaEmitter(UsageUpdateMessage{
-					InputTokens:  input,
-					OutputTokens: output,
+					ContextWindowTokens: session.GetUsage().CurrentContextWindowTokens,
 				})
 			}
 		}
@@ -455,8 +453,12 @@ func (s *Smoke) SkillCompleter() func(string) []string {
 	return s.skillCatalog.Completer()
 }
 
-func (s *Smoke) GetUsage() (inputTokens, outputTokens int64) { //nolint:nonamedreturns
-	return s.getMainSession().Usage()
+func (s *Smoke) GetUsage() llms.Usage {
+	return s.getMainSession().GetUsage()
+}
+
+func (s *Smoke) GetLLMConfig() *llms.Config {
+	return s.llmConfig
 }
 
 func (s *Smoke) getMainSession() *llms.Session {

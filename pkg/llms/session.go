@@ -10,6 +10,12 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 )
 
+type Usage struct {
+	TotalInputTokens           int64
+	TotalOutputTokens          int64
+	CurrentContextWindowTokens int64
+}
+
 type Session struct {
 	Name          string    `json:"name"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -22,9 +28,10 @@ type Session struct {
 	Tools  *tools.Manager `json:"-"`
 	Config *Config        `json:"-"`
 
-	usageMutex   sync.RWMutex `json:"-"`
-	InputTokens  int64        `json:"input_tokens"`
-	OutputTokens int64        `json:"output_tokens"`
+	usageMutex                 sync.RWMutex `json:"-"`
+	InputTokens                int64        `json:"input_tokens"`
+	OutputTokens               int64        `json:"output_tokens"`
+	CurrentContextWindowTokens int64        `json:"current_context_window_tokens"`
 
 	modeMutex sync.RWMutex `json:"-"`
 	mode      modes.Mode   `json:"-"`
@@ -181,21 +188,25 @@ func (s *Session) Last() *Message {
 	return s.Messages[len(s.Messages)-1]
 }
 
-// UpdateUsage should be called with the total number of input tokens and the number of output tokens from the latest
-// response.
+// UpdateUsage should be called with the total input/output token usage from the latest response.
 func (s *Session) UpdateUsage(inputTokens, outputTokens int64) {
 	s.usageMutex.Lock()
 	defer s.usageMutex.Unlock()
 
 	s.InputTokens += inputTokens
 	s.OutputTokens += outputTokens
+	s.CurrentContextWindowTokens = inputTokens + outputTokens
 }
 
-func (s *Session) Usage() (inputTokens, outputTokens int64) { //nolint:nonamedreturns
+func (s *Session) GetUsage() Usage {
 	s.usageMutex.RLock()
 	defer s.usageMutex.RUnlock()
 
-	return s.InputTokens, s.OutputTokens
+	return Usage{
+		TotalInputTokens:           s.InputTokens,
+		TotalOutputTokens:          s.OutputTokens,
+		CurrentContextWindowTokens: s.CurrentContextWindowTokens,
+	}
 }
 
 type MessageCount struct {

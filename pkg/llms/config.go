@@ -8,6 +8,7 @@ type Config struct {
 	Effort      string
 	MaxTokens   int64
 	Model       string
+	ContextSize int64
 	NoStream    bool
 	Provider    LLMType
 	Temperature float64

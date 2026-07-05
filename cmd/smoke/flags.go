@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/providers"
 	"github.com/urfave/cli/v3"
 )
 
@@ -69,7 +70,7 @@ func localConfigFlags() []cli.Flag {
 
 func llmConfigFlags() []cli.Flag {
 	category := "LLM Configuration"
-	providers := getProviders()
+	registry := providers.All()
 
 	return []cli.Flag{
 		&cli.StringFlag{
@@ -88,7 +89,7 @@ func llmConfigFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:     FlagProvider,
-			Usage:    "One of the following: " + strings.Join(providers.names(), ", "),
+			Usage:    "One of the following: " + strings.Join(registry.Names(), ", "),
 			Category: category,
 			Aliases:  []string{"p"},
 			Sources:  cli.EnvVars(EnvProvider),
