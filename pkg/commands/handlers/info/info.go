@@ -63,11 +63,12 @@ func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 					),
 					uimsg.NewField(
 						"Total session API usage",
-						fmt.Sprintf("Input=%d, Output=%d, Total=%d", usage.TotalInputTokens, usage.TotalOutputTokens, totalTokens),
+						fmt.Sprintf("Input=%d, Output=%d, Total=%d", usage.TotalInputTokens, usage.TotalOutputTokens,
+							totalTokens),
 					),
 					uimsg.NewField(
 						"Current context window usage",
-						fmt.Sprintf("Tokens=%d", usage.CurrentContextWindowTokens),
+						fmt.Sprintf("Used=%d, Max=%d", usage.CurrentContextWindowTokens, session.Config.ContextSize),
 					),
 					uimsg.NewField("Duration", time.Since(session.CreatedAt).String()),
 					uimsg.NewField("Tools available", toolNames),

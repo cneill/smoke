@@ -29,6 +29,7 @@ type Opts struct {
 	Width            int
 	Height           int
 	MaxHeight        int
+	MaxContextWindow int64
 	PlaceholderText  string
 	CommandCompleter func(string) []string
 	SkillCompleter   func(string) []string
@@ -93,7 +94,7 @@ func New(opts *Opts) (*Model, error) {
 	}
 
 	model := &Model{
-		statusline: statusline.New(opts.Width),
+		statusline: statusline.New(opts.Width, opts.MaxContextWindow),
 		textarea:   getTextArea(opts),
 		spinner:    getSpinner(opts.Width, opts.Height),
 

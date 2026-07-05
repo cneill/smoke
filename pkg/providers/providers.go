@@ -26,6 +26,7 @@ var (
 	ErrInvalidEffort = errors.New("invalid effort")
 )
 
+// Model context sizes pulled from https://models.dev/models.json
 var registry = Registry{ //nolint:gochecknoglobals
 	llms.LLMTypeChatGPT: {
 		DefaultModel:  "gpt-5.5",

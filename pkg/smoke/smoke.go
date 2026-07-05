@@ -457,6 +457,10 @@ func (s *Smoke) GetUsage() llms.Usage {
 	return s.getMainSession().GetUsage()
 }
 
+func (s *Smoke) GetLLMConfig() *llms.Config {
+	return s.llmConfig
+}
+
 func (s *Smoke) getMainSession() *llms.Session {
 	s.sessionMutex.RLock()
 	defer s.sessionMutex.RUnlock()

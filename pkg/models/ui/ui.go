@@ -93,6 +93,7 @@ func New(opts *Opts) (*Model, error) {
 		PlaceholderText:  "Enter your message...",
 		CommandCompleter: opts.Smoke.CommandCompleter(),
 		SkillCompleter:   opts.Smoke.SkillCompleter(),
+		MaxContextWindow: opts.Smoke.GetLLMConfig().ContextSize,
 	}
 
 	inputModel, err := input.New(inputOpts)
