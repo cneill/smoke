@@ -1,14 +1,15 @@
-package main
+package providers_test
 
 import (
 	"testing"
 
 	"github.com/cneill/smoke/pkg/llms"
+	"github.com/cneill/smoke/pkg/providers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestProviderDetailsGetModelInfo(t *testing.T) {
+func TestDetailsModelInfo(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -45,38 +46,57 @@ func TestProviderDetailsGetModelInfo(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			details, err := getProviders().details(test.provider)
+			details, err := providers.All().Details(test.provider)
 			require.NoError(t, err)
 
-			model, info, err := details.getModelInfo(test.search)
+			model, info, err := details.ModelInfo(test.search)
 			require.NoError(t, err)
 			assert.Equal(t, test.wantModel, model)
-			assert.Equal(t, test.wantContextTokens, info.contextWindowTokens)
+			assert.Equal(t, test.wantContextTokens, info.ContextWindowTokens)
 		})
 	}
 }
 
-func TestProviderDetailsGetModelInfoUnknownModel(t *testing.T) {
+func TestDetailsModelInfoUnknownModel(t *testing.T) {
 	t.Parallel()
 
-	details, err := getProviders().details(llms.LLMTypeChatGPT)
+	details, err := providers.All().Details(llms.LLMTypeChatGPT)
 	require.NoError(t, err)
 
-	_, _, err = details.getModelInfo("bogus")
+	_, _, err = details.ModelInfo("bogus")
 	require.Error(t, err)
-	require.ErrorContains(t, err, "unknown model")
+	require.ErrorIs(t, err, providers.ErrUnknownModel)
 	require.ErrorContains(t, err, "Model aliases")
 	require.ErrorContains(t, err, "gpt-5.4: 5.4, gpt5.4, gpt-5.4")
 }
 
-func TestProviderDetailsGetModelInfoPassesThroughModelsForOllama(t *testing.T) {
+func TestDetailsModelInfoPassesThroughModelsForOllama(t *testing.T) {
 	t.Parallel()
 
-	details, err := getProviders().details(llms.LLMTypeOllama)
+	details, err := providers.All().Details(llms.LLMTypeOllama)
 	require.NoError(t, err)
 
-	model, info, err := details.getModelInfo("llama3.1")
+	model, info, err := details.ModelInfo("llama3.1")
 	require.NoError(t, err)
 	assert.Equal(t, "llama3.1", model)
 	assert.Zero(t, info)
+}
+
+func TestDetailsModelInfoRequiresModelForOllama(t *testing.T) {
+	t.Parallel()
+
+	details, err := providers.All().Details(llms.LLMTypeOllama)
+	require.NoError(t, err)
+
+	_, _, err = details.ModelInfo("")
+	require.Error(t, err)
+	require.ErrorIs(t, err, providers.ErrModelRequired)
+}
+
+func TestRegistryDetailsUnknownProvider(t *testing.T) {
+	t.Parallel()
+
+	_, err := providers.All().Details("bogus")
+	require.Error(t, err)
+	require.ErrorIs(t, err, providers.ErrUnknownProvider)
 }

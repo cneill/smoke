@@ -14,6 +14,7 @@ import (
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/ui"
+	"github.com/cneill/smoke/pkg/providers"
 	"github.com/cneill/smoke/pkg/smoke"
 	"github.com/urfave/cli/v3"
 )
@@ -23,13 +24,14 @@ var ErrInit = errors.New("initialization")
 func validate(cmd *cli.Command) error {
 	provider := strings.ToLower(cmd.String(FlagProvider))
 
-	details, err := getProviders().details(provider)
+	_, err := providers.All().Details(provider)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to look up provider %q: %w", provider, err)
 	}
 
-	if details.apiKeyFlag != "" && cmd.String(details.apiKeyFlag) == "" {
-		return fmt.Errorf("must supply --%s flag or $%s environment variable", details.apiKeyFlag, details.apiKeyEnvVar)
+	keyInfo := apiKeyInfos[provider]
+	if keyInfo.apiKeyFlag != "" && cmd.String(keyInfo.apiKeyFlag) == "" {
+		return fmt.Errorf("must supply --%s flag or $%s environment variable", keyInfo.apiKeyFlag, keyInfo.apiKeyEnvVar)
 	}
 
 	args := cmd.Args()
@@ -64,24 +66,30 @@ func setupLogFile(cmd *cli.Command) (*os.File, error) {
 func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 	provider := strings.ToLower(cmd.String(FlagProvider))
 
-	details, err := getProviders().details(provider)
+	details, err := providers.All().Details(provider)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to look up provider %q: %w", provider, err)
 	}
 
-	model, _, err := details.getModelInfo(cmd.String(FlagModel))
+	model, _, err := details.ModelInfo(cmd.String(FlagModel))
 	if err != nil {
+		if errors.Is(err, providers.ErrModelRequired) {
+			return nil, fmt.Errorf("failed to select model for provider %q: %w: use --%s", provider, err, FlagModel)
+		}
+
 		return nil, fmt.Errorf("failed to select model for provider %q: %w", provider, err)
 	}
 
-	effort, err := details.getEffort(cmd.String(FlagEffort))
+	effort, err := details.Effort(cmd.String(FlagEffort))
 	if err != nil {
 		return nil, fmt.Errorf("invalid effort for provider %q: %w", provider, err)
 	}
 
+	keyInfo := apiKeyInfos[provider]
+
 	llmConfig := &llms.Config{
-		APIKey:      cmd.String(details.apiKeyFlag),
-		BaseURL:     cmd.String(details.baseURLFlag),
+		APIKey:      cmd.String(keyInfo.apiKeyFlag),
+		BaseURL:     cmd.String(keyInfo.baseURLFlag),
 		Effort:      effort,
 		MaxTokens:   cmd.Int64(FlagMaxTokens),
 		NoStream:    cmd.Bool(FlagNoStream),
