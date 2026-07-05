@@ -69,7 +69,7 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 		return nil, err
 	}
 
-	model, err := details.getModel(cmd.String(FlagModel))
+	model, _, err := details.getModelInfo(cmd.String(FlagModel))
 	if err != nil {
 		return nil, fmt.Errorf("failed to select model for provider %q: %w", provider, err)
 	}

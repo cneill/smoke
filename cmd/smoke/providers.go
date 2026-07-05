@@ -26,25 +26,25 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 			openai.ReasoningEffortHigh,
 			openai.ReasoningEffortXhigh,
 		),
-		aliases: modelAliases{
-			openai.ChatModelGPT4:        {"4", "gpt4", "gpt-4"},
-			openai.ChatModelGPT4o:       {"4o", "gpt4o", "gpt-4o"},
-			openai.ChatModelGPT4oMini:   {"4o-mini", "gpt4o-mini", "gpt-4o-mini"},
-			openai.ChatModelGPT4_1:      {"4.1", "gpt4.1", "gpt-4.1"},
-			openai.ChatModelGPT4_1Mini:  {"4.1-mini", "gpt4.1-mini", "gpt-4.1-mini"},
-			openai.ChatModelGPT4_1Nano:  {"4.1-nano", "gpt4.1-nano", "gpt-4.1-nano"},
-			openai.ChatModelGPT5:        {"5", "gpt5", "gpt-5"},
-			openai.ChatModelGPT5Mini:    {"5-mini", "gpt5-mini", "gpt-5-mini"},
-			openai.ChatModelGPT5Nano:    {"5-nano", "gpt5-nano", "gpt-5-nano"},
-			openai.ChatModelGPT5_1:      {"5.1", "gpt5.1", "gpt-5.1"},
-			openai.ChatModelGPT5_1Mini:  {"5.1-mini", "gpt5.1-mini", "gpt-5.1-mini"},
-			openai.ChatModelGPT5_1Codex: {"5.1-codex", "gpt5.1-codex", "gpt-5.1-codex"},
-			openai.ChatModelGPT5_2:      {"5.2", "gpt5.2", "gpt-5.2"},
-			openai.ChatModelGPT5_2Pro:   {"5.2-pro", "gpt5.2-pro", "gpt-5.2-pro"},
-			openai.ChatModelGPT5_4:      {"5.4", "gpt5.4", "gpt-5.4"},
-			openai.ChatModelGPT5_4Mini:  {"5.4-mini", "gpt5.4-mini", "gpt-5.4-mini"},
-			openai.ChatModelGPT5_4Nano:  {"5.4-nano", "gpt5.4-nano", "gpt-5.4-nano"},
-			"gpt-5.5":                   {"5.5", "gpt5.5", "gpt-5.5"}, // Some day OpenAI will update their SDK...
+		models: modelInfos{
+			openai.ChatModelGPT4o:       {aliases: []string{"4o", "gpt4o", "gpt-4o"}, contextWindowTokens: 128000},
+			openai.ChatModelGPT4oMini:   {aliases: []string{"4o-mini", "gpt4o-mini", "gpt-4o-mini"}, contextWindowTokens: 128000},
+			openai.ChatModelGPT4_1:      {aliases: []string{"4.1", "gpt4.1", "gpt-4.1"}, contextWindowTokens: 1047576},
+			openai.ChatModelGPT4_1Mini:  {aliases: []string{"4.1-mini", "gpt4.1-mini", "gpt-4.1-mini"}, contextWindowTokens: 1047576},
+			openai.ChatModelGPT4_1Nano:  {aliases: []string{"4.1-nano", "gpt4.1-nano", "gpt-4.1-nano"}, contextWindowTokens: 1047576},
+			openai.ChatModelGPT5:        {aliases: []string{"5", "gpt5", "gpt-5"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5Mini:    {aliases: []string{"5-mini", "gpt5-mini", "gpt-5-mini"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5Nano:    {aliases: []string{"5-nano", "gpt5-nano", "gpt-5-nano"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5_1:      {aliases: []string{"5.1", "gpt5.1", "gpt-5.1"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5_1Mini:  {aliases: []string{"5.1-mini", "gpt5.1-mini", "gpt-5.1-mini"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5_1Codex: {aliases: []string{"5.1-codex", "gpt5.1-codex", "gpt-5.1-codex"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5_2:      {aliases: []string{"5.2", "gpt5.2", "gpt-5.2"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5_2Pro:   {aliases: []string{"5.2-pro", "gpt5.2-pro", "gpt-5.2-pro"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5_4:      {aliases: []string{"5.4", "gpt5.4", "gpt-5.4"}, contextWindowTokens: 1050000},
+			openai.ChatModelGPT5_4Mini:  {aliases: []string{"5.4-mini", "gpt5.4-mini", "gpt-5.4-mini"}, contextWindowTokens: 400000},
+			openai.ChatModelGPT5_4Nano:  {aliases: []string{"5.4-nano", "gpt5.4-nano", "gpt-5.4-nano"}, contextWindowTokens: 400000},
+			// Some day OpenAI will update their SDK...
+			"gpt-5.5": {aliases: []string{"5.5", "gpt5.5", "gpt-5.5"}, contextWindowTokens: 1050000},
 		},
 	},
 	llms.LLMTypeClaude: {
@@ -59,15 +59,16 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 			anthropic.OutputConfigEffortXhigh,
 			anthropic.OutputConfigEffortMax,
 		),
-		aliases: modelAliases{
-			anthropic.ModelClaudeFable5:    {"fable", "fable5"},
-			anthropic.ModelClaudeOpus4_8:   {"opus", "opus4.8", "o48"},
-			anthropic.ModelClaudeOpus4_7:   {"opus4.7", "o47"},
-			anthropic.ModelClaudeOpus4_6:   {"opus4.6", "o46"},
-			anthropic.ModelClaudeOpus4_5:   {"opus4.5", "o45"},
-			anthropic.ModelClaudeSonnet4_6: {"sonnet", "sonnet4.6", "s46"},
-			anthropic.ModelClaudeSonnet4_5: {"sonnet4.5", "s45"},
-			anthropic.ModelClaudeHaiku4_5:  {"haiku", "haiku4.5", "h45"},
+		models: modelInfos{
+			anthropic.ModelClaudeFable5:    {aliases: []string{"fable", "fable5"}, contextWindowTokens: 1000000},
+			anthropic.ModelClaudeOpus4_8:   {aliases: []string{"opus", "opus4.8", "o48"}, contextWindowTokens: 1000000},
+			anthropic.ModelClaudeOpus4_7:   {aliases: []string{"opus4.7", "o47"}, contextWindowTokens: 1000000},
+			anthropic.ModelClaudeOpus4_6:   {aliases: []string{"opus4.6", "o46"}, contextWindowTokens: 1000000},
+			anthropic.ModelClaudeOpus4_5:   {aliases: []string{"opus4.5", "o45"}, contextWindowTokens: 200000},
+			anthropic.ModelClaudeSonnet5:   {aliases: []string{"sonnet", "sonnet5", "s5"}, contextWindowTokens: 1000000},
+			anthropic.ModelClaudeSonnet4_6: {aliases: []string{"sonnet4.6", "s46"}, contextWindowTokens: 1000000},
+			anthropic.ModelClaudeSonnet4_5: {aliases: []string{"sonnet4.5", "s45"}, contextWindowTokens: 200000},
+			anthropic.ModelClaudeHaiku4_5:  {aliases: []string{"haiku", "haiku4.5", "h45"}, contextWindowTokens: 200000},
 		},
 	},
 	llms.LLMTypeGrok: {
@@ -81,10 +82,10 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 			"medium",
 			"high",
 		},
-		aliases: modelAliases{
-			"grok-build-0.1":           {"build", "fast"},
-			"grok-4.3":                 {"4.3", "430"},
-			"grok-4.20-0309-reasoning": {"4.2", "420"},
+		models: modelInfos{
+			"grok-build-0.1":           {aliases: []string{"build", "fast"}, contextWindowTokens: 256000},
+			"grok-4.3":                 {aliases: []string{"4.3", "430"}, contextWindowTokens: 1000000},
+			"grok-4.20-0309-reasoning": {aliases: []string{"4.2", "420"}, contextWindowTokens: 1000000},
 		},
 	},
 	llms.LLMTypeOllama: {
@@ -93,11 +94,11 @@ var providers = providerMappings{ //nolint:gochecknoglobals
 		apiKeyEnvVar: "",
 		baseURLFlag:  FlagOllamaHost,
 		defaultModel: "",
-		aliases:      modelAliases{},
+		models:       modelInfos{},
 	},
 }
 
-// TODO: make this customizable by the user in config?
+// getProviders returns the built-in provider metadata.
 func getProviders() providerMappings {
 	return providers
 }
@@ -127,34 +128,34 @@ type providerDetails struct {
 	defaultModel  string
 	defaultEffort string
 	effortOptions []string
-	aliases       modelAliases
+	models        modelInfos
 }
 
-func (p providerDetails) getModel(search string) (string, error) {
+func (p providerDetails) getModelInfo(search string) (string, modelInfo, error) {
 	// Provider has no predefined models (e.g. ollama): pass through verbatim.
-	if len(p.aliases) == 0 {
+	if len(p.models) == 0 {
 		if search == "" {
-			return "", fmt.Errorf("this provider requires --model to be specified explicitly")
+			return "", modelInfo{}, fmt.Errorf("this provider requires --model to be specified explicitly")
 		}
 
-		return search, nil
-	}
-
-	for model, aliases := range p.aliases {
-		if model == search {
-			return model, nil
-		}
-
-		if slices.Contains(aliases, search) {
-			return model, nil
-		}
+		return search, modelInfo{}, nil
 	}
 
 	if search == "" {
-		return p.defaultModel, nil
+		return p.defaultModel, p.models[p.defaultModel], nil
 	}
 
-	return "", fmt.Errorf("unknown model: %q\n\n%s", search, p.aliases)
+	for model, info := range p.models {
+		if model == search {
+			return model, info, nil
+		}
+
+		if slices.Contains(info.aliases, search) {
+			return model, info, nil
+		}
+	}
+
+	return "", modelInfo{}, fmt.Errorf("unknown model: %q\n\n%s", search, p.models)
 }
 
 func (p providerDetails) getEffort(effort string) (string, error) {
@@ -169,9 +170,14 @@ func (p providerDetails) getEffort(effort string) (string, error) {
 	return effort, nil
 }
 
-type modelAliases map[string][]string
+type modelInfo struct {
+	aliases             []string
+	contextWindowTokens int64
+}
 
-func (m modelAliases) String() string {
+type modelInfos map[string]modelInfo
+
+func (m modelInfos) String() string {
 	builder := strings.Builder{}
 	builder.Grow(64)
 	builder.WriteString("Model aliases:\n")
@@ -182,7 +188,7 @@ func (m modelAliases) String() string {
 	for _, modelName := range modelNames {
 		builder.WriteString(modelName)
 		builder.WriteString(": ")
-		builder.WriteString(strings.Join(m[modelName], ", "))
+		builder.WriteString(strings.Join(m[modelName].aliases, ", "))
 		builder.WriteByte('\n')
 	}
 
