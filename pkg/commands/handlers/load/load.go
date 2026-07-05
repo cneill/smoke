@@ -51,9 +51,9 @@ func (l *Load) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 		return nil, fmt.Errorf("failed to unmarshal session JSON from %q: %w", path, err)
 	}
 
-	// TODO: there's almost certainly more setup necessary here...
 	loaded.Tools = session.Tools
 	loaded.SetMode(modes.DefaultMode())
+	loaded.Config = session.Config
 
 	slog.Debug("loaded session from file", "path", path, "num_messages", len(loaded.Messages))
 

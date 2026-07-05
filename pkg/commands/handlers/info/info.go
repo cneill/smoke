@@ -68,7 +68,9 @@ func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 					),
 					uimsg.NewField(
 						"Current context window usage",
-						fmt.Sprintf("Used=%d, Max=%d", usage.CurrentContextWindowTokens, session.Config.ContextSize),
+						fmt.Sprintf("Used=%d, Max=%d, Percent used=%.2f%%",
+							usage.CurrentContextWindowTokens, session.Config.ContextSize,
+							float64(usage.CurrentContextWindowTokens)/float64(session.Config.ContextSize)*100),
 					),
 					uimsg.NewField("Duration", time.Since(session.CreatedAt).String()),
 					uimsg.NewField("Tools available", toolNames),

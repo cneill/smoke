@@ -84,7 +84,6 @@ func TestGrep_Run(t *testing.T) { //nolint:funlen
 			expectedOutput: "",
 			errors:         []error{tools.ErrArguments},
 		},
-		// TODO: maybe check for an invalid value instead of just ignoring when non-int64?
 		{
 			name:        "invalid_context_lines",
 			initContent: "a\nb\nc",

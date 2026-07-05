@@ -81,7 +81,7 @@ func ReviewTools() []tools.Initializer {
 		grep.New,
 		ls.New,
 		planadd.New,
-		plancompletion.New, // TODO: ?
+		plancompletion.New,
 		planread.New,
 		planupdate.New,
 		readfile.New,

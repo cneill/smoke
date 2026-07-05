@@ -19,7 +19,6 @@ func (s *Smoke) GetMCPTools(ctx context.Context, mode modes.Mode, clients ...*mc
 			err      error
 		)
 
-		// TODO: handle other modes?
 		switch mode {
 		case modes.ModePlanning, modes.ModeReview:
 			mcpTools, err = mcpClient.PlanTools(ctx)

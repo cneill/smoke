@@ -6,7 +6,7 @@ type Conversation interface {
 	ID() string
 	Events() <-chan Event
 	Start(ctx context.Context)
-	Cancel(err error) // TODO: merge into Close?
+	Cancel(err error)
 	Continue(ctx context.Context) error
 	Close()
 }
