@@ -134,7 +134,7 @@ func (m *Message) ToMarkdown() string {
 	if m.HasToolCalls() {
 		for _, toolCall := range m.ToolCalls {
 			fmt.Fprintf(builder, "**Tool called:** `%s`\n", toolCall.Name)
-			fmt.Fprintf(builder, "**Args:** `%s`\n", toolCall.Args.String())
+			fmt.Fprintf(builder, "**Args:** `%s`\n", toolCall.ArgsString())
 		}
 
 		if m.TextContent != "" {

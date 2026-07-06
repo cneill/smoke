@@ -207,23 +207,25 @@ func (c *conversation) newMessageTools(session *llms.Session) []anthropic.ToolUn
 	return results
 }
 
-func (c *conversation) providerToolCallsToGeneric(toolCalls ...anthropic.ToolUseBlock) (llms.ToolCalls, error) {
+func (c *conversation) providerToolCallsToGeneric(toolCalls ...anthropic.ToolUseBlock) llms.ToolCalls {
 	results := make(llms.ToolCalls, len(toolCalls))
 
 	for callNum, toolCall := range toolCalls {
 		args, err := c.Session().Tools.GetArgs(toolCall.Name, toolCall.Input)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", toolCall.Name, err)
-		}
 
 		results[callNum] = llms.ToolCall{
-			ID:   toolCall.ID,
-			Name: toolCall.Name,
-			Args: args,
+			ID:      toolCall.ID,
+			Name:    toolCall.Name,
+			Args:    args,
+			RawArgs: string(toolCall.Input),
+		}
+		if err != nil {
+			results[callNum].ArgsError = fmt.Sprintf("failed to parse arguments for tool call to tool %q: %v",
+				toolCall.Name, err)
 		}
 	}
 
-	return results, nil
+	return results
 }
 
 func (c *conversation) genericToolCallsToProvider(toolCalls ...llms.ToolCall) []anthropic.ContentBlockParamUnion {
@@ -234,7 +236,7 @@ func (c *conversation) genericToolCallsToProvider(toolCalls ...llms.ToolCall) []
 			OfToolUse: &anthropic.ToolUseBlockParam{
 				ID:    toolCall.ID,
 				Name:  toolCall.Name,
-				Input: toolCall.Args,
+				Input: toolCall.ProviderArgs(),
 			},
 		}
 	}
@@ -267,10 +269,7 @@ func (c *conversation) handleResponse(ctx context.Context, id string, blocks []a
 	if len(providerToolCalls) > 0 {
 		c.HasPendingToolCalls = true
 
-		toolCalls, err := c.providerToolCallsToGeneric(providerToolCalls...)
-		if err != nil {
-			return fmt.Errorf("failed to handle assistant tool calls: %w", err)
-		}
+		toolCalls := c.providerToolCallsToGeneric(providerToolCalls...)
 
 		msg = msg.Update(llms.WithToolCalls(toolCalls...))
 

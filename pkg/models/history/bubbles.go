@@ -121,7 +121,7 @@ func assistantRoleContentText(msg *llms.Message, contentText string) string {
 	sb.WriteString("Tool calls:\n")
 
 	for _, toolCall := range msg.ToolCalls {
-		fmt.Fprintf(&sb, "- `%s`: `%s`\n", toolCall.Name, toolCall.Args.String())
+		fmt.Fprintf(&sb, "- `%s`: `%s`\n", toolCall.Name, toolCall.ArgsString())
 	}
 
 	return sb.String()
@@ -139,7 +139,7 @@ func toolRoleContentText(msg *llms.Message, contentText string) (string, error) 
 		sb.WriteString("\n\n")
 	}
 
-	fmt.Fprintf(&sb, "Tool call to %q with args: %s", msg.ToolCalls[0].Name, msg.ToolCalls[0].Args.String())
+	fmt.Fprintf(&sb, "Tool call to %q with args: %s", msg.ToolCalls[0].Name, msg.ToolCalls[0].ArgsString())
 
 	return sb.String(), nil
 }

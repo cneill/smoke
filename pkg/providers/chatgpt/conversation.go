@@ -119,7 +119,7 @@ func (c *conversation) getInputFromSession(session *llms.Session) responses.Resp
 						OfFunctionCall: &responses.ResponseFunctionToolCallParam{
 							CallID:    toolCall.ID,
 							Name:      toolCall.Name,
-							Arguments: toolCall.Args.String(),
+							Arguments: toolCall.ArgsString(),
 						},
 					})
 				}
@@ -230,6 +230,22 @@ func (c *conversation) handleFinalResponse(ctx context.Context, response *respon
 	return nil
 }
 
+func (c *conversation) newToolCall(id, name, rawArgs string) llms.ToolCall {
+	args, err := c.Session().Tools.GetArgs(name, []byte(rawArgs))
+
+	toolCall := llms.ToolCall{
+		ID:      id,
+		Name:    name,
+		Args:    args,
+		RawArgs: rawArgs,
+	}
+	if err != nil {
+		toolCall.ArgsError = fmt.Sprintf("failed to parse arguments for tool call to tool %q: %v", name, err)
+	}
+
+	return toolCall
+}
+
 func (c *conversation) outputToMessage(output []responses.ResponseOutputItemUnion) (*llms.Message, error) {
 	var (
 		msgOpts = []llms.MessageOpt{
@@ -254,16 +270,7 @@ func (c *conversation) outputToMessage(output []responses.ResponseOutputItemUnio
 				}
 			}
 		case responses.ResponseFunctionToolCall:
-			args, err := c.Session().Tools.GetArgs(outputItem.Name, []byte(outputItem.Arguments))
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse arguments for tool call to tool %q: %w", outputItem.Name, err)
-			}
-
-			toolCalls = append(toolCalls, llms.ToolCall{
-				ID:   outputItem.CallID,
-				Name: outputItem.Name,
-				Args: args,
-			})
+			toolCalls = append(toolCalls, c.newToolCall(outputItem.CallID, outputItem.Name, outputItem.Arguments))
 		case responses.ResponseReasoningItem:
 			// slog.Debug("Got reasoning", "reasoning", outputItem.Summary)
 		}
