@@ -153,6 +153,70 @@ func (s *Smoke) HandleUserMessage(msg *llms.Message) (tea.Cmd, error) {
 	return handler, nil
 }
 
+func invalidToolCallArgsMessage(toolCall llms.ToolCall) string {
+	return fmt.Sprintf(
+		"Tool call %q could not be executed because its arguments were invalid. "+
+			"Fix the arguments and try the tool call again. Error: %s\nRaw arguments: %s",
+		toolCall.Name,
+		toolCall.ArgsError,
+		toolCall.ArgsString(),
+	)
+}
+
+func toolCallResultMessage(ctx context.Context, session *llms.Session, toolCall llms.ToolCall) *llms.Message {
+	var (
+		textContent  string
+		imageContent []byte
+		toolCallErr  error
+	)
+
+	messageOpts := []llms.MessageOpt{
+		llms.WithRole(llms.RoleTool),
+		llms.WithToolCalls(toolCall),
+	}
+
+	var (
+		output *tools.Output
+		err    error
+	)
+	if !toolCall.InvalidArgs() {
+		output, err = session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
+	}
+
+	switch {
+	case toolCall.InvalidArgs():
+		toolCallErr = toolCall.GetArgsErr()
+		textContent = invalidToolCallArgsMessage(toolCall)
+	case err != nil:
+		slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
+		toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
+		textContent = toolCallErr.Error()
+	case output.Type() == tools.OutputTypeText:
+		textContent = output.Text
+	case output.Type() == tools.OutputTypeImage:
+		imageBytes, err := os.ReadFile(output.ImagePath)
+		if err != nil {
+			slog.Error("failed to read image bytes", "path", output.ImagePath, "error", err)
+			toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
+			textContent = toolCallErr.Error()
+		}
+
+		imageContent = imageBytes
+	}
+
+	if textContent != "" {
+		messageOpts = append(messageOpts, llms.WithTextContent(textContent))
+	} else if imageContent != nil {
+		messageOpts = append(messageOpts, llms.WithImageContent(imageContent))
+	}
+
+	if toolCallErr != nil {
+		messageOpts = append(messageOpts, llms.WithError(toolCallErr))
+	}
+
+	return llms.NewMessage(messageOpts...)
+}
+
 func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, conversation llms.Conversation) {
 	eventsChan := conversation.Events()
 
@@ -228,47 +292,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 				}
 
 				for _, toolCall := range event.Message.ToolCalls {
-					var (
-						textContent  string
-						imageContent []byte
-						toolCallErr  error
-					)
-
-					messageOpts := []llms.MessageOpt{
-						llms.WithRole(llms.RoleTool),
-						llms.WithToolCalls(toolCall),
-					}
-
-					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
-					switch {
-					case err != nil:
-						slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
-						toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
-						textContent = toolCallErr.Error()
-					case output.Type() == tools.OutputTypeText:
-						textContent = output.Text
-					case output.Type() == tools.OutputTypeImage:
-						imageBytes, err := os.ReadFile(output.ImagePath)
-						if err != nil {
-							slog.Error("failed to read image bytes", "path", output.ImagePath, "error", err)
-							toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
-							textContent = toolCallErr.Error()
-						}
-
-						imageContent = imageBytes
-					}
-
-					if textContent != "" {
-						messageOpts = append(messageOpts, llms.WithTextContent(textContent))
-					} else if imageContent != nil {
-						messageOpts = append(messageOpts, llms.WithImageContent(imageContent))
-					}
-
-					if toolCallErr != nil {
-						messageOpts = append(messageOpts, llms.WithError(toolCallErr))
-					}
-
-					resultsMsg := llms.NewMessage(messageOpts...)
+					resultsMsg := toolCallResultMessage(ctx, session, toolCall)
 
 					if err := session.AddMessage(resultsMsg); err != nil {
 						slog.Error("failed to add tool call result message to session", "error", err)
