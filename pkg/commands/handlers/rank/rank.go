@@ -291,41 +291,19 @@ listenLoop:
 				break listenLoop
 			}
 
-			if response.Err != nil {
+			batch, err := r.handleResponse(response)
+			if err != nil {
 				// TODO: retry
-				slog.Error("got error in ranking response listener", "error", response.Err, "request", response.RequestMessage)
+				slog.Error("ranking failure", "error", err, "request", response.RequestMessage)
 
 				failures++
 
 				continue
 			}
 
-			result := []string{}
-			if err := json.Unmarshal([]byte(response.Message), &result); err != nil {
-				// TODO: retry
-				slog.Error("failed to parse assistant response as JSON string list", "error", err, "request", response.RequestMessage)
-
-				failures++
-
-				continue
-			}
-
-			slog.Debug("got rankings", "batch_idx", response.BatchIdx, "iteration", response.Iteration, "rankings", result)
-
-			batch := response.Batch.Clone()
-
-			if err := batch.AddRankings(result); err != nil {
-				// TODO: retry? what do?
-				slog.Error("failed to add rankings for batch", "idx", response.BatchIdx, "iteration", response.Iteration, "error", err)
-
-				failures++
-
-				continue
-			}
-
-			results = append(results, batch)
 			successes++
 
+			results = append(results, batch)
 		default:
 			if failures >= 5 {
 				slog.Error("got 5 or more failures, response listener bailing")
@@ -346,43 +324,61 @@ listenLoop:
 	slog.Debug("got all expected results", "successes", successes, "failures", failures, "batches", results)
 
 	ranked := MergeBatches(results...).RankSorted()
-	for _, item := range ranked {
-		slog.Debug("item ranking details", "id", item.ID, "contents", item.Contents, "rank_history", item.RankHistory, "ranking_score", item.RankingScore())
-	}
-
 	topItems := ranked[:min(opts.top, len(ranked))]
-
-	blocks := []uimsg.HistoryBlock{
-		{
-			Type:  uimsg.HistoryBlockFields,
-			Title: "Ranking complete",
-			Fields: []uimsg.HistoryField{
-				uimsg.NewField("Successful batches", strconv.Itoa(successes)),
-				uimsg.NewField("Failed batches", strconv.Itoa(failures)),
-				uimsg.NewField("Top returned", strconv.Itoa(len(topItems))),
-			},
-		},
-	}
-
-	for i, item := range topItems {
-		blocks = append(blocks, uimsg.HistoryBlock{
-			Type:  uimsg.HistoryBlockFields,
-			Title: fmt.Sprintf("Rank %d", i+1),
-			Fields: []uimsg.HistoryField{
-				uimsg.NewField("Item", item.Contents),
-				uimsg.NewField("Score", fmt.Sprintf("%.2f", item.RankingScore())),
-			},
-		})
-	}
-
 	update := commands.HistoryUpdateMessage{
 		PromptMessage: opts.promptMessage,
 		Content: &uimsg.HistoryContent{
-			Blocks: blocks,
+			Blocks: r.constructHistoryBlocks(topItems, successes, failures),
 		},
 	}
 
 	r.teaEmitter(update)
 
 	// TODO: write results to a file?
+}
+
+func (r *Rank) handleResponse(response ResponseMessage) (Items, error) {
+	if response.Err != nil {
+		return nil, fmt.Errorf("got error in ranking response listener: %w", response.Err)
+	}
+
+	rankingResult := []string{}
+	if err := json.Unmarshal([]byte(response.Message), &rankingResult); err != nil {
+		return nil, fmt.Errorf("failed to parse assistant response as JSON string list: %w", err)
+	}
+
+	slog.Debug("got rankings", "batch_idx", response.BatchIdx, "iteration", response.Iteration, "rankings", rankingResult)
+
+	batch := response.Batch.Clone()
+	if err := batch.AddRankings(rankingResult); err != nil {
+		return nil, fmt.Errorf("failed to add rankings for batch (idx=%d, iteration=%d): %w", response.BatchIdx, response.Iteration, err)
+	}
+
+	return batch, nil
+}
+
+func (r *Rank) constructHistoryBlocks(topItems Items, successes, failures int) []uimsg.HistoryBlock {
+	blocks := make([]uimsg.HistoryBlock, len(topItems)+1)
+	blocks[0] = uimsg.HistoryBlock{
+		Type:  uimsg.HistoryBlockFields,
+		Title: "Ranking complete",
+		Fields: []uimsg.HistoryField{
+			uimsg.NewField("Successful batches", strconv.Itoa(successes)),
+			uimsg.NewField("Failed batches", strconv.Itoa(failures)),
+			uimsg.NewField("Top returned", strconv.Itoa(len(topItems))),
+		},
+	}
+
+	for i, item := range topItems {
+		blocks[i+1] = uimsg.HistoryBlock{
+			Type:  uimsg.HistoryBlockFields,
+			Title: fmt.Sprintf("Rank %d", i+1),
+			Fields: []uimsg.HistoryField{
+				uimsg.NewField("Item", item.Contents),
+				uimsg.NewField("Score", fmt.Sprintf("%.2f", item.RankingScore())),
+			},
+		}
+	}
+
+	return blocks
 }
