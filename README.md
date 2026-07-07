@@ -1,6 +1,6 @@
 # smoke
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/cneill/smoke)](https://goreportcard.com/report/github.com/cneill/smoke) [![Go package documentation](https://pkg.go.dev/badge/github.com/cneill/smoke)](https://pkg.go.dev/github.com/cneill/smoke)
+[![Go package documentation](https://pkg.go.dev/badge/github.com/cneill/smoke)](https://pkg.go.dev/github.com/cneill/smoke)
 
 ## About
 
@@ -29,9 +29,11 @@ GLOBAL OPTIONS:
 
    LLM Configuration
 
+   --effort string, -e string     The effort used for 'thinking'. Varies by provider. [$SMOKE_EFFORT]
    --max-tokens int, -t int       The max tokens to return in any given response (default: 8192) [$SMOKE_MAX_TOKENS]
    --model string, -m string      The provider's model to use, or an alias for it [$SMOKE_MODEL]
-   --provider string, -p string   One of the following: chatgpt, claude, grok [$SMOKE_PROVIDER]
+   --no-stream, -S                Disable streamed responses [$SMOKE_NO_STREAM]
+   --provider string, -p string   One of the following: chatgpt, claude, grok, ollama [$SMOKE_PROVIDER]
    --temperature float, -T float  The temperature value to use with the model (default: 1) [$SMOKE_TEMPERATURE]
 
    Local Configuration
@@ -42,6 +44,7 @@ GLOBAL OPTIONS:
    Providers
 
    --anthropic-api-key string  The API key for Anthropic. Required when provider is "claude" [$ANTHROPIC_API_KEY]
+   --ollama-host string        The base URL for the Ollama API. Used when provider is "ollama" (default: "http://localhost:11434/v1") [$OLLAMA_HOST]
    --openai-api-key string     The API key for OpenAI. Required when provider is "chatgpt" [$OPENAI_API_KEY]
    --xai-api-key string        The API key for xAI. Required when provider is "grok" [$XAI_API_KEY]
 ```
