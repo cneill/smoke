@@ -277,7 +277,7 @@ func (m *Model) SetWaiting(value bool) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd {
+func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd { //nolint:cyclop,funlen
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok && !m.waiting {
 		newTextarea, cmd := m.textarea.Update(msg)

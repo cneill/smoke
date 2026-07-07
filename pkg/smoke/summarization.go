@@ -72,7 +72,9 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 	return handler, nil
 }
 
-func (s *Smoke) summarizationLoop(ctx context.Context, msg summarize.SessionSummarizeMessage, session *llms.Session, conversation llms.Conversation) {
+func (s *Smoke) summarizationLoop( //nolint:cyclop,gocognit,funlen
+	ctx context.Context, msg summarize.SessionSummarizeMessage, session *llms.Session, conversation llms.Conversation,
+) {
 	eventsChan := conversation.Events()
 
 	// TODO: smoke message type for returning an error tea.Msg to the UI for things that aren't conversation related,

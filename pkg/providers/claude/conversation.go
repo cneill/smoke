@@ -50,7 +50,7 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 	return nil
 }
 
-func (c *conversation) sendStream(ctx context.Context) error {
+func (c *conversation) sendStream(ctx context.Context) error { //nolint:cyclop
 	messageParams := c.getMessageNewParams()
 
 	stream := c.client.Messages.NewStreaming(ctx, messageParams, option.WithMaxRetries(5))
@@ -140,8 +140,8 @@ func (c *conversation) getMessageNewParams() anthropic.MessageNewParams {
 func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.MessageParam {
 	results := make([]anthropic.MessageParam, len(session.Messages))
 
-	for num, msg := range session.Messages {
-		switch msg.Role {
+	for idx, msg := range session.Messages {
+		switch msg.Role { //nolint:exhaustive
 		case llms.RoleAssistant:
 			contentBlocks := []anthropic.ContentBlockParamUnion{}
 
@@ -153,26 +153,20 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 				contentBlocks = append(contentBlocks, c.genericToolCallsToProvider(msg.ToolCalls...)...)
 			}
 
-			results[num] = anthropic.NewAssistantMessage(contentBlocks...)
+			results[idx] = anthropic.NewAssistantMessage(contentBlocks...)
 		case llms.RoleSystem:
 			// Anthropic defines the system prompt outside of messages
 		case llms.RoleUser:
-			results[num] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.TextContent))
+			results[idx] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.TextContent))
 		case llms.RoleTool:
-			if n := len(msg.ToolCalls); n > 1 {
-				slog.Warn("more than one tool call referenced in message with tool role; skipping", "num", n, "names", msg.ToolCalls.Names())
-				continue
-			}
-
 			content := msg.TextContent
 			if content == "" {
 				content = "[no output]" // can't be empty?
 			}
 
-			results[num] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCalls[0].ID, content, msg.Error != ""))
-
-		case llms.RoleUnknown:
-			slog.Warn("got message with unknown role", "message", msg.TextContent)
+			results[idx] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCalls[0].ID, content, msg.Error != ""))
+		default:
+			slog.Warn("got message with unknown role", "message", msg.TextContent, "role", msg.Role)
 		}
 	}
 

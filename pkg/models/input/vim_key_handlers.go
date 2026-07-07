@@ -133,7 +133,7 @@ func (m *Model) handleVimWordMove(key string) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleVimDelete(key string) tea.Cmd {
+func (m *Model) handleVimDelete(key string) tea.Cmd { //nolint:cyclop
 	if !strings.Contains(deleteKeys, key) {
 		return nil
 	}

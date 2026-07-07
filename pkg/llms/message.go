@@ -56,9 +56,13 @@ func (m *Message) OK() error {
 		return fmt.Errorf("message is missing ID")
 	case m.Role == "":
 		return fmt.Errorf("message is missing role")
-	case m.Role == RoleTool && len(m.ToolCalls) != 1:
+	case m.Role == RoleTool:
 		// Providers only accept 1 tool result per message; anything else returns an error
-		return fmt.Errorf("message with %q role is missing tool call information", RoleTool)
+		if n := len(m.ToolCalls); n == 0 {
+			return fmt.Errorf("message with %q role is missing tool call information", RoleTool)
+		} else if n > 1 {
+			return fmt.Errorf("message with %q role has too many tool call references (%d), expecting 1", RoleTool, n)
+		}
 	}
 
 	return nil

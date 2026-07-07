@@ -31,13 +31,13 @@ func (s *Smoke) HandleRankRequestMessage(msg rank.RequestMessage) (tea.Cmd, erro
 
 	handler := func() tea.Msg {
 		defer func() {
-			slog.Debug("Closing ranking batch conversation", "batch_idx", msg.BatchIdx)
+			slog.Debug("closing ranking batch conversation", "batch_idx", msg.BatchIdx)
 			conversation.Close()
 		}()
 
 		wg := sync.WaitGroup{}
 		wg.Go(func() {
-			slog.Debug("Starting ranking batch conversation event-listening loop", "batch_idx", msg.BatchIdx, "iteration", msg.Iteration)
+			slog.Debug("starting ranking batch conversation event-listening loop", "batch_idx", msg.BatchIdx, "iteration", msg.Iteration)
 			s.handleRankingBatch(context.Background(), msg, batchSession, conversation)
 		})
 
@@ -83,7 +83,9 @@ func (s *Smoke) batchSession(msg rank.RequestMessage) (*llms.Session, error) {
 	return newSession, nil
 }
 
-func (s *Smoke) handleRankingBatch(ctx context.Context, request rank.RequestMessage, session *llms.Session, conversation llms.Conversation) {
+func (s *Smoke) handleRankingBatch( //nolint:cyclop
+	ctx context.Context, request rank.RequestMessage, session *llms.Session, conversation llms.Conversation,
+) {
 	eventsChan := conversation.Events()
 
 	// TODO: smoke message type for returning an error tea.Msg to the UI for things that aren't conversation related,
@@ -115,7 +117,7 @@ func (s *Smoke) handleRankingBatch(ctx context.Context, request rank.RequestMess
 					return
 				}
 
-				slog.Debug("Got final assistant message in ranking batch loop", "message", event.Message)
+				slog.Debug("got final assistant message in ranking batch loop", "message", event.Message)
 
 				msg := rank.ResponseMessage{
 					RequestMessage: request,
