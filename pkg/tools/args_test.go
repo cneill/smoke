@@ -496,7 +496,7 @@ func TestArgs_GetArgsObjectSlice(t *testing.T) {
 	}
 }
 
-func TestParseArgsValidation(t *testing.T) {
+func TestParseArgsValidation(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	type subtest struct {

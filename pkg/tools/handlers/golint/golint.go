@@ -45,8 +45,9 @@ func (g *GoLint) Name() string { return tools.NameGoLint }
 func (g *GoLint) Description() string {
 	examples := tools.CollectExamples(g.Examples()...)
 
-	return fmt.Sprintf("Runs the golangci-lint linter against the file/directory specified in %q, or the whole "+
-		"project directory if not specified.%s",
+	return fmt.Sprintf(
+		"Runs the golangci-lint linter against the file/directory specified in %q, or the whole "+
+			"project directory if not specified.%s",
 		ParamPath, examples,
 	)
 }

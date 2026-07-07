@@ -232,7 +232,6 @@ func (p *PlanUpdate) Run(_ context.Context, args tools.Args) (*tools.Output, err
 
 	output = strings.TrimRight(output, "; ")
 
-	// TODO: maybe include current context with ReadPlanTool ?
 	return &tools.Output{Text: output}, nil
 }
 

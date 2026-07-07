@@ -305,7 +305,7 @@ func (m *Model) handleToolCallResponse(response smoke.ToolCallResponseMessage) t
 }
 
 // Handle messages from prompt command handlers.
-func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd { //nolint:cyclop,funlen,gocognit
+func (m *Model) handleCommandMessage(msg commands.Message) tea.Cmd { //nolint:cyclop,funlen
 	cmds := []tea.Cmd{}
 
 	switch msg := msg.(type) {
