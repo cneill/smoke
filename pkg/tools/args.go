@@ -69,7 +69,7 @@ func ParseArgs(params Params, input []byte) (Args, error) {
 func (a Args) String() string {
 	argBytes, err := json.Marshal(a)
 	if err != nil {
-		// TODO: don't panic here? ignore error entirely?
+		// This should not happen for Args produced by JSON parsing.
 		panic(fmt.Errorf("failed to marshal Args to bytes: %w", err))
 	}
 
@@ -309,7 +309,6 @@ func (a Args) LogValue() slog.Value {
 
 // checkTypes walks all the keys in the slice and ensures that they match the types expected by the corresponding
 // [Param], returning an error if any types are mismatched.
-// TODO: allow for e.g. "1" for number, "f" for bool?
 func (a Args) checkTypes(params Params) error {
 	wrongTypeKeys := []string{}
 
@@ -335,6 +334,10 @@ func (a Args) checkTypes(params Params) error {
 // rightType checks an individual arg 'value' against the expected [Param] type. It also calls itself to check
 // [Param.ItemType] if the [Param.Type] is [ParamTypeArray].
 func (a Args) rightType(param *Param, value any) bool { //nolint:cyclop
+	if value == nil {
+		return param.Nullable || param.Type == ParamTypeNull
+	}
+
 	rightType := true
 	typ := reflect.TypeOf(value)
 
@@ -394,6 +397,10 @@ func (a Args) checkValues(params Params) error {
 }
 
 func (a Args) checkStringValue(param *Param, argValue any) error {
+	if argValue == nil && param.Nullable {
+		return nil
+	}
+
 	if len(param.EnumStringValues) == 0 {
 		return nil
 	}
@@ -411,6 +418,10 @@ func (a Args) checkStringValue(param *Param, argValue any) error {
 }
 
 func (a Args) checkObjectValue(param *Param, argValue any) error {
+	if argValue == nil && param.Nullable {
+		return nil
+	}
+
 	if param.NestedParams == nil {
 		return nil
 	}
@@ -428,6 +439,10 @@ func (a Args) checkObjectValue(param *Param, argValue any) error {
 }
 
 func (a Args) checkArrayValues(param *Param, argValue any) error {
+	if argValue == nil && param.Nullable {
+		return nil
+	}
+
 	if len(param.NestedParams) == 0 {
 		return nil
 	}
