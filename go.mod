@@ -13,7 +13,7 @@ require (
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/google/jsonschema-go v0.4.3
 	github.com/mattn/go-runewidth v0.0.24
-	github.com/modelcontextprotocol/go-sdk v1.6.0
+	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/muesli/reflow v0.3.0
 	github.com/openai/openai-go/v3 v3.41.0
 	github.com/playwright-community/playwright-go v0.5700.1
