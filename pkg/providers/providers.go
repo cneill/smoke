@@ -57,7 +57,10 @@ var registry = Registry{ //nolint:gochecknoglobals
 			openai.ChatModelGPT5_4Mini:  {Aliases: []string{"5.4-mini", "gpt5.4-mini", "gpt-5.4-mini"}, ContextWindowTokens: 400000},
 			openai.ChatModelGPT5_4Nano:  {Aliases: []string{"5.4-nano", "gpt5.4-nano", "gpt-5.4-nano"}, ContextWindowTokens: 400000},
 			// Some day OpenAI will update their SDK...
-			"gpt-5.5": {Aliases: []string{"5.5", "gpt5.5", "gpt-5.5"}, ContextWindowTokens: 1050000},
+			"gpt-5.5":       {Aliases: []string{"5.5", "gpt5.5", "gpt-5.5"}, ContextWindowTokens: 1050000},
+			"gpt-5.6-sol":   {Aliases: []string{"5.6", "sol", "5.6-sol", "gpt5.6"}, ContextWindowTokens: 1050000},
+			"gpt-5.6-terra": {Aliases: []string{"terra", "5.6-terra"}, ContextWindowTokens: 1050000},
+			"gpt-5.6-luna":  {Aliases: []string{"luna", "5.6-luna"}, ContextWindowTokens: 1050000},
 		},
 	},
 	llms.LLMTypeClaude: {
@@ -92,6 +95,7 @@ var registry = Registry{ //nolint:gochecknoglobals
 			"high",
 		},
 		Models: ModelInfos{
+			"grok-4.5":                 {Aliases: []string{"4.5", "450"}, ContextWindowTokens: 500000},
 			"grok-build-0.1":           {Aliases: []string{"build", "fast"}, ContextWindowTokens: 256000},
 			"grok-4.3":                 {Aliases: []string{"4.3", "430"}, ContextWindowTokens: 1000000},
 			"grok-4.20-0309-reasoning": {Aliases: []string{"4.2", "420"}, ContextWindowTokens: 1000000},
