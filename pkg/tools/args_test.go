@@ -574,6 +574,63 @@ func TestParseArgsValidation(t *testing.T) { //nolint:funlen
 			},
 		},
 		{
+			name: "required_nullable_string_array",
+			params: tools.Params{
+				{
+					Key:      testKey,
+					Type:     tools.ParamTypeArray,
+					Nullable: true,
+					Required: true,
+					ItemType: tools.ParamTypeString,
+				},
+			},
+			subtests: []subtest{
+				{
+					name:  "valid_array",
+					input: `{"` + testKey + `": ["1"]}`,
+				},
+				{
+					name:  "valid_null",
+					input: `{"` + testKey + `": null}`,
+				},
+				{
+					name:     "missing",
+					input:    `{}`,
+					errorStr: "missing required keys: " + testKey,
+				},
+				{
+					name:     "wrong_type",
+					input:    `{"` + testKey + `": "1"}`,
+					errorStr: "keys with wrong types: " + testKey + " (expecting array of string)",
+				},
+			},
+		},
+		{
+			name: "optional_nullable_string_array",
+			params: tools.Params{
+				{
+					Key:      testKey,
+					Type:     tools.ParamTypeArray,
+					Nullable: true,
+					ItemType: tools.ParamTypeString,
+				},
+			},
+			subtests: []subtest{
+				{
+					name:  "valid_array",
+					input: `{"` + testKey + `": ["1"]}`,
+				},
+				{
+					name:  "valid_null",
+					input: `{"` + testKey + `": null}`,
+				},
+				{
+					name:  "missing",
+					input: `{}`,
+				},
+			},
+		},
+		{
 			name: "required_obj_array_with_id_string",
 			params: tools.Params{
 				{

@@ -62,6 +62,11 @@ func NewTool(opts *ToolOpts) (*Tool, error) {
 		fullName = opts.MCPTool.Name
 	}
 
+	params, err := paramsFromRawSchema(rawSchema)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tool params schema for tool %q: %w", opts.MCPTool.Name, err)
+	}
+
 	tool := &Tool{
 		fullName:   fullName,
 		clientName: opts.MCPServerConfig.Name,
@@ -69,7 +74,7 @@ func NewTool(opts *ToolOpts) (*Tool, error) {
 		session:    opts.MCPSession,
 		underlying: opts.MCPTool,
 		schema:     schema,
-		params:     paramsFromSchema(schema),
+		params:     params,
 	}
 
 	return tool, nil
@@ -112,55 +117,153 @@ func (t *Tool) Schema() *jsonschema.Schema {
 	return t.schema
 }
 
-func paramsFromSchema(schema *jsonschema.Schema) tools.Params {
-	results := make(tools.Params, len(schema.Properties))
-	idx := 0
+type rawParamSchema struct {
+	Type        any                        `json:"type"`
+	Description string                     `json:"description"`
+	Items       *rawParamSchema            `json:"items"`
+	Enum        []any                      `json:"enum"`
+	Properties  map[string]json.RawMessage `json:"properties"`
+	Required    []string                   `json:"required"`
+}
 
-	for name, property := range schema.Properties {
-		param := tools.Param{
-			Key:         name,
-			Description: property.Description,
-			Type:        tools.ParamType(property.Type), // TODO: match against "enum"?
-		}
-
-		if slices.Contains(schema.Required, name) {
-			param.Required = true
-		}
-
-		if items := property.Items; items != nil {
-			if items.Type != "" {
-				param.ItemType = tools.ParamType(items.Type) // TODO: match against "enum"?
-			}
-		}
-
-		if enum := property.Enum; len(enum) > 0 {
-			allStrings := true
-			strVals := make([]string, len(enum))
-
-			for i, enumVal := range enum {
-				if enumStr, ok := enumVal.(string); ok {
-					strVals[i] = enumStr
-				} else {
-					allStrings = false
-					break
-				}
-			}
-
-			if allStrings {
-				param.EnumStringValues = strVals
-			}
-		}
-
-		if param.Type == tools.ParamTypeObject {
-			param.NestedParams = paramsFromSchema(property)
-		}
-
-		// TODO: handle array of objects
-
-		results[idx] = param
-
-		idx++
+func paramsFromRawSchema(rawSchema []byte) (tools.Params, error) {
+	schema := rawParamSchema{}
+	if err := json.Unmarshal(rawSchema, &schema); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal raw JSON schema: %w", err)
 	}
 
-	return results
+	return paramsFromRawParamSchema(schema)
+}
+
+func paramsFromRawParamSchema(schema rawParamSchema) (tools.Params, error) {
+	results := make(tools.Params, 0, len(schema.Properties))
+
+	propertyNames := make([]string, 0, len(schema.Properties))
+	for name := range schema.Properties {
+		propertyNames = append(propertyNames, name)
+	}
+
+	slices.Sort(propertyNames)
+
+	for _, name := range propertyNames {
+		property := rawParamSchema{}
+		if err := json.Unmarshal(schema.Properties[name], &property); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal property %q: %w", name, err)
+		}
+
+		param, err := paramFromRawProperty(name, property, slices.Contains(schema.Required, name))
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, param)
+	}
+
+	return results, nil
+}
+
+func paramFromRawProperty(name string, property rawParamSchema, required bool) (tools.Param, error) {
+	paramType, nullable := paramTypeFromSchemaType(property.Type)
+	param := tools.Param{
+		Key:              name,
+		Description:      property.Description,
+		Type:             paramType,
+		Nullable:         nullable,
+		Required:         required,
+		EnumStringValues: enumStringValues(property.Enum),
+	}
+
+	if items := property.Items; items != nil {
+		itemType, _ := paramTypeFromSchemaType(items.Type)
+		param.ItemType = itemType
+	}
+
+	if err := setNestedParams(&param, property); err != nil {
+		return tools.Param{}, err
+	}
+
+	return param, nil
+}
+
+func enumStringValues(enum []any) []string {
+	if len(enum) == 0 {
+		return nil
+	}
+
+	strVals := make([]string, len(enum))
+	for enumIdx, enumVal := range enum {
+		enumStr, ok := enumVal.(string)
+		if !ok {
+			return nil
+		}
+
+		strVals[enumIdx] = enumStr
+	}
+
+	return strVals
+}
+
+func setNestedParams(param *tools.Param, property rawParamSchema) error {
+	switch {
+	case param.Type == tools.ParamTypeObject:
+		nestedParams, err := paramsFromRawParamSchema(property)
+		if err != nil {
+			return fmt.Errorf("failed to parse nested object params for %q: %w", param.Key, err)
+		}
+
+		param.NestedParams = nestedParams
+	case param.Type == tools.ParamTypeArray && param.ItemType == tools.ParamTypeObject && property.Items != nil:
+		nestedParams, err := paramsFromRawParamSchema(*property.Items)
+		if err != nil {
+			return fmt.Errorf("failed to parse nested array object params for %q: %w", param.Key, err)
+		}
+
+		param.NestedParams = nestedParams
+	}
+
+	return nil
+}
+
+func paramTypeFromSchemaType(schemaType any) (tools.ParamType, bool) {
+	switch schemaType := schemaType.(type) {
+	case string:
+		return tools.ParamType(schemaType), false
+	case []any:
+		return paramTypeFromSchemaTypeList(schemaType)
+	case []string:
+		values := make([]any, len(schemaType))
+		for i, value := range schemaType {
+			values[i] = value
+		}
+
+		return paramTypeFromSchemaTypeList(values)
+	default:
+		return "", false
+	}
+}
+
+func paramTypeFromSchemaTypeList(schemaTypes []any) (tools.ParamType, bool) {
+	nonNullTypes := []tools.ParamType{}
+	nullable := false
+
+	for _, schemaType := range schemaTypes {
+		strType, ok := schemaType.(string)
+		if !ok {
+			continue
+		}
+
+		paramType := tools.ParamType(strType)
+		if paramType == tools.ParamTypeNull {
+			nullable = true
+			continue
+		}
+
+		nonNullTypes = append(nonNullTypes, paramType)
+	}
+
+	if len(nonNullTypes) != 1 {
+		return "", nullable
+	}
+
+	return nonNullTypes[0], nullable
 }

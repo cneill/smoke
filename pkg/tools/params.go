@@ -26,6 +26,8 @@ type Param struct {
 	Description string
 	// Type corresponds to one of the JSON data types.
 	Type ParamType
+	// Nullable says whether null is an acceptable value for this Param.
+	Nullable bool
 	// Required says whether this Param must be supplied to execute the associated [Tool].
 	Required bool
 	// ItemType corresponds to the type of individual items if Type is ParamTypeArray.
@@ -70,8 +72,13 @@ func (p Param) OK() error { //nolint:cyclop
 // JSONSchemaProperties returns the properties for a single Param, or an error if invalid. Typically used by the method
 // of the same name on the [Params] type.
 func (p Param) JSONSchemaProperties() (map[string]any, error) {
+	var schemaType any = p.Type
+	if p.Nullable {
+		schemaType = []ParamType{ParamTypeNull, p.Type}
+	}
+
 	keyProps := map[string]any{
-		"type":        p.Type,
+		"type":        schemaType,
 		"description": p.Description,
 	}
 
