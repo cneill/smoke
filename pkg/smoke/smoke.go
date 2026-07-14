@@ -16,6 +16,7 @@ import (
 	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/config"
+	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llmctx/agentsmd"
 	"github.com/cneill/smoke/pkg/llmctx/modes"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
@@ -376,6 +377,10 @@ func (s *Smoke) CommandCompleter() func(string) []string {
 
 func (s *Smoke) SkillCompleter() func(string) []string {
 	return s.skillCatalog.Completer()
+}
+
+func (s *Smoke) PathCompleter() func(string) []fs.PathMatch {
+	return fs.PathCompleter(s.projectPath)
 }
 
 func (s *Smoke) GetUsage() llms.Usage {

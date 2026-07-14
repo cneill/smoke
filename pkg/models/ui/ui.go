@@ -93,6 +93,7 @@ func New(opts *Opts) (*Model, error) {
 		PlaceholderText:  "Enter your message...",
 		CommandCompleter: opts.Smoke.CommandCompleter(),
 		SkillCompleter:   opts.Smoke.SkillCompleter(),
+		PathCompleter:    opts.Smoke.PathCompleter(),
 		MaxContextWindow: opts.Smoke.GetLLMConfig().ContextSize,
 	}
 
@@ -148,9 +149,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		lineHeight := m.input.LineHeight()
-		m.history.Resize(msg.Width, msg.Height-(lineHeight+1)) // +1 for the border
-		m.input.Resize(msg.Width, lineHeight)
+		layoutHeight := m.input.LayoutHeight()
+		m.history.Resize(msg.Width, msg.Height-(layoutHeight+1)) // +1 for the border/statusline
+		m.input.Resize(msg.Width, layoutHeight)
 	case tea.KeyMsg:
 		switch msg.Type { //nolint:exhaustive,gocritic
 		case tea.KeyCtrlC:
@@ -188,11 +189,11 @@ func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case input.ResizeMessage:
-		lineHeight := m.input.LineHeight()
-		delta := lineHeight - m.input.GetHeight() // how many lines did we resize by
+		layoutHeight := m.input.LayoutHeight()
+		delta := layoutHeight - m.input.GetHeight() // growth/shrink of full input chrome
 		width := m.history.GetWidth()
 		m.history.Resize(width, m.history.GetHeight()-delta)
-		m.input.Resize(width, lineHeight)
+		m.input.Resize(width, layoutHeight)
 
 	case input.ShiftModeMessage:
 		if err := m.smoke.ShiftMode(); err != nil {

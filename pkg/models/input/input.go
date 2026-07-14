@@ -14,6 +14,7 @@ import (
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
+	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/models/statusline"
 	"github.com/mattn/go-runewidth"
 )
@@ -33,6 +34,7 @@ type Opts struct {
 	PlaceholderText  string
 	CommandCompleter func(string) []string
 	SkillCompleter   func(string) []string
+	PathCompleter    func(string) []fs.PathMatch
 }
 
 func (o *Opts) OK() error {
@@ -45,6 +47,8 @@ func (o *Opts) OK() error {
 		return fmt.Errorf("must supply a command completer")
 	case o.SkillCompleter == nil:
 		return fmt.Errorf("must supply a skill completer")
+	case o.PathCompleter == nil:
+		return fmt.Errorf("must supply a path completer")
 	}
 
 	return nil
@@ -77,6 +81,10 @@ type Model struct {
 	completionState *CompletionState
 	askActive       bool
 
+	// allocatedHeight is the last full input chrome height applied via Resize (textarea + path popup).
+	// Used so layout deltas remain correct when the autocomplete popup appears or disappears.
+	allocatedHeight int
+
 	// Manages the full history of text submissions (LLM messages, prompt commands, etc) by the user for history
 	// scrolling purposes *only*
 	userHistory      []string
@@ -88,7 +96,7 @@ func New(opts *Opts) (*Model, error) {
 		return nil, fmt.Errorf("options error: %w", err)
 	}
 
-	cs, err := NewCompletionState(opts.CommandCompleter, opts.SkillCompleter)
+	cs, err := NewCompletionState(opts.CommandCompleter, opts.SkillCompleter, opts.PathCompleter)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up completion state: %w", err)
 	}
@@ -99,6 +107,7 @@ func New(opts *Opts) (*Model, error) {
 		spinner:    getSpinner(opts.Width, opts.Height),
 
 		completionState: cs,
+		allocatedHeight: opts.Height,
 
 		mode: modeInsert,
 	}
@@ -179,7 +188,7 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	commands := []tea.Cmd{}
-	startHeight := m.textarea.Height()
+	startHeight := m.LayoutHeight()
 
 	if cmd := m.handleSpinnerMsg(msg); cmd != nil {
 		commands = append(commands, cmd)
@@ -189,7 +198,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		commands = append(commands, cmd)
 	}
 
-	if m.LineHeight() != startHeight {
+	if m.LayoutHeight() != startHeight {
 		commands = append(commands, uimsg.MsgToCmd(ResizeMessage{}))
 	}
 
@@ -206,21 +215,29 @@ func (m *Model) View() string {
 		mainContent = m.spinner.View()
 	}
 
+	if popup := m.completionPopupView(); popup != "" {
+		return m.statusline.View() + "\n" + popup + "\n" + mainContent
+	}
+
 	return m.statusline.View() + "\n" + mainContent
 }
 
 func (m *Model) Resize(width, height int) {
 	m.statusline.SetWidth(width)
+	m.allocatedHeight = height
 
+	// height is the full input chrome (textarea + optional popup); keep popup out of the textarea
+	textHeight := max(1, height-m.PopupLines())
 	m.textarea.SetWidth(width)
-	m.textarea.SetHeight(height)
+	m.textarea.SetHeight(textHeight)
 
 	m.spinner.Style.Width(width)
-	m.spinner.Style.Height(height)
+	m.spinner.Style.Height(textHeight)
 }
 
-// LineHeight calculates the number of effective lines - both those ended with \n and those that are necessitated by
-// text running off the screen - and returns the minimum of this or the maxlines of the textarea.
+// LineHeight calculates the number of effective lines for the textarea only - both those ended with \n and those
+// that are necessitated by text running off the screen - and returns the minimum of this or the maxlines of the
+// textarea. Path popup height is excluded; use LayoutHeight for the full input chrome.
 func (m *Model) LineHeight() int {
 	content := m.textarea.Value()
 	explicitLines := strings.Split(content, "\n")
@@ -240,11 +257,21 @@ func (m *Model) LineHeight() int {
 	return result
 }
 
+// LayoutHeight is the full vertical size of the input view (textarea + optional path popup).
+// Statusline is accounted for separately by the parent (+1).
+func (m *Model) LayoutHeight() int {
+	return m.LineHeight() + m.PopupLines()
+}
+
 func (m *Model) GetWidth() int {
 	return m.textarea.Width()
 }
 
 func (m *Model) GetHeight() int {
+	if m.allocatedHeight > 0 {
+		return m.allocatedHeight
+	}
+
 	return m.textarea.Height()
 }
 
@@ -277,6 +304,11 @@ func (m *Model) SetWaiting(value bool) tea.Cmd {
 	return nil
 }
 
+// PopupLines returns how many terminal lines the completion popup currently occupies (0 if hidden).
+func (m *Model) PopupLines() int {
+	return m.completionState.PopupLineCount()
+}
+
 func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd { //nolint:cyclop,funlen
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok && !m.waiting {
@@ -290,6 +322,14 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd { //nolint:cyclop,funlen
 	if m.waiting {
 		if cmd := m.handleWaitingKey(keyMsg); cmd != nil {
 			return cmd
+		}
+	}
+
+	// Autocompletion intercepts keys before enter/esc/history handling when active or starting.
+	if m.Focused() && m.mode == modeInsert && !m.waiting {
+		result := m.completionState.HandleKey(keyMsg, m.textarea.Value())
+		if result.Replace != "" || result.Consume {
+			return m.applyKeyResult(result)
 		}
 	}
 
@@ -343,13 +383,6 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd { //nolint:cyclop,funlen
 		if m.mode == modeNormal {
 			return m.handleNormalModeVimKey(keyMsg.String())
 		}
-	}
-
-	if cmd := m.completionState.HandleUserCompletionKey(keyMsg, m.textarea.Value()); cmd != nil {
-		newTextarea, textareaCmd := m.textarea.Update(msg)
-		m.textarea = newTextarea
-
-		return tea.Batch(cmd, textareaCmd)
 	}
 
 	// don't send key updates to the textarea when scrolling the history viewport
@@ -440,6 +473,7 @@ func (m *Model) handleContentSubmit() tea.Cmd {
 	m.textarea.Reset()
 	m.userHistory = append(m.userHistory, content)
 	m.userHistoryIndex = nil
+	m.completionState.Reset()
 
 	switch {
 	// user is answering a question
@@ -470,27 +504,89 @@ func (m *Model) handlePromptCommand(content string) tea.Cmd {
 		args = fields[1:]
 	}
 
-	m.completionState.Reset()
-
-	// clear the autocomplete for the prompt command in the statusline
-	completionMsg := statusline.CompletionMessage{}
 	promptMsg := commands.PromptMessage{
 		Command: cmdName,
 		Args:    args,
 	}
 
-	return tea.Batch(uimsg.MsgToCmd(completionMsg), uimsg.MsgToCmd(promptMsg))
+	return uimsg.MsgToCmd(promptMsg)
 }
 
 func (m *Model) handleStatuslineMsg(msg tea.Msg) tea.Cmd {
-	if completionMsg, ok := msg.(CompletionMessage); ok {
-		msg = statusline.CompletionMessage{
-			Text: completionMsg.Text,
-		}
-	}
-
 	newStatusline, cmd := m.statusline.Update(msg)
 	m.statusline = newStatusline
 
 	return cmd
+}
+
+func (m *Model) applyKeyResult(result KeyResult) tea.Cmd {
+	if result.Replace != "" {
+		leader := result.Leader
+		if leader == 0 {
+			leader = m.completionState.CompletionLeader()
+		}
+
+		m.replaceActiveToken(result.Replace, byte(leader))
+	}
+
+	return nil
+}
+
+// replaceActiveToken finds the active completion token in the textarea and replaces it with replacement.
+func (m *Model) replaceActiveToken(replacement string, leader byte) {
+	value := m.textarea.Value()
+	newValue, cursor := replaceActiveToken(value, replacement, leader)
+	m.textarea.SetValue(newValue)
+	m.textarea.SetCursor(cursor)
+}
+
+func (m *Model) completionPopupView() string {
+	if !m.completionState.PopupActive() {
+		return ""
+	}
+
+	matches := m.completionState.Matches()
+	selected := m.completionState.Selected()
+	start, end := m.completionState.VisibleRange()
+
+	var (
+		panelBG    = lipgloss.Color("#11161d")
+		muted      = lipgloss.Color("#7d8796")
+		orangeCol  = orange
+		textCol    = lipgloss.Color("#d7e0ea")
+		selectedBG = lipgloss.Color("#321b05")
+		white      = lipgloss.Color("#ffffff")
+	)
+
+	itemStyle := lipgloss.NewStyle().Foreground(textCol).Background(panelBG)
+	selectedStyle := lipgloss.NewStyle().Foreground(white).Background(selectedBG).Bold(true)
+	cursorStyle := lipgloss.NewStyle().Foreground(orangeCol).Background(selectedBG).Bold(true)
+	helpStyle := lipgloss.NewStyle().Foreground(muted).Background(panelBG)
+	container := lipgloss.NewStyle().
+		Background(panelBG).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3f4856")).
+		Padding(0, 1).
+		Width(max(20, m.textarea.Width()-2))
+
+	var sb strings.Builder
+
+	for idx := start; idx < end; idx++ {
+		label := matches[idx].Label
+		if label == "" {
+			label = matches[idx].Value
+		}
+
+		if idx == selected {
+			fmt.Fprintln(&sb, cursorStyle.Render("➜ ")+selectedStyle.Render(label))
+		} else {
+			fmt.Fprintln(&sb, itemStyle.Render("  "+label))
+		}
+	}
+
+	if end-start < len(matches) {
+		fmt.Fprintln(&sb, helpStyle.Render(fmt.Sprintf("%d-%d of %d  tab: fill • enter: accept • esc: dismiss", start+1, end, len(matches))))
+	}
+
+	return container.Render(strings.TrimRight(sb.String(), "\n"))
 }

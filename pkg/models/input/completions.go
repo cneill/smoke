@@ -3,28 +3,61 @@ package input
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/cneill/smoke/internal/uimsg"
+	"github.com/cneill/smoke/pkg/fs"
 )
 
-type CompletionType int
+type CompletionLeader byte
 
 const (
-	CompletionTypeNone CompletionType = iota
-	CompletionTypeCommand
-	CompletionTypeSkill
+	CompletionLeaderNone    CompletionLeader = 0
+	CompletionLeaderCommand CompletionLeader = '/'
+	CompletionLeaderSkill   CompletionLeader = '$'
+	CompletionLeaderPath    CompletionLeader = '@'
 )
+
+const (
+	completionPopupWindow = 4
+	popupBorderLines      = 2
+)
+
+// Match is one selectable completion option shown in the popup.
+type Match struct {
+	// Value is used when filling/accepting. Path: full relative path. Command/skill: name only (no leader).
+	Value string
+	// Label is the display text in the popup (may include usage/description).
+	Label string
+}
+
+// KeyResult describes how the input model should apply a completion key.
+type KeyResult struct {
+	// Consume is true when the key must not reach the textarea (navigation, accept, tab fill).
+	Consume bool
+	// Replace, when non-empty, replaces the active completion token in the textarea.
+	Replace string
+	// Leader is the token leader for ReplaceActiveToken ('/', '$', '@'). Required when Replace is set.
+	Leader CompletionLeader
+}
 
 type CompletionState struct {
 	commandCompleter func(string) []string
 	skillCompleter   func(string) []string
-	completionType   CompletionType
-	userText         string
-	suggestedText    string
+	pathCompleter    func(string) []fs.PathMatch
+
+	completionLeader CompletionLeader
+	userText         string // includes leader ("/h", "$sk", "@docs/")
+
+	matches  []Match
+	selected int
+	window   int
 }
 
-func NewCompletionState(commandCompleter, skillCompleter func(string) []string) (*CompletionState, error) {
+func NewCompletionState(
+	commandCompleter, skillCompleter func(string) []string,
+	pathCompleter func(string) []fs.PathMatch,
+) (*CompletionState, error) {
 	if commandCompleter == nil {
 		return nil, fmt.Errorf("must supply command completer")
 	}
@@ -33,104 +66,400 @@ func NewCompletionState(commandCompleter, skillCompleter func(string) []string) 
 		return nil, fmt.Errorf("must supply skill completer")
 	}
 
+	if pathCompleter == nil {
+		return nil, fmt.Errorf("must supply path completer")
+	}
+
 	return &CompletionState{
 		commandCompleter: commandCompleter,
 		skillCompleter:   skillCompleter,
+		pathCompleter:    pathCompleter,
+		window:           completionPopupWindow,
 	}, nil
 }
 
+func (c *CompletionState) CompletionLeader() CompletionLeader {
+	return c.completionLeader
+}
+
 func (c *CompletionState) InCommandCompletion() bool {
-	return c.completionType == CompletionTypeCommand
+	return c.completionLeader == CompletionLeaderCommand
 }
 
 func (c *CompletionState) InSkillCompletion() bool {
-	return c.completionType == CompletionTypeSkill
+	return c.completionLeader == CompletionLeaderSkill
+}
+
+func (c *CompletionState) InPathCompletion() bool {
+	return c.completionLeader == CompletionLeaderPath
 }
 
 func (c *CompletionState) InCompletion() bool {
-	return c.InCommandCompletion() || c.InSkillCompletion()
+	return c.completionLeader != CompletionLeaderNone
 }
 
-// HandleUserCompletionKey returns true if 'msg' starts, or is part of, a completion for skills/commands.
-func (c *CompletionState) HandleUserCompletionKey(msg tea.KeyMsg, currentText string) tea.Cmd {
-	keyVal := msg.String()
-
-	// check if we have a leading character signaling the start of a completion
-	if !c.InCompletion() && !c.handleCompletionLeader(msg, currentText) {
-		return nil
+// PopupActive reports whether the completion popup should be shown.
+func (c *CompletionState) PopupActive() bool {
+	if !c.InCompletion() || len(c.matches) == 0 {
+		return false
 	}
 
-	// TODO: handle tab/up(?) to fill in suggested text
-	if msg.Type == tea.KeyBackspace {
-		if c.userText != "" {
-			c.userText = c.userText[:len(c.userText)-1]
-		} else {
-			c.Reset()
-		}
-	} else if msg.Type != tea.KeyTab {
-		c.userText += keyVal
-	}
-
-	// user has cleared the whole completion text
-	if c.userText == "" {
-		c.Reset()
-	}
-
-	// TODO: sending this just for it to get converted to a statusline version seems dumb, figure out a reasonable fix
-	// for the import cycle
-	return uimsg.MsgToCmd(CompletionMessage{
-		Text: c.CompletionText(),
-	})
-}
-
-// CompletionText returns the full text that will be displayed in the autocompletion line
-func (c *CompletionState) CompletionText() string {
-	var options []string
-
-	switch c.completionType {
-	case CompletionTypeNone:
-		return ""
-	case CompletionTypeCommand:
-		options = c.commandCompleter(strings.TrimPrefix(c.userText, "/"))
-	case CompletionTypeSkill:
-		options = c.skillCompleter(strings.TrimPrefix(c.userText, "$"))
-	}
-
-	if len(options) == 0 {
-		c.suggestedText = ""
-		return ""
-	}
-
-	strippedUserText := strings.TrimLeftFunc(c.userText, func(r rune) bool { return r == '/' || r == '$' })
-	c.suggestedText = strings.TrimPrefix(options[0], strippedUserText)
-
-	return c.userText + c.suggestedText
-}
-
-func (c *CompletionState) Reset() {
-	c.userText = ""
-	c.suggestedText = ""
-	c.completionType = CompletionTypeNone
-}
-
-func (c *CompletionState) handleCompletionLeader(msg tea.KeyMsg, currentText string) bool {
-	keyVal := msg.String()
-	switch {
-	case keyVal == "/" && currentText == "":
-		c.completionType = CompletionTypeCommand
-	case keyVal == "$":
-		// make sure we're not in the middle of a word
-		if currentText != "" {
-			lastByte := string(currentText[len(currentText)-1])
-			if currentText != "" && !strings.ContainsAny(lastByte, " \t\n") {
-				return false
-			}
-		}
-
-		c.completionType = CompletionTypeSkill
-	default:
+	// Path requires @ plus at least one additional character.
+	if c.InPathCompletion() && len(c.userText) < 2 {
 		return false
 	}
 
 	return true
+}
+
+// Matches returns the current match list (for rendering).
+func (c *CompletionState) Matches() []Match {
+	return c.matches
+}
+
+// Selected returns the selected index into Matches.
+func (c *CompletionState) Selected() int {
+	return c.selected
+}
+
+// VisibleRange returns the [start, end) window of matches to display.
+func (c *CompletionState) VisibleRange() (int, int) {
+	if len(c.matches) == 0 {
+		return 0, 0
+	}
+
+	window := c.window
+	if window <= 0 {
+		window = completionPopupWindow
+	}
+
+	start := max(c.selected-(window-1), 0)
+
+	end := start + window
+	if end > len(c.matches) {
+		end = len(c.matches)
+		start = max(0, end-window)
+	}
+
+	return start, end
+}
+
+// PopupLineCount returns how many terminal lines the popup chrome occupies when active (0 if hidden).
+// Height is derived from state, not from styled render output: items + optional help + border (2).
+func (c *CompletionState) PopupLineCount() int {
+	if !c.PopupActive() {
+		return 0
+	}
+
+	start, end := c.VisibleRange()
+
+	items := end - start
+	if items <= 0 {
+		return 0
+	}
+
+	lines := items
+	if end-start < len(c.matches) {
+		lines++ // help line when list is truncated
+	}
+
+	return lines + popupBorderLines
+}
+
+// HandleKey processes keys for command, skill, and path completion.
+// If Consume is true the key must not reach the textarea.
+func (c *CompletionState) HandleKey(msg tea.KeyMsg, currentText string) KeyResult { //nolint:cyclop,funlen
+	if !c.InCompletion() {
+		if !c.tryStart(msg, currentText) {
+			return KeyResult{}
+		}
+
+		c.userText = msg.String()
+		c.refreshMatches()
+
+		return KeyResult{}
+	}
+
+	switch msg.Type { //nolint:exhaustive
+	case tea.KeyEsc:
+		c.Reset()
+
+		return KeyResult{Consume: true}
+	case tea.KeyEnter:
+		if !c.PopupActive() {
+			return KeyResult{}
+		}
+
+		leader := c.CompletionLeader()
+
+		text := c.acceptText(c.matches[c.selected])
+		c.Reset()
+
+		return KeyResult{Consume: true, Replace: text, Leader: leader}
+	case tea.KeyUp:
+		if !c.PopupActive() {
+			return KeyResult{}
+		}
+
+		if c.selected > 0 {
+			c.selected--
+		}
+
+		return KeyResult{Consume: true}
+	case tea.KeyDown:
+		if !c.PopupActive() {
+			return KeyResult{}
+		}
+
+		if c.selected < len(c.matches)-1 {
+			c.selected++
+		}
+
+		return KeyResult{Consume: true}
+	case tea.KeyTab:
+		if !c.PopupActive() {
+			return KeyResult{Consume: true}
+		}
+
+		selected := c.matches[c.selected]
+
+		c.userText = c.tabUserText(selected)
+		c.refreshMatches()
+
+		return KeyResult{Consume: true, Replace: c.userText, Leader: c.CompletionLeader()}
+	case tea.KeyBackspace:
+		return c.handleBackspace()
+	case tea.KeyRunes, tea.KeySpace:
+		return c.handleRune(msg)
+	default:
+		// TODO: FIX MODIFICATIONS OF CURRENT USER TEXT, E.G. CHANGING @pkg/commands/ TO @pkg/confi
+		return KeyResult{}
+	}
+}
+
+func (c *CompletionState) Reset() {
+	c.userText = ""
+	c.completionLeader = CompletionLeaderNone
+	c.matches = nil
+	c.selected = 0
+}
+
+func (c *CompletionState) tryStart(msg tea.KeyMsg, currentText string) bool {
+	key := msg.String()
+	if key == "" {
+		return false
+	}
+
+	switch CompletionLeader(key[0]) { //nolint:exhaustive // Not looking for a null byte for "None"
+	case CompletionLeaderCommand:
+		if currentText != "" {
+			return false
+		}
+
+		c.completionLeader = CompletionLeaderCommand
+
+		return true
+	case CompletionLeaderSkill:
+		if !atWordBoundary(currentText) {
+			return false
+		}
+
+		c.completionLeader = CompletionLeaderSkill
+
+		return true
+	case CompletionLeaderPath:
+		if !atWordBoundary(currentText) {
+			return false
+		}
+
+		c.completionLeader = CompletionLeaderPath
+
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *CompletionState) handleBackspace() KeyResult {
+	if c.userText != "" {
+		_, size := utf8.DecodeLastRuneInString(c.userText)
+		if size <= 0 {
+			size = 1
+		}
+
+		c.userText = c.userText[:len(c.userText)-size]
+	}
+
+	if c.userText == "" {
+		c.Reset()
+	} else {
+		c.refreshMatches()
+	}
+
+	// let backspace also hit the textarea
+	return KeyResult{}
+}
+
+func (c *CompletionState) handleRune(msg tea.KeyMsg) KeyResult {
+	keyVal := msg.String()
+	// whitespace ends the completion token
+	if strings.ContainsAny(keyVal, "\t\n ") {
+		c.Reset()
+
+		return KeyResult{}
+	}
+
+	c.userText += keyVal
+	c.refreshMatches()
+
+	return KeyResult{} // let character reach textarea
+}
+
+func (c *CompletionState) refreshMatches() {
+	c.selected = 0
+	c.matches = nil
+
+	if !c.InCompletion() {
+		return
+	}
+
+	switch c.completionLeader {
+	case CompletionLeaderCommand:
+		prefix := strings.TrimPrefix(c.userText, string(CompletionLeaderCommand))
+		c.matches = commandMatches(c.commandCompleter(prefix))
+	case CompletionLeaderSkill:
+		prefix := strings.TrimPrefix(c.userText, string(CompletionLeaderSkill))
+		c.matches = skillMatches(c.skillCompleter(prefix))
+	case CompletionLeaderPath:
+		if len(c.userText) < 2 {
+			return
+		}
+
+		query := strings.TrimPrefix(c.userText, string(CompletionLeaderPath))
+		paths := c.pathCompleter(query)
+		c.matches = make([]Match, len(paths))
+
+		for i, p := range paths {
+			c.matches[i] = Match{Value: p.Path, Label: p.Path}
+		}
+	case CompletionLeaderNone:
+		return
+	}
+
+	if c.selected >= len(c.matches) {
+		c.selected = max(0, len(c.matches)-1)
+	}
+}
+
+// acceptText is the final token replacement (path drops @; command/skill keep leader + name).
+func (c *CompletionState) acceptText(match Match) string {
+	switch c.completionLeader { //nolint:exhaustive // None has no accept text
+	case CompletionLeaderPath:
+		return match.Value
+	case CompletionLeaderCommand:
+		return string(CompletionLeaderCommand) + match.Value
+	case CompletionLeaderSkill:
+		return string(CompletionLeaderSkill) + match.Value
+	default:
+		return match.Value
+	}
+}
+
+// tabUserText keeps the leader while browsing (path keeps @; command/skill keep leader + value).
+func (c *CompletionState) tabUserText(match Match) string {
+	if c.CompletionLeader() == CompletionLeaderNone {
+		return match.Value
+	}
+
+	return string(c.CompletionLeader()) + match.Value
+}
+
+// commandMatches adapts Completer strings (often Usage lines) into Value=name, Label=usage.
+func commandMatches(options []string) []Match {
+	out := make([]Match, 0, len(options))
+
+	for _, opt := range options {
+		name := firstField(opt)
+		if name == "" {
+			continue
+		}
+
+		out = append(out, Match{Value: name, Label: opt})
+	}
+
+	return out
+}
+
+// skillMatches adapts Completer strings ("name - description") into Value=name, Label=full line.
+func skillMatches(options []string) []Match {
+	out := make([]Match, 0, len(options))
+
+	for _, opt := range options {
+		name := firstField(opt)
+		if before, _, ok := strings.Cut(opt, " - "); ok {
+			name = before
+		}
+
+		if name == "" {
+			continue
+		}
+
+		out = append(out, Match{Value: name, Label: opt})
+	}
+
+	return out
+}
+
+func firstField(s string) string {
+	fields := strings.Fields(s)
+	if len(fields) == 0 {
+		return ""
+	}
+
+	return fields[0]
+}
+
+func atWordBoundary(currentText string) bool {
+	if currentText == "" {
+		return true
+	}
+
+	last, _ := utf8.DecodeLastRuneInString(currentText)
+
+	return strings.ContainsRune(" \t\n", last)
+}
+
+// ReplaceActiveToken finds the active completion token in value and replaces it with replacement.
+func ReplaceActiveToken(value, replacement string, leader byte) string {
+	result, _ := replaceActiveToken(value, replacement, leader)
+	return result
+}
+
+func replaceActiveToken(value, replacement string, leader byte) (string, int) {
+	if value == "" {
+		return replacement, len(replacement)
+	}
+
+	start := -1
+
+	if leader == '/' {
+		if value[0] == '/' {
+			start = 0
+		}
+	} else {
+		start = strings.LastIndexByte(value, leader)
+	}
+
+	if start < 0 {
+		return value + replacement, len(value) + len(replacement)
+	}
+
+	end := start + 1
+	for end < len(value) && value[end] != ' ' && value[end] != '\t' && value[end] != '\n' {
+		end++
+	}
+
+	result := value[:start] + replacement + value[end:]
+
+	return result, start + len(replacement)
 }
