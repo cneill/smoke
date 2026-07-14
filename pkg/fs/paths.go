@@ -16,16 +16,12 @@ var (
 // GetRelativePath ensures that 'targetPath' does not attempt to escape 'projectPath', and returns the combined path if
 // it can be done safely.
 func GetRelativePath(projectPath, targetPath string) (string, error) {
-	if projectPath == "" || projectPath == "/" {
-		return "", ErrInsecureProjectPath
+	if err := validateProjectPath(projectPath); err != nil {
+		return "", err
 	}
 
 	if hasTraversal(targetPath) {
 		return "", ErrInsecureTargetPath
-	}
-
-	if !filepath.IsAbs(projectPath) {
-		return "", ErrNonAbsoluteProjectPath
 	}
 
 	cleaned := filepath.Clean(targetPath)
@@ -37,6 +33,18 @@ func GetRelativePath(projectPath, targetPath string) (string, error) {
 	}
 
 	return fullPath, nil
+}
+
+func validateProjectPath(projectPath string) error {
+	if projectPath == "" || projectPath == "/" {
+		return ErrInsecureProjectPath
+	}
+
+	if !filepath.IsAbs(projectPath) {
+		return ErrNonAbsoluteProjectPath
+	}
+
+	return nil
 }
 
 func hasTraversal(targetPath string) bool {

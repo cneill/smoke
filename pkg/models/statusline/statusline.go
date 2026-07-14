@@ -15,7 +15,6 @@ type Model struct {
 	focused             bool
 	modelMode           modes.Mode
 	width               int
-	completionText      string
 	contextWindowTokens int64
 	maxContextWindow    int64
 	styles              Styles
@@ -41,8 +40,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	commands := []tea.Cmd{}
 
 	switch msg := msg.(type) {
-	case CompletionMessage:
-		m.completionText = msg.Text
 	case smoke.UsageUpdateMessage:
 		m.contextWindowTokens = msg.ContextWindowTokens
 	case smoke.ModeMessage:
@@ -54,18 +51,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 func (m *Model) View() string {
 	style := m.styleVariant()
-
-	var (
-		suggestion      string
-		suggestionWidth int
-	)
-
-	if m.completionText != "" {
-		suggestionStyled := style.Completion.Render(m.completionText)
-		suggestionPadding := style.Border.Render(strings.Repeat(" ", 2))
-		suggestion = suggestionPadding + suggestionStyled
-		suggestionWidth = lipgloss.Width(suggestion)
-	}
 
 	modeStyled := style.Usage.Render(fmt.Sprintf("mode: %s", m.modelMode))
 	modeWidth := lipgloss.Width(modeStyled)
@@ -79,10 +64,10 @@ func (m *Model) View() string {
 	usage := usagePadding + usageStyled + maxStyled + percentageStyled + " "
 	usageWidth := lipgloss.Width(usage)
 
-	borderWidth := max(0, m.width-modeWidth-usageWidth-suggestionWidth)
+	borderWidth := max(0, m.width-modeWidth-usageWidth)
 	border := style.Border.Render(strings.Repeat(" ", borderWidth))
 
-	return suggestion + border + modeStyled + usage
+	return border + modeStyled + usage
 }
 
 func (m *Model) SetFocus(focused bool) {
