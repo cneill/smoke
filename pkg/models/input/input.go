@@ -75,8 +75,7 @@ type Model struct {
 	waiting bool
 
 	mode     mode
-	pendingD bool
-	lastD    time.Time
+	vimState vimCommandState
 
 	completionState *CompletionState
 	askActive       bool
@@ -309,7 +308,7 @@ func (m *Model) PopupLines() int {
 	return m.completionState.PopupLineCount()
 }
 
-func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd { //nolint:cyclop,funlen
+func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd { //nolint:cyclop,gocognit,funlen
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok && !m.waiting {
 		newTextarea, cmd := m.textarea.Update(msg)
@@ -359,6 +358,11 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd { //nolint:cyclop,funlen
 			return nil
 		}
 
+		if m.vimState.active() {
+			m.vimState.reset()
+			return nil
+		}
+
 		// modeNormal -> history (blur)
 		m.textarea.Blur()
 		m.statusline.SetFocus(false)
@@ -369,9 +373,10 @@ func (m *Model) handleTextareaMsg(msg tea.Msg) tea.Cmd { //nolint:cyclop,funlen
 		return uimsg.MsgToCmd(ShiftModeMessage{})
 
 	case tea.KeyUp, tea.KeyDown:
-		// scroll up and down through previous user messages
-		if cmd := m.handleHistoryTraversal(keyMsg); cmd != nil {
-			return cmd
+		// Let the textarea move within a multiline history entry. History is
+		// traversed only when moving beyond the entry's first or last line.
+		if m.handleHistoryTraversal(keyMsg) {
+			return nil
 		}
 
 	case tea.KeyRunes:
@@ -429,42 +434,75 @@ func (m *Model) handleWaitingKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleHistoryTraversal(msg tea.KeyMsg) tea.Cmd { //nolint:cyclop // This used to be much worse...
-	// We only want to scroll history if we're focused, in insert mode, and not waiting
-	if !m.Focused() || m.mode != modeInsert || m.waiting {
-		return nil
+func (m *Model) handleHistoryTraversal(msg tea.KeyMsg) bool { //nolint:cyclop
+	// History is available only from a focused insert-mode textarea.
+	if !m.Focused() || m.mode != modeInsert || m.waiting || len(m.userHistory) == 0 {
+		return false
 	}
 
-	// We only want to traverse history if 1) there is no text in the textarea, or 2) we're already traversing it
-	// TODO: do a partial match on what the user has already entered to filter history messages?
+	// Do not steal arrows from ordinary editing. An active history index means
+	// the current value came from history and is eligible for traversal.
 	if m.textarea.Value() != "" && m.userHistoryIndex == nil {
-		return nil
+		return false
 	}
 
-	switch msg.Type { //nolint:exhaustive
-	case tea.KeyUp:
-		if m.userHistoryIndex != nil && *m.userHistoryIndex > 0 {
-			*m.userHistoryIndex--
-		} else if m.userHistoryIndex == nil && len(m.userHistory) > 0 {
-			idx := len(m.userHistory) - 1
-			m.userHistoryIndex = &idx
-		}
-	case tea.KeyDown:
-		if m.userHistoryIndex != nil {
-			if *m.userHistoryIndex < len(m.userHistory)-1 {
-				*m.userHistoryIndex++
-			} else {
-				m.userHistoryIndex = nil
-				m.textarea.SetValue("")
+	if m.userHistoryIndex != nil {
+		line := m.textarea.Line()
+		lineInfo := m.textarea.LineInfo()
+		lastLine := m.textarea.LineCount() - 1
+		atFirstRenderedRow := line == 0 && lineInfo.RowOffset == 0
+		atLastRenderedRow := line == lastLine && lineInfo.RowOffset == lineInfo.Height-1
+
+		switch msg.Type { //nolint:exhaustive
+		case tea.KeyUp:
+			if !atFirstRenderedRow {
+				return false
+			}
+		case tea.KeyDown:
+			if !atLastRenderedRow {
+				return false
 			}
 		}
 	}
 
-	if m.userHistoryIndex != nil {
-		m.textarea.SetValue(m.userHistory[*m.userHistoryIndex])
+	switch msg.Type { //nolint:exhaustive
+	case tea.KeyUp:
+		if m.userHistoryIndex != nil {
+			if *m.userHistoryIndex == 0 {
+				return true
+			}
+
+			*m.userHistoryIndex--
+		} else {
+			idx := len(m.userHistory) - 1
+			m.userHistoryIndex = &idx
+		}
+	case tea.KeyDown:
+		if m.userHistoryIndex == nil {
+			return false
+		}
+
+		if *m.userHistoryIndex < len(m.userHistory)-1 {
+			*m.userHistoryIndex++
+		} else {
+			m.userHistoryIndex = nil
+			m.textarea.SetValue("")
+
+			return true
+		}
+	default:
+		return false
 	}
 
-	return nil
+	m.textarea.SetValue(m.userHistory[*m.userHistoryIndex])
+
+	if msg.Type == tea.KeyUp {
+		setLastRenderedRowStart(&m.textarea)
+	} else {
+		setLogicalCursor(&m.textarea, logicalPosition{})
+	}
+
+	return true
 }
 
 // handleContentSubmit interprets the content the user has entered in the textarea and returns an appropriate tea.Cmd.

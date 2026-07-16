@@ -2,7 +2,6 @@ package input
 
 import (
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,18 +11,122 @@ const (
 	simpleMoveKeys = "hjkl0$"
 	insertKeys     = "iIaAoO"
 	wordMoveKeys   = "wWeEbB"
-	deleteKeys     = "d0$"
 )
 
-func (m *Model) handleNormalModeVimKey(key string) tea.Cmd {
-	if time.Since(m.lastD) > time.Second {
-		m.pendingD = false
-		m.lastD = time.Time{}
+type vimOperator uint8
+
+const (
+	vimOperatorNone vimOperator = iota
+	vimOperatorDelete
+)
+
+type vimCommandState struct {
+	operator    vimOperator
+	prefixCount int
+	motionCount int
+}
+
+type vimCommandKind uint8
+
+const (
+	vimCommandNone vimCommandKind = iota
+	vimCommandDispatch
+	vimCommandDeleteLines
+	vimCommandDeleteBoundary
+)
+
+type vimCommand struct {
+	kind  vimCommandKind
+	key   string
+	count int
+}
+
+func (s *vimCommandState) reset() {
+	*s = vimCommandState{}
+}
+
+func (s *vimCommandState) active() bool {
+	return s.operator != vimOperatorNone || s.prefixCount != 0 || s.motionCount != 0
+}
+
+func (s *vimCommandState) count() int {
+	return max(s.prefixCount, 1) * max(s.motionCount, 1)
+}
+
+func (s *vimCommandState) accept(key rune) vimCommand {
+	if s.operator != vimOperatorNone {
+		if command, consumed := s.acceptOperatorKey(key); consumed {
+			return command
+		}
 	}
 
+	return s.acceptNormalKey(key)
+}
+
+func (s *vimCommandState) acceptOperatorKey(key rune) (vimCommand, bool) {
+	if key >= '0' && key <= '9' && (key != '0' || s.motionCount != 0) {
+		s.motionCount = s.motionCount*10 + int(key-'0')
+
+		return vimCommand{}, true
+	}
+
+	switch key {
+	case 'd':
+		count := s.count()
+		s.reset()
+
+		return vimCommand{kind: vimCommandDeleteLines, count: count}, true
+	case '0', '$':
+		s.reset()
+
+		return vimCommand{kind: vimCommandDeleteBoundary, key: string(key)}, true
+	default:
+		s.reset()
+
+		return vimCommand{}, false
+	}
+}
+
+func (s *vimCommandState) acceptNormalKey(key rune) vimCommand {
+	if key >= '0' && key <= '9' && (key != '0' || s.prefixCount != 0) {
+		s.prefixCount = s.prefixCount*10 + int(key-'0')
+
+		return vimCommand{}
+	}
+
+	if key == 'd' {
+		s.operator = vimOperatorDelete
+
+		return vimCommand{}
+	}
+
+	s.prefixCount = 0
+
+	return vimCommand{kind: vimCommandDispatch, key: string(key)}
+}
+
+func (m *Model) handleNormalModeVimKey(keys string) tea.Cmd {
+	commands := make([]tea.Cmd, 0, len([]rune(keys)))
+
+	for _, key := range keys {
+		command := m.vimState.accept(key)
+
+		switch command.kind {
+		case vimCommandDispatch:
+			commands = append(commands, m.dispatchNormalVimKey(command.key))
+		case vimCommandDeleteLines:
+			m.deleteLines(command.count)
+		case vimCommandDeleteBoundary:
+			m.deleteToLineBoundary(command.key)
+		case vimCommandNone:
+		}
+	}
+
+	return tea.Batch(commands...)
+}
+
+func (m *Model) dispatchNormalVimKey(key string) tea.Cmd {
 	switch {
-	case key == "d" || (m.pendingD && strings.Contains(deleteKeys, key)):
-		return m.handleVimDelete(key)
 	case strings.Contains(simpleMoveKeys, key):
 		return m.handleVimSimpleMove(key)
 	case strings.Contains(insertKeys, key):
@@ -32,9 +135,9 @@ func (m *Model) handleNormalModeVimKey(key string) tea.Cmd {
 		return m.handleVimWordMove(key)
 	case key == "p":
 		return textarea.Paste
+	default:
+		return nil
 	}
-
-	return nil
 }
 
 func (m *Model) handleVimSimpleMove(key string) tea.Cmd {
@@ -42,26 +145,35 @@ func (m *Model) handleVimSimpleMove(key string) tea.Cmd {
 		return nil
 	}
 
-	var sendKey tea.KeyType
+	if key == "j" || key == "k" {
+		keyType := tea.KeyDown
+		if key == "k" {
+			keyType = tea.KeyUp
+		}
+
+		var cmd tea.Cmd
+
+		m.textarea, cmd = m.textarea.Update(tea.KeyMsg{Type: keyType})
+
+		return cmd
+	}
+
+	position := textareaLogicalPosition(m.textarea)
+	lines := strings.Split(m.textarea.Value(), "\n")
 
 	switch key {
 	case "h":
-		sendKey = tea.KeyLeft
-	case "j":
-		sendKey = tea.KeyDown
-	case "k":
-		sendKey = tea.KeyUp
+		position.column--
 	case "l":
-		sendKey = tea.KeyRight
+		position.column++
 	case "0":
-		m.textarea.CursorStart()
-		return nil
+		position.column = 0
 	case "$":
-		m.textarea.CursorEnd()
-		return nil
+		position.column = len([]rune(lines[position.line]))
 	}
 
-	m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: sendKey})
+	position.column = min(max(position.column, 0), len([]rune(lines[position.line])))
+	setLogicalCursor(&m.textarea, position)
 
 	return nil
 }
@@ -71,27 +183,38 @@ func (m *Model) handleVimInsertKey(key string) tea.Cmd {
 		return nil
 	}
 
+	m.vimState.reset()
 	m.setInputMode(modeInsert)
 	m.textarea.Focus()
 	m.statusline.SetFocus(true)
 
+	content := m.textarea.Value()
+	position := textareaLogicalPosition(m.textarea)
+	start, end := currentLineBounds(content, position.line)
+
 	switch key {
 	case "i":
-		// just enter insert mode where the cursor is
 	case "I":
-		m.textarea.CursorStart()
+		position.column = 0
 	case "a":
-		m.textarea, _ = m.textarea.Update(tea.KeyMsg{Type: tea.KeyRight})
+		position.column++
 	case "A":
-		m.textarea.CursorEnd()
+		position.column = end - start
 	case "o":
-		m.textarea.CursorEnd()
-		m.textarea.InsertString("\n")
+		runes := []rune(content)
+		runes = append(runes[:end], append([]rune{'\n'}, runes[end:]...)...)
+		m.textarea.SetValue(string(runes))
+
+		position = logicalPosition{line: position.line + 1}
 	case "O":
-		m.textarea.CursorStart()
-		m.textarea.InsertString("\n")
-		m.textarea.CursorUp()
+		runes := []rune(content)
+		runes = append(runes[:start], append([]rune{'\n'}, runes[start:]...)...)
+		m.textarea.SetValue(string(runes))
+
+		position.column = 0
 	}
+
+	setLogicalCursor(&m.textarea, position)
 
 	return textarea.Blink
 }
@@ -101,113 +224,65 @@ func (m *Model) handleVimWordMove(key string) tea.Cmd {
 		return nil
 	}
 
-	var (
-		content = m.textarea.Value()
-		pos     = m.textarea.LineInfo().ColumnOffset
-		newPos  int
-	)
+	content := m.textarea.Value()
+	position := textareaDocumentOffset(m.textarea)
+	newPosition := position
 
 	switch key {
 	case "w":
-		// Move to beginning of next word
-		newPos = findNextWord(content, pos)
+		newPosition = findNextWord(content, position)
 	case "W":
-		// Move to beginning of next WORD
-		newPos = findNextWORD(content, pos)
+		newPosition = findNextWORD(content, position)
 	case "e":
-		// Move to end of current/next word
-		newPos = findEndOfWord(content, pos)
+		newPosition = findEndOfWord(content, position)
 	case "E":
-		// Move to end of current/next WORD
-		newPos = findEndOfWORD(content, pos)
+		newPosition = findEndOfWORD(content, position)
 	case "b":
-		// Move backward to beginning of word
-		newPos = findPrevWord(content, pos)
+		newPosition = findPrevWord(content, position)
 	case "B":
-		// Move backward to beginning of WORD
-		newPos = findPrevWORD(content, pos)
+		newPosition = findPrevWORD(content, position)
 	}
 
-	m.textarea.SetCursor(newPos)
+	setDocumentCursor(&m.textarea, content, newPosition)
 
 	return nil
 }
 
-func (m *Model) handleVimDelete(key string) tea.Cmd { //nolint:cyclop
-	if !strings.Contains(deleteKeys, key) {
-		return nil
+func (m *Model) deleteToLineBoundary(key string) {
+	content := []rune(m.textarea.Value())
+	position := textareaLogicalPosition(m.textarea)
+	start, end := currentLineBoundsRunes(content, position.line)
+
+	cursor := min(start+position.column, end)
+	if key == "0" {
+		content = append(content[:start], content[cursor:]...)
+	} else {
+		content = append(content[:cursor], content[end:]...)
 	}
 
-	var (
-		content        = m.textarea.Value()
-		lines          = strings.Split(content, "\n")
-		lineNum        = m.textarea.Line()
-		info           = m.textarea.LineInfo()
-		newLines       = []string{}
-		keepLine       = false
-		currentLine    string
-		cursorPosition func()
-	)
+	m.textarea.SetValue(string(content))
 
-	switch key {
-	case "d":
-		if !m.pendingD {
-			m.pendingD = true
-			m.lastD = time.Now()
-
-			return nil
-		}
-
-		cursorPosition = func() {
-			for range m.textarea.LineCount() - lineNum - 1 {
-				m.textarea.CursorUp()
-			}
-		}
-	case "0":
-		keepLine = true
-		currentLine = lines[lineNum][info.ColumnOffset : info.Width-1]
-		cursorPosition = func() {
-			for range m.textarea.LineCount() - lineNum - 1 {
-				m.textarea.CursorUp()
-			}
-
-			m.textarea.SetCursor(0)
-		}
-
-	case "$":
-		keepLine = true
-		end := info.StartColumn + info.ColumnOffset
-		currentLine = lines[lineNum][0:end]
-		cursorPosition = func() {
-			for range m.textarea.LineCount() - lineNum - 1 {
-				m.textarea.CursorUp()
-			}
-
-			m.textarea.SetCursor(end)
-		}
-		// TODO: wWeEbB
+	if key == "0" {
+		position.column = 0
 	}
 
-	m.pendingD = false
-	m.lastD = time.Time{}
+	setLogicalCursor(&m.textarea, position)
+}
 
-	if lineNum > 0 {
-		newLines = append(newLines, lines[0:lineNum]...)
+func (m *Model) deleteLines(count int) {
+	content := []rune(m.textarea.Value())
+	line := m.textarea.Line()
+	lastDeletedLine := min(line+max(count, 1)-1, lineCountRunes(content)-1)
+	start, _ := currentLineBoundsRunes(content, line)
+	_, end := currentLineBoundsRunes(content, lastDeletedLine)
+
+	if end < len(content) {
+		end++
+	} else if start > 0 {
+		start--
 	}
 
-	if keepLine {
-		newLines = append(newLines, currentLine)
-	}
-
-	if len(lines) > lineNum {
-		newLines = append(newLines, lines[lineNum+1:]...)
-	}
-
-	m.textarea.SetValue(strings.Join(newLines, "\n"))
-
-	if cursorPosition != nil {
-		cursorPosition()
-	}
-
-	return nil
+	content = append(content[:start], content[end:]...)
+	m.textarea.SetValue(string(content))
+	setLogicalCursor(&m.textarea, logicalPosition{line: min(line, m.textarea.LineCount()-1)})
 }
