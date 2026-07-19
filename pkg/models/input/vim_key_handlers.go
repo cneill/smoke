@@ -246,23 +246,7 @@ func (m *Model) handleVimWordMove(key string) tea.Cmd {
 
 	content := m.textarea.Value()
 	position := textareaDocumentOffset(m.textarea)
-	newPosition := position
-
-	switch key {
-	case "w":
-		newPosition = findNextWord(content, position)
-	case "W":
-		newPosition = findNextWORD(content, position)
-	case "e":
-		newPosition = findEndOfWord(content, position)
-	case "E":
-		newPosition = findEndOfWORD(content, position)
-	case "b":
-		newPosition = findPrevWord(content, position)
-	case "B":
-		newPosition = findPrevWORD(content, position)
-	}
-
+	newPosition := jumpWordBoundaries(content, key, position, 1)
 	setDocumentCursor(&m.textarea, content, newPosition)
 
 	return nil
@@ -307,7 +291,6 @@ func (m *Model) deleteLines(count int) {
 	setLogicalCursor(&m.textarea, logicalPosition{line: min(line, m.textarea.LineCount()-1)})
 }
 
-// TODO: combine with move?
 func (m *Model) deleteWords(command vimCommand) {
 	if !strings.Contains(wordMoveKeys, command.key) {
 		return
@@ -316,35 +299,46 @@ func (m *Model) deleteWords(command vimCommand) {
 	// TODO: handle runes?
 	content := m.textarea.Value()
 	initialPosition := textareaDocumentOffset(m.textarea)
-	boundaryPosition := initialPosition
+	jumpPosition := jumpWordBoundaries(content, command.key, initialPosition, command.count)
 
-	for range command.count {
-		switch command.key {
-		case "w":
-			boundaryPosition = findNextWord(content, boundaryPosition)
-		case "W":
-			boundaryPosition = findNextWORD(content, boundaryPosition)
-		case "e":
-			boundaryPosition = findEndOfWord(content, boundaryPosition) + 1 // remove the final character as well
-		case "E":
-			boundaryPosition = findEndOfWORD(content, boundaryPosition) + 1 // remove the final character as well
-		case "b":
-			boundaryPosition = findPrevWord(content, boundaryPosition)
-		case "B":
-			boundaryPosition = findPrevWORD(content, boundaryPosition)
-		}
+	// We want to remove the final character as well, which is where eE will land us
+	if command.key == "e" || command.key == "E" {
+		jumpPosition++
 	}
 
 	newPosition := initialPosition
 
-	if boundaryPosition < initialPosition {
-		content = content[:boundaryPosition] + content[initialPosition:]
-		newPosition = boundaryPosition
-	} else if boundaryPosition > initialPosition {
-		content = content[:initialPosition] + content[boundaryPosition:]
+	if jumpPosition < initialPosition {
+		content = content[:jumpPosition] + content[initialPosition:]
+		newPosition = jumpPosition
+	} else if jumpPosition > initialPosition {
+		content = content[:initialPosition] + content[jumpPosition:]
 	}
 
 	m.textarea.SetValue(content)
 
 	setDocumentCursor(&m.textarea, content, newPosition)
+}
+
+func jumpWordBoundaries(content, key string, initialPosition, count int) int {
+	jumpPosition := initialPosition
+
+	for range count {
+		switch key {
+		case "w":
+			jumpPosition = findNextWord(content, jumpPosition)
+		case "W":
+			jumpPosition = findNextWORD(content, jumpPosition)
+		case "e":
+			jumpPosition = findEndOfWord(content, jumpPosition)
+		case "E":
+			jumpPosition = findEndOfWORD(content, jumpPosition)
+		case "b":
+			jumpPosition = findPrevWord(content, jumpPosition)
+		case "B":
+			jumpPosition = findPrevWORD(content, jumpPosition)
+		}
+	}
+
+	return jumpPosition
 }
