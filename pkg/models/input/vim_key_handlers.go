@@ -55,25 +55,16 @@ func (v *vimCommandState) count() int {
 }
 
 func (v *vimCommandState) accept(key rune) vimCommand {
-	if v.operator != vimOperatorNone {
-		if command, consumed := v.acceptOperatorKey(key); consumed {
-			return command
-		}
-	}
-
-	return v.acceptNormalKey(key)
-}
-
-func (v *vimCommandState) acceptOperatorKey(key rune) (vimCommand, bool) {
 	switch v.operator {
 	case vimOperatorDelete:
-		return v.acceptDeleteOperatorKey(key)
+		if command, consumed := v.acceptDeleteOperatorKey(key); consumed {
+			return command
+		}
 	case vimOperatorNone:
-		// Should not happen...
-		return vimCommand{}, false
+		return v.acceptNormalKey(key)
 	}
 
-	return vimCommand{}, false
+	return vimCommand{}
 }
 
 func (v *vimCommandState) acceptDeleteOperatorKey(key rune) (vimCommand, bool) {
@@ -118,9 +109,10 @@ func (v *vimCommandState) acceptNormalKey(key rune) vimCommand {
 		return vimCommand{}
 	}
 
+	cmd := vimCommand{kind: vimCommandDispatch, key: string(key), count: v.count()}
 	v.prefixCount = 0
 
-	return vimCommand{kind: vimCommandDispatch, key: string(key)}
+	return cmd
 }
 
 func (m *Model) handleNormalModeVimKey(keys string) tea.Cmd {
@@ -131,7 +123,7 @@ func (m *Model) handleNormalModeVimKey(keys string) tea.Cmd {
 
 		switch command.kind {
 		case vimCommandDispatch:
-			commands = append(commands, m.dispatchNormalVimKey(command.key))
+			commands = append(commands, m.dispatchNormalVimKey(command))
 		case vimCommandDeleteLines:
 			m.deleteLines(command.count)
 		case vimCommandDeleteBoundary:
@@ -145,14 +137,16 @@ func (m *Model) handleNormalModeVimKey(keys string) tea.Cmd {
 	return tea.Batch(commands...)
 }
 
-func (m *Model) dispatchNormalVimKey(key string) tea.Cmd {
+func (m *Model) dispatchNormalVimKey(command vimCommand) tea.Cmd {
+	key := command.key
+
 	switch {
 	case strings.Contains(simpleMoveKeys, key):
 		return m.handleVimSimpleMove(key)
 	case strings.Contains(insertKeys, key):
 		return m.handleVimInsertKey(key)
 	case strings.Contains(wordMoveKeys, key):
-		return m.handleVimWordMove(key)
+		return m.handleVimWordMove(command)
 	case key == "p":
 		return textarea.Paste
 	default:
@@ -239,14 +233,14 @@ func (m *Model) handleVimInsertKey(key string) tea.Cmd {
 	return textarea.Blink
 }
 
-func (m *Model) handleVimWordMove(key string) tea.Cmd {
-	if !strings.Contains(wordMoveKeys, key) {
+func (m *Model) handleVimWordMove(command vimCommand) tea.Cmd {
+	if !strings.Contains(wordMoveKeys, command.key) {
 		return nil
 	}
 
 	content := m.textarea.Value()
 	position := textareaDocumentOffset(m.textarea)
-	newPosition := jumpWordBoundaries(content, key, position, 1)
+	newPosition := jumpWordBoundaries(content, command.key, position, command.count)
 	setDocumentCursor(&m.textarea, content, newPosition)
 
 	return nil

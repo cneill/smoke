@@ -70,7 +70,9 @@ func TestVimWordMotionsUseCurrentLogicalLine(t *testing.T) {
 		want  logicalPosition
 	}{
 		{name: "next word", key: "w", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 5}},
+		{name: "two words", key: "2w", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 6}},
 		{name: "next WORD", key: "W", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 11}},
+		{name: "two WORDS", key: "2W", start: logicalPosition{line: 1}, want: logicalPosition{line: 2, column: 12}},
 		{name: "end word", key: "e", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 4}},
 		{name: "end WORD", key: "E", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 9}},
 		{name: "previous word", key: "b", start: logicalPosition{line: 1, column: 16}, want: logicalPosition{line: 1, column: 11}},
