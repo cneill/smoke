@@ -33,6 +33,7 @@ const (
 	vimCommandDispatch
 	vimCommandDeleteLines
 	vimCommandDeleteBoundary
+	vimCommandDeleteWords
 )
 
 type vimCommand struct {
@@ -41,66 +42,83 @@ type vimCommand struct {
 	count int
 }
 
-func (s *vimCommandState) reset() {
-	*s = vimCommandState{}
+func (v *vimCommandState) reset() {
+	*v = vimCommandState{}
 }
 
-func (s *vimCommandState) active() bool {
-	return s.operator != vimOperatorNone || s.prefixCount != 0 || s.motionCount != 0
+func (v *vimCommandState) active() bool {
+	return v.operator != vimOperatorNone || v.prefixCount != 0 || v.motionCount != 0
 }
 
-func (s *vimCommandState) count() int {
-	return max(s.prefixCount, 1) * max(s.motionCount, 1)
+func (v *vimCommandState) count() int {
+	return max(v.prefixCount, 1) * max(v.motionCount, 1)
 }
 
-func (s *vimCommandState) accept(key rune) vimCommand {
-	if s.operator != vimOperatorNone {
-		if command, consumed := s.acceptOperatorKey(key); consumed {
+func (v *vimCommandState) accept(key rune) vimCommand {
+	if v.operator != vimOperatorNone {
+		if command, consumed := v.acceptOperatorKey(key); consumed {
 			return command
 		}
 	}
 
-	return s.acceptNormalKey(key)
+	return v.acceptNormalKey(key)
 }
 
-func (s *vimCommandState) acceptOperatorKey(key rune) (vimCommand, bool) {
-	if key >= '0' && key <= '9' && (key != '0' || s.motionCount != 0) {
-		s.motionCount = s.motionCount*10 + int(key-'0')
+func (v *vimCommandState) acceptOperatorKey(key rune) (vimCommand, bool) {
+	switch v.operator {
+	case vimOperatorDelete:
+		return v.acceptDeleteOperatorKey(key)
+	case vimOperatorNone:
+		// Should not happen...
+		return vimCommand{}, false
+	}
+
+	return vimCommand{}, false
+}
+
+func (v *vimCommandState) acceptDeleteOperatorKey(key rune) (vimCommand, bool) {
+	if key >= '0' && key <= '9' && (key != '0' || v.motionCount != 0) {
+		v.motionCount = v.motionCount*10 + int(key-'0')
 
 		return vimCommand{}, true
 	}
 
-	switch key {
-	case 'd':
-		count := s.count()
-		s.reset()
+	switch {
+	case key == 'd':
+		count := v.count()
+		v.reset()
 
 		return vimCommand{kind: vimCommandDeleteLines, count: count}, true
-	case '0', '$':
-		s.reset()
+	case key == '0' || key == '$':
+		v.reset()
 
 		return vimCommand{kind: vimCommandDeleteBoundary, key: string(key)}, true
+	case strings.Contains(wordMoveKeys, string(key)):
+		count := v.count()
+		v.reset()
+
+		return vimCommand{kind: vimCommandDeleteWords, count: count, key: string(key)}, true
 	default:
-		s.reset()
+		v.reset()
 
 		return vimCommand{}, false
 	}
 }
 
-func (s *vimCommandState) acceptNormalKey(key rune) vimCommand {
-	if key >= '0' && key <= '9' && (key != '0' || s.prefixCount != 0) {
-		s.prefixCount = s.prefixCount*10 + int(key-'0')
+func (v *vimCommandState) acceptNormalKey(key rune) vimCommand {
+	if key >= '0' && key <= '9' && (key != '0' || v.prefixCount != 0) {
+		v.prefixCount = v.prefixCount*10 + int(key-'0')
 
 		return vimCommand{}
 	}
 
 	if key == 'd' {
-		s.operator = vimOperatorDelete
+		v.operator = vimOperatorDelete
 
 		return vimCommand{}
 	}
 
-	s.prefixCount = 0
+	v.prefixCount = 0
 
 	return vimCommand{kind: vimCommandDispatch, key: string(key)}
 }
@@ -118,6 +136,8 @@ func (m *Model) handleNormalModeVimKey(keys string) tea.Cmd {
 			m.deleteLines(command.count)
 		case vimCommandDeleteBoundary:
 			m.deleteToLineBoundary(command.key)
+		case vimCommandDeleteWords:
+			m.deleteWords(command)
 		case vimCommandNone:
 		}
 	}
@@ -285,4 +305,46 @@ func (m *Model) deleteLines(count int) {
 	content = append(content[:start], content[end:]...)
 	m.textarea.SetValue(string(content))
 	setLogicalCursor(&m.textarea, logicalPosition{line: min(line, m.textarea.LineCount()-1)})
+}
+
+// TODO: combine with move?
+func (m *Model) deleteWords(command vimCommand) {
+	if !strings.Contains(wordMoveKeys, command.key) {
+		return
+	}
+
+	// TODO: handle runes?
+	content := m.textarea.Value()
+	initialPosition := textareaDocumentOffset(m.textarea)
+	boundaryPosition := initialPosition
+
+	for range command.count {
+		switch command.key {
+		case "w":
+			boundaryPosition = findNextWord(content, boundaryPosition)
+		case "W":
+			boundaryPosition = findNextWORD(content, boundaryPosition)
+		case "e":
+			boundaryPosition = findEndOfWord(content, boundaryPosition) + 1 // remove the final character as well
+		case "E":
+			boundaryPosition = findEndOfWORD(content, boundaryPosition) + 1 // remove the final character as well
+		case "b":
+			boundaryPosition = findPrevWord(content, boundaryPosition)
+		case "B":
+			boundaryPosition = findPrevWORD(content, boundaryPosition)
+		}
+	}
+
+	newPosition := initialPosition
+
+	if boundaryPosition < initialPosition {
+		content = content[:boundaryPosition] + content[initialPosition:]
+		newPosition = boundaryPosition
+	} else if boundaryPosition > initialPosition {
+		content = content[:initialPosition] + content[boundaryPosition:]
+	}
+
+	m.textarea.SetValue(content)
+
+	setDocumentCursor(&m.textarea, content, newPosition)
 }
