@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/models/input"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,8 @@ import (
 
 func newTestCompletionState(
 	t *testing.T,
-	commandFn, skillFn func(string) []string,
+	commandFn func(string) []string,
+	skillFn func(string) []*skills.Skill,
 	pathFn func(string) []fs.PathMatch,
 ) *input.CompletionState {
 	t.Helper()
@@ -22,14 +24,14 @@ func newTestCompletionState(
 	}
 
 	if skillFn == nil {
-		skillFn = func(string) []string { return nil }
+		skillFn = func(string) []*skills.Skill { return nil }
 	}
 
 	if pathFn == nil {
 		pathFn = func(string) []fs.PathMatch { return nil }
 	}
 
-	cs, err := input.NewCompletionState(commandFn, skillFn, pathFn)
+	cs, err := input.NewCompletionState(80, commandFn, skillFn, pathFn)
 	require.NoError(t, err)
 
 	return cs
@@ -255,9 +257,11 @@ func TestCommandCompletionUsageValue(t *testing.T) {
 func TestSkillCompletionAccept(t *testing.T) {
 	t.Parallel()
 
-	skillFn := func(prefix string) []string {
+	skillFn := func(prefix string) []*skills.Skill {
 		if prefix == "" || prefix == "r" {
-			return []string{"review - Review the code carefully"}
+			return []*skills.Skill{
+				{Name: "review", Description: "Review the code carefully"},
+			}
 		}
 
 		return nil

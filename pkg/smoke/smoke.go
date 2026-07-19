@@ -375,7 +375,7 @@ func (s *Smoke) CommandCompleter() func(string) []string {
 	return s.commands.Completer()
 }
 
-func (s *Smoke) SkillCompleter() func(string) []string {
+func (s *Smoke) SkillCompleter() func(string) []*skills.Skill {
 	return s.skillCatalog.Completer()
 }
 

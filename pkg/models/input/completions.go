@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 )
 
 type CompletionLeader byte
@@ -42,8 +43,9 @@ type KeyResult struct {
 }
 
 type CompletionState struct {
+	maxWidth         int
 	commandCompleter func(string) []string
-	skillCompleter   func(string) []string
+	skillCompleter   func(string) []*skills.Skill
 	pathCompleter    func(string) []fs.PathMatch
 
 	completionLeader CompletionLeader
@@ -55,7 +57,9 @@ type CompletionState struct {
 }
 
 func NewCompletionState(
-	commandCompleter, skillCompleter func(string) []string,
+	maxWidth int,
+	commandCompleter func(string) []string,
+	skillCompleter func(string) []*skills.Skill,
 	pathCompleter func(string) []fs.PathMatch,
 ) (*CompletionState, error) {
 	if commandCompleter == nil {
@@ -71,6 +75,7 @@ func NewCompletionState(
 	}
 
 	return &CompletionState{
+		maxWidth:         maxWidth,
 		commandCompleter: commandCompleter,
 		skillCompleter:   skillCompleter,
 		pathCompleter:    pathCompleter,
@@ -96,6 +101,10 @@ func (c *CompletionState) InPathCompletion() bool {
 
 func (c *CompletionState) InCompletion() bool {
 	return c.completionLeader != CompletionLeaderNone
+}
+
+func (c *CompletionState) SetMaxWidth(maxWidth int) {
+	c.maxWidth = maxWidth
 }
 
 // PopupActive reports whether the completion popup should be shown.
@@ -329,7 +338,7 @@ func (c *CompletionState) refreshMatches() {
 		c.matches = commandMatches(c.commandCompleter(prefix))
 	case CompletionLeaderSkill:
 		prefix := strings.TrimPrefix(c.userText, string(CompletionLeaderSkill))
-		c.matches = skillMatches(c.skillCompleter(prefix))
+		c.matches = c.skillMatches(c.skillCompleter(prefix))
 	case CompletionLeaderPath:
 		if len(c.userText) < 2 {
 			return
@@ -374,32 +383,36 @@ func (c *CompletionState) tabUserText(match Match) string {
 	return string(c.CompletionLeader()) + match.Value
 }
 
+// skillMatches renders skill names/descriptions as Matches.
+func (c *CompletionState) skillMatches(options []*skills.Skill) []Match {
+	out := make([]Match, 0, len(options))
+
+	maxNameLen := 0
+	for _, opt := range options {
+		maxNameLen = max(maxNameLen, len(opt.Name))
+	}
+
+	maxDescLen := c.maxWidth - (maxNameLen + 2)
+
+	for _, opt := range options {
+		description := opt.Description
+		if len(description) > maxDescLen {
+			description = description[0:maxDescLen-3] + "..."
+		}
+
+		display := fmt.Sprintf("%-*s  %s", maxNameLen, opt.Name, description)
+		out = append(out, Match{Value: opt.Name, Label: display})
+	}
+
+	return out
+}
+
 // commandMatches adapts Completer strings (often Usage lines) into Value=name, Label=usage.
 func commandMatches(options []string) []Match {
 	out := make([]Match, 0, len(options))
 
 	for _, opt := range options {
 		name := firstField(opt)
-		if name == "" {
-			continue
-		}
-
-		out = append(out, Match{Value: name, Label: opt})
-	}
-
-	return out
-}
-
-// skillMatches adapts Completer strings ("name - description") into Value=name, Label=full line.
-func skillMatches(options []string) []Match {
-	out := make([]Match, 0, len(options))
-
-	for _, opt := range options {
-		name := firstField(opt)
-		if before, _, ok := strings.Cut(opt, " - "); ok {
-			name = before
-		}
-
 		if name == "" {
 			continue
 		}
