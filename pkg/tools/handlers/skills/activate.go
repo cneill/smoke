@@ -30,32 +30,31 @@ func (a *ActivateSkill) SetSkillCatalog(catalog skills.Catalog) {
 func (a *ActivateSkill) Name() string { return tools.NameActivateSkill }
 
 func (a *ActivateSkill) Description() string {
-	base := "Activate a skill by name, loading its instructions into the conversation. " +
-		"Use this when a task would benefit from specialized instructions provided by one of the available skills."
-
-	builder := strings.Builder{}
-	builder.WriteString(base)
+	sb := strings.Builder{}
+	sb.WriteString("Activate a skill by name, loading its instructions into the conversation. Use this when a task " +
+		"would benefit from specialized instructions provided by one of the available skills, or when the user " +
+		"requests it directly.\n\n")
 
 	if len(a.catalog) == 0 {
-		builder.WriteString("\n\nNo skills are currently available.")
+		sb.WriteString("No skills are currently available.")
 	} else {
-		builder.WriteString("\n\n## Available Skills\n\n")
+		sb.WriteString("## Available Skills\n\n")
 
 		for _, skill := range a.catalog {
-			fmt.Fprintf(&builder, "* **%s**: %s\n", skill.Name, skill.Description)
+			fmt.Fprintf(&sb, "* `%s`: %s\n", skill.Name, skill.Description)
 		}
 	}
 
 	examples := tools.CollectExamples(a.Examples()...)
-	builder.WriteString(examples)
+	sb.WriteString(examples)
 
-	return builder.String()
+	return sb.String()
 }
 
 func (a *ActivateSkill) Examples() tools.Examples {
 	return tools.Examples{
 		{
-			Description: "Activate a skill called \"my-skill\"",
+			Description: `Activate a skill called "my-skill"`,
 			Args:        tools.Args{ParamName: "my-skill"},
 		},
 	}
@@ -84,9 +83,10 @@ func (a *ActivateSkill) Run(_ context.Context, args tools.Args) (*tools.Output, 
 		return nil, fmt.Errorf("%w: unknown skill %q", tools.ErrArguments, *name)
 	}
 
+	outputText := skill.Body
 	if skill.Body == "" {
-		return &tools.Output{Text: fmt.Sprintf("Skill %q activated, but it has no body content.", *name)}, nil
+		outputText = fmt.Sprintf("Skill %q activated, but it has no body content.", *name)
 	}
 
-	return &tools.Output{Text: skill.Body}, nil
+	return &tools.Output{Text: outputText}, nil
 }

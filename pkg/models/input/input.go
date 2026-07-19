@@ -15,6 +15,7 @@ import (
 	"github.com/cneill/smoke/pkg/ask"
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/fs"
+	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/cneill/smoke/pkg/models/statusline"
 	"github.com/mattn/go-runewidth"
 )
@@ -33,7 +34,7 @@ type Opts struct {
 	MaxContextWindow int64
 	PlaceholderText  string
 	CommandCompleter func(string) []string
-	SkillCompleter   func(string) []string
+	SkillCompleter   func(string) []*skills.Skill
 	PathCompleter    func(string) []fs.PathMatch
 }
 
@@ -95,7 +96,9 @@ func New(opts *Opts) (*Model, error) {
 		return nil, fmt.Errorf("options error: %w", err)
 	}
 
-	cs, err := NewCompletionState(opts.CommandCompleter, opts.SkillCompleter, opts.PathCompleter)
+	// TODO: Figure out how to get rid of this "magic number" for max width - it seems excessive, and it also requires
+	// alignment with the Resize() method below.
+	cs, err := NewCompletionState(opts.Width-8, opts.CommandCompleter, opts.SkillCompleter, opts.PathCompleter)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up completion state: %w", err)
 	}
@@ -232,6 +235,8 @@ func (m *Model) Resize(width, height int) {
 
 	m.spinner.Style.Width(width)
 	m.spinner.Style.Height(textHeight)
+
+	m.completionState.SetMaxWidth(width - 8)
 }
 
 // LineHeight calculates the number of effective lines for the textarea only - both those ended with \n and those

@@ -2,7 +2,6 @@ package skills
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -66,7 +65,9 @@ func Discover(projectPath string) Catalog {
 func discoverInDir(dir string) []*Skill {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
+			slog.Debug("skills dir does not exist", "path", dir)
+		} else {
 			slog.Warn("failed to read skills directory", "path", dir, "error", err)
 		}
 
@@ -76,15 +77,36 @@ func discoverInDir(dir string) []*Skill {
 	var results []*Skill
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		entryType := entry.Type()
+		entryPath := filepath.Join(dir, entry.Name())
+		skillPath := filepath.Join(entryPath, skillFileName)
+
+		switch {
+		case entryType&fs.ModeSymlink != 0:
+			linkDest, err := os.Readlink(entryPath)
+			if err != nil {
+				slog.Error("failed to read skill link", "path", entryPath, "error", err)
+				continue
+			}
+
+			if !filepath.IsAbs(linkDest) {
+				linkAbs, err := filepath.Abs(linkDest)
+				if err != nil {
+					slog.Error("non-absolute link path is invalid", "path", entryPath, "link_destination", linkDest, "error", err)
+					continue
+				}
+
+				skillPath = filepath.Join(linkAbs, skillFileName)
+			}
+
+		case !entryType.IsDir():
+			slog.Debug("skipping non-symlink/non-directory skill file", "path", entryPath)
 			continue
 		}
 
-		skillPath := filepath.Join(dir, entry.Name(), skillFileName)
-
 		skill, err := ParseSkillFile(skillPath)
 		if err != nil {
-			slog.Warn("skipping invalid skill file", "path", skillPath, "error", fmt.Errorf("failed to parse skill: %w", err))
+			slog.Warn("failed to parse skill file, skipping", "path", skillPath, "error", err)
 			continue
 		}
 

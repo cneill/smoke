@@ -30,8 +30,9 @@ func SystemPreset() Preset {
 					"successful compilation, don't assume it's broken."),
 			},
 			SectionInstructions: {
-				Pf("If the user references a skill you have available with `$[skill_name]` in your conversation, "+
-					"activate that skill with `%s`.", tools.NameActivateSkill),
+				Pf("If the user brings up a topic that matches the description of one of your skills, or references "+
+					"one by name with `$[skill_name]` in your conversation, activate that skill with `%s`.",
+					tools.NameActivateSkill),
 				Pf("Use the `%s` tool to ask the user short, bounded clarification questions with a few options. "+
 					"Ask open-ended questions in prose when you need detailed context.", tools.NameAsk),
 			},

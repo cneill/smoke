@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -74,23 +74,19 @@ func (c Catalog) Names() []string {
 	return results
 }
 
-func (c Catalog) Completer() func(string) []string {
-	return func(input string) []string {
-		results := []string{}
+func (c Catalog) Completer() func(string) []*Skill {
+	return func(input string) []*Skill {
+		results := []*Skill{}
 
 		for _, skill := range c {
 			if strings.HasPrefix(skill.Name, input) || input == "" {
-				description := skill.Description
-				if len(description) > 50 {
-					description = description[0:50] + "..."
-				}
-
-				completionText := fmt.Sprintf("%s - %s", skill.Name, description)
-				results = append(results, completionText)
+				results = append(results, skill)
 			}
 		}
 
-		slices.Sort(results)
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Name < results[j].Name
+		})
 
 		return results
 	}
@@ -126,6 +122,12 @@ func ParseSkillContents(contents string) (*Skill, error) {
 	if err := yaml.Unmarshal([]byte(yamlContent), skill); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidFrontmatter, err)
 	}
+
+	trimmed := strings.TrimSpace(skill.Description)
+	trimmed = strings.ReplaceAll(trimmed, "\n", " ")
+	trimmed = strings.ReplaceAll(trimmed, "\r", " ")
+
+	skill.Description = trimmed
 
 	// Find where the closing delimiter line actually ends so we can grab the body.
 	remaining := contents[bodyStart:]
