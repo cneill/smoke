@@ -1,6 +1,7 @@
 package llms
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -152,6 +153,14 @@ func (m *Message) ToMarkdown() string {
 	builder.WriteString("\n\n----\n")
 
 	return builder.String()
+}
+
+func (m *Message) ImageB64URL() string {
+	if len(m.ImageContent) == 0 {
+		return ""
+	}
+
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(m.ImageContent)
 }
 
 type MessageOpt func(message *Message) *Message

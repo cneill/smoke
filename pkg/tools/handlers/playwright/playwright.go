@@ -8,7 +8,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 const (
@@ -21,6 +21,17 @@ type Playwright struct {
 
 func New(projectPath, _ string) (tools.Tool, error) {
 	// TODO: check for dependencies?
+	err := playwright.Install(&playwright.RunOptions{
+		OnlyInstallShell: true,
+		DriverDirectory:  "/tmp/playwright",
+		Browsers:         []string{"chromium"},
+		Logger:           slog.Default(),
+		WithDeps:         true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to set up Playwright dependencies: %w", err)
+	}
+
 	return &Playwright{ProjectPath: projectPath}, nil
 }
 
@@ -85,15 +96,19 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 	}
 
 	_, err = page.Goto(*url, playwright.PageGotoOptions{
-		WaitUntil: playwright.WaitUntilStateNetworkidle,
+		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to go to URL %q with playwright: %w", *url, err)
 	}
 
 	_, err = page.Screenshot(playwright.PageScreenshotOptions{
-		Path:     playwright.String(screenshotPath),
-		FullPage: playwright.Bool(true),
+		Path: playwright.String(screenshotPath),
+		Clip: &playwright.Rect{
+			Width:  1280,
+			Height: 720,
+		},
+		// FullPage: playwright.Bool(true),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to take screenshot with playwright: %w", err)

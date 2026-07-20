@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -159,12 +160,37 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 		case llms.RoleUser:
 			results[idx] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.TextContent))
 		case llms.RoleTool:
-			content := msg.TextContent
-			if content == "" {
-				content = "[no output]" // can't be empty?
+			var content anthropic.ContentBlockParamUnion
+
+			if len(msg.ImageContent) != 0 {
+				content = anthropic.ContentBlockParamUnion{
+					OfToolResult: &anthropic.ToolResultBlockParam{
+						ToolUseID: msg.ToolCalls[0].ID,
+						IsError:   anthropic.Bool(msg.Error != ""),
+						Content: []anthropic.ToolResultBlockParamContentUnion{
+							{
+								OfImage: &anthropic.ImageBlockParam{
+									Source: anthropic.ImageBlockParamSourceUnion{
+										OfBase64: &anthropic.Base64ImageSourceParam{
+											Data:      base64.StdEncoding.EncodeToString(msg.ImageContent),
+											MediaType: "image/png",
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+			} else {
+				textContent := msg.TextContent
+				if msg.TextContent == "" {
+					textContent = "[no output]"
+				}
+
+				content = anthropic.NewToolResultBlock(msg.ToolCalls[0].ID, textContent, msg.Error != "")
 			}
 
-			results[idx] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCalls[0].ID, content, msg.Error != ""))
+			results[idx] = anthropic.NewUserMessage(content)
 		default:
 			slog.Warn("got message with unknown role", "message", msg.TextContent, "role", msg.Role)
 		}

@@ -1,6 +1,8 @@
 package input //nolint:testpackage
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -55,9 +57,96 @@ func sendRuneKeys(m *Model, keys string) {
 	}
 }
 
-func assertCursor(t *testing.T, m *Model, want logicalPosition) {
+func assertCursor(t *testing.T, model *Model, want logicalPosition) {
 	t.Helper()
-	assert.Equal(t, want, textareaLogicalPosition(m.textarea))
+
+	got := textareaLogicalPosition(model.textarea)
+	if want == got {
+		return
+	}
+
+	t.Fatalf(
+		"cursor mismatch:\n want: line=%d col=%d\n  got: line=%d col=%d\n\n%s\n\nW = want, G = got, B = both",
+		want.line, want.column, got.line, got.column,
+		formatCursorDiff(model.textarea.Value(), want, got),
+	)
+}
+
+// formatCursorDiff renders content with caret lines under want (W) and got (G).
+// When both land on the same column, the mark is B.
+func formatCursorDiff(content string, want, got logicalPosition) string {
+	lines := strings.Split(content, "\n")
+	if content == "" {
+		lines = []string{""}
+	}
+
+	var out strings.Builder
+	for i, line := range lines {
+		fmt.Fprintf(&out, "%3d | %s\n", i, line)
+
+		wantHere := want.line == i
+
+		gotHere := got.line == i
+		if !wantHere && !gotHere {
+			continue
+		}
+
+		out.WriteString("    | ")
+		out.WriteString(cursorCaretLine(line, want, got, wantHere, gotHere))
+		out.WriteByte('\n')
+	}
+
+	// Positions past the last line still need to be visible.
+	for i := len(lines); i <= max(want.line, got.line); i++ {
+		fmt.Fprintf(&out, "%3d | <missing line>\n", i)
+		out.WriteString("    | ")
+		out.WriteString(cursorCaretLine("", want, got, want.line == i, got.line == i))
+		out.WriteByte('\n')
+	}
+
+	return strings.TrimRight(out.String(), "\n")
+}
+
+func cursorCaretLine(line string, want, got logicalPosition, wantHere, gotHere bool) string {
+	width := len([]rune(line)) + 1 // allow caret one past last rune
+	if wantHere {
+		width = max(width, max(want.column, 0)+1)
+	}
+
+	if gotHere {
+		width = max(width, max(got.column, 0)+1)
+	}
+
+	carets := make([]rune, 0, width)
+	for range width {
+		carets = append(carets, ' ')
+	}
+
+	if wantHere {
+		placeCaret(carets, want.column, 'W')
+	}
+
+	if gotHere {
+		placeCaret(carets, got.column, 'G')
+	}
+
+	return strings.TrimRight(string(carets), " ")
+}
+
+func placeCaret(carets []rune, col int, mark rune) {
+	col = max(col, 0)
+	if col >= len(carets) {
+		return
+	}
+
+	switch carets[col] {
+	case ' ':
+		carets[col] = mark
+	case mark:
+		// already marked
+	default:
+		carets[col] = 'B'
+	}
 }
 
 func TestVimWordMotionsUseCurrentLogicalLine(t *testing.T) {
@@ -70,17 +159,23 @@ func TestVimWordMotionsUseCurrentLogicalLine(t *testing.T) {
 		want  logicalPosition
 	}{
 		{name: "next word", key: "w", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 5}},
+		{name: "forward two words", key: "2w", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 6}},
 		{name: "next WORD", key: "W", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 11}},
+		{name: "forward two WORDS", key: "2W", start: logicalPosition{line: 1}, want: logicalPosition{line: 2, column: 0}},
 		{name: "end word", key: "e", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 4}},
 		{name: "end WORD", key: "E", start: logicalPosition{line: 1}, want: logicalPosition{line: 1, column: 9}},
 		{name: "previous word", key: "b", start: logicalPosition{line: 1, column: 16}, want: logicalPosition{line: 1, column: 11}},
+		{name: "back 2 words", key: "2b", start: logicalPosition{line: 1, column: 9}, want: logicalPosition{line: 1, column: 5}},
 		{name: "previous WORD", key: "B", start: logicalPosition{line: 1, column: 16}, want: logicalPosition{line: 1, column: 11}},
+		{name: "back 2 WORDS", key: "2B", start: logicalPosition{line: 0, column: 8}, want: logicalPosition{line: 0, column: 0}},
 		{name: "next word crosses newline", key: "w", start: logicalPosition{line: 1, column: 11}, want: logicalPosition{line: 2}},
 		{name: "next WORD crosses newline", key: "W", start: logicalPosition{line: 1, column: 11}, want: logicalPosition{line: 2}},
 		{name: "end word crosses newline", key: "e", start: logicalPosition{line: 1, column: 15}, want: logicalPosition{line: 2, column: 3}},
 		{name: "end WORD crosses newline", key: "E", start: logicalPosition{line: 1, column: 15}, want: logicalPosition{line: 2, column: 3}},
 		{name: "previous word crosses newline", key: "b", start: logicalPosition{line: 1}, want: logicalPosition{line: 0, column: 4}},
 		{name: "previous WORD crosses newline", key: "B", start: logicalPosition{line: 1}, want: logicalPosition{line: 0}},
+		{name: "to end of line with 3e", key: "3e", start: logicalPosition{line: 0, column: 0}, want: logicalPosition{line: 0, column: 8}},
+		{name: "forward then backward", key: "3e1b", start: logicalPosition{line: 0, column: 0}, want: logicalPosition{line: 0, column: 4}},
 	}
 
 	for _, tt := range tests {
