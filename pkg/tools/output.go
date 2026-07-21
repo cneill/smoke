@@ -14,11 +14,12 @@ type Output struct {
 }
 
 func (o *Output) Type() OutputType {
-	if o.Text != "" {
-		return OutputTypeText
-	} else if o.ImagePath != "" {
+	switch {
+	case o.ImagePath != "":
 		return OutputTypeImage
+	case o.Text != "":
+		return OutputTypeText
+	default:
+		return OutputTypeUnknown
 	}
-
-	return OutputTypeUnknown
 }

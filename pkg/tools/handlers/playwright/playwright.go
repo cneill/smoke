@@ -8,11 +8,12 @@ import (
 
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 const (
-	ParamURL = "url"
+	ParamURL      = "url"
+	ParamFullPage = "full_page"
 )
 
 type Playwright struct {
@@ -20,7 +21,17 @@ type Playwright struct {
 }
 
 func New(projectPath, _ string) (tools.Tool, error) {
-	// TODO: check for dependencies?
+	err := playwright.Install(&playwright.RunOptions{
+		OnlyInstallShell: true,
+		DriverDirectory:  "/tmp/playwright",
+		Browsers:         []string{"chromium"},
+		Logger:           slog.Default(),
+		WithDeps:         true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to set up Playwright dependencies: %w", err)
+	}
+
 	return &Playwright{ProjectPath: projectPath}, nil
 }
 
@@ -32,8 +43,21 @@ func (p *Playwright) Description() string {
 }
 
 func (p *Playwright) Examples() tools.Examples {
-	// TODO
-	return tools.Examples{}
+	return tools.Examples{
+		{
+			Description: "Take a 1280x720 screenshot of a local webpage.",
+			Args: tools.Args{
+				ParamURL: "http://localhost:8080/",
+			},
+		},
+		{
+			Description: "Take a screenshot of the entire Google homepage.",
+			Args: tools.Args{
+				ParamURL:      "https://google.com/",
+				ParamFullPage: true,
+			},
+		},
+	}
 }
 
 func (p *Playwright) Params() tools.Params {
@@ -44,18 +68,19 @@ func (p *Playwright) Params() tools.Params {
 			Type:        tools.ParamTypeString,
 			Required:    true,
 		},
+		{
+			Key:         ParamFullPage,
+			Description: "Should we take a screenshot of the entire page?",
+			Type:        tools.ParamTypeBoolean,
+			Required:    false,
+		},
 	}
 }
 
 func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	url := args.GetString(ParamURL)
 	if url == nil || *url == "" {
-		return nil, fmt.Errorf("%w: must supply URL", tools.ErrArguments)
-	}
-
-	screenshotPath, err := fs.GetRelativePath(p.ProjectPath, fmt.Sprintf("screenshot-%s.png", time.Now().Format(time.RFC3339)))
-	if err != nil {
-		return nil, fmt.Errorf("%w: invalid screenshot path: %w", tools.ErrFileSystem, err)
+		return nil, fmt.Errorf("%w: must supply %q", tools.ErrArguments, ParamURL)
 	}
 
 	// TODO: whitelist/blacklist
@@ -77,24 +102,14 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to launch Chromium for playwright: %w", err)
 	}
-	defer browser.Close()
 
-	page, err := browser.NewPage()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create a new browser page in playwright: %w", err)
-	}
+	defer func() {
+		if err := browser.Close(); err != nil {
+			slog.Error("failed to close browser", "error", err)
+		}
+	}()
 
-	_, err = page.Goto(*url, playwright.PageGotoOptions{
-		WaitUntil: playwright.WaitUntilStateNetworkidle,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to go to URL %q with playwright: %w", *url, err)
-	}
-
-	_, err = page.Screenshot(playwright.PageScreenshotOptions{
-		Path:     playwright.String(screenshotPath),
-		FullPage: playwright.Bool(true),
-	})
+	screenshotPath, err := p.takeScreenshot(browser, *url, args.GetBool(ParamFullPage))
 	if err != nil {
 		return nil, fmt.Errorf("failed to take screenshot with playwright: %w", err)
 	}
@@ -104,4 +119,39 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 	}
 
 	return output, nil
+}
+
+func (p *Playwright) takeScreenshot(browser playwright.Browser, url string, full *bool) (string, error) {
+	page, err := browser.NewPage()
+	if err != nil {
+		return "", fmt.Errorf("failed to create a new browser page in playwright: %w", err)
+	}
+
+	gotoOpts := playwright.PageGotoOptions{
+		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
+	}
+
+	if _, err = page.Goto(url, gotoOpts); err != nil {
+		return "", fmt.Errorf("failed to go to URL %q with playwright: %w", url, err)
+	}
+
+	screenshotPath, _ := fs.GetRelativePath(p.ProjectPath, fmt.Sprintf("screenshot-%s.png", time.Now().Format(time.RFC3339)))
+	screenshotOpts := playwright.PageScreenshotOptions{
+		Path: playwright.String(screenshotPath),
+	}
+
+	if full != nil && *full {
+		screenshotOpts.FullPage = full
+	} else {
+		screenshotOpts.Clip = &playwright.Rect{
+			Width:  1280,
+			Height: 720,
+		}
+	}
+
+	if _, err = page.Screenshot(screenshotOpts); err != nil {
+		return "", fmt.Errorf("failed to take screenshot with playwright: %w", err)
+	}
+
+	return screenshotPath, nil
 }

@@ -39,7 +39,6 @@ func AllTools() []tools.Initializer {
 		plancompletion.New,
 		planread.New,
 		planupdate.New,
-		// TODO: figure out how to actually support images w/ multimodal models
 		// playwright.New,
 		readfile.New,
 		// replacelines.New,
@@ -66,6 +65,7 @@ func PlanningTools() []tools.Initializer {
 		plancompletion.New,
 		planread.New,
 		planupdate.New,
+		// playwright.New,
 		readfile.New,
 	}
 }
@@ -84,6 +84,7 @@ func ReviewTools() []tools.Initializer {
 		plancompletion.New,
 		planread.New,
 		planupdate.New,
+		// playwright.New,
 		readfile.New,
 	}
 }
