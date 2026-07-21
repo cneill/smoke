@@ -20,7 +20,6 @@ type Playwright struct {
 }
 
 func New(projectPath, _ string) (tools.Tool, error) {
-	// TODO: check for dependencies?
 	err := playwright.Install(&playwright.RunOptions{
 		OnlyInstallShell: true,
 		DriverDirectory:  "/tmp/playwright",

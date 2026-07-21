@@ -160,23 +160,15 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 		case llms.RoleUser:
 			results[idx] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.TextContent))
 		case llms.RoleTool:
-			var content anthropic.ContentBlockParamUnion
+			var toolContent anthropic.ToolResultBlockParamContentUnion
 
 			if len(msg.ImageContent) != 0 {
-				content = anthropic.ContentBlockParamUnion{
-					OfToolResult: &anthropic.ToolResultBlockParam{
-						ToolUseID: msg.ToolCalls[0].ID,
-						IsError:   anthropic.Bool(msg.Error != ""),
-						Content: []anthropic.ToolResultBlockParamContentUnion{
-							{
-								OfImage: &anthropic.ImageBlockParam{
-									Source: anthropic.ImageBlockParamSourceUnion{
-										OfBase64: &anthropic.Base64ImageSourceParam{
-											Data:      base64.StdEncoding.EncodeToString(msg.ImageContent),
-											MediaType: "image/png",
-										},
-									},
-								},
+				toolContent = anthropic.ToolResultBlockParamContentUnion{
+					OfImage: &anthropic.ImageBlockParam{
+						Source: anthropic.ImageBlockParamSourceUnion{
+							OfBase64: &anthropic.Base64ImageSourceParam{
+								Data:      base64.StdEncoding.EncodeToString(msg.ImageContent),
+								MediaType: "image/png",
 							},
 						},
 					},
@@ -187,10 +179,27 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 					textContent = "[no output]"
 				}
 
-				content = anthropic.NewToolResultBlock(msg.ToolCalls[0].ID, textContent, msg.Error != "")
+				toolContent = anthropic.ToolResultBlockParamContentUnion{
+					OfText: &anthropic.TextBlockParam{
+						Text: textContent,
+					},
+				}
 			}
 
-			results[idx] = anthropic.NewUserMessage(content)
+			results[idx] = anthropic.MessageParam{
+				Role: anthropic.MessageParamRoleUser,
+				Content: []anthropic.ContentBlockParamUnion{
+					{
+						OfToolResult: &anthropic.ToolResultBlockParam{
+							ToolUseID: msg.ToolCalls[0].ID,
+							IsError:   anthropic.Bool(msg.Error != ""),
+							Content: []anthropic.ToolResultBlockParamContentUnion{
+								toolContent,
+							},
+						},
+					},
+				},
+			}
 		default:
 			slog.Warn("got message with unknown role", "message", msg.TextContent, "role", msg.Role)
 		}
