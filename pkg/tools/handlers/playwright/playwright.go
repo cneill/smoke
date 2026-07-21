@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	ParamURL = "url"
+	ParamURL      = "url"
+	ParamFullPage = "full_page"
 )
 
 type Playwright struct {
@@ -42,8 +43,21 @@ func (p *Playwright) Description() string {
 }
 
 func (p *Playwright) Examples() tools.Examples {
-	// TODO
-	return tools.Examples{}
+	return tools.Examples{
+		{
+			Description: "Take a 1280x720 screenshot of a local webpage.",
+			Args: tools.Args{
+				ParamURL: "http://localhost:8080/",
+			},
+		},
+		{
+			Description: "Take a screenshot of the entire Google homepage.",
+			Args: tools.Args{
+				ParamURL:      "https://google.com/",
+				ParamFullPage: true,
+			},
+		},
+	}
 }
 
 func (p *Playwright) Params() tools.Params {
@@ -54,13 +68,19 @@ func (p *Playwright) Params() tools.Params {
 			Type:        tools.ParamTypeString,
 			Required:    true,
 		},
+		{
+			Key:         ParamFullPage,
+			Description: "Should we take a screenshot of the entire page?",
+			Type:        tools.ParamTypeBoolean,
+			Required:    false,
+		},
 	}
 }
 
 func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	url := args.GetString(ParamURL)
 	if url == nil || *url == "" {
-		return nil, fmt.Errorf("%w: must supply URL", tools.ErrArguments)
+		return nil, fmt.Errorf("%w: must supply %q", tools.ErrArguments, ParamURL)
 	}
 
 	screenshotPath, err := fs.GetRelativePath(p.ProjectPath, fmt.Sprintf("screenshot-%s.png", time.Now().Format(time.RFC3339)))
@@ -101,14 +121,19 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 		return nil, fmt.Errorf("failed to go to URL %q with playwright: %w", *url, err)
 	}
 
-	_, err = page.Screenshot(playwright.PageScreenshotOptions{
+	opts := playwright.PageScreenshotOptions{
 		Path: playwright.String(screenshotPath),
-		Clip: &playwright.Rect{
+	}
+	if full := args.GetBool(ParamFullPage); full != nil && *full {
+		opts.FullPage = playwright.Bool(true)
+	} else {
+		opts.Clip = &playwright.Rect{
 			Width:  1280,
 			Height: 720,
-		},
-		// FullPage: playwright.Bool(true),
-	})
+		}
+	}
+
+	_, err = page.Screenshot(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to take screenshot with playwright: %w", err)
 	}
