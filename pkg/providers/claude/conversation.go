@@ -160,46 +160,7 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 		case llms.RoleUser:
 			results[idx] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.TextContent))
 		case llms.RoleTool:
-			var toolContent anthropic.ToolResultBlockParamContentUnion
-
-			if len(msg.ImageContent) != 0 {
-				toolContent = anthropic.ToolResultBlockParamContentUnion{
-					OfImage: &anthropic.ImageBlockParam{
-						Source: anthropic.ImageBlockParamSourceUnion{
-							OfBase64: &anthropic.Base64ImageSourceParam{
-								Data:      base64.StdEncoding.EncodeToString(msg.ImageContent),
-								MediaType: "image/png",
-							},
-						},
-					},
-				}
-			} else {
-				textContent := msg.TextContent
-				if msg.TextContent == "" {
-					textContent = "[no output]"
-				}
-
-				toolContent = anthropic.ToolResultBlockParamContentUnion{
-					OfText: &anthropic.TextBlockParam{
-						Text: textContent,
-					},
-				}
-			}
-
-			results[idx] = anthropic.MessageParam{
-				Role: anthropic.MessageParamRoleUser,
-				Content: []anthropic.ContentBlockParamUnion{
-					{
-						OfToolResult: &anthropic.ToolResultBlockParam{
-							ToolUseID: msg.ToolCalls[0].ID,
-							IsError:   anthropic.Bool(msg.Error != ""),
-							Content: []anthropic.ToolResultBlockParamContentUnion{
-								toolContent,
-							},
-						},
-					},
-				},
-			}
+			results[idx] = c.genericToolResponseMessageToProvider(msg)
 		default:
 			slog.Warn("got message with unknown role", "message", msg.TextContent, "role", msg.Role)
 		}
@@ -273,6 +234,49 @@ func (c *conversation) genericToolCallsToProvider(toolCalls ...llms.ToolCall) []
 	return results
 }
 
+func (c *conversation) genericToolResponseMessageToProvider(msg *llms.Message) anthropic.MessageParam {
+	var toolContent anthropic.ToolResultBlockParamContentUnion
+
+	if len(msg.ImageContent) != 0 {
+		toolContent = anthropic.ToolResultBlockParamContentUnion{
+			OfImage: &anthropic.ImageBlockParam{
+				Source: anthropic.ImageBlockParamSourceUnion{
+					OfBase64: &anthropic.Base64ImageSourceParam{
+						Data:      base64.StdEncoding.EncodeToString(msg.ImageContent),
+						MediaType: "image/png",
+					},
+				},
+			},
+		}
+	} else {
+		textContent := msg.TextContent
+		if msg.TextContent == "" {
+			textContent = "[no output]"
+		}
+
+		toolContent = anthropic.ToolResultBlockParamContentUnion{
+			OfText: &anthropic.TextBlockParam{
+				Text: textContent,
+			},
+		}
+	}
+
+	return anthropic.MessageParam{
+		Role: anthropic.MessageParamRoleUser,
+		Content: []anthropic.ContentBlockParamUnion{
+			{
+				OfToolResult: &anthropic.ToolResultBlockParam{
+					ToolUseID: msg.ToolCalls[0].ID,
+					IsError:   anthropic.Bool(msg.Error != ""),
+					Content: []anthropic.ToolResultBlockParamContentUnion{
+						toolContent,
+					},
+				},
+			},
+		},
+	}
+}
+
 func (c *conversation) handleResponse(ctx context.Context, id string, blocks []anthropic.ContentBlockUnion) error {
 	textBuilder := strings.Builder{}
 	providerToolCalls := []anthropic.ToolUseBlock{}
@@ -282,7 +286,8 @@ func (c *conversation) handleResponse(ctx context.Context, id string, blocks []a
 		case anthropic.TextBlock:
 			// TODO: citations?
 			if strings.TrimSpace(block.Text) != "" {
-				textBuilder.WriteString(block.Text + "\n")
+				textBuilder.WriteString(block.Text)
+				textBuilder.WriteRune('\n')
 			}
 		case anthropic.ToolUseBlock:
 			providerToolCalls = append(providerToolCalls, block)

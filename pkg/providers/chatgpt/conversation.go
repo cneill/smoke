@@ -143,31 +143,7 @@ func (c *conversation) getInputFromSession(session *llms.Session) responses.Resp
 				continue
 			}
 
-			var content responses.ResponseInputItemFunctionCallOutputOutputUnionParam
-
-			if len(msg.ImageContent) != 0 {
-				content = responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
-					OfResponseFunctionCallOutputItemArray: responses.ResponseFunctionCallOutputItemListParam{
-						responses.ResponseFunctionCallOutputItemUnionParam{
-							OfInputImage: &responses.ResponseInputImageContentParam{
-								ImageURL: openai.String(msg.ImageB64URL()),
-								Detail:   "auto",
-							},
-						},
-					},
-				}
-			} else {
-				content = responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
-					OfString: openai.String(msg.TextContent),
-				}
-			}
-
-			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
-				OfFunctionCallOutput: &responses.ResponseInputItemFunctionCallOutputParam{
-					CallID: msg.ToolCalls[0].ID,
-					Output: content,
-				},
-			})
+			inputItems = append(inputItems, c.toolMessageInput(msg))
 
 		case llms.RoleUser:
 			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
@@ -185,6 +161,34 @@ func (c *conversation) getInputFromSession(session *llms.Session) responses.Resp
 
 	return responses.ResponseNewParamsInputUnion{
 		OfInputItemList: inputItems,
+	}
+}
+
+func (c *conversation) toolMessageInput(msg *llms.Message) responses.ResponseInputItemUnionParam {
+	var content responses.ResponseInputItemFunctionCallOutputOutputUnionParam
+
+	if len(msg.ImageContent) != 0 {
+		content = responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
+			OfResponseFunctionCallOutputItemArray: responses.ResponseFunctionCallOutputItemListParam{
+				responses.ResponseFunctionCallOutputItemUnionParam{
+					OfInputImage: &responses.ResponseInputImageContentParam{
+						ImageURL: openai.String(msg.ImageB64URL()),
+						Detail:   "auto",
+					},
+				},
+			},
+		}
+	} else {
+		content = responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
+			OfString: openai.String(msg.TextContent),
+		}
+	}
+
+	return responses.ResponseInputItemUnionParam{
+		OfFunctionCallOutput: &responses.ResponseInputItemFunctionCallOutputParam{
+			CallID: msg.ToolCalls[0].ID,
+			Output: content,
+		},
 	}
 }
 
