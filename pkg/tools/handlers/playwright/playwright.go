@@ -83,11 +83,6 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 		return nil, fmt.Errorf("%w: must supply %q", tools.ErrArguments, ParamURL)
 	}
 
-	screenshotPath, err := fs.GetRelativePath(p.ProjectPath, fmt.Sprintf("screenshot-%s.png", time.Now().Format(time.RFC3339)))
-	if err != nil {
-		return nil, fmt.Errorf("%w: invalid screenshot path: %w", tools.ErrFileSystem, err)
-	}
-
 	// TODO: whitelist/blacklist
 
 	pw, err := playwright.Run()
@@ -107,33 +102,14 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to launch Chromium for playwright: %w", err)
 	}
-	defer browser.Close()
 
-	page, err := browser.NewPage()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create a new browser page in playwright: %w", err)
-	}
-
-	_, err = page.Goto(*url, playwright.PageGotoOptions{
-		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to go to URL %q with playwright: %w", *url, err)
-	}
-
-	opts := playwright.PageScreenshotOptions{
-		Path: playwright.String(screenshotPath),
-	}
-	if full := args.GetBool(ParamFullPage); full != nil && *full {
-		opts.FullPage = playwright.Bool(true)
-	} else {
-		opts.Clip = &playwright.Rect{
-			Width:  1280,
-			Height: 720,
+	defer func() {
+		if err := browser.Close(); err != nil {
+			slog.Error("failed to close browser", "error", err)
 		}
-	}
+	}()
 
-	_, err = page.Screenshot(opts)
+	screenshotPath, err := p.takeScreenshot(browser, *url, args.GetBool(ParamFullPage))
 	if err != nil {
 		return nil, fmt.Errorf("failed to take screenshot with playwright: %w", err)
 	}
@@ -143,4 +119,39 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 	}
 
 	return output, nil
+}
+
+func (p *Playwright) takeScreenshot(browser playwright.Browser, url string, full *bool) (string, error) {
+	page, err := browser.NewPage()
+	if err != nil {
+		return "", fmt.Errorf("failed to create a new browser page in playwright: %w", err)
+	}
+
+	gotoOpts := playwright.PageGotoOptions{
+		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
+	}
+
+	if _, err = page.Goto(url, gotoOpts); err != nil {
+		return "", fmt.Errorf("failed to go to URL %q with playwright: %w", url, err)
+	}
+
+	screenshotPath, _ := fs.GetRelativePath(p.ProjectPath, fmt.Sprintf("screenshot-%s.png", time.Now().Format(time.RFC3339)))
+	screenshotOpts := playwright.PageScreenshotOptions{
+		Path: playwright.String(screenshotPath),
+	}
+
+	if full != nil && *full {
+		screenshotOpts.FullPage = full
+	} else {
+		screenshotOpts.Clip = &playwright.Rect{
+			Width:  1280,
+			Height: 720,
+		}
+	}
+
+	if _, err = page.Screenshot(screenshotOpts); err != nil {
+		return "", fmt.Errorf("failed to take screenshot with playwright: %w", err)
+	}
+
+	return screenshotPath, nil
 }
