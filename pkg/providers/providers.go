@@ -29,7 +29,7 @@ var (
 // Model context sizes pulled from https://models.dev/models.json
 var registry = Registry{ //nolint:gochecknoglobals
 	llms.LLMTypeChatGPT: {
-		DefaultModel:  "gpt-5.5",
+		DefaultModel:  openai.ChatModelGPT5_6Sol,
 		DefaultEffort: string(openai.ReasoningEffortMedium),
 		EffortOptions: utils.ToStrings(
 			openai.ReasoningEffortNone,
@@ -56,15 +56,15 @@ var registry = Registry{ //nolint:gochecknoglobals
 			openai.ChatModelGPT5_4:      {Aliases: []string{"5.4", "gpt5.4", "gpt-5.4"}, ContextWindowTokens: 1050000},
 			openai.ChatModelGPT5_4Mini:  {Aliases: []string{"5.4-mini", "gpt5.4-mini", "gpt-5.4-mini"}, ContextWindowTokens: 400000},
 			openai.ChatModelGPT5_4Nano:  {Aliases: []string{"5.4-nano", "gpt5.4-nano", "gpt-5.4-nano"}, ContextWindowTokens: 400000},
-			// Some day OpenAI will update their SDK...
-			"gpt-5.5":       {Aliases: []string{"5.5", "gpt5.5", "gpt-5.5"}, ContextWindowTokens: 1050000},
-			"gpt-5.6-sol":   {Aliases: []string{"5.6", "sol", "5.6-sol", "gpt5.6"}, ContextWindowTokens: 1050000},
-			"gpt-5.6-terra": {Aliases: []string{"terra", "5.6-terra"}, ContextWindowTokens: 1050000},
-			"gpt-5.6-luna":  {Aliases: []string{"luna", "5.6-luna"}, ContextWindowTokens: 1050000},
+			// Some day OpenAI will update their SDK...???
+			"gpt-5.5":                   {Aliases: []string{"5.5", "gpt5.5", "gpt-5.5"}, ContextWindowTokens: 1050000},
+			openai.ChatModelGPT5_6Sol:   {Aliases: []string{"5.6", "sol", "5.6-sol", "gpt5.6"}, ContextWindowTokens: 1050000},
+			openai.ChatModelGPT5_6Terra: {Aliases: []string{"terra", "5.6-terra"}, ContextWindowTokens: 1050000},
+			openai.ChatModelGPT5_6Luna:  {Aliases: []string{"luna", "5.6-luna"}, ContextWindowTokens: 1050000},
 		},
 	},
 	llms.LLMTypeClaude: {
-		DefaultModel:  anthropic.ModelClaudeSonnet5,
+		DefaultModel:  anthropic.ModelClaudeOpus5,
 		DefaultEffort: string(anthropic.OutputConfigEffortMedium),
 		EffortOptions: utils.ToStrings(
 			anthropic.OutputConfigEffortLow,
@@ -75,7 +75,8 @@ var registry = Registry{ //nolint:gochecknoglobals
 		),
 		Models: ModelInfos{
 			anthropic.ModelClaudeFable5:    {Aliases: []string{"fable", "fable5"}, ContextWindowTokens: 1000000},
-			anthropic.ModelClaudeOpus4_8:   {Aliases: []string{"opus", "opus4.8", "o48"}, ContextWindowTokens: 1000000},
+			anthropic.ModelClaudeOpus5:     {Aliases: []string{"opus", "opus5", "o5"}, ContextWindowTokens: 1000000},
+			anthropic.ModelClaudeOpus4_8:   {Aliases: []string{"opus4.8", "o48"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_7:   {Aliases: []string{"opus4.7", "o47"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_6:   {Aliases: []string{"opus4.6", "o46"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_5:   {Aliases: []string{"opus4.5", "o45"}, ContextWindowTokens: 200000},
@@ -86,7 +87,7 @@ var registry = Registry{ //nolint:gochecknoglobals
 		},
 	},
 	llms.LLMTypeGrok: {
-		DefaultModel:  "grok-build-0.1",
+		DefaultModel:  "grok-4.5",
 		DefaultEffort: "medium",
 		EffortOptions: []string{
 			"none",

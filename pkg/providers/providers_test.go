@@ -5,6 +5,7 @@ import (
 
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/providers"
+	"github.com/openai/openai-go/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +24,7 @@ func TestDetailsModelInfo(t *testing.T) {
 			name:              "default model",
 			provider:          llms.LLMTypeChatGPT,
 			search:            "",
-			wantModel:         "gpt-5.5",
+			wantModel:         openai.ChatModelGPT5_6Sol,
 			wantContextTokens: 1050000,
 		},
 		{
