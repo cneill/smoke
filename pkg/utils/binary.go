@@ -1,20 +1,19 @@
 package utils
 
+import (
+	"bytes"
+	"unicode/utf8"
+)
+
 // IsBinary checks if the given byte slice contains binary data by looking for null bytes.
 func IsBinary(data []byte) bool {
 	checkSize := min(len(data), 8192)
-	nullBytes := 0
+	sample := data[:checkSize]
 
-	for idx := range checkSize {
-		b := data[idx]
-		if b == 0 {
-			nullBytes++
-		}
-
-		if nullBytes > 0 && idx > 0 && float64(nullBytes)/float64(idx) > 0.01 {
-			return true
-		}
+	// This might be too restrictive, but probably not.
+	if bytes.IndexByte(sample, 0) != -1 {
+		return true
 	}
 
-	return false
+	return !utf8.Valid(sample)
 }

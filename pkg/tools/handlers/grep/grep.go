@@ -193,19 +193,25 @@ func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLi
 		return nil, fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
 
-	isBinary := utils.IsBinary(contents)
-
 	var (
 		lines   = []string{}
 		results = [][]string{}
 		scanner = bufio.NewScanner(bytes.NewReader(contents))
 	)
 
+	if utils.IsBinary(contents) {
+		if pattern.Match(contents) {
+			results = append(results, []string{"[binary file matches]"})
+		}
+
+		return results, nil
+	}
+
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
 
-	// TODO: test for / fix max line size issue for extremely long lines?
+	// TODO: test for / fix max line size issue for extremely long lines in non-binary files?
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("%w: failed to read file %q: %w", tools.ErrFileSystem, fullPath, err)
 	}
@@ -213,11 +219,6 @@ func (g *Grep) getFileResults(fullPath string, pattern *regexp.Regexp, contextLi
 	for lineNum, line := range lines {
 		if !pattern.MatchString(line) {
 			continue
-		}
-
-		if isBinary {
-			results = append(results, []string{"[binary file matches]"})
-			break
 		}
 
 		context := []string{}
