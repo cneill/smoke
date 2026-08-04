@@ -12,7 +12,7 @@ require (
 	github.com/cneill/hc/v2 v2.0.2
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/google/jsonschema-go v0.4.3
-	github.com/mattn/go-runewidth v0.0.24
+	github.com/mattn/go-runewidth v0.0.27
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/muesli/reflow v0.3.0
 	github.com/mxschmitt/playwright-go v0.6100.0
