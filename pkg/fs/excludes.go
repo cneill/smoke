@@ -21,8 +21,8 @@ type ExcludeMatcher struct {
 	matcher gitignore.Matcher
 }
 
-func (m ExcludeMatcher) Match(path string, isDir bool) bool {
-	return m.matcher.Match(getParts(path), isDir)
+func (e ExcludeMatcher) Match(path string, isDir bool) bool {
+	return e.matcher.Match(getParts(path), isDir)
 }
 
 var excludesFilePaths = map[string][]string{} //nolint:gochecknoglobals // used for caching

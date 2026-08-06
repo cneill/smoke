@@ -22,17 +22,17 @@ type ConversationOpts struct {
 }
 
 // OK validates that all required fields are present.
-func (o *ConversationOpts) OK() error {
+func (c *ConversationOpts) OK() error {
 	switch {
-	case o.Session == nil:
+	case c.Session == nil:
 		return fmt.Errorf("missing session")
-	case o.LLMInfo == nil:
+	case c.LLMInfo == nil:
 		return fmt.Errorf("missing LLM info")
-	case o.Config == nil:
+	case c.Config == nil:
 		return fmt.Errorf("missing config")
-	case o.SendStream == nil:
+	case c.SendStream == nil:
 		return fmt.Errorf("missing SendStream func")
-	case o.SendNoStream == nil:
+	case c.SendNoStream == nil:
 		return fmt.Errorf("missing SendNoStream func")
 	}
 

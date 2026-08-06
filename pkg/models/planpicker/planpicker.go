@@ -15,7 +15,7 @@ type Message interface {
 
 type messageType struct{}
 
-func (messageType) isPlanPickerMessage() {}
+func (m messageType) isPlanPickerMessage() {}
 
 type SelectedMessage struct {
 	messageType

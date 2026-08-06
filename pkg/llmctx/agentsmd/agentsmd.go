@@ -21,13 +21,13 @@ type File struct {
 	Contents []byte
 }
 
-func (a *File) String() string {
+func (f *File) String() string {
 	builder := &strings.Builder{}
 
 	// TODO: add relative path for project-scoped AGENTS.md in future?
-	fmt.Fprintf(builder, "< %s AGENTS.md INSTRUCTIONS >\n\n", a.Type.Upper())
-	builder.Write(a.Contents)
-	fmt.Fprintf(builder, "\n\n< END %s AGENTS.md INSTRUCTIONS >\n", a.Type.Upper())
+	fmt.Fprintf(builder, "< %s AGENTS.md INSTRUCTIONS >\n\n", f.Type.Upper())
+	builder.Write(f.Contents)
+	fmt.Fprintf(builder, "\n\n< END %s AGENTS.md INSTRUCTIONS >\n", f.Type.Upper())
 
 	return builder.String()
 }
