@@ -97,7 +97,7 @@ func (p *Playwright) Run(_ context.Context, args tools.Args) (*tools.Output, err
 	}()
 
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-		Headless: playwright.Bool(true),
+		Headless: new(true),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to launch Chromium for playwright: %w", err)
@@ -137,7 +137,7 @@ func (p *Playwright) takeScreenshot(browser playwright.Browser, url string, full
 
 	screenshotPath, _ := fs.GetRelativePath(p.ProjectPath, fmt.Sprintf("screenshot-%s.png", time.Now().Format(time.RFC3339)))
 	screenshotOpts := playwright.PageScreenshotOptions{
-		Path: playwright.String(screenshotPath),
+		Path: new(screenshotPath),
 	}
 
 	if full != nil && *full {
