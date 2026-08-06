@@ -142,8 +142,8 @@ func InitStyles(width int) Styles { //nolint:funlen
 	}
 }
 
-func (s CommandContentStyles) RenderField(label, value string, width int) string {
-	prefix := s.FieldLabel.Render(label + ":")
+func (c CommandContentStyles) RenderField(label, value string, width int) string {
+	prefix := c.FieldLabel.Render(label + ":")
 	if strings.TrimSpace(value) == "" {
 		return prefix
 	}
@@ -157,7 +157,7 @@ func (s CommandContentStyles) RenderField(label, value string, width int) string
 
 	valueLines := strings.Split(wrappedValue, "\n")
 	for i, line := range valueLines {
-		valueLines[i] = s.FieldValue.Render(line)
+		valueLines[i] = c.FieldValue.Render(line)
 	}
 
 	if len(valueLines) == 1 {

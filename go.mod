@@ -1,6 +1,6 @@
 module github.com/cneill/smoke
 
-go 1.25.0
+go 1.26.5
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
@@ -12,8 +12,8 @@ require (
 	github.com/cneill/hc/v2 v2.0.2
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/google/jsonschema-go v0.4.3
-	github.com/mattn/go-runewidth v0.0.24
-	github.com/modelcontextprotocol/go-sdk v1.6.1
+	github.com/mattn/go-runewidth v0.0.27
+	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/muesli/reflow v0.3.0
 	github.com/mxschmitt/playwright-go v0.6100.0
 	github.com/openai/openai-go/v3 v3.46.0
@@ -77,6 +77,7 @@ require (
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

@@ -15,14 +15,14 @@ import (
 
 type testTool struct{}
 
-func (testTool) Name() string             { return "test_tool" }
-func (testTool) Description() string      { return "test tool" }
-func (testTool) Examples() tools.Examples { return nil }
-func (testTool) Run(context.Context, tools.Args) (*tools.Output, error) {
+func (t testTool) Name() string             { return "test_tool" }
+func (t testTool) Description() string      { return "test tool" }
+func (t testTool) Examples() tools.Examples { return nil }
+func (t testTool) Run(context.Context, tools.Args) (*tools.Output, error) {
 	return &tools.Output{Text: "ok"}, nil
 }
 
-func (testTool) Params() tools.Params {
+func (t testTool) Params() tools.Params {
 	return tools.Params{
 		{
 			Key:      "path",

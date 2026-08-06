@@ -8,7 +8,7 @@ import (
 // MarkdownRenderer renders a Prompt to Markdown.
 type MarkdownRenderer struct{}
 
-func (MarkdownRenderer) Render(p *Prompt) string {
+func (m MarkdownRenderer) Render(p *Prompt) string {
 	builder := &strings.Builder{}
 
 	for _, sectionType := range p.order {
@@ -35,7 +35,7 @@ func (MarkdownRenderer) Render(p *Prompt) string {
 // JSONRenderer renders a Prompt to a JSON-friendly map, plus convenience to get a string.
 type JSONRenderer struct{}
 
-func (JSONRenderer) RenderMap(prompt *Prompt) map[string]any {
+func (j JSONRenderer) RenderMap(prompt *Prompt) map[string]any {
 	out := make(map[string]any)
 
 	for _, sectionType := range prompt.order {
@@ -87,8 +87,8 @@ func listItemsToJSON(items []ListItem) any {
 	return arr
 }
 
-func (r JSONRenderer) RenderString(prompt *Prompt) string {
-	promptMap := r.RenderMap(prompt)
+func (j JSONRenderer) RenderString(prompt *Prompt) string {
+	promptMap := j.RenderMap(prompt)
 
 	jsonBytes, err := json.Marshal(promptMap)
 	if err != nil {
