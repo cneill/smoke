@@ -87,7 +87,7 @@ var registry = Registry{ //nolint:gochecknoglobals
 		},
 	},
 	llms.LLMTypeGrok: {
-		DefaultModel:  "grok-4.5",
+		DefaultModel:  "grok-4.6",
 		DefaultEffort: "medium",
 		EffortOptions: []string{
 			"none",
@@ -96,6 +96,7 @@ var registry = Registry{ //nolint:gochecknoglobals
 			"high",
 		},
 		Models: ModelInfos{
+			"grok-4.6":                 {Aliases: []string{"4.6", "460"}, ContextWindowTokens: 500000},
 			"grok-4.5":                 {Aliases: []string{"4.5", "450"}, ContextWindowTokens: 500000},
 			"grok-build-0.1":           {Aliases: []string{"build", "fast"}, ContextWindowTokens: 256000},
 			"grok-4.3":                 {Aliases: []string{"4.3", "430"}, ContextWindowTokens: 1000000},
