@@ -39,6 +39,7 @@ func (c *conversation) sendStream(ctx context.Context) error {
 	defer stream.Close()
 
 	var finalResponse *responses.Response
+	var reasoningSummary strings.Builder
 
 	for stream.Next() {
 		switch evt := stream.Current().AsAny().(type) {
@@ -47,8 +48,12 @@ func (c *conversation) sendStream(ctx context.Context) error {
 				ID:   evt.ItemID,
 				Text: evt.Delta,
 			})
+		case responses.ResponseReasoningSummaryTextDeltaEvent:
+			reasoningSummary.WriteString(evt.Delta)
+
 		case responses.ResponseCompletedEvent:
 			finalResponse = &evt.Response
+			slog.Debug("reasoning summary", "text", reasoningSummary.String())
 		case responses.ResponseIncompleteEvent:
 			slog.Warn("responses stream ended incomplete",
 				"response_id", evt.Response.ID, "reason", evt.Response.IncompleteDetails.Reason)
@@ -90,7 +95,8 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 
 	if c.Config().Provider == llms.LLMTypeChatGPT || c.Config().Provider == llms.LLMTypeGrok {
 		params.Reasoning = shared.ReasoningParam{
-			Effort: shared.ReasoningEffort(c.Config().Effort), // "none", "minimal", "low", "medium", "high", "xhigh"
+			Effort:  shared.ReasoningEffort(c.Config().Effort), // "none", "minimal", "low", "medium", "high", "xhigh"
+			Summary: shared.ReasoningSummaryDetailed,
 		}
 	}
 
