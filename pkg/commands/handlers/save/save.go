@@ -1,9 +1,9 @@
-// Package save contains a prompt command that saves the current session to a Markdown file
+// Package save contains a prompt command that saves the current session to a file in JSON format that can be used with the 'load' command.
 package save
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -28,7 +28,7 @@ func New() (commands.Command, error) {
 func (s *Save) Name() string { return Name }
 
 func (s *Save) Help() string {
-	return "Saves the current session to a Markdown file."
+	return "Saves the current session to a JSON file for loading with /load later."
 }
 
 func (s *Save) Usage() string {
@@ -36,20 +36,20 @@ func (s *Save) Usage() string {
 }
 
 func (s *Save) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
-	path := fmt.Sprintf("%s_%s.md", session.Name, time.Now().Format(time.DateTime))
+	path := fmt.Sprintf("%s_%s.json", session.Name, time.Now().Format(time.DateTime))
 
 	if len(msg.Args) > 0 {
 		path = msg.Args[0]
 	}
 
-	buf := &bytes.Buffer{}
-	for _, msg := range session.Messages {
-		buf.WriteString(msg.ToMarkdown())
+	sessionBytes, err := json.MarshalIndent(session, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal session JSON: %w", err)
 	}
 
-	slog.Debug("saving session to file as markdown", "path", path, "num_messages", len(session.Messages))
+	slog.Debug("saving session to file", "path", path, "num_messages", len(session.Messages))
 
-	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(path, sessionBytes, 0o644); err != nil {
 		return nil, fmt.Errorf("failed to save session to file %q: %w", path, err)
 	}
 
@@ -60,7 +60,7 @@ func (s *Save) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 				Title: "Save complete",
 				Fields: []uimsg.HistoryField{
 					uimsg.NewField("Path", path),
-					uimsg.NewField("Format", "Markdown"),
+					uimsg.NewField("Format", "JSON"),
 					uimsg.NewField("Messages", strconv.Itoa(len(session.Messages))),
 				},
 			},
