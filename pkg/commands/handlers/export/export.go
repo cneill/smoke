@@ -1,9 +1,9 @@
-// Package export contains a prompt command that saves the current session to a file in JSON format that can be used with the 'load' command.
+// Package export contains a prompt command that exports the current session to a Markdown file for human reading.
 package export
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -28,7 +28,7 @@ func New() (commands.Command, error) {
 func (e *Export) Name() string { return Name }
 
 func (e *Export) Help() string {
-	return "Exports the current session to a JSON file for loading later."
+	return "Exports the current session to a Markdown file."
 }
 
 func (e *Export) Usage() string {
@@ -36,20 +36,20 @@ func (e *Export) Usage() string {
 }
 
 func (e *Export) Run(_ context.Context, msg commands.PromptMessage, session *llms.Session) (tea.Cmd, error) {
-	path := fmt.Sprintf("%s_%s.json", session.Name, time.Now().Format(time.DateTime))
+	path := fmt.Sprintf("%s_%s.md", session.Name, time.Now().Format(time.DateTime))
 
 	if len(msg.Args) > 0 {
 		path = msg.Args[0]
 	}
 
-	sessionBytes, err := json.MarshalIndent(session, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal session JSON: %w", err)
+	buf := &bytes.Buffer{}
+	for _, msg := range session.Messages {
+		buf.WriteString(msg.ToMarkdown())
 	}
 
-	slog.Debug("exporting session to file", "path", path, "num_messages", len(session.Messages))
+	slog.Debug("exporting session to file as markdown", "path", path, "num_messages", len(session.Messages))
 
-	if err := os.WriteFile(path, sessionBytes, 0o644); err != nil {
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
 		return nil, fmt.Errorf("failed to export session to file %q: %w", path, err)
 	}
 
@@ -60,7 +60,7 @@ func (e *Export) Run(_ context.Context, msg commands.PromptMessage, session *llm
 				Title: "Export complete",
 				Fields: []uimsg.HistoryField{
 					uimsg.NewField("Path", path),
-					uimsg.NewField("Format", "JSON"),
+					uimsg.NewField("Format", "Markdown"),
 					uimsg.NewField("Messages", strconv.Itoa(len(session.Messages))),
 				},
 			},
