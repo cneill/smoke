@@ -35,4 +35,4 @@ jobs:
         with:
           # TODO: remove once TODOs are cleaned up
           args: "--disable godox --max-issues-per-linter 100 --max-same-issues 100"
-          version: latest
+          version: v2.12.2
