@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.27
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/muesli/reflow v0.3.0
-	github.com/mxschmitt/playwright-go v0.6100.0
+	github.com/mxschmitt/playwright-go v0.6201.1
 	github.com/openai/openai-go/v3 v3.50.0
 	github.com/stretchr/testify v1.12.0
 	github.com/urfave/cli/v3 v3.10.1
@@ -44,7 +44,6 @@ require (
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.1 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.5 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect
