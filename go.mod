@@ -18,7 +18,7 @@ require (
 	github.com/mxschmitt/playwright-go v0.6100.0
 	github.com/openai/openai-go/v3 v3.50.0
 	github.com/stretchr/testify v1.12.0
-	github.com/urfave/cli/v3 v3.10.1
+	github.com/urfave/cli/v3 v3.11.0
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.41.0
 	gopkg.in/yaml.v3 v3.0.1
