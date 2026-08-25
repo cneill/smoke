@@ -16,7 +16,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/muesli/reflow v0.3.0
 	github.com/mxschmitt/playwright-go v0.6100.0
-	github.com/openai/openai-go/v3 v3.50.0
+	github.com/openai/openai-go/v3 v3.52.0
 	github.com/stretchr/testify v1.12.0
 	github.com/urfave/cli/v3 v3.10.1
 	golang.org/x/term v0.45.0
