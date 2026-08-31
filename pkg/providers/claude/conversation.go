@@ -142,7 +142,7 @@ func (c *conversation) getMessageNewParams() anthropic.MessageNewParams {
 	}
 }
 
-func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.MessageParam {
+func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.MessageParam { //nolint:cyclop
 	results := make([]anthropic.MessageParam, len(session.Messages))
 
 	for idx, msg := range session.Messages {

@@ -209,7 +209,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type Blocks []Block
+type Blocks []Block //nolint:recvcheck
 
 func (b Blocks) OK() error {
 	for idx, block := range b {

@@ -77,6 +77,7 @@ func (a Args) String() string {
 }
 
 // TODO: replace with generalized cloning mechanism that's more lightweight?
+
 func (a Args) Clone() Args {
 	argBytes, err := json.Marshal(a)
 	if err != nil {
