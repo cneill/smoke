@@ -120,7 +120,7 @@ func assistantRoleContentText(msg *llms.Message, contentText string) string {
 
 	sb.WriteString("Tool calls:\n")
 
-	for _, toolCall := range msg.ToolCalls {
+	for _, toolCall := range msg.ToolCalls() {
 		fmt.Fprintf(&sb, "- `%s`: `%s`\n", toolCall.Name, toolCall.ArgsString())
 	}
 
@@ -128,7 +128,8 @@ func assistantRoleContentText(msg *llms.Message, contentText string) string {
 }
 
 func toolRoleContentText(msg *llms.Message, contentText string) (string, error) {
-	if n := len(msg.ToolCalls); n != 1 {
+	toolCalls := msg.ToolCalls()
+	if n := len(toolCalls); n != 1 {
 		return "", fmt.Errorf("invalid number of calls (%d) in tool role message; expecting 1", n)
 	}
 
@@ -139,7 +140,7 @@ func toolRoleContentText(msg *llms.Message, contentText string) (string, error) 
 		sb.WriteString("\n\n")
 	}
 
-	fmt.Fprintf(&sb, "Tool call to %q with args: %s", msg.ToolCalls[0].Name, msg.ToolCalls[0].ArgsString())
+	fmt.Fprintf(&sb, "Tool call to %q with args: %s", toolCalls[0].Name, toolCalls[0].ArgsString())
 
 	return sb.String(), nil
 }
@@ -148,7 +149,7 @@ func bubbleForLLMMessage(msg *llms.Message, styles Styles) Bubble {
 	var (
 		style       BubbleStyle
 		titleText   string
-		contentText = msg.TextContent
+		contentText = msg.TextContent()
 	)
 
 	if err := msg.OK(); err != nil {

@@ -58,9 +58,9 @@ func TestToolCallProviderArgs(t *testing.T) {
 		toolCall := llms.ToolCall{RawArgs: `{"path":"README.md"}`}
 		providerArgs := toolCall.ProviderArgs()
 
-		args, ok := providerArgs.(map[string]any)
+		raw, ok := providerArgs.(json.RawMessage)
 		require.True(t, ok)
-		assert.Equal(t, "README.md", args["path"])
+		assert.JSONEq(t, `{"path":"README.md"}`, string(raw))
 	})
 
 	t.Run("invalid_raw_json", func(t *testing.T) {
@@ -76,6 +76,18 @@ func TestToolCallProviderArgs(t *testing.T) {
 		args := tools.Args{"path": "README.md"}
 		toolCall := llms.ToolCall{Args: args}
 		assert.Equal(t, args, toolCall.ProviderArgs())
+	})
+
+	t.Run("raw_json_takes_precedence_over_parsed_args", func(t *testing.T) {
+		t.Parallel()
+
+		toolCall := llms.ToolCall{
+			RawArgs: ` { "path" : "raw.md" } `,
+			Args:    tools.Args{"path": "parsed.md"},
+		}
+		raw, ok := toolCall.ProviderArgs().(json.RawMessage)
+		require.True(t, ok)
+		assert.JSONEq(t, ` { "path" : "raw.md" } `, string(raw))
 	})
 }
 

@@ -116,7 +116,7 @@ func (s *Smoke) summarizationLoop( //nolint:cyclop,gocognit,funlen
 				}
 
 				content := fmt.Sprintf("%s\n\nThis message represents a summary of %d %s, updated %s",
-					event.Message.TextContent, num, pluralized, time.Now())
+					event.Message.TextContent(), num, pluralized, time.Now())
 
 				newMessage := llms.NewMessage(
 					llms.WithRole(llms.RoleUser),
@@ -145,7 +145,7 @@ func (s *Smoke) summarizationLoop( //nolint:cyclop,gocognit,funlen
 					return
 				}
 
-				for _, toolCall := range event.Message.ToolCalls {
+				for _, toolCall := range event.Message.ToolCalls() {
 					var (
 						content     string
 						toolCallErr error

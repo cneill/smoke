@@ -105,8 +105,7 @@ func (s *Session) SetSystemMessage(system string) error {
 	for messageIdx, message := range s.Messages {
 		if message.Role == RoleSystem {
 			existingSystemMessage = true
-			newMessage := message.Clone()
-			newMessage.TextContent = system
+			newMessage := message.Update(WithTextContent(system))
 			newMessage.Added = time.Now()
 			s.Messages[messageIdx] = newMessage
 

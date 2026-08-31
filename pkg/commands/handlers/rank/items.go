@@ -39,7 +39,7 @@ func (i *Item) RankingScore() float64 {
 
 type Items []*Item
 
-func (i Items) Shuffle() {
+func (i Items) Shuffle() { //nolint:gosec
 	rand.Shuffle(len(i), func(a, b int) {
 		i[a], i[b] = i[b], i[a]
 	})

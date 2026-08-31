@@ -44,7 +44,7 @@ func TestLog_AddMessage_Update(t *testing.T) {
 	llmMsg, ok := resultMsgs[0].(*llms.Message)
 	assert.True(t, ok)
 	assert.Equal(t, id, llmMsg.ID)
-	assert.Equal(t, "hello there, beautiful", llmMsg.TextContent)
+	assert.Equal(t, "hello there, beautiful", llmMsg.TextContent())
 
 	_, isErr := resultMsgs[1].(error)
 	assert.True(t, isErr)
@@ -83,10 +83,10 @@ func TestLog_AddMessage_StreamMessageIDReplacement(t *testing.T) {
 	firstMsg, ok := messages[0].(*llms.Message)
 	assert.True(t, ok)
 	assert.Equal(t, "response-id", firstMsg.ID)
-	assert.Equal(t, "hello", firstMsg.TextContent)
+	assert.Equal(t, "hello", firstMsg.TextContent())
 
 	secondMsg, ok := messages[1].(*llms.Message)
 	assert.True(t, ok)
 	assert.Equal(t, "assistant-msg-id", secondMsg.ID)
-	assert.Equal(t, "hello world", secondMsg.TextContent)
+	assert.Equal(t, "hello world", secondMsg.TextContent())
 }

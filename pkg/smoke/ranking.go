@@ -121,7 +121,7 @@ func (s *Smoke) handleRankingBatch( //nolint:cyclop
 
 				msg := rank.ResponseMessage{
 					RequestMessage: request,
-					Message:        event.Message.TextContent,
+					Message:        event.Message.TextContent(),
 				}
 
 				request.ResponseChan <- msg

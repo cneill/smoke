@@ -77,11 +77,12 @@ func TestInvalidArgsReturnFeedback(t *testing.T) {
 
 		assert.Equal(t, int64(0), calls.Load(), "invalid arguments should not execute the tool")
 		assert.Equal(t, llms.RoleTool, msg.Role)
-		require.Len(t, msg.ToolCalls, 1)
-		assert.Equal(t, toolCall, msg.ToolCalls[0])
-		assert.Contains(t, msg.TextContent, "could not be executed because its arguments were invalid")
-		assert.Contains(t, msg.TextContent, toolCall.ArgsError)
-		assert.Contains(t, msg.TextContent, toolCall.RawArgs)
+		toolCalls := msg.ToolCalls()
+		require.Len(t, toolCalls, 1)
+		assert.Equal(t, toolCall, toolCalls[0])
+		assert.Contains(t, msg.TextContent(), "could not be executed because its arguments were invalid")
+		assert.Contains(t, msg.TextContent(), toolCall.ArgsError)
+		assert.Contains(t, msg.TextContent(), toolCall.RawArgs)
 		assert.Equal(t, toolCall.ArgsError, msg.Error)
 	})
 
@@ -114,11 +115,12 @@ func TestInvalidArgsReturnFeedback(t *testing.T) {
 
 		assert.Equal(t, int64(0), calls.Load(), "invalid arguments should not execute the tool")
 		assert.Equal(t, llms.RoleTool, msg.Role)
-		require.Len(t, msg.ToolCalls, 1)
-		assert.Equal(t, toolCall, msg.ToolCalls[0])
-		assert.Contains(t, msg.TextContent, "could not be executed because its arguments were invalid")
-		assert.Contains(t, msg.TextContent, toolCall.ArgsError)
-		assert.Contains(t, msg.TextContent, toolCall.RawArgs)
+		toolCalls := msg.ToolCalls()
+		require.Len(t, toolCalls, 1)
+		assert.Equal(t, toolCall, toolCalls[0])
+		assert.Contains(t, msg.TextContent(), "could not be executed because its arguments were invalid")
+		assert.Contains(t, msg.TextContent(), toolCall.ArgsError)
+		assert.Contains(t, msg.TextContent(), toolCall.RawArgs)
 		assert.Equal(t, toolCall.ArgsError, msg.Error)
 	})
 }
@@ -143,6 +145,6 @@ func TestToolCallResultMessageValidArgsExecutesTool(t *testing.T) {
 	msg := toolCallResultMessage(context.Background(), testSession(t, manager), toolCall)
 
 	assert.Equal(t, int64(1), calls.Load())
-	assert.Equal(t, "executed", msg.TextContent)
+	assert.Equal(t, "executed", msg.TextContent())
 	assert.Empty(t, msg.Error)
 }
