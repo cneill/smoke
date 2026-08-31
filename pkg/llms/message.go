@@ -203,6 +203,8 @@ func (m *Message) ImageB64URL() string {
 func (m *Message) UnmarshalJSON(data []byte) error {
 	type canonical Message
 
+	// This is for handling backwards compatibility with saved sessions from before we used provider block mechanics.
+	// TODO: remove this soon
 	var raw struct {
 		canonical
 
