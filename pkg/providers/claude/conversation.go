@@ -67,7 +67,7 @@ func (c *conversation) sendStream(ctx context.Context) error { //nolint:cyclop
 
 		chunkType, ok := chunk.AsAny().(anthropic.ContentBlockDeltaEvent)
 		if !ok {
-			slog.Warn("unknown chunk type", "type", fmt.Sprintf("%T", chunk.AsAny()))
+			// slog.Warn("unknown chunk type", "type", fmt.Sprintf("%T", chunk.AsAny()))
 			continue
 		}
 
@@ -83,6 +83,8 @@ func (c *conversation) sendStream(ctx context.Context) error { //nolint:cyclop
 		// TODO: handle InputJSONDelta type?
 		case anthropic.ThinkingDelta:
 			// slog.Debug("Thinking...", "text", deltaType.Thinking)
+		case anthropic.InputJSONDelta:
+			// ignore - partial JSON is useless except to say "working on a tool call", perhaps
 		default:
 			slog.Warn("unknown delta type", "type", fmt.Sprintf("%T", chunkType.Delta.AsAny()))
 			continue
@@ -133,7 +135,9 @@ func (c *conversation) getMessageNewParams() anthropic.MessageNewParams {
 			Effort: anthropic.OutputConfigEffort(c.Config().Effort), // "low", "medium", "high", "xhigh", "max"
 		},
 		Thinking: anthropic.ThinkingConfigParamUnion{
-			OfAdaptive: &anthropic.ThinkingConfigAdaptiveParam{},
+			OfAdaptive: &anthropic.ThinkingConfigAdaptiveParam{
+				Display: anthropic.ThinkingConfigAdaptiveDisplaySummarized,
+			},
 		},
 	}
 }
@@ -146,23 +150,38 @@ func (c *conversation) getSessionMessages(session *llms.Session) []anthropic.Mes
 		case llms.RoleAssistant:
 			contentBlocks := []anthropic.ContentBlockParamUnion{}
 
-			if strings.TrimSpace(msg.TextContent) != "" {
-				contentBlocks = append(contentBlocks, anthropic.NewTextBlock(msg.TextContent))
-			}
+			for _, block := range msg.Blocks {
+				switch block.Type() { //nolint:exhaustive
+				case llms.BlockTypeText:
+					if strings.TrimSpace(block.Text.Text) != "" {
+						contentBlocks = append(contentBlocks, anthropic.NewTextBlock(block.Text.Text))
+					}
+				case llms.BlockTypeToolCall:
+					contentBlocks = append(contentBlocks, c.genericToolCallsToProvider(block.ToolCall.ToolCall)...)
+				case llms.BlockTypeReasoning:
+					if block.Reasoning.Detail.Type() != llms.ReasoningDetailTypeAnthropic ||
+						block.Reasoning.Detail.Anthropic.Source != llms.LLMTypeClaude {
+						continue
+					}
 
-			if msg.HasToolCalls() {
-				contentBlocks = append(contentBlocks, c.genericToolCallsToProvider(msg.ToolCalls...)...)
+					detail := block.Reasoning.Detail.Anthropic
+					if detail.Redacted {
+						contentBlocks = append(contentBlocks, anthropic.NewRedactedThinkingBlock(detail.Data))
+					} else {
+						contentBlocks = append(contentBlocks, anthropic.NewThinkingBlock(detail.Signature, detail.Thinking))
+					}
+				}
 			}
 
 			results[idx] = anthropic.NewAssistantMessage(contentBlocks...)
 		case llms.RoleSystem:
 			// Anthropic defines the system prompt outside of messages
 		case llms.RoleUser:
-			results[idx] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.TextContent))
+			results[idx] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.TextContent()))
 		case llms.RoleTool:
 			results[idx] = c.genericToolResponseMessageToProvider(msg)
 		default:
-			slog.Warn("got message with unknown role", "message", msg.TextContent, "role", msg.Role)
+			slog.Warn("got message with unknown role", "message", msg.TextContent(), "role", msg.Role)
 		}
 	}
 
@@ -237,20 +256,23 @@ func (c *conversation) genericToolCallsToProvider(toolCalls ...llms.ToolCall) []
 func (c *conversation) genericToolResponseMessageToProvider(msg *llms.Message) anthropic.MessageParam {
 	var toolContent anthropic.ToolResultBlockParamContentUnion
 
-	if len(msg.ImageContent) != 0 {
+	images := msg.Images()
+	toolCalls := msg.ToolCalls()
+
+	if len(images) != 0 {
 		toolContent = anthropic.ToolResultBlockParamContentUnion{
 			OfImage: &anthropic.ImageBlockParam{
 				Source: anthropic.ImageBlockParamSourceUnion{
 					OfBase64: &anthropic.Base64ImageSourceParam{
-						Data:      base64.StdEncoding.EncodeToString(msg.ImageContent),
-						MediaType: "image/png",
+						Data:      base64.StdEncoding.EncodeToString(images[0].Data),
+						MediaType: anthropic.Base64ImageSourceMediaType(images[0].MediaType),
 					},
 				},
 			},
 		}
 	} else {
-		textContent := msg.TextContent
-		if msg.TextContent == "" {
+		textContent := msg.TextContent()
+		if textContent == "" {
 			textContent = "[no output]"
 		}
 
@@ -266,7 +288,7 @@ func (c *conversation) genericToolResponseMessageToProvider(msg *llms.Message) a
 		Content: []anthropic.ContentBlockParamUnion{
 			{
 				OfToolResult: &anthropic.ToolResultBlockParam{
-					ToolUseID: msg.ToolCalls[0].ID,
+					ToolUseID: toolCalls[0].ID,
 					IsError:   anthropic.Bool(msg.Error != ""),
 					Content: []anthropic.ToolResultBlockParamContentUnion{
 						toolContent,
@@ -277,35 +299,49 @@ func (c *conversation) genericToolResponseMessageToProvider(msg *llms.Message) a
 	}
 }
 
-func (c *conversation) handleResponse(ctx context.Context, id string, blocks []anthropic.ContentBlockUnion) error {
-	textBuilder := strings.Builder{}
-	providerToolCalls := []anthropic.ToolUseBlock{}
-
-	for _, block := range blocks {
-		switch block := block.AsAny().(type) {
+func (c *conversation) handleResponse(ctx context.Context, id string, providerBlocks []anthropic.ContentBlockUnion) error {
+	blocks := make([]llms.Block, 0, len(providerBlocks))
+	for _, providerBlock := range providerBlocks {
+		switch block := providerBlock.AsAny().(type) {
 		case anthropic.TextBlock:
-			// TODO: citations?
 			if strings.TrimSpace(block.Text) != "" {
-				textBuilder.WriteString(block.Text)
-				textBuilder.WriteRune('\n')
+				blocks = append(blocks, llms.TextContentBlock(block.Text))
 			}
 		case anthropic.ToolUseBlock:
-			providerToolCalls = append(providerToolCalls, block)
+			calls := c.providerToolCallsToGeneric(block)
+			blocks = append(blocks, llms.ToolContentBlock(calls[0]))
+		case anthropic.ThinkingBlock:
+			blocks = append(blocks, llms.ReasoningContentBlock(llms.ReasoningBlock{
+				Summary: []string{block.Thinking},
+				Detail: llms.ReasoningDetail{
+					Anthropic: &llms.AnthropicReasoningDetail{
+						Source:    llms.LLMTypeClaude,
+						Thinking:  block.Thinking,
+						Signature: block.Signature,
+					},
+				},
+			}))
+		case anthropic.RedactedThinkingBlock:
+			blocks = append(blocks, llms.ReasoningContentBlock(llms.ReasoningBlock{
+				Detail: llms.ReasoningDetail{
+					Anthropic: &llms.AnthropicReasoningDetail{
+						Source:   llms.LLMTypeClaude,
+						Data:     block.Data,
+						Redacted: true,
+					},
+				},
+			}))
 		}
 	}
 
 	msg := c.NewMessage(
 		llms.WithID(id),
 		llms.WithRole(llms.RoleAssistant),
-		llms.WithTextContent(textBuilder.String()),
+		llms.WithBlocks(blocks...),
 	)
 
-	if len(providerToolCalls) > 0 {
+	if msg.HasToolCalls() {
 		c.HasPendingToolCalls = true
-
-		toolCalls := c.providerToolCallsToGeneric(providerToolCalls...)
-
-		msg = msg.Update(llms.WithToolCalls(toolCalls...))
 
 		c.Emit(ctx, llms.EventToolCallsRequested{
 			Message: msg,

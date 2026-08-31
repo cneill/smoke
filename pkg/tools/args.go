@@ -76,6 +76,25 @@ func (a Args) String() string {
 	return string(argBytes)
 }
 
+// TODO: replace with generalized cloning mechanism that's more lightweight?
+func (a Args) Clone() Args {
+	argBytes, err := json.Marshal(a)
+	if err != nil {
+		panic(err)
+	}
+
+	var result Args
+
+	decoder := json.NewDecoder(bytes.NewReader(argBytes))
+	decoder.UseNumber()
+
+	if err := decoder.Decode(&result); err != nil {
+		panic(err)
+	}
+
+	return result
+}
+
 // GetString checks whether the argument matching 'key' is either a string or a [fmt.Stringer] and returns the string
 // value if applicable, or nil if it is undefined or of another tpye.
 func (a Args) GetString(key string) *string {

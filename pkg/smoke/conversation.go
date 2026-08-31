@@ -83,7 +83,7 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 					return
 				}
 
-				for _, toolCall := range event.Message.ToolCalls {
+				for _, toolCall := range event.Message.ToolCalls() {
 					resultsMsg := toolCallResultMessage(ctx, session, toolCall)
 
 					if err := session.AddMessage(resultsMsg); err != nil {

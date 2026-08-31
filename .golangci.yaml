@@ -6,6 +6,7 @@ linters:
     - depguard     # annoying - must maintain a constant whitelist of import-able packages
     - err113       # annoying - no dynamic errors, forces named errors or wrapping errors
     - exhaustruct  # annoying - forces full struct initializations
+    - exhaustruct_v5 # annoying
     - forbidigo    # annoying
     - godot        # annoying - ending all comments with periods
     - gomodguard   # deprecated

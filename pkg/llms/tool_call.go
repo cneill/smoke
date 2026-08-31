@@ -33,16 +33,18 @@ func (t ToolCall) ArgsString() string {
 }
 
 func (t ToolCall) ProviderArgs() any {
+	if t.RawArgs != "" {
+		raw := json.RawMessage(t.RawArgs)
+		if json.Valid(raw) {
+			return raw
+		}
+	}
+
 	if t.Args != nil {
 		return t.Args
 	}
 
-	var raw any
-	if err := json.Unmarshal([]byte(t.RawArgs), &raw); err != nil {
-		return t.RawArgs
-	}
-
-	return raw
+	return t.RawArgs
 }
 
 func (t ToolCall) InvalidArgs() bool {
@@ -74,11 +76,22 @@ func (t ToolCall) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
+func (t ToolCall) Clone() ToolCall {
+	clone := t
+	if t.Args != nil {
+		clone.Args = t.Args.Clone()
+	}
+
+	return clone
+}
+
 type ToolCalls []ToolCall
 
 func (t ToolCalls) Clone() ToolCalls {
 	cloned := make(ToolCalls, len(t))
-	copy(cloned, t)
+	for i := range t {
+		cloned[i] = t[i].Clone()
+	}
 
 	return cloned
 }

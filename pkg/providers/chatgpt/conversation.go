@@ -32,14 +32,16 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 	return c.handleFinalResponse(ctx, response)
 }
 
-func (c *conversation) sendStream(ctx context.Context) error {
+func (c *conversation) sendStream(ctx context.Context) error { //nolint:cyclop
 	options := c.getNewResponsesParams()
 
 	stream := c.client.Responses.NewStreaming(ctx, options, option.WithMaxRetries(5))
 	defer stream.Close()
 
-	var finalResponse *responses.Response
-	var reasoningSummary strings.Builder
+	var (
+		finalResponse    *responses.Response
+		reasoningSummary strings.Builder
+	)
 
 	for stream.Next() {
 		switch evt := stream.Current().AsAny().(type) {
@@ -53,6 +55,7 @@ func (c *conversation) sendStream(ctx context.Context) error {
 
 		case responses.ResponseCompletedEvent:
 			finalResponse = &evt.Response
+
 			slog.Debug("reasoning summary", "text", reasoningSummary.String())
 		case responses.ResponseIncompleteEvent:
 			slog.Warn("responses stream ended incomplete",
@@ -98,34 +101,64 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 			Effort:  shared.ReasoningEffort(c.Config().Effort), // "none", "minimal", "low", "medium", "high", "xhigh"
 			Summary: shared.ReasoningSummaryDetailed,
 		}
+		params.Include = []responses.ResponseIncludable{responses.ResponseIncludableReasoningEncryptedContent}
 	}
 
 	return params
 }
 
-func (c *conversation) getInputFromSession(session *llms.Session) responses.ResponseNewParamsInputUnion {
+func (c *conversation) getInputFromSession(session *llms.Session) responses.ResponseNewParamsInputUnion { //nolint:cyclop,funlen
 	inputItems := responses.ResponseInputParam{}
 
 	for _, msg := range session.Messages {
 		switch msg.Role {
 		case llms.RoleAssistant:
-			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
-				OfMessage: &responses.EasyInputMessageParam{
-					Content: responses.EasyInputMessageContentUnionParam{
-						OfString: openai.String(msg.TextContent),
-					},
-					Role: responses.EasyInputMessageRoleAssistant,
-					// TODO: handle Phase in llms.Message?!
-				},
-			})
-
-			if msg.HasToolCalls() {
-				for _, toolCall := range msg.ToolCalls {
+			for _, block := range msg.Blocks {
+				switch block.Type() { //nolint:exhaustive
+				case llms.BlockTypeText:
+					inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
+						OfMessage: &responses.EasyInputMessageParam{
+							Content: responses.EasyInputMessageContentUnionParam{
+								OfString: openai.String(block.Text.Text),
+							},
+							Role:  responses.EasyInputMessageRoleAssistant,
+							Phase: responses.EasyInputMessagePhase(block.Text.Phase),
+						},
+					})
+				case llms.BlockTypeToolCall:
+					toolCall := block.ToolCall.ToolCall
 					inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
 						OfFunctionCall: &responses.ResponseFunctionToolCallParam{
 							CallID:    toolCall.ID,
 							Name:      toolCall.Name,
 							Arguments: toolCall.ArgsString(),
+						},
+					})
+				case llms.BlockTypeReasoning:
+					if block.Reasoning.Detail.Type() != llms.ReasoningDetailTypeOpenAI ||
+						block.Reasoning.Detail.OpenAI.Source != c.Config().Provider {
+						continue
+					}
+
+					detail := block.Reasoning.Detail.OpenAI
+
+					summary := make([]responses.ResponseReasoningItemSummaryParam, len(block.Reasoning.Summary))
+					for i, text := range block.Reasoning.Summary {
+						summary[i] = responses.ResponseReasoningItemSummaryParam{Text: text}
+					}
+
+					content := make([]responses.ResponseReasoningItemContentParam, len(detail.Content))
+					for i, text := range detail.Content {
+						content[i] = responses.ResponseReasoningItemContentParam{Text: text}
+					}
+
+					inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
+						OfReasoning: &responses.ResponseReasoningItemParam{
+							ID:               detail.ID,
+							Summary:          summary,
+							Content:          content,
+							EncryptedContent: openai.String(detail.EncryptedContent),
+							Status:           responses.ResponseReasoningItemStatus(detail.Status),
 						},
 					})
 				}
@@ -134,16 +167,17 @@ func (c *conversation) getInputFromSession(session *llms.Session) responses.Resp
 			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
 				OfMessage: &responses.EasyInputMessageParam{
 					Content: responses.EasyInputMessageContentUnionParam{
-						OfString: openai.String(msg.TextContent),
+						OfString: openai.String(msg.TextContent()),
 					},
 					Role: responses.EasyInputMessageRoleSystem,
 				},
 			})
 		case llms.RoleTool:
-			if n := len(msg.ToolCalls); n != 1 {
+			toolCalls := msg.ToolCalls()
+			if n := len(toolCalls); n != 1 {
 				slog.Warn(
 					"got wrong number of tool calls referenced in message with tool role (expecting 1); skipping",
-					"num", n, "names", msg.ToolCalls.Names(),
+					"num", n, "names", toolCalls.Names(),
 				)
 
 				continue
@@ -155,13 +189,13 @@ func (c *conversation) getInputFromSession(session *llms.Session) responses.Resp
 			inputItems = append(inputItems, responses.ResponseInputItemUnionParam{
 				OfMessage: &responses.EasyInputMessageParam{
 					Content: responses.EasyInputMessageContentUnionParam{
-						OfString: openai.String(msg.TextContent),
+						OfString: openai.String(msg.TextContent()),
 					},
 					Role: responses.EasyInputMessageRoleUser,
 				},
 			})
 		case llms.RoleUnknown:
-			slog.Warn("got message with unknown role", "message", msg.TextContent)
+			slog.Warn("got message with unknown role", "message", msg.TextContent())
 		}
 	}
 
@@ -171,28 +205,24 @@ func (c *conversation) getInputFromSession(session *llms.Session) responses.Resp
 }
 
 func (c *conversation) toolMessageInput(msg *llms.Message) responses.ResponseInputItemUnionParam {
-	var content responses.ResponseInputItemFunctionCallOutputOutputUnionParam
+	content := responses.ResponseInputItemFunctionCallOutputOutputUnionParam{}
 
-	if len(msg.ImageContent) != 0 {
-		content = responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
-			OfResponseFunctionCallOutputItemArray: responses.ResponseFunctionCallOutputItemListParam{
-				responses.ResponseFunctionCallOutputItemUnionParam{
-					OfInputImage: &responses.ResponseInputImageContentParam{
-						ImageURL: openai.String(msg.ImageB64URL()),
-						Detail:   "auto",
-					},
+	if len(msg.Images()) != 0 {
+		content.OfResponseFunctionCallOutputItemArray = responses.ResponseFunctionCallOutputItemListParam{
+			responses.ResponseFunctionCallOutputItemUnionParam{
+				OfInputImage: &responses.ResponseInputImageContentParam{
+					ImageURL: openai.String(msg.ImageB64URL()),
+					Detail:   "auto",
 				},
 			},
 		}
 	} else {
-		content = responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
-			OfString: openai.String(msg.TextContent),
-		}
+		content.OfString = openai.String(msg.TextContent())
 	}
 
 	return responses.ResponseInputItemUnionParam{
 		OfFunctionCallOutput: &responses.ResponseInputItemFunctionCallOutputParam{
-			CallID: msg.ToolCalls[0].ID,
+			CallID: msg.ToolCalls()[0].ID,
 			Output: content,
 		},
 	}
@@ -274,38 +304,56 @@ func (c *conversation) newToolCall(id, name, rawArgs string) llms.ToolCall {
 	return toolCall
 }
 
-func (c *conversation) outputToMessage(output []responses.ResponseOutputItemUnion) (*llms.Message, error) {
-	var (
-		msgOpts = []llms.MessageOpt{
-			llms.WithRole(llms.RoleAssistant),
-		}
-
-		messageBuilder strings.Builder
-		toolCalls      llms.ToolCalls
-	)
+func (c *conversation) outputToMessage(output []responses.ResponseOutputItemUnion) (*llms.Message, error) { //nolint:cyclop
+	msgOpts := []llms.MessageOpt{llms.WithRole(llms.RoleAssistant)}
+	blocks := make([]llms.Block, 0, len(output))
+	messageIDSet := false
 
 	for _, item := range output {
 		switch outputItem := item.AsAny().(type) {
 		case responses.ResponseOutputMessage:
-			msgOpts = append(msgOpts, llms.WithID(outputItem.ID))
+			if !messageIDSet {
+				msgOpts = append(msgOpts, llms.WithID(outputItem.ID))
+				messageIDSet = true
+			}
 
 			for _, contentItem := range outputItem.Content {
 				switch content := contentItem.AsAny().(type) {
 				case responses.ResponseOutputText:
-					messageBuilder.WriteString(content.Text)
+					blocks = append(blocks, llms.PhasedTextContentBlock(content.Text, string(outputItem.Phase)))
 				case responses.ResponseOutputRefusal:
 					return nil, fmt.Errorf("%w: %s", llms.ErrPromptRefused, content.Refusal)
 				}
 			}
 		case responses.ResponseFunctionToolCall:
-			toolCalls = append(toolCalls, c.newToolCall(outputItem.CallID, outputItem.Name, outputItem.Arguments))
+			blocks = append(blocks, llms.ToolContentBlock(c.newToolCall(outputItem.CallID, outputItem.Name, outputItem.Arguments)))
 		case responses.ResponseReasoningItem:
-			// slog.Debug("Got reasoning", "reasoning", outputItem.Summary)
+			summary := make([]string, len(outputItem.Summary))
+			for i, part := range outputItem.Summary {
+				summary[i] = part.Text
+			}
+
+			content := make([]string, len(outputItem.Content))
+			for i, part := range outputItem.Content {
+				content[i] = part.Text
+			}
+
+			blocks = append(blocks, llms.ReasoningContentBlock(llms.ReasoningBlock{
+				Summary: summary,
+				Detail: llms.ReasoningDetail{
+					OpenAI: &llms.OpenAIReasoningDetail{
+						Source:           c.Config().Provider,
+						ID:               outputItem.ID,
+						EncryptedContent: outputItem.EncryptedContent,
+						Content:          content,
+						Status:           string(outputItem.Status),
+					},
+				},
+			}))
 		}
 	}
 
-	msgOpts = append(msgOpts, llms.WithTextContent(messageBuilder.String()))
-	msgOpts = append(msgOpts, llms.WithToolCalls(toolCalls...))
+	msgOpts = append(msgOpts, llms.WithBlocks(blocks...))
 
 	return c.NewMessage(msgOpts...), nil
 }
