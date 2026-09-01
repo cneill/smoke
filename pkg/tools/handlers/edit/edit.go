@@ -148,12 +148,12 @@ func (e *Edit) collectReplacements(contents string, edits []tools.Args) ([]repla
 
 		newText := editArgs.GetString(ParamNewText)
 		if oldText == nil || newText == nil {
-			return nil, fmt.Errorf("%w: edits[%d] missing %q or %q", tools.ErrArguments, idx, ParamOldText, ParamNewText)
+			return nil, fmt.Errorf("%w: %s[%d] missing %q or %q", tools.ErrArguments, ParamEdits, idx, ParamOldText, ParamNewText)
 		}
 
 		start, err := matchIdx(contents, *oldText)
 		if err != nil {
-			return nil, fmt.Errorf("%w: edits[%d]: %w", tools.ErrArguments, idx, err)
+			return nil, fmt.Errorf("%w: %s[%d]: %w", tools.ErrArguments, ParamEdits, idx, err)
 		}
 
 		replacements = append(replacements, replacement{
@@ -169,7 +169,7 @@ func (e *Edit) collectReplacements(contents string, edits []tools.Args) ([]repla
 
 	for i := 1; i < len(replacements); i++ {
 		if replacements[i].start < replacements[i-1].end {
-			return nil, fmt.Errorf("%w: edits[%d] overlaps edits[%d]", tools.ErrArguments, i-1, i)
+			return nil, fmt.Errorf("%w: %s[%d] overlaps %s[%d]", tools.ErrArguments, ParamEdits, i-1, ParamEdits, i)
 		}
 	}
 
