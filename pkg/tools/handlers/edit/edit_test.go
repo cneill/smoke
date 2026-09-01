@@ -92,7 +92,7 @@ func TestEditToolRun(t *testing.T) { //nolint:funlen
 			},
 			expectedContent: "alpha twice gamma",
 			errorIs:         []error{tools.ErrArguments},
-			errorContains:   "multiple times",
+			errorContains:   "edits[0]: multiple matches (lines 1, 1, 1, 1)",
 		},
 		{
 			name:        "overlapping_duplicate_match_errors",
@@ -105,7 +105,20 @@ func TestEditToolRun(t *testing.T) { //nolint:funlen
 			},
 			expectedContent: "ababa tail",
 			errorIs:         []error{tools.ErrArguments},
-			errorContains:   "multiple times",
+			errorContains:   "edits[0]: multiple matches (lines 1, 1)",
+		},
+		{
+			name:        "multiline_duplicate_matches",
+			initContent: "abc\nabc\nabc\nabc\nzyx\nabc\nabc", //nolint:dupword
+			args: tools.Args{
+				edit.ParamPath: "multiline_duplicate_matches_test.txt",
+				edit.ParamEdits: []any{
+					map[string]any{edit.ParamOldText: "abc\n", edit.ParamNewText: "xyz"},
+				},
+			},
+			expectedContent: "abc\nabc\nabc\nabc\nzyx\nabc\nabc", //nolint:dupword
+			errorIs:         []error{tools.ErrArguments},
+			errorContains:   "edits[0]: multiple matches (lines 1, 2, 3, 4, 6)",
 		},
 		{
 			name:        "adjacent_edits_succeed",

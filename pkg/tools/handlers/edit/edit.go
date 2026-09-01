@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	smokefs "github.com/cneill/smoke/pkg/fs"
@@ -147,12 +148,12 @@ func (e *Edit) collectReplacements(contents string, edits []tools.Args) ([]repla
 
 		newText := editArgs.GetString(ParamNewText)
 		if oldText == nil || newText == nil {
-			return nil, fmt.Errorf("%w: edit %d missing %q or %q", tools.ErrArguments, idx, ParamOldText, ParamNewText)
+			return nil, fmt.Errorf("%w: %s[%d] missing %q or %q", tools.ErrArguments, ParamEdits, idx, ParamOldText, ParamNewText)
 		}
 
-		start, err := uniqueMatchOffset(contents, *oldText)
+		start, err := matchIdx(contents, *oldText)
 		if err != nil {
-			return nil, fmt.Errorf("%w: edit %d: %w", tools.ErrArguments, idx, err)
+			return nil, fmt.Errorf("%w: %s[%d]: %w", tools.ErrArguments, ParamEdits, idx, err)
 		}
 
 		replacements = append(replacements, replacement{
@@ -168,28 +169,62 @@ func (e *Edit) collectReplacements(contents string, edits []tools.Args) ([]repla
 
 	for i := 1; i < len(replacements); i++ {
 		if replacements[i].start < replacements[i-1].end {
-			return nil, fmt.Errorf("%w: edit %d overlaps edit %d", tools.ErrArguments, i-1, i)
+			return nil, fmt.Errorf("%w: %s[%d] overlaps %s[%d]", tools.ErrArguments, ParamEdits, i-1, ParamEdits, i)
 		}
 	}
 
 	return replacements, nil
 }
 
-func uniqueMatchOffset(contents, oldText string) (int, error) {
+func matchIdx(contents, oldText string) (int, error) {
+	matches := []int{}
+
 	if oldText == "" {
-		return 0, fmt.Errorf("%q must not be empty", ParamOldText)
+		return -1, fmt.Errorf("%q must not be empty", ParamOldText)
 	}
 
-	first := strings.Index(contents, oldText)
-	if first == -1 {
-		return 0, fmt.Errorf("%q not found in original file contents", ParamOldText)
+	startIdx := 0
+
+	for startIdx < len(contents) {
+		nextMatch := strings.Index(contents[startIdx:], oldText)
+		if nextMatch == -1 {
+			if len(matches) == 0 {
+				return -1, fmt.Errorf("%q pattern not found in original file contents", ParamOldText)
+			}
+
+			break
+		}
+
+		matches = append(matches, startIdx+nextMatch)
+		startIdx += nextMatch + 1
 	}
 
-	if second := strings.Index(contents[first+1:], oldText); second != -1 {
-		return 0, fmt.Errorf("%q matched multiple times in original file contents", ParamOldText)
+	if len(matches) == 1 {
+		return matches[0], nil
 	}
 
-	return first, nil
+	currentMatch := 0
+	lineCount := 1
+	matchLines := make([]string, len(matches))
+
+	// TODO: handle utf-8 runes?
+	for i, char := range contents {
+		if currentMatch >= len(matches) {
+			break
+		}
+
+		if i == matches[currentMatch] {
+			matchLines[currentMatch] = strconv.FormatInt(int64(lineCount), 10)
+			currentMatch++
+		}
+
+		if char == '\n' {
+			lineCount++
+			continue
+		}
+	}
+
+	return -1, fmt.Errorf("multiple matches (lines %s)", strings.Join(matchLines, ", "))
 }
 
 func applyReplacements(contents string, replacements []replacement) string {
