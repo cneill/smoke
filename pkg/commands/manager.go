@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 
@@ -76,9 +77,9 @@ func (m *Manager) CommandNames() []string {
 	return results
 }
 
-func (m *Manager) Completer() func(string) []string {
-	return func(input string) []string {
-		results := []string{}
+func (m *Manager) Completer() func(string) []Command {
+	return func(input string) []Command {
+		results := []Command{}
 
 		m.mutex.RLock()
 		defer m.mutex.RUnlock()
@@ -86,11 +87,13 @@ func (m *Manager) Completer() func(string) []string {
 		// TODO: handle arguments more gracefully - should keep completion as the user fills in flags/etc
 		for name, cmd := range m.commands {
 			if strings.HasPrefix(name, input) || input == "" {
-				results = append(results, cmd.Usage())
+				results = append(results, cmd)
 			}
 		}
 
-		slices.Sort(results)
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Name() < results[j].Name()
+		})
 
 		return results
 	}

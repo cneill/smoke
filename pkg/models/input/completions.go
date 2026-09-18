@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
 )
@@ -44,7 +45,7 @@ type KeyResult struct {
 
 type CompletionState struct {
 	maxWidth         int
-	commandCompleter func(string) []string
+	commandCompleter func(string) []commands.Command
 	skillCompleter   func(string) []*skills.Skill
 	pathCompleter    func(string) []fs.PathMatch
 
@@ -58,7 +59,7 @@ type CompletionState struct {
 
 func NewCompletionState(
 	maxWidth int,
-	commandCompleter func(string) []string,
+	commandCompleter func(string) []commands.Command,
 	skillCompleter func(string) []*skills.Skill,
 	pathCompleter func(string) []fs.PathMatch,
 ) (*CompletionState, error) {
@@ -335,7 +336,7 @@ func (c *CompletionState) refreshMatches() {
 	switch c.completionLeader {
 	case CompletionLeaderCommand:
 		prefix := strings.TrimPrefix(c.userText, string(CompletionLeaderCommand))
-		c.matches = commandMatches(c.commandCompleter(prefix))
+		c.matches = c.commandMatches(c.commandCompleter(prefix))
 	case CompletionLeaderSkill:
 		prefix := strings.TrimPrefix(c.userText, string(CompletionLeaderSkill))
 		c.matches = c.skillMatches(c.skillCompleter(prefix))
@@ -408,28 +409,27 @@ func (c *CompletionState) skillMatches(options []*skills.Skill) []Match {
 }
 
 // commandMatches adapts Completer strings (often Usage lines) into Value=name, Label=usage.
-func commandMatches(options []string) []Match {
+func (c *CompletionState) commandMatches(options []commands.Command) []Match {
 	out := make([]Match, 0, len(options))
 
+	maxUsageLen := 0
 	for _, opt := range options {
-		name := firstField(opt)
-		if name == "" {
-			continue
+		maxUsageLen = max(maxUsageLen, len(opt.Usage()))
+	}
+
+	maxDescLen := c.maxWidth - (maxUsageLen + 3)
+
+	for _, opt := range options {
+		help := opt.Help()
+		if len(help) > maxDescLen {
+			help = help[0:maxDescLen-3] + "..."
 		}
 
-		out = append(out, Match{Value: name, Label: opt})
+		display := fmt.Sprintf("/%-*s  %s", maxUsageLen, opt.Usage(), help)
+		out = append(out, Match{Value: opt.Name(), Label: display})
 	}
 
 	return out
-}
-
-func firstField(s string) string {
-	fields := strings.Fields(s)
-	if len(fields) == 0 {
-		return ""
-	}
-
-	return fields[0]
 }
 
 func atWordBoundary(currentText string) bool {

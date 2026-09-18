@@ -11,6 +11,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/responses"
 	"github.com/openai/openai-go/v3/shared"
 )
@@ -222,7 +223,7 @@ func (c *conversation) toolMessageInput(msg *llms.Message) responses.ResponseInp
 
 	return responses.ResponseInputItemUnionParam{
 		OfFunctionCallOutput: &responses.ResponseInputItemFunctionCallOutputParam{
-			CallID: msg.ToolCalls()[0].ID,
+			CallID: param.NewOpt[string](msg.ToolCalls()[0].ID),
 			Output: content,
 		},
 	}

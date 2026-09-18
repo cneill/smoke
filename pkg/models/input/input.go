@@ -33,7 +33,7 @@ type Opts struct {
 	MaxHeight        int
 	MaxContextWindow int64
 	PlaceholderText  string
-	CommandCompleter func(string) []string
+	CommandCompleter func(string) []commands.Command
 	SkillCompleter   func(string) []*skills.Skill
 	PathCompleter    func(string) []fs.PathMatch
 }

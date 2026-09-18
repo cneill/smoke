@@ -371,7 +371,7 @@ func (s *Smoke) HandleCommand(msg commands.PromptMessage) (tea.Cmd, error) {
 	return cmd, nil
 }
 
-func (s *Smoke) CommandCompleter() func(string) []string {
+func (s *Smoke) CommandCompleter() func(string) []commands.Command {
 	return s.commands.Completer()
 }
 
