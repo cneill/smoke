@@ -61,6 +61,7 @@ var registry = Registry{ //nolint:gochecknoglobals
 			openai.ChatModelGPT5_6Sol:   {Aliases: []string{"5.6", "sol", "5.6-sol", "gpt5.6"}, ContextWindowTokens: 1050000},
 			openai.ChatModelGPT5_6Terra: {Aliases: []string{"terra", "5.6-terra"}, ContextWindowTokens: 1050000},
 			openai.ChatModelGPT5_6Luna:  {Aliases: []string{"luna", "5.6-luna"}, ContextWindowTokens: 1050000},
+			openai.ChatModelGPT6Astra:   {Aliases: []string{"astra", "6", "6-astra"}, ContextWindowTokens: 1050000},
 		},
 	},
 	llms.LLMTypeClaude: {
@@ -74,7 +75,9 @@ var registry = Registry{ //nolint:gochecknoglobals
 			anthropic.OutputConfigEffortMax,
 		),
 		Models: ModelInfos{
+			anthropic.ModelClaudeFable5_1:  {Aliases: []string{"fable5.1"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeFable5:    {Aliases: []string{"fable", "fable5"}, ContextWindowTokens: 1000000},
+			anthropic.ModelClaudeHaiku4_5:  {Aliases: []string{"haiku", "haiku4.5", "h45"}, ContextWindowTokens: 200000},
 			anthropic.ModelClaudeOpus5:     {Aliases: []string{"opus", "opus5", "o5"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_8:   {Aliases: []string{"opus4.8", "o48"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_7:   {Aliases: []string{"opus4.7", "o47"}, ContextWindowTokens: 1000000},
@@ -83,7 +86,6 @@ var registry = Registry{ //nolint:gochecknoglobals
 			anthropic.ModelClaudeSonnet5:   {Aliases: []string{"sonnet", "sonnet5", "s5"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeSonnet4_6: {Aliases: []string{"sonnet4.6", "s46"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeSonnet4_5: {Aliases: []string{"sonnet4.5", "s45"}, ContextWindowTokens: 200000},
-			anthropic.ModelClaudeHaiku4_5:  {Aliases: []string{"haiku", "haiku4.5", "h45"}, ContextWindowTokens: 200000},
 		},
 	},
 	llms.LLMTypeGrok: {

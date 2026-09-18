@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/anthropics/anthropic-sdk-go v1.63.0
+	github.com/anthropics/anthropic-sdk-go v1.73.0
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/glamour v1.0.0
@@ -16,7 +16,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/muesli/reflow v0.3.0
 	github.com/mxschmitt/playwright-go v0.6100.0
-	github.com/openai/openai-go/v3 v3.50.0
+	github.com/openai/openai-go/v3 v3.62.0
 	github.com/stretchr/testify v1.12.0
 	github.com/urfave/cli/v3 v3.10.1
 	golang.org/x/term v0.45.0
@@ -31,7 +31,7 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/buger/jsonparser v1.2.0 // indirect
+	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
@@ -39,6 +39,7 @@ require (
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/coder/websocket v1.8.15 // indirect
 	github.com/deckarep/golang-set/v2 v2.9.0 // indirect
 	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
@@ -73,7 +74,7 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
