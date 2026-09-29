@@ -71,7 +71,7 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 		return nil, fmt.Errorf("failed to look up provider %q: %w", provider, err)
 	}
 
-	model, info, err := details.ModelInfo(cmd.String(FlagModel))
+	info, err := details.ModelInfo(cmd.String(FlagModel))
 	if err != nil {
 		if errors.Is(err, providers.ErrModelRequired) {
 			return nil, fmt.Errorf("failed to select model for provider %q: %w: use --%s", provider, err, FlagModel)
@@ -92,11 +92,9 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 		BaseURL:     cmd.String(keyInfo.baseURLFlag),
 		Effort:      effort,
 		MaxTokens:   cmd.Int64(FlagMaxTokens),
+		ModelInfo:   info,
 		NoStream:    cmd.Bool(FlagNoStream),
-		Provider:    llms.LLMType(provider),
 		Temperature: cmd.Float64(FlagTemperature),
-		Model:       model,
-		ContextSize: info.ContextWindowTokens,
 	}
 
 	return llmConfig, nil

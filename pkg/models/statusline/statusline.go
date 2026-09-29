@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/cneill/smoke/pkg/llmctx/modes"
+	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/smoke"
 	"github.com/cneill/smoke/pkg/utils"
 )
@@ -16,17 +17,17 @@ type Model struct {
 	modelMode           modes.Mode
 	width               int
 	contextWindowTokens int64
-	maxContextWindow    int64
+	modelInfo           llms.ModelInfo
 	styles              Styles
 }
 
-func New(width int, maxContextWindow int64) *Model {
+func New(width int, modelInfo llms.ModelInfo) *Model {
 	model := &Model{
-		focused:          true,
-		modelMode:        modes.ModeWork,
-		width:            width,
-		maxContextWindow: maxContextWindow,
-		styles:           InitStyles(),
+		focused:   true,
+		modelMode: modes.ModeWork,
+		width:     width,
+		modelInfo: modelInfo,
+		styles:    InitStyles(),
 	}
 
 	return model
@@ -52,22 +53,29 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 func (m *Model) View() string {
 	style := m.styleVariant()
 
+	separator := style.Border.Render(" ✱ ")
+
+	modelStyled := style.Usage.Render(fmt.Sprintf("%s/%s", m.modelInfo.Provider, m.modelInfo.Model))
 	modeStyled := style.Usage.Render(fmt.Sprintf("mode: %s", m.modelMode))
-	modeWidth := lipgloss.Width(modeStyled)
+	left := modelStyled + separator + modeStyled
+	leftWidth := lipgloss.Width(left)
 
-	usagePadding := style.Border.Render(" ✱ ")
+	usage := separator + style.Usage.Render("ctx: "+utils.CommaFormatInt(m.contextWindowTokens))
 
-	usageStyled := style.Usage.Render("ctx: " + utils.CommaFormatInt(m.contextWindowTokens))
-	maxStyled := style.Border.Render(" / ") + style.Usage.Render(utils.CommaFormatInt(m.maxContextWindow))
-	percentage := float64(m.contextWindowTokens) / float64(m.maxContextWindow) * 100
-	percentageStyled := style.Usage.Render(fmt.Sprintf(" (%.2f%%) ", percentage))
-	usage := usagePadding + usageStyled + maxStyled + percentageStyled + " "
+	// Models without a known context window size (e.g. Ollama) would otherwise render a 0 max and a NaN/Inf percentage.
+	if maxContextWindow := m.modelInfo.ContextWindowTokens; maxContextWindow > 0 {
+		percentage := float64(m.contextWindowTokens) / float64(maxContextWindow) * 100
+		usage += style.Border.Render(" / ") + style.Usage.Render(utils.CommaFormatInt(maxContextWindow))
+		usage += style.Usage.Render(fmt.Sprintf(" (%.2f%%)", percentage))
+	}
+
+	usage += style.Usage.Render(" ") + " "
 	usageWidth := lipgloss.Width(usage)
 
-	borderWidth := max(0, m.width-modeWidth-usageWidth)
+	borderWidth := max(0, m.width-leftWidth-usageWidth)
 	border := style.Border.Render(strings.Repeat(" ", borderWidth))
 
-	return border + modeStyled + usage
+	return border + left + usage
 }
 
 func (m *Model) SetFocus(focused bool) {

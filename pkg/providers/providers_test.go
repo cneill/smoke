@@ -24,7 +24,7 @@ func TestDetailsModelInfo(t *testing.T) {
 			name:              "default model",
 			provider:          llms.LLMTypeChatGPT,
 			search:            "",
-			wantModel:         openai.ChatModelGPT5_6Sol,
+			wantModel:         openai.ChatModelGPT6Sol,
 			wantContextTokens: 1050000,
 		},
 		{
@@ -50,9 +50,10 @@ func TestDetailsModelInfo(t *testing.T) {
 			details, err := providers.All().Details(test.provider)
 			require.NoError(t, err)
 
-			model, info, err := details.ModelInfo(test.search)
+			info, err := details.ModelInfo(test.search)
 			require.NoError(t, err)
-			assert.Equal(t, test.wantModel, model)
+			assert.Equal(t, test.provider, string(info.Provider))
+			assert.Equal(t, test.wantModel, info.Model)
 			assert.Equal(t, test.wantContextTokens, info.ContextWindowTokens)
 		})
 	}
@@ -64,7 +65,7 @@ func TestDetailsModelInfoUnknownModel(t *testing.T) {
 	details, err := providers.All().Details(llms.LLMTypeChatGPT)
 	require.NoError(t, err)
 
-	_, _, err = details.ModelInfo("bogus")
+	_, err = details.ModelInfo("bogus")
 	require.Error(t, err)
 	require.ErrorIs(t, err, providers.ErrUnknownModel)
 	require.ErrorContains(t, err, "Model aliases")
@@ -77,10 +78,9 @@ func TestDetailsModelInfoPassesThroughModelsForOllama(t *testing.T) {
 	details, err := providers.All().Details(llms.LLMTypeOllama)
 	require.NoError(t, err)
 
-	model, info, err := details.ModelInfo("llama3.1")
+	info, err := details.ModelInfo("llama3.1")
 	require.NoError(t, err)
-	assert.Equal(t, "llama3.1", model)
-	assert.Zero(t, info)
+	assert.Equal(t, llms.ModelInfo{Provider: llms.LLMTypeOllama, Model: "llama3.1"}, info)
 }
 
 func TestDetailsModelInfoRequiresModelForOllama(t *testing.T) {
@@ -89,7 +89,7 @@ func TestDetailsModelInfoRequiresModelForOllama(t *testing.T) {
 	details, err := providers.All().Details(llms.LLMTypeOllama)
 	require.NoError(t, err)
 
-	_, _, err = details.ModelInfo("")
+	_, err = details.ModelInfo("")
 	require.Error(t, err)
 	require.ErrorIs(t, err, providers.ErrModelRequired)
 }

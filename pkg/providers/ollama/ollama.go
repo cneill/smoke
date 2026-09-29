@@ -67,7 +67,7 @@ func New(config *llms.Config) (llms.LLM, error) {
 func (o *Ollama) LLMInfo() *llms.LLMInfo {
 	return &llms.LLMInfo{
 		Type:      llms.LLMTypeOllama,
-		ModelName: o.config.Model,
+		ModelName: o.config.ModelInfo.Model,
 	}
 }
 

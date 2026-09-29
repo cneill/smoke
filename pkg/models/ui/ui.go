@@ -94,7 +94,7 @@ func New(opts *Opts) (*Model, error) {
 		CommandCompleter: opts.Smoke.CommandCompleter(),
 		SkillCompleter:   opts.Smoke.SkillCompleter(),
 		PathCompleter:    opts.Smoke.PathCompleter(),
-		MaxContextWindow: opts.Smoke.GetLLMConfig().ContextSize,
+		ModelInfo:        opts.Smoke.GetLLMConfig().ModelInfo,
 	}
 
 	inputModel, err := input.New(inputOpts)

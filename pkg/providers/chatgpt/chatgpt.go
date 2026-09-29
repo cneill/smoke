@@ -48,7 +48,7 @@ func New(config *llms.Config) (llms.LLM, error) {
 func (c *ChatGPT) LLMInfo() *llms.LLMInfo {
 	return &llms.LLMInfo{
 		Type:      llms.LLMTypeChatGPT,
-		ModelName: c.Config.Model,
+		ModelName: c.Config.ModelInfo.Model,
 	}
 }
 func (c *ChatGPT) RequiresSessionSystem() bool { return true }

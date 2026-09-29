@@ -82,7 +82,7 @@ func (s *Smoke) setupLLM() error {
 		err error
 	)
 
-	switch s.llmConfig.Provider {
+	switch s.llmConfig.ModelInfo.Provider {
 	case llms.LLMTypeChatGPT:
 		llm, err = chatgpt.New(s.llmConfig)
 	case llms.LLMTypeClaude:
@@ -92,7 +92,7 @@ func (s *Smoke) setupLLM() error {
 	case llms.LLMTypeOllama:
 		llm, err = ollama.New(s.llmConfig)
 	default:
-		err = fmt.Errorf("unknown provider: %s", s.llmConfig.Provider)
+		err = fmt.Errorf("unknown provider: %s", s.llmConfig.ModelInfo.Provider)
 	}
 
 	if err != nil {

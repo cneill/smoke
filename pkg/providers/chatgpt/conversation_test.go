@@ -50,8 +50,7 @@ func testConversation(t *testing.T) *conversation {
 		Tools:         manager,
 		Mode:          modes.ModeWork,
 		Config: &llms.Config{
-			Provider: llms.LLMTypeChatGPT,
-			Model:    "test-model",
+			ModelInfo: llms.ModelInfo{Provider: llms.LLMTypeChatGPT, Model: "test-model"},
 		},
 	})
 	require.NoError(t, err)
@@ -62,8 +61,7 @@ func testConversation(t *testing.T) *conversation {
 			ModelName: "test-model",
 		},
 		Config: &llms.Config{
-			Provider: llms.LLMTypeChatGPT,
-			Model:    "test-model",
+			ModelInfo: llms.ModelInfo{Provider: llms.LLMTypeChatGPT, Model: "test-model"},
 		},
 		Stream: false,
 	})
@@ -219,7 +217,7 @@ func TestEncryptedReasoningIncludeCapabilityGate(t *testing.T) {
 	params := conv.getNewResponsesParams()
 	assert.Contains(t, params.Include, responses.ResponseIncludableReasoningEncryptedContent)
 
-	conv.Config().Provider = llms.LLMTypeOllama
+	conv.Config().ModelInfo.Provider = llms.LLMTypeOllama
 	params = conv.getNewResponsesParams()
 	assert.Empty(t, params.Include)
 }

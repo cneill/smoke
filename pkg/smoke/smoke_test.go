@@ -43,8 +43,7 @@ func testSession(t *testing.T, manager *tools.Manager) *llms.Session {
 		Tools:         manager,
 		Mode:          modes.ModeWork,
 		Config: &llms.Config{
-			Provider: llms.LLMTypeChatGPT,
-			Model:    "test-model",
+			ModelInfo: llms.ModelInfo{Provider: llms.LLMTypeChatGPT, Model: "test-model"},
 		},
 	})
 	require.NoError(t, err)
