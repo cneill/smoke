@@ -2,6 +2,7 @@ package input_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,15 +16,16 @@ import (
 )
 
 type dummyCommand struct {
-	name string
-	help string
+	name  string
+	usage string
+	help  string
 }
 
 func (d *dummyCommand) Name() string  { return d.name }
 func (d *dummyCommand) Help() string  { return d.help }
-func (d *dummyCommand) Usage() string { return "" }
+func (d *dummyCommand) Usage() string { return d.usage }
 func (d *dummyCommand) Run(_ context.Context, _ commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {
-	return nil, nil
+	return nil, errors.New("dummy command should not be run")
 }
 
 func newTestCompletionState(
@@ -223,58 +225,57 @@ func TestVisibleRangeWindow(t *testing.T) {
 	assert.Equal(t, 6, end)
 }
 
-// TODO
-// func TestCommandCompletionPopup(t *testing.T) {
-// 	t.Parallel()
-//
-// 	commandFn := func(prefix string) []commands.Command {
-// 		switch prefix {
-// 		case "", "h", "he":
-// 			return []commands.Command{
-// 				&dummyCommand{"help", "give help"},
-// 				&dummyCommand{"history", "show history"},
-// 			}
-// 		default:
-// 			return nil
-// 		}
-// 	}
-// 	cs := newTestCompletionState(t, commandFn, nil, nil)
-//
-// 	result := cs.HandleKey(keyRunes("/"), "")
-// 	handled := result.Consume
-// 	assert.False(t, handled)
-// 	assert.True(t, cs.InCommandCompletion())
-// 	assert.True(t, cs.PopupActive())
-// 	assert.Equal(t, []string{"help", "history"}, matchValues(cs.Matches()))
-// 	assert.Equal(t, []string{"help", "history"}, matchLabels(cs.Matches()))
-//
-// 	cs.HandleKey(keyRunes("h"), "/")
-// 	result = cs.HandleKey(tea.KeyMsg{Type: tea.KeyEnter}, "/h")
-// 	handled = result.Consume
-// 	assert.True(t, handled)
-// 	assert.Equal(t, "/help", result.Replace)
-// 	assert.Equal(t, input.CompletionLeaderCommand, result.Leader)
-// 	assert.False(t, cs.InCompletion())
-// }
-//
-// func TestCommandCompletionUsageValue(t *testing.T) {
-// 	t.Parallel()
-//
-// 	commandFn := func(string) []commands.Command {
-// 		return []commands.Command{
-// 			&dummyCommand{"mode", "mode <plan|work>"},
-// 			&dummyCommand{"help", "help"},
-// 		}
-// 	}
-// 	cs := newTestCompletionState(t, commandFn, nil, nil)
-// 	cs.HandleKey(keyRunes("/"), "")
-// 	require.True(t, cs.PopupActive())
-// 	assert.Equal(t, []string{"mode", "help"}, matchValues(cs.Matches()))
-// 	assert.Equal(t, []string{"/mode <plan|work>", "help"}, matchLabels(cs.Matches()))
-//
-// 	result := cs.HandleKey(tea.KeyMsg{Type: tea.KeyEnter}, "/")
-// 	assert.Equal(t, "/mode", result.Replace)
-// }
+func TestCommandCompletionPopup(t *testing.T) {
+	t.Parallel()
+
+	commandFn := func(prefix string) []commands.Command {
+		switch prefix {
+		case "", "h", "he":
+			return []commands.Command{
+				&dummyCommand{name: "help", usage: "help", help: "give help"},
+				&dummyCommand{name: "history", usage: "history", help: "show history"},
+			}
+		default:
+			return nil
+		}
+	}
+	cs := newTestCompletionState(t, commandFn, nil, nil)
+
+	result := cs.HandleKey(keyRunes("/"), "")
+	assert.False(t, result.Consume)
+	assert.True(t, cs.InCommandCompletion())
+	assert.True(t, cs.PopupActive())
+	assert.Equal(t, []string{"help", "history"}, matchValues(cs.Matches()))
+	assert.Equal(t, []string{"/help     give help", "/history  show history"}, matchLabels(cs.Matches()))
+
+	cs.HandleKey(keyRunes("h"), "/")
+	result = cs.HandleKey(tea.KeyMsg{Type: tea.KeyEnter}, "/h")
+	assert.True(t, result.Consume)
+	assert.Equal(t, "/help", result.Replace)
+	assert.Equal(t, input.CompletionLeaderCommand, result.Leader)
+	assert.False(t, cs.InCompletion())
+}
+
+func TestCommandCompletionUsageValue(t *testing.T) {
+	t.Parallel()
+
+	commandFn := func(string) []commands.Command {
+		return []commands.Command{
+			&dummyCommand{name: "mode", usage: "mode <plan|work>", help: "set the mode"},
+			&dummyCommand{name: "help", usage: "help", help: "show help"},
+		}
+	}
+	cs := newTestCompletionState(t, commandFn, nil, nil)
+	cs.HandleKey(keyRunes("/"), "")
+	require.True(t, cs.PopupActive())
+
+	// Value is the bare name used for acceptance; Label shows the full usage line, padded to align descriptions.
+	assert.Equal(t, []string{"mode", "help"}, matchValues(cs.Matches()))
+	assert.Equal(t, []string{"/mode <plan|work>  set the mode", "/help              show help"}, matchLabels(cs.Matches()))
+
+	result := cs.HandleKey(tea.KeyMsg{Type: tea.KeyEnter}, "/")
+	assert.Equal(t, "/mode", result.Replace)
+}
 
 func TestSkillCompletionAccept(t *testing.T) {
 	t.Parallel()
