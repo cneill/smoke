@@ -29,7 +29,7 @@ var (
 // Model context sizes pulled from https://models.dev/models.json
 var registry = Registry{ //nolint:gochecknoglobals
 	llms.LLMTypeChatGPT: {
-		DefaultModel:  openai.ChatModelGPT5_6Sol,
+		DefaultModel:  openai.ChatModelGPT6Sol,
 		DefaultEffort: string(openai.ReasoningEffortMedium),
 		EffortOptions: utils.ToStrings(
 			openai.ReasoningEffortNone,
@@ -58,14 +58,16 @@ var registry = Registry{ //nolint:gochecknoglobals
 			openai.ChatModelGPT5_4Mini:  {Aliases: []string{"5.4-mini", "gpt5.4-mini", "gpt-5.4-mini"}, ContextWindowTokens: 400000},
 			openai.ChatModelGPT5_4Nano:  {Aliases: []string{"5.4-nano", "gpt5.4-nano", "gpt-5.4-nano"}, ContextWindowTokens: 400000},
 			openai.ChatModelGPT5_5:      {Aliases: []string{"5.5", "gpt5.5", "gpt-5.5"}, ContextWindowTokens: 1050000},
-			openai.ChatModelGPT5_6Sol:   {Aliases: []string{"5.6", "sol", "5.6-sol", "gpt5.6"}, ContextWindowTokens: 1050000},
+			openai.ChatModelGPT5_6Sol:   {Aliases: []string{"5.6", "5.6-sol", "gpt5.6"}, ContextWindowTokens: 1050000},
 			openai.ChatModelGPT5_6Terra: {Aliases: []string{"terra", "5.6-terra"}, ContextWindowTokens: 1050000},
-			openai.ChatModelGPT5_6Luna:  {Aliases: []string{"luna", "5.6-luna"}, ContextWindowTokens: 1050000},
+			openai.ChatModelGPT5_6Luna:  {Aliases: []string{"5.6-luna"}, ContextWindowTokens: 1050000},
 			openai.ChatModelGPT6Astra:   {Aliases: []string{"astra", "6", "6-astra"}, ContextWindowTokens: 1050000},
+			openai.ChatModelGPT6Luna:    {Aliases: []string{"luna", "6-luna"}, ContextWindowTokens: 1050000},
+			openai.ChatModelGPT6Sol:     {Aliases: []string{"sol", "6-sol"}, ContextWindowTokens: 1050000},
 		},
 	},
 	llms.LLMTypeClaude: {
-		DefaultModel:  anthropic.ModelClaudeOpus5,
+		DefaultModel:  anthropic.ModelClaudeOpus5_5,
 		DefaultEffort: string(anthropic.OutputConfigEffortMedium),
 		EffortOptions: utils.ToStrings(
 			anthropic.OutputConfigEffortLow,
@@ -78,12 +80,14 @@ var registry = Registry{ //nolint:gochecknoglobals
 			anthropic.ModelClaudeFable5_1:  {Aliases: []string{"fable5.1"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeFable5:    {Aliases: []string{"fable", "fable5"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeHaiku4_5:  {Aliases: []string{"haiku", "haiku4.5", "h45"}, ContextWindowTokens: 200000},
+			anthropic.ModelClaudeOpus5_5:   {Aliases: []string{"opus", "opus5.5", "o5.5"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus5:     {Aliases: []string{"opus", "opus5", "o5"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_8:   {Aliases: []string{"opus4.8", "o48"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_7:   {Aliases: []string{"opus4.7", "o47"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_6:   {Aliases: []string{"opus4.6", "o46"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeOpus4_5:   {Aliases: []string{"opus4.5", "o45"}, ContextWindowTokens: 200000},
-			anthropic.ModelClaudeSonnet5:   {Aliases: []string{"sonnet", "sonnet5", "s5"}, ContextWindowTokens: 1000000},
+			anthropic.ModelClaudeSonnet5_5: {Aliases: []string{"sonnet", "sonnet5.5", "s5.5"}, ContextWindowTokens: 1000000},
+			anthropic.ModelClaudeSonnet5:   {Aliases: []string{"sonnet5", "s5"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeSonnet4_6: {Aliases: []string{"sonnet4.6", "s46"}, ContextWindowTokens: 1000000},
 			anthropic.ModelClaudeSonnet4_5: {Aliases: []string{"sonnet4.5", "s45"}, ContextWindowTokens: 200000},
 		},
@@ -98,6 +102,7 @@ var registry = Registry{ //nolint:gochecknoglobals
 			"high",
 		},
 		Models: ModelInfos{
+			"grok-4.7":                 {Aliases: []string{"4.7", "470"}, ContextWindowTokens: 500000},
 			"grok-4.6":                 {Aliases: []string{"4.6", "460"}, ContextWindowTokens: 500000},
 			"grok-4.5":                 {Aliases: []string{"4.5", "450"}, ContextWindowTokens: 500000},
 			"grok-build-0.1":           {Aliases: []string{"build", "fast"}, ContextWindowTokens: 256000},
