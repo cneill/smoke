@@ -55,12 +55,14 @@ func (m *Model) View() string {
 
 	separator := style.Border.Render(" ✱ ")
 
-	modelStyled := style.Usage.Render(fmt.Sprintf("%s/%s", m.modelInfo.Provider, m.modelInfo.Model))
-	modeStyled := style.Usage.Render(fmt.Sprintf("mode: %s", m.modelMode))
+	modelStyled := style.Secondary.Render(string(m.modelInfo.Provider)) +
+		style.Border.Render("/") +
+		style.Usage.Render(m.modelInfo.Model)
+	modeStyled := style.Secondary.Render("mode: ") + style.Usage.Render(string(m.modelMode))
 	left := modelStyled + separator + modeStyled
 	leftWidth := lipgloss.Width(left)
 
-	usage := separator + style.Usage.Render("ctx: "+utils.CommaFormatInt(m.contextWindowTokens))
+	usage := separator + style.Secondary.Render("ctx: ") + style.Usage.Render(utils.CommaFormatInt(m.contextWindowTokens))
 
 	// Models without a known context window size (e.g. Ollama) would otherwise render a 0 max and a NaN/Inf percentage.
 	if maxContextWindow := m.modelInfo.ContextWindowTokens; maxContextWindow > 0 {
