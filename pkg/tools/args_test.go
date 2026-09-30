@@ -74,14 +74,6 @@ func TestArgs_GetString(t *testing.T) {
 func TestArgs_GetInt_and_GetInt64(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
-	intPtr := func(input int) *int {
-		return &input
-	}
-
-	int64Ptr := func(input int64) *int64 {
-		return &input
-	}
-
 	tests := []struct {
 		name          string
 		args          tools.Args
@@ -119,34 +111,46 @@ func TestArgs_GetInt_and_GetInt64(t *testing.T) { //nolint:funlen
 			expectedInt64: nil,
 		},
 		{
-			name:          "json_number_float",
-			args:          tools.Args{testKey: json.Number("1.5")},
-			expectedInt:   nil,
-			expectedInt64: nil,
-		},
-		{
 			name:          "int",
 			args:          tools.Args{testKey: int(1)},
-			expectedInt:   intPtr(1),
-			expectedInt64: int64Ptr(1),
+			expectedInt:   new(1),
+			expectedInt64: new(int64(1)),
 		},
 		{
 			name:          "int64",
 			args:          tools.Args{testKey: int64(1)},
-			expectedInt:   intPtr(1),
-			expectedInt64: int64Ptr(1),
+			expectedInt:   new(1),
+			expectedInt64: new(int64(1)),
 		},
 		{
 			name:          "string",
 			args:          tools.Args{testKey: "1"},
-			expectedInt:   intPtr(1),
-			expectedInt64: int64Ptr(1),
+			expectedInt:   new(1),
+			expectedInt64: new(int64(1)),
 		},
 		{
 			name:          "json_number_int",
 			args:          tools.Args{testKey: json.Number("1")},
-			expectedInt:   intPtr(1),
-			expectedInt64: int64Ptr(1),
+			expectedInt:   new(1),
+			expectedInt64: new(int64(1)),
+		},
+		{
+			name:          "json_number_with_decimal_int",
+			args:          tools.Args{testKey: json.Number("1.0")},
+			expectedInt:   new(1),
+			expectedInt64: new(int64(1)),
+		},
+		{
+			name:          "json_number_with_decimal_int_trailing_zeroes",
+			args:          tools.Args{testKey: json.Number("1.0000")},
+			expectedInt:   new(1),
+			expectedInt64: new(int64(1)),
+		},
+		{
+			name:          "json_number_with_decimal_non_int",
+			args:          tools.Args{testKey: json.Number("1.5")},
+			expectedInt:   nil,
+			expectedInt64: nil,
 		},
 	}
 

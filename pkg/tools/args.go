@@ -151,7 +151,16 @@ func (a Args) GetInt64(key string) *int64 {
 	case json.Number:
 		int64Val, err = val.Int64()
 		if err != nil {
-			return nil
+			float64Val, err := val.Float64()
+			if err != nil {
+				return nil
+			}
+
+			if math.Trunc(float64Val) != float64Val {
+				return nil
+			}
+
+			int64Val = int64(float64Val)
 		}
 	case int:
 		int64Val = int64(val)
