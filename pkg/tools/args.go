@@ -125,7 +125,9 @@ func (a Args) GetInt(key string) *int {
 	int64Val := a.GetInt64(key)
 	if int64Val == nil {
 		return nil
-	} else if *int64Val < math.MinInt || *int64Val > math.MaxInt {
+	}
+
+	if *int64Val < math.MinInt || *int64Val > math.MaxInt {
 		return nil
 	}
 
@@ -150,32 +152,26 @@ func (a Args) GetInt64(key string) *int64 {
 	switch val := val.(type) {
 	case json.Number:
 		int64Val, err = val.Int64()
-		if err != nil {
-			float64Val, err := val.Float64()
-			if err != nil {
-				return nil
-			}
+		if err == nil {
+			return &int64Val
+		}
 
-			if math.Trunc(float64Val) != float64Val {
-				return nil
-			}
-
-			int64Val = int64(float64Val)
+		float64Val, err := val.Float64()
+		if err == nil && math.Trunc(float64Val) == float64Val {
+			return new(int64(float64Val))
 		}
 	case int:
-		int64Val = int64(val)
+		return new(int64(val))
 	case string:
 		int64Val, err = strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return nil
+		if err == nil {
+			return &int64Val
 		}
 	case int64:
-		int64Val = val
-	default:
-		return nil
+		return &val
 	}
 
-	return &int64Val
+	return nil
 }
 
 // GetFloat64 checks whether the argument matching 'key' is a [json.Number], a float64, or a string, and if not, it
