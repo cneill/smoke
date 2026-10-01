@@ -7,23 +7,21 @@ type Config struct {
 	BaseURL     string
 	Effort      string
 	MaxTokens   int64
-	Model       string
-	ContextSize int64
+	ModelInfo   ModelInfo
 	NoStream    bool
-	Provider    LLMType
 	Temperature float64
 }
 
 func (c *Config) OK() error {
 	// Not validating temperature here, ranges vary by provider
 	switch {
-	case c.APIKey == "" && c.Provider != LLMTypeOllama: // All other providers require an API key
+	case c.APIKey == "" && c.ModelInfo.Provider != LLMTypeOllama: // All other providers require an API key
 		return fmt.Errorf("missing api key")
 	case c.MaxTokens <= 0:
 		return fmt.Errorf("max tokens must be >0")
-	case c.Model == "":
+	case c.ModelInfo.Model == "":
 		return fmt.Errorf("missing model")
-	case c.Provider == "":
+	case c.ModelInfo.Provider == "":
 		return fmt.Errorf("missing provider")
 	}
 

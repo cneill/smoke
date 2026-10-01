@@ -16,7 +16,7 @@ type Config struct {
 
 func (c *Config) OK() error {
 	if err := c.MCP.OK(); err != nil {
-		return fmt.Errorf("error with MCP config: %w", c.MCP.OK())
+		return fmt.Errorf("error with MCP config: %w", err)
 	}
 
 	return nil

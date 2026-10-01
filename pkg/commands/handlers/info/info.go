@@ -52,8 +52,8 @@ func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 				Title: "Session info",
 				Fields: []uimsg.HistoryField{
 					uimsg.NewField("Session name", session.Name),
-					uimsg.NewField("Provider", string(session.Config.Provider)),
-					uimsg.NewField("Model", session.Config.Model),
+					uimsg.NewField("Provider", string(session.Config.ModelInfo.Provider)),
+					uimsg.NewField("Model", session.Config.ModelInfo.Model),
 					uimsg.NewField("Reasoning effort", session.Config.Effort),
 					uimsg.NewField("Mode", string(session.GetMode())),
 					uimsg.NewField(
@@ -69,8 +69,8 @@ func (i *Info) Run(_ context.Context, msg commands.PromptMessage, session *llms.
 					uimsg.NewField(
 						"Current context window usage",
 						fmt.Sprintf("Used=%d, Max=%d, Percent used=%.2f%%",
-							usage.CurrentContextWindowTokens, session.Config.ContextSize,
-							float64(usage.CurrentContextWindowTokens)/float64(session.Config.ContextSize)*100),
+							usage.CurrentContextWindowTokens, session.Config.ModelInfo.ContextWindowTokens,
+							float64(usage.CurrentContextWindowTokens)/float64(session.Config.ModelInfo.ContextWindowTokens)*100),
 					),
 					uimsg.NewField("Duration", time.Since(session.CreatedAt).String()),
 					uimsg.NewField("Tools available", toolNames),

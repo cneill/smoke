@@ -11,6 +11,7 @@ import (
 	"github.com/cneill/smoke/pkg/tools"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/responses"
 	"github.com/openai/openai-go/v3/shared"
 )
@@ -90,13 +91,13 @@ func (c *conversation) getNewResponsesParams() responses.ResponseNewParams {
 	params := responses.ResponseNewParams{
 		MaxOutputTokens: openai.Int(config.MaxTokens),
 		Input:           c.getInputFromSession(session),
-		Model:           config.Model,
+		Model:           config.ModelInfo.Model,
 		Store:           openai.Bool(false),
 		Temperature:     openai.Float(config.Temperature),
 		Tools:           c.responsesTools(session.Tools.GetTools()),
 	}
 
-	if c.Config().Provider == llms.LLMTypeChatGPT || c.Config().Provider == llms.LLMTypeGrok {
+	if provider := c.Config().ModelInfo.Provider; provider == llms.LLMTypeChatGPT || provider == llms.LLMTypeGrok {
 		params.Reasoning = shared.ReasoningParam{
 			Effort:  shared.ReasoningEffort(c.Config().Effort), // "none", "minimal", "low", "medium", "high", "xhigh"
 			Summary: shared.ReasoningSummaryDetailed,
@@ -136,7 +137,7 @@ func (c *conversation) getInputFromSession(session *llms.Session) responses.Resp
 					})
 				case llms.BlockTypeReasoning:
 					if block.Reasoning.Detail.Type() != llms.ReasoningDetailTypeOpenAI ||
-						block.Reasoning.Detail.OpenAI.Source != c.Config().Provider {
+						block.Reasoning.Detail.OpenAI.Source != c.Config().ModelInfo.Provider {
 						continue
 					}
 
@@ -222,7 +223,7 @@ func (c *conversation) toolMessageInput(msg *llms.Message) responses.ResponseInp
 
 	return responses.ResponseInputItemUnionParam{
 		OfFunctionCallOutput: &responses.ResponseInputItemFunctionCallOutputParam{
-			CallID: msg.ToolCalls()[0].ID,
+			CallID: param.NewOpt[string](msg.ToolCalls()[0].ID),
 			Output: content,
 		},
 	}
@@ -342,7 +343,7 @@ func (c *conversation) outputToMessage(output []responses.ResponseOutputItemUnio
 				Summary: summary,
 				Detail: llms.ReasoningDetail{
 					OpenAI: &llms.OpenAIReasoningDetail{
-						Source:           c.Config().Provider,
+						Source:           c.Config().ModelInfo.Provider,
 						ID:               outputItem.ID,
 						EncryptedContent: outputItem.EncryptedContent,
 						Content:          content,

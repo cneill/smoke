@@ -16,6 +16,7 @@ import (
 	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
+	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/statusline"
 	"github.com/mattn/go-runewidth"
 )
@@ -31,9 +32,9 @@ type Opts struct {
 	Width            int
 	Height           int
 	MaxHeight        int
-	MaxContextWindow int64
+	ModelInfo        llms.ModelInfo
 	PlaceholderText  string
-	CommandCompleter func(string) []string
+	CommandCompleter func(string) []commands.Command
 	SkillCompleter   func(string) []*skills.Skill
 	PathCompleter    func(string) []fs.PathMatch
 }
@@ -104,7 +105,7 @@ func New(opts *Opts) (*Model, error) {
 	}
 
 	model := &Model{
-		statusline: statusline.New(opts.Width, opts.MaxContextWindow),
+		statusline: statusline.New(opts.Width, opts.ModelInfo),
 		textarea:   getTextArea(opts),
 		spinner:    getSpinner(opts.Width, opts.Height),
 

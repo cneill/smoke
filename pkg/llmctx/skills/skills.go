@@ -79,7 +79,7 @@ func (c Catalog) Completer() func(string) []*Skill {
 		results := []*Skill{}
 
 		for _, skill := range c {
-			if strings.HasPrefix(skill.Name, input) || input == "" {
+			if strings.Contains(skill.Name, input) || input == "" {
 				results = append(results, skill)
 			}
 		}

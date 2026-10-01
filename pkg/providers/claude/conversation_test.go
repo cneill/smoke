@@ -119,7 +119,7 @@ func testConversation(t *testing.T) *conversation {
 		SystemMessage: "system",
 		Tools:         manager,
 		Mode:          modes.ModeWork,
-		Config:        &llms.Config{Provider: llms.LLMTypeClaude, Model: "model"},
+		Config:        &llms.Config{ModelInfo: llms.ModelInfo{Provider: llms.LLMTypeClaude, Model: "model"}},
 	},
 	)
 	require.NoError(t, err)

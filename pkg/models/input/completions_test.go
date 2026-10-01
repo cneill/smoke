@@ -1,26 +1,43 @@
 package input_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
+	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/models/input"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+type dummyCommand struct {
+	name  string
+	usage string
+	help  string
+}
+
+func (d *dummyCommand) Name() string  { return d.name }
+func (d *dummyCommand) Help() string  { return d.help }
+func (d *dummyCommand) Usage() string { return d.usage }
+func (d *dummyCommand) Run(_ context.Context, _ commands.PromptMessage, _ *llms.Session) (tea.Cmd, error) {
+	return nil, errors.New("dummy command should not be run")
+}
+
 func newTestCompletionState(
 	t *testing.T,
-	commandFn func(string) []string,
+	commandFn func(string) []commands.Command,
 	skillFn func(string) []*skills.Skill,
 	pathFn func(string) []fs.PathMatch,
 ) *input.CompletionState {
 	t.Helper()
 
 	if commandFn == nil {
-		commandFn = func(string) []string { return nil }
+		commandFn = func(string) []commands.Command { return nil }
 	}
 
 	if skillFn == nil {
@@ -211,10 +228,13 @@ func TestVisibleRangeWindow(t *testing.T) {
 func TestCommandCompletionPopup(t *testing.T) {
 	t.Parallel()
 
-	commandFn := func(prefix string) []string {
+	commandFn := func(prefix string) []commands.Command {
 		switch prefix {
 		case "", "h", "he":
-			return []string{"help", "history"}
+			return []commands.Command{
+				&dummyCommand{name: "help", usage: "help", help: "give help"},
+				&dummyCommand{name: "history", usage: "history", help: "show history"},
+			}
 		default:
 			return nil
 		}
@@ -222,17 +242,15 @@ func TestCommandCompletionPopup(t *testing.T) {
 	cs := newTestCompletionState(t, commandFn, nil, nil)
 
 	result := cs.HandleKey(keyRunes("/"), "")
-	handled := result.Consume
-	assert.False(t, handled)
+	assert.False(t, result.Consume)
 	assert.True(t, cs.InCommandCompletion())
 	assert.True(t, cs.PopupActive())
 	assert.Equal(t, []string{"help", "history"}, matchValues(cs.Matches()))
-	assert.Equal(t, []string{"help", "history"}, matchLabels(cs.Matches()))
+	assert.Equal(t, []string{"/help     give help", "/history  show history"}, matchLabels(cs.Matches()))
 
 	cs.HandleKey(keyRunes("h"), "/")
 	result = cs.HandleKey(tea.KeyMsg{Type: tea.KeyEnter}, "/h")
-	handled = result.Consume
-	assert.True(t, handled)
+	assert.True(t, result.Consume)
 	assert.Equal(t, "/help", result.Replace)
 	assert.Equal(t, input.CompletionLeaderCommand, result.Leader)
 	assert.False(t, cs.InCompletion())
@@ -241,14 +259,19 @@ func TestCommandCompletionPopup(t *testing.T) {
 func TestCommandCompletionUsageValue(t *testing.T) {
 	t.Parallel()
 
-	commandFn := func(string) []string {
-		return []string{"mode <plan|work>", "help"}
+	commandFn := func(string) []commands.Command {
+		return []commands.Command{
+			&dummyCommand{name: "mode", usage: "mode <plan|work>", help: "set the mode"},
+			&dummyCommand{name: "help", usage: "help", help: "show help"},
+		}
 	}
 	cs := newTestCompletionState(t, commandFn, nil, nil)
 	cs.HandleKey(keyRunes("/"), "")
 	require.True(t, cs.PopupActive())
+
+	// Value is the bare name used for acceptance; Label shows the full usage line, padded to align descriptions.
 	assert.Equal(t, []string{"mode", "help"}, matchValues(cs.Matches()))
-	assert.Equal(t, []string{"mode <plan|work>", "help"}, matchLabels(cs.Matches()))
+	assert.Equal(t, []string{"/mode <plan|work>  set the mode", "/help              show help"}, matchLabels(cs.Matches()))
 
 	result := cs.HandleKey(tea.KeyMsg{Type: tea.KeyEnter}, "/")
 	assert.Equal(t, "/mode", result.Replace)

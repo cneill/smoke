@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/cneill/smoke/pkg/commands"
 	"github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/llmctx/skills"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +24,7 @@ func newNavigationModel(t *testing.T, width ...int) *Model {
 	model, err := New(&Opts{
 		Width:            modelWidth,
 		Height:           5,
-		CommandCompleter: func(string) []string { return nil },
+		CommandCompleter: func(string) []commands.Command { return nil },
 		SkillCompleter:   func(string) []*skills.Skill { return nil },
 		PathCompleter:    func(string) []fs.PathMatch { return nil },
 	})

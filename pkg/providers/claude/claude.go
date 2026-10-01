@@ -51,7 +51,7 @@ func New(config *llms.Config) (llms.LLM, error) {
 func (c *Claude) LLMInfo() *llms.LLMInfo {
 	return &llms.LLMInfo{
 		Type:      llms.LLMTypeClaude,
-		ModelName: c.config.Model,
+		ModelName: c.config.ModelInfo.Model,
 	}
 }
 

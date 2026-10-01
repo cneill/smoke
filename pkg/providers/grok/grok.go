@@ -56,7 +56,7 @@ func New(config *llms.Config) (llms.LLM, error) {
 func (g *Grok) LLMInfo() *llms.LLMInfo {
 	return &llms.LLMInfo{
 		Type:      llms.LLMTypeGrok,
-		ModelName: g.config.Model,
+		ModelName: g.config.ModelInfo.Model,
 	}
 }
 
