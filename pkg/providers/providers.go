@@ -123,13 +123,19 @@ var chatGPT = llms.ModelInfos{ //nolint:gochecknoglobals
 	{
 		Provider:            llms.LLMTypeChatGPT,
 		Model:               openai.ChatModelGPT6Sol,
-		Aliases:             []string{"sol", "6-sol"},
+		Aliases:             []string{"6-sol"},
 		ContextWindowTokens: 1050000,
 	},
 	{
 		Provider:            llms.LLMTypeChatGPT,
 		Model:               openai.ChatModelGPT6Luna,
 		Aliases:             []string{"luna", "6-luna"},
+		ContextWindowTokens: 1050000,
+	},
+	{
+		Provider:            llms.LLMTypeChatGPT,
+		Model:               openai.ChatModelGPT6_1Sol,
+		Aliases:             []string{"sol", "6.1-sol"},
 		ContextWindowTokens: 1050000,
 	},
 }
