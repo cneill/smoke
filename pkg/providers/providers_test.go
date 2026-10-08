@@ -25,21 +25,21 @@ func TestDetailsModelInfo(t *testing.T) {
 			provider:          llms.LLMTypeChatGPT,
 			search:            "",
 			wantModel:         openai.ChatModelGPT6Sol,
-			wantContextTokens: 1050000,
+			wantContextTokens: 1_050_000,
 		},
 		{
 			name:              "canonical model",
 			provider:          llms.LLMTypeClaude,
 			search:            "claude-sonnet-4-6",
 			wantModel:         "claude-sonnet-4-6",
-			wantContextTokens: 1000000,
+			wantContextTokens: 1_000_000,
 		},
 		{
 			name:              "alias",
 			provider:          llms.LLMTypeGrok,
-			search:            "build",
-			wantModel:         "grok-build-0.1",
-			wantContextTokens: 256000,
+			search:            "470",
+			wantModel:         "grok-4.7",
+			wantContextTokens: 500_000,
 		},
 	}
 
