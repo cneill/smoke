@@ -32,32 +32,8 @@ var (
 var chatGPT = llms.ModelInfos{ //nolint:gochecknoglobals
 	{
 		Provider:            llms.LLMTypeChatGPT,
-		Model:               openai.ChatModelGPT5,
-		Aliases:             []string{"5", "gpt5", "gpt-5"},
-		ContextWindowTokens: 400000,
-	},
-	{
-		Provider:            llms.LLMTypeChatGPT,
-		Model:               openai.ChatModelGPT5Mini,
-		Aliases:             []string{"5-mini", "gpt5-mini", "gpt-5-mini"},
-		ContextWindowTokens: 400000,
-	},
-	{
-		Provider:            llms.LLMTypeChatGPT,
-		Model:               openai.ChatModelGPT5Nano,
-		Aliases:             []string{"5-nano", "gpt5-nano", "gpt-5-nano"},
-		ContextWindowTokens: 400000,
-	},
-	{
-		Provider:            llms.LLMTypeChatGPT,
 		Model:               openai.ChatModelGPT5_1,
 		Aliases:             []string{"5.1", "gpt5.1", "gpt-5.1"},
-		ContextWindowTokens: 400000,
-	},
-	{
-		Provider:            llms.LLMTypeChatGPT,
-		Model:               openai.ChatModelGPT5_1Codex,
-		Aliases:             []string{"5.1-codex", "gpt5.1-codex", "gpt-5.1-codex"},
 		ContextWindowTokens: 400000,
 	},
 	{
@@ -144,20 +120,26 @@ var claude = llms.ModelInfos{ //nolint:gochecknoglobals
 	{
 		Provider:            llms.LLMTypeClaude,
 		Model:               anthropic.ModelClaudeFable5_1,
-		Aliases:             []string{"fable5.1"},
+		Aliases:             []string{"fable", "fable5.1", "f5.1"},
 		ContextWindowTokens: 1000000,
 	},
 	{
 		Provider:            llms.LLMTypeClaude,
 		Model:               anthropic.ModelClaudeFable5,
-		Aliases:             []string{"fable", "fable5"},
+		Aliases:             []string{"fable5", "f5"},
 		ContextWindowTokens: 1000000,
 	},
 	{
 		Provider:            llms.LLMTypeClaude,
 		Model:               anthropic.ModelClaudeHaiku4_5,
-		Aliases:             []string{"haiku", "haiku4.5", "h45"},
+		Aliases:             []string{"haiku4.5", "h45"},
 		ContextWindowTokens: 200000,
+	},
+	{
+		Provider:            llms.LLMTypeClaude,
+		Model:               anthropic.ModelClaudeHaiku5_5,
+		Aliases:             []string{"haiku", "haiku5.5", "h55"},
+		ContextWindowTokens: 1000000,
 	},
 	{
 		Provider:            llms.LLMTypeClaude,
@@ -213,12 +195,6 @@ var claude = llms.ModelInfos{ //nolint:gochecknoglobals
 		Aliases:             []string{"sonnet4.6", "s46"},
 		ContextWindowTokens: 1000000,
 	},
-	{
-		Provider:            llms.LLMTypeClaude,
-		Model:               anthropic.ModelClaudeSonnet4_5,
-		Aliases:             []string{"sonnet4.5", "s45"},
-		ContextWindowTokens: 200000,
-	},
 }
 
 var grok = llms.ModelInfos{ //nolint:gochecknoglobals
@@ -242,20 +218,8 @@ var grok = llms.ModelInfos{ //nolint:gochecknoglobals
 	},
 	{
 		Provider:            llms.LLMTypeGrok,
-		Model:               "grok-build-0.1",
-		Aliases:             []string{"build", "fast"},
-		ContextWindowTokens: 256000,
-	},
-	{
-		Provider:            llms.LLMTypeGrok,
 		Model:               "grok-4.3",
 		Aliases:             []string{"4.3", "430"},
-		ContextWindowTokens: 1000000,
-	},
-	{
-		Provider:            llms.LLMTypeGrok,
-		Model:               "grok-4.20-0309-reasoning",
-		Aliases:             []string{"4.2", "420"},
 		ContextWindowTokens: 1000000,
 	},
 }
