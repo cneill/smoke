@@ -25,6 +25,10 @@ func (s *Smoke) setup(ctx context.Context) error {
 		return fmt.Errorf("%w: %w", ErrOptions, err)
 	}
 
+	if s.oneShot {
+		return s.setupOneShot(ctx)
+	}
+
 	if err := s.setupPlanManager(); err != nil {
 		return fmt.Errorf("failed to set up plan manager for smoke: %w", err)
 	}
@@ -42,12 +46,28 @@ func (s *Smoke) setup(ctx context.Context) error {
 		return fmt.Errorf("failed to set up MCP clients: %w", err)
 	}
 
-	if err := s.setupSession(ctx); err != nil {
+	if err := s.setupSession(ctx, modes.DefaultMode()); err != nil {
 		return fmt.Errorf("failed to set up main smoke session: %w", err)
 	}
 
 	if err := s.setupCommands(); err != nil {
 		return fmt.Errorf("failed to set up commands: %w", err)
+	}
+
+	return nil
+}
+
+// setupOneShot performs the minimal setup needed for a non-interactive one-shot request. It skips plans, skills, the
+// ask manager, MCP clients, and commands so that nothing is written to disk and startup stays fast.
+func (s *Smoke) setupOneShot(ctx context.Context) error {
+	s.setupAgentsmd()
+
+	if err := s.setupLLM(); err != nil {
+		return fmt.Errorf("failed to set up LLM: %w", err)
+	}
+
+	if err := s.setupSession(ctx, modes.ModeOneShot); err != nil {
+		return fmt.Errorf("failed to set up one-shot session: %w", err)
 	}
 
 	return nil
@@ -119,10 +139,8 @@ func (s *Smoke) setupAskManager() {
 	s.askManager = manager
 }
 
-func (s *Smoke) setupSession(ctx context.Context) error {
-	slog.Debug("setting up main session", "name", s.mainSessionName)
-
-	mode := modes.DefaultMode()
+func (s *Smoke) setupSession(ctx context.Context, mode modes.Mode) error {
+	slog.Debug("setting up main session", "name", s.mainSessionName, "mode", mode)
 
 	toolManager, err := s.NewToolManager(ctx, mode)
 	if err != nil {

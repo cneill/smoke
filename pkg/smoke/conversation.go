@@ -9,7 +9,7 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 )
 
-func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, conversation llms.Conversation) { //nolint:gocognit,cyclop,funlen
+func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, conversation llms.Conversation) { //nolint:cyclop
 	eventsChan := conversation.Events()
 
 	// TODO: smoke message type for returning an error tea.Msg to the UI for things that aren't conversation related,
@@ -76,26 +76,10 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 			case llms.EventToolCallsRequested:
 				pendingMessage = nil
 
-				if err := session.AddMessage(event.Message); err != nil {
-					slog.Error("failed to add assistant tool call message to session", "error", err)
+				if err := runToolCalls(ctx, session, conversation, event.Message); err != nil {
+					slog.Error("failed to run tool calls", "error", err)
 					conversation.Cancel(err)
 
-					return
-				}
-
-				for _, toolCall := range event.Message.ToolCalls() {
-					resultsMsg := toolCallResultMessage(ctx, session, toolCall)
-
-					if err := session.AddMessage(resultsMsg); err != nil {
-						slog.Error("failed to add tool call result message to session", "error", err)
-						conversation.Cancel(err)
-					}
-
-					slog.Debug("Got assistant tool call message", "message", event.Message)
-				}
-
-				if err := conversation.Continue(ctx); err != nil {
-					slog.Error("errored out while waiting for continue", "error", err)
 					return
 				}
 			case llms.EventUsageUpdate:
@@ -106,4 +90,28 @@ func (s *Smoke) conversationLoop(ctx context.Context, session *llms.Session, con
 			}
 		}
 	}
+}
+
+// runToolCalls records the assistant's tool call request in the session, executes each requested tool call, records
+// the results, and then signals the conversation to continue.
+func runToolCalls(ctx context.Context, session *llms.Session, conversation llms.Conversation, msg *llms.Message) error {
+	if err := session.AddMessage(msg); err != nil {
+		return fmt.Errorf("failed to add assistant tool call message to session: %w", err)
+	}
+
+	slog.Debug("Got assistant tool call message", "message", msg)
+
+	for _, toolCall := range msg.ToolCalls() {
+		resultsMsg := toolCallResultMessage(ctx, session, toolCall)
+
+		if err := session.AddMessage(resultsMsg); err != nil {
+			return fmt.Errorf("failed to add tool call result message to session: %w", err)
+		}
+	}
+
+	if err := conversation.Continue(ctx); err != nil {
+		return fmt.Errorf("failed to continue conversation after tool calls: %w", err)
+	}
+
+	return nil
 }

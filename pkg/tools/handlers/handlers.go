@@ -87,6 +87,18 @@ func ReviewTools() []tools.Initializer {
 	}
 }
 
+// OneShotTools returns the tool set used for non-interactive one-shot prompts (no writes / edits).
+func OneShotTools() []tools.Initializer {
+	return []tools.Initializer{
+		gitdiff.New,
+		golint.New,
+		gotest.New,
+		grep.New,
+		ls.New,
+		readfile.New,
+	}
+}
+
 func SummarizeTools() []tools.Initializer {
 	return []tools.Initializer{
 		planread.New,

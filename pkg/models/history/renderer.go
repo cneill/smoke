@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cneill/smoke/internal/markdown"
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/muesli/reflow/wordwrap"
 )
@@ -17,9 +18,9 @@ type Renderer struct {
 }
 
 func NewRenderer(width int) (*Renderer, error) {
-	mdRenderer, err := getGlamourRenderer(width)
+	mdRenderer, err := markdown.NewTermRenderer(width)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("history renderer: %w", err)
 	}
 
 	return &Renderer{
