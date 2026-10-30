@@ -6,8 +6,8 @@ permissions:
 env:
   GOFUMPT_VERSION: v0.10.0
   GOIMPORTS_VERSION: v0.46.0
-  GOLANGCILINT_COMMIT: c0d3ddc9cf3faa61a4e378e879ece580256d76e5
-  GOLANGCILINT_VERSION: v2.12.2
+  GOLANGCILINT_COMMIT: f838df1edb6265abbfa24f5cbb7381b21c735642
+  GOLANGCILINT_VERSION: v2.15.0
 jobs:
   test-and-lint:
     runs-on: ubuntu-latest
@@ -18,7 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.26"
+          go-version: "1.27.3"
 
       - name: Build
         run: go build -v ./cmd/smoke
@@ -37,4 +37,4 @@ jobs:
         with:
           # TODO: remove once TODOs are cleaned up
           args: "--disable godox --max-issues-per-linter 100 --max-same-issues 100"
-          version: v2.13.0
+          version: ${{ env.GOLANGCILINT_VERSION }}
