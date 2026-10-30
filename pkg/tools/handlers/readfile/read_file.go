@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/cneill/smoke/pkg/fs"
@@ -135,6 +136,10 @@ func (r *ReadFile) Run(_ context.Context, args tools.Args) (*tools.Output, error
 
 	if start > numLines {
 		return nil, fmt.Errorf("%w: %q is beyond the end of the file", tools.ErrArguments, ParamStartLine)
+	}
+
+	if start > math.MaxInt {
+		return nil, fmt.Errorf("%w: %q is too large (max %d)", tools.ErrArguments, ParamStartLine, math.MaxInt)
 	}
 
 	output := &tools.Output{

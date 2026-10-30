@@ -1,6 +1,6 @@
 module github.com/cneill/smoke
 
-go 1.26.5
+go 1.27.3
 
 require (
 	github.com/PuerkitoBio/goquery v1.13.0
