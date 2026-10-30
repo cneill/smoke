@@ -17,9 +17,13 @@ import (
 	"github.com/cneill/smoke/pkg/providers"
 	"github.com/cneill/smoke/pkg/smoke"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/term"
 )
 
-var ErrInit = errors.New("initialization")
+var (
+	ErrInit    = errors.New("initialization")
+	ErrOneShot = errors.New("one-shot")
+)
 
 func validate(cmd *cli.Command) error {
 	provider := strings.ToLower(cmd.String(FlagProvider))
@@ -100,7 +104,7 @@ func getLLMConfig(cmd *cli.Command) (*llms.Config, error) {
 	return llmConfig, nil
 }
 
-func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, error) {
+func getSmokeInstance(ctx context.Context, cmd *cli.Command, extraOpts ...smoke.OptFunc) (*smoke.Smoke, error) {
 	args := cmd.Args()
 
 	projectPath := args.First()
@@ -125,13 +129,13 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 		return nil, fmt.Errorf("failed to set up LLM configuration: %w", err)
 	}
 
-	opts := []smoke.OptFunc{
+	opts := append([]smoke.OptFunc{
 		smoke.WithConfig(loadedConfig),
 		smoke.WithDebug(cmd.Bool(FlagDebug)),
 		smoke.WithProjectPath(projectPath),
 		smoke.WithSessionName(sessionName),
 		smoke.WithLLMConfig(llmConfig),
-	}
+	}, extraOpts...)
 
 	smokeInstance, err := smoke.New(ctx, opts...)
 	if err != nil {
@@ -144,6 +148,11 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command) (*smoke.Smoke, erro
 func run(ctx context.Context, cmd *cli.Command) error {
 	if err := validate(cmd); err != nil {
 		return fmt.Errorf("%w: flag validation error: %w", ErrInit, err)
+	}
+
+	// Piped stdin means a non-interactive one-shot prompt. This must happen before the log file is created.
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return runOneShot(ctx, cmd)
 	}
 
 	logFile, err := setupLogFile(cmd)
@@ -210,6 +219,11 @@ func main() {
 			}
 
 			fmt.Printf("error: %v\n", err)
+			os.Exit(1)
+		}
+
+		if errors.Is(err, ErrOneShot) {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
 

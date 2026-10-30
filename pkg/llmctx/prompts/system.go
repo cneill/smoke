@@ -211,6 +211,34 @@ func ReviewSystemPrompt() *Prompt {
 	return builder.Build()
 }
 
+// OneShotSystemPrompt builds the system prompt for a single, non-interactive, read-only request.
+func OneShotSystemPrompt() *Prompt {
+	builder := NewBuilder("oneshot_system")
+	builder.ApplyPreset(SystemPreset(), Append)
+
+	// Task
+	builder.Add(
+		SectionTaskContext,
+		P("You are currently in `oneshot_process`: a single, non-interactive request. The user cannot answer "+
+			"follow-up questions."),
+	)
+
+	// Instructions (the preset's instructions reference skills and the ask tool, which are unavailable here)
+	builder.Replace(
+		SectionInstructions,
+		List(
+			Itemf("Investigate the request using the available tools (`%s`, `%s`, `%s`, `%s`, `%s`, `%s`) before "+
+				"answering.", tools.NameReadFile, tools.NameGrep, tools.NameLS, tools.NameGitDiff, tools.NameGoTest,
+				tools.NameGoLint),
+			Item("If anything is ambiguous, make reasonable assumptions and state them explicitly in your answer."),
+			Item("You cannot modify files. If changes are needed, describe them with code blocks or diffs."),
+			Item("Finish with one complete, self-contained final answer in Markdown."),
+		),
+	)
+
+	return builder.Build()
+}
+
 // SummarizeSystemPrompt builds the summarization system prompt.
 func SummarizeSystemPrompt(messages ...*llms.Message) *Prompt {
 	builder := NewBuilder("summarize_system")

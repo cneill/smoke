@@ -33,6 +33,7 @@ import (
 type Smoke struct {
 	config      *config.Config
 	debug       bool
+	oneShot     bool
 	projectPath string
 
 	planStore   *plan.Store

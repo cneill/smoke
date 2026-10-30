@@ -20,6 +20,8 @@ func (s *Smoke) SystemPrompt(mode modes.Mode) (string, error) {
 		basePrompt = prompts.PlanningSystemPrompt()
 	case modes.ModeReview:
 		basePrompt = prompts.ReviewSystemPrompt()
+	case modes.ModeOneShot:
+		basePrompt = prompts.OneShotSystemPrompt()
 	default:
 		return "", fmt.Errorf("no standalone system prompt for mode %q, must be one of %q", mode, modes.SelectableModes())
 	}

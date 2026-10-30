@@ -61,6 +61,8 @@ func (s *Smoke) ModeToolInitializers(mode modes.Mode) []tools.Initializer {
 		enabledTools = handlers.RankingTools()
 	case modes.ModeSummarize:
 		enabledTools = handlers.SummarizeTools()
+	case modes.ModeOneShot:
+		enabledTools = handlers.OneShotTools()
 	default:
 		enabledTools = handlers.WorkTools()
 	}

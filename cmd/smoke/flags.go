@@ -22,6 +22,7 @@ const (
 	FlagAnthropicKey = "anthropic-api-key"
 	FlagXAIKey       = "xai-api-key"
 	FlagOllamaHost   = "ollama-host"
+	FlagMaxTurns     = "max-turns"
 
 	EnvDebug        = "SMOKE_DEBUG"
 	EnvEffort       = "SMOKE_EFFORT"
@@ -35,6 +36,7 @@ const (
 	EnvAnthropicKey = "ANTHROPIC_API_KEY"
 	EnvXAIKey       = "XAI_API_KEY"
 	EnvOllamaHost   = "OLLAMA_HOST"
+	EnvMaxTurns     = "SMOKE_MAX_TURNS"
 )
 
 func flags() []cli.Flag {
@@ -42,8 +44,23 @@ func flags() []cli.Flag {
 	flags = append(flags, localConfigFlags()...)
 	flags = append(flags, llmConfigFlags()...)
 	flags = append(flags, providerFlags()...)
+	flags = append(flags, oneShotFlags()...)
 
 	return flags
+}
+
+func oneShotFlags() []cli.Flag {
+	category := "One-shot"
+
+	return []cli.Flag{
+		&cli.IntFlag{
+			Name:     FlagMaxTurns,
+			Usage:    "Max tool-call rounds when running a one-shot prompt from stdin",
+			Category: category,
+			Sources:  cli.EnvVars(EnvMaxTurns),
+			Value:    50,
+		},
+	}
 }
 
 func localConfigFlags() []cli.Flag {

@@ -10,7 +10,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
 )
 
 type Opts struct {
@@ -79,20 +78,6 @@ func getViewport(opts *Opts) viewport.Model {
 	newViewport.KeyMap = keyMap
 
 	return newViewport
-}
-
-func getGlamourRenderer(width int) (*glamour.TermRenderer, error) {
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithWordWrap(width),
-		glamour.WithEmoji(),
-		glamour.WithAutoStyle(),
-		glamour.WithPreservedNewLines(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set up markdown renderer: %w", err)
-	}
-
-	return renderer, nil
 }
 
 func (m *Model) Init() tea.Cmd {

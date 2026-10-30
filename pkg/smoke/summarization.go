@@ -72,7 +72,7 @@ func (s *Smoke) HandleSummarizeMessage(msg summarize.SessionSummarizeMessage) (t
 	return handler, nil
 }
 
-func (s *Smoke) summarizationLoop( //nolint:cyclop,gocognit,funlen
+func (s *Smoke) summarizationLoop( //nolint:cyclop
 	ctx context.Context, msg summarize.SessionSummarizeMessage, session *llms.Session, conversation llms.Conversation,
 ) {
 	eventsChan := conversation.Events()
@@ -137,52 +137,10 @@ func (s *Smoke) summarizationLoop( //nolint:cyclop,gocognit,funlen
 			case llms.EventTextDelta:
 			case llms.EventToolCallResults:
 			case llms.EventToolCallsRequested:
-				// TODO: break this out to a separate function for use by main conversation loop as well?
-				if err := session.AddMessage(event.Message); err != nil {
-					slog.Error("failed to add assistant tool call message to session", "error", err)
+				if err := runToolCalls(ctx, session, conversation, event.Message); err != nil {
+					slog.Error("failed to run summarization tool calls", "error", err)
 					conversation.Cancel(err)
 
-					return
-				}
-
-				for _, toolCall := range event.Message.ToolCalls() {
-					var (
-						content     string
-						toolCallErr error
-					)
-
-					output, err := session.Tools.CallTool(ctx, toolCall.Name, toolCall.Args)
-					if err != nil {
-						slog.Error("failed to call tool", "tool_name", toolCall.Name, "error", err)
-						toolCallErr = fmt.Errorf("failed to call tool %q: %w", toolCall.Name, err)
-						content = toolCallErr.Error()
-					} else {
-						// TODO: need to check for images? I doubt it?
-						content = output.Text
-					}
-
-					resultsMsg := llms.NewMessage(
-						llms.WithRole(llms.RoleTool),
-						llms.WithToolCalls(toolCall),
-						llms.WithTextContent(content),
-					)
-
-					if toolCallErr != nil {
-						resultsMsg = resultsMsg.Update(llms.WithError(toolCallErr))
-					}
-
-					if err := session.AddMessage(resultsMsg); err != nil {
-						slog.Error("failed to add tool call result message to session", "error", err)
-						conversation.Cancel(err)
-
-						return
-					}
-
-					slog.Debug("Got assistant tool call message", "message", event.Message)
-				}
-
-				if err := conversation.Continue(ctx); err != nil {
-					slog.Error("errored out while waiting for continue", "error", err)
 					return
 				}
 			case llms.EventUsageUpdate:

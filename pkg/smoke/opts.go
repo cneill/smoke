@@ -70,6 +70,15 @@ func WithDebug(value bool) OptFunc {
 	}
 }
 
+// WithOneShot configures Smoke for a single non-interactive, read-only request. Plans, skills, the ask manager, MCP
+// clients, and commands are not set up.
+func WithOneShot() OptFunc {
+	return func(smoke *Smoke) (*Smoke, error) {
+		smoke.oneShot = true
+		return smoke, nil
+	}
+}
+
 // WithLLMConfig validates the LLM config and sets up the [llms.LLM] we'll work with. This option must come after
 // WithProjectPath and WithSessionName.
 func WithLLMConfig(config *llms.Config) OptFunc {

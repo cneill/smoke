@@ -14,6 +14,7 @@ const (
 	ModeReview    = "review"
 	ModeSummarize = "summarize"
 	ModeRanking   = "ranking"
+	ModeOneShot   = "oneshot"
 )
 
 type Modes []Mode
@@ -29,6 +30,7 @@ func AllModes() Modes {
 		ModeReview,
 		ModeSummarize,
 		ModeRanking,
+		ModeOneShot,
 	}
 }
 
