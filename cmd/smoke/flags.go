@@ -18,11 +18,12 @@ const (
 	FlagSessionName  = "session"
 	FlagProvider     = "provider"
 	FlagTemperature  = "temperature"
+	FlagMaxTurns     = "max-turns"
+	FlagNoGit        = "no-git"
 	FlagOpenAIKey    = "openai-api-key"
 	FlagAnthropicKey = "anthropic-api-key"
 	FlagXAIKey       = "xai-api-key"
 	FlagOllamaHost   = "ollama-host"
-	FlagMaxTurns     = "max-turns"
 
 	EnvDebug        = "SMOKE_DEBUG"
 	EnvEffort       = "SMOKE_EFFORT"
@@ -32,11 +33,12 @@ const (
 	EnvSessionName  = "SMOKE_SESSION"
 	EnvProvider     = "SMOKE_PROVIDER"
 	EnvTemperature  = "SMOKE_TEMPERATURE"
+	EnvMaxTurns     = "SMOKE_MAX_TURNS"
+	EnvNoGit        = "SMOKE_NO_GIT"
 	EnvOpenAIKey    = "OPENAI_API_KEY"
 	EnvAnthropicKey = "ANTHROPIC_API_KEY"
 	EnvXAIKey       = "XAI_API_KEY"
 	EnvOllamaHost   = "OLLAMA_HOST"
-	EnvMaxTurns     = "SMOKE_MAX_TURNS"
 )
 
 func flags() []cli.Flag {
@@ -81,6 +83,13 @@ func localConfigFlags() []cli.Flag {
 			Aliases:  []string{"s"},
 			Sources:  cli.EnvVars(EnvSessionName),
 			Value:    "session",
+		},
+		&cli.BoolFlag{
+			Name:     FlagNoGit,
+			Usage:    "Disable the check for a git repository in the project path",
+			Category: category,
+			Sources:  cli.EnvVars(EnvNoGit),
+			Value:    false,
 		},
 	}
 }

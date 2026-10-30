@@ -1,9 +1,7 @@
 package smoke
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -11,30 +9,55 @@ import (
 	"github.com/cneill/smoke/internal/uimsg"
 	"github.com/cneill/smoke/pkg/config"
 	"github.com/cneill/smoke/pkg/llms"
+
+	git "github.com/go-git/go-git/v5"
 )
 
 // OptFunc is used to configure aspects of Smoke.
 type OptFunc func(smoke *Smoke) (*Smoke, error)
 
 // WithProjectPath sets the directory we'll work from.
-func WithProjectPath(path string) OptFunc {
+func WithProjectPath(path string, noGit bool) OptFunc {
 	return func(smoke *Smoke) (*Smoke, error) {
 		absPath, err := filepath.Abs(path)
 		if err != nil {
-			return nil, fmt.Errorf("invalid project path %q: %w", absPath, err)
+			return nil, fmt.Errorf("invalid project path %q: %w", path, err)
 		}
 
 		if _, err := os.Stat(absPath); err != nil {
 			return nil, fmt.Errorf("failed to stat project path %q: %w", absPath, err)
 		}
 
-		gitPath := filepath.Join(absPath, ".git")
-		if _, err := os.Stat(gitPath); err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, fmt.Errorf("specified project path %q is not a git repository", absPath)
+		// Resolve symlinks so the project path is canonical regardless of noGit, and so it can be compared against the
+		// git worktree root (which go-git returns with symlinks resolved).
+		absPath, err = filepath.EvalSymlinks(absPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve symlinks in project path %q: %w", path, err)
+		}
+
+		if !noGit {
+			repo, err := git.PlainOpenWithOptions(absPath, &git.PlainOpenOptions{DetectDotGit: true})
+			if err != nil {
+				return nil, fmt.Errorf("failed to find git repository in project path %q: %w", absPath, err)
 			}
 
-			return nil, fmt.Errorf("failed to stat '.git' directory in project path %q: %w", absPath, err)
+			wt, err := repo.Worktree()
+			if err != nil {
+				return nil, fmt.Errorf("failed to open git repository worktree in project path %q: %w", absPath, err)
+			}
+
+			gitRoot := wt.Filesystem.Root()
+
+			gitRootAbs, err := filepath.Abs(gitRoot)
+			if err != nil {
+				return nil, fmt.Errorf("git repository root %q is invalid: %w", gitRoot, err)
+			}
+
+			if gitRootAbs != absPath {
+				slog.Info("using root of git repository as project path", "supplied_path", path, "repo_root", gitRootAbs)
+
+				absPath = gitRootAbs
+			}
 		}
 
 		smoke.projectPath = absPath

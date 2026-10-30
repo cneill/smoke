@@ -132,7 +132,7 @@ func getSmokeInstance(ctx context.Context, cmd *cli.Command, extraOpts ...smoke.
 	opts := append([]smoke.OptFunc{
 		smoke.WithConfig(loadedConfig),
 		smoke.WithDebug(cmd.Bool(FlagDebug)),
-		smoke.WithProjectPath(projectPath),
+		smoke.WithProjectPath(projectPath, cmd.Bool(FlagNoGit)),
 		smoke.WithSessionName(sessionName),
 		smoke.WithLLMConfig(llmConfig),
 	}, extraOpts...)

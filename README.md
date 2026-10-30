@@ -39,7 +39,12 @@ GLOBAL OPTIONS:
    Local Configuration
 
    --debug, -D              Enable debug logging. [$SMOKE_DEBUG]
+   --no-git                 Disable the check for a git repository in the project path [$SMOKE_NO_GIT]
    --session NAME, -s NAME  The NAME of the session, which will be used to derive the log file and plan file names (default: "session") [$SMOKE_SESSION]
+
+   One-shot
+
+   --max-turns int  Max tool-call rounds when running a one-shot prompt from stdin (default: 50) [$SMOKE_MAX_TURNS]
 
    Providers
 
