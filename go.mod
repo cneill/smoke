@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/cneill/hc/v2 v2.0.2
-	github.com/go-git/go-git/v5 v5.19.2
+	github.com/go-git/go-git/v5 v5.19.3
 	github.com/google/jsonschema-go v0.4.3
 	github.com/mattn/go-runewidth v0.0.31
 	github.com/modelcontextprotocol/go-sdk v1.7.0
@@ -44,7 +44,7 @@ require (
 	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.9.1 // indirect
+	github.com/go-git/go-billy/v5 v5.9.2 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect
