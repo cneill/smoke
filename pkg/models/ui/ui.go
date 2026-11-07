@@ -183,6 +183,17 @@ func (m *Model) View() string {
 	return fmt.Sprintf("%s%s%s", m.history.View(), gap, m.input.View())
 }
 
+// Banner prints the banner model's content, for use on exit.
+func (m *Model) Banner() string {
+	return m.banner.View()
+}
+
+// HistoryContent returns the full rendered message history so it can be written to the terminal after the program
+// exits.
+func (m *Model) HistoryContent() string {
+	return m.history.Content()
+}
+
 // Handle messages coming from the input bubbletea model.
 func (m *Model) handleInputMessage(msg input.Message) tea.Cmd {
 	cmds := []tea.Cmd{}

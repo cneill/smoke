@@ -181,15 +181,22 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("%w: failed to set up UI: %w", ErrInit, err)
 	}
 
-	program := tea.NewProgram(uiModel, tea.WithReportFocus(), tea.WithMouseCellMotion())
+	program := tea.NewProgram(uiModel, tea.WithAltScreen(), tea.WithReportFocus(), tea.WithMouseCellMotion())
 
 	// Give Smoke the ability to send messages directly into the bubbletea event loop.
 	if _, err := smokeInstance.Update(ctx, smoke.WithTeaEmitter(program.Send)); err != nil {
 		return fmt.Errorf("%w: failed to update smoke controller with bubbletea emitter: %w", ErrInit, err)
 	}
 
-	if _, err := program.Run(); err != nil {
+	finalModel, err := program.Run()
+	if err != nil {
 		return fmt.Errorf("run: %w", err)
+	}
+
+	// The alt screen is cleared on exit, so dump the full history to leave it in the user's scrollback.
+	if finalUI, ok := finalModel.(*ui.Model); ok {
+		fmt.Println(finalUI.Banner())
+		fmt.Print(finalUI.HistoryContent())
 	}
 
 	return nil
