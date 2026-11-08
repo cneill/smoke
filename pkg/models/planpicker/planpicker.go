@@ -102,12 +102,16 @@ func (m *Model) View() string {
 	return m.styles.SizedContainer(m.width).Render(sb.String())
 }
 
-func (m *Model) visiblePlanRange() (int, int) {
-	limit := len(m.plans)
-	if limit > m.height-8 {
-		limit = max(1, (m.height-8)/2)
-	}
+const (
+	// chromeLines is the number of lines used by everything except the plan list: container border (2) + container
+	// padding (2) + title/help/blank (3) + blank/count footer (2) + trailing newline from the last Fprintln (1).
+	chromeLines = 10
+	// linesPerPlan is the maximum number of lines a single plan entry takes up (name + log path).
+	linesPerPlan = 2
+)
 
+func (m *Model) visiblePlanRange() (int, int) {
+	limit := min(len(m.plans), max(1, (m.height-chromeLines)/linesPerPlan))
 	start := max(0, m.selected-limit+1)
 
 	return start, start + limit
