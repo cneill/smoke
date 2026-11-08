@@ -111,12 +111,6 @@ func setDocumentCursor(model *textarea.Model, content string, offset int) {
 	setLogicalCursor(model, documentPosition(content, offset))
 }
 
-func setLastRenderedRowStart(model *textarea.Model) {
-	content := model.Value()
-	setDocumentCursor(model, content, len([]rune(content)))
-	model.SetCursor(model.LineInfo().StartColumn)
-}
-
 func lineCountRunes(content []rune) int {
 	return strings.Count(string(content), "\n") + 1
 }

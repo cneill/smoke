@@ -501,12 +501,7 @@ func (m *Model) handleHistoryTraversal(msg tea.KeyMsg) bool { //nolint:cyclop
 	}
 
 	m.textarea.SetValue(m.userHistory[*m.userHistoryIndex])
-
-	if msg.Type == tea.KeyUp {
-		setLastRenderedRowStart(&m.textarea)
-	} else {
-		setLogicalCursor(&m.textarea, logicalPosition{})
-	}
+	m.textarea.CursorEnd()
 
 	return true
 }
