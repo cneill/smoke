@@ -2,11 +2,14 @@ package ls
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"os"
 	"strings"
 
-	"github.com/cneill/smoke/pkg/fs"
+	smokefs "github.com/cneill/smoke/pkg/fs"
 	"github.com/cneill/smoke/pkg/tools"
 )
 
@@ -53,20 +56,15 @@ func (l *LS) Params() tools.Params {
 // Run expects a directory 'dir' that exists within ProjectPath ("." for top-level listing).
 func (l *LS) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	path := args.GetString(ParamDirPath)
-	if path == nil {
-		return nil, fmt.Errorf("no path supplied")
-	}
 
-	fullPath, err := fs.GetRelativePath(l.ProjectPath, *path)
+	fullPath, err := l.checkPath(path)
 	if err != nil {
-		return nil, fmt.Errorf("path error: %w", err)
+		return nil, err
 	}
-
-	// TODO: check for non-directory, symlink/escape/etc when fs rewritten
 
 	var sb strings.Builder
 
-	iter, err := fs.ExcludesWalker(l.ProjectPath, fullPath)
+	iter, err := smokefs.ExcludesWalker(l.ProjectPath, fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to walk files: %w", err)
 	}
@@ -91,4 +89,27 @@ func (l *LS) Run(_ context.Context, args tools.Args) (*tools.Output, error) {
 	}
 
 	return &tools.Output{Text: content}, nil
+}
+
+func (l *LS) checkPath(path *string) (string, error) {
+	// TODO: check for non-directory, symlink/escape/etc when fs rewritten
+	if path == nil {
+		return "", fmt.Errorf("%w: no path supplied", tools.ErrArguments)
+	}
+
+	fullPath, err := smokefs.GetRelativePath(l.ProjectPath, *path)
+	if err != nil {
+		return "", fmt.Errorf("%w: path error: %w", tools.ErrArguments, err)
+	}
+
+	stat, err := os.Stat(fullPath)
+	if err != nil && errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("%w: path does not exist", tools.ErrFileSystem)
+	}
+
+	if !stat.IsDir() {
+		return "", fmt.Errorf("%w: path is not a directory", tools.ErrFileSystem)
+	}
+
+	return fullPath, nil
 }

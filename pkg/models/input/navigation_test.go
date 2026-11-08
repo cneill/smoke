@@ -394,25 +394,33 @@ func TestHistoryNavigationDispatchesAtLogicalBoundaries(t *testing.T) {
 	model := newNavigationModel(t)
 	model.userHistory = []string{"old one\nold two", "new one\nnew two"}
 
-	model.Update(tea.KeyMsg{Type: tea.KeyUp})
-	assert.Equal(t, "new one\nnew two", model.textarea.Value())
-	assertCursor(t, model, logicalPosition{line: 1})
+	// Recalled entries place the cursor at the end of the entry.
+	endOfEntry := logicalPosition{line: 1, column: 7}
 
 	model.Update(tea.KeyMsg{Type: tea.KeyUp})
 	assert.Equal(t, "new one\nnew two", model.textarea.Value())
-	assertCursor(t, model, logicalPosition{})
+	assertCursor(t, model, endOfEntry)
+
+	// Not on the first row yet: Up moves within the entry instead of loading older history.
+	model.Update(tea.KeyMsg{Type: tea.KeyUp})
+	assert.Equal(t, "new one\nnew two", model.textarea.Value())
+	assertCursor(t, model, logicalPosition{line: 0, column: 7})
 
 	model.Update(tea.KeyMsg{Type: tea.KeyUp})
 	assert.Equal(t, "old one\nold two", model.textarea.Value())
-	assertCursor(t, model, logicalPosition{line: 1})
+	assertCursor(t, model, endOfEntry)
 
+	// Not on the last row: Down moves within the entry instead of loading newer history.
+	model.Update(tea.KeyMsg{Type: tea.KeyUp})
+	assert.Equal(t, "old one\nold two", model.textarea.Value())
+	model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	assert.Equal(t, "old one\nold two", model.textarea.Value())
+	assertCursor(t, model, endOfEntry)
+
+	// On the last row: Down loads newer history, which again lands at the end.
 	model.Update(tea.KeyMsg{Type: tea.KeyDown})
 	assert.Equal(t, "new one\nnew two", model.textarea.Value())
-	assertCursor(t, model, logicalPosition{})
-
-	model.Update(tea.KeyMsg{Type: tea.KeyDown})
-	assert.Equal(t, "new one\nnew two", model.textarea.Value())
-	assertCursor(t, model, logicalPosition{line: 1})
+	assertCursor(t, model, endOfEntry)
 
 	model.Update(tea.KeyMsg{Type: tea.KeyDown})
 	assert.Empty(t, model.textarea.Value())

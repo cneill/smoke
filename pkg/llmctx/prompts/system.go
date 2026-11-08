@@ -24,7 +24,8 @@ func SystemPreset() Preset {
 			},
 			SectionBackground: {
 				Pf("The current time and date is %s.", time.Now().Format(time.RFC1123)),
-				P("You are in a directory containing a git repository. All tool calls will occur within this directory."),
+				P("You are in a directory containing a git repository. All tool calls will occur within this " +
+					"directory, and tool calls with paths should use relative paths. Paths outside will be rejected."),
 				P("If you suspect there are compile errors, use the `gopls_go_diagnostics` if you have access to it. " +
 					"If you don't recognize a standard library function, it may be from a new version of Go. Verify " +
 					"successful compilation, don't assume it's broken."),
@@ -67,8 +68,9 @@ func PlanningSystemPrompt() *Prompt {
 		Pf("As you enumerate the tasks and subtasks to be completed and collect information from the repository, "+
 			"use `%s` to add context items associated with your tasks. This can include user instructions, code "+
 			"conventions, interface definitions, 3rd party libraries used, or relevant paths and line numbers. If "+
-			"you couldn't complete a task accurately without information you learn from a tool call or a user "+
-			"message, add a concise context item.", tools.NamePlanAdd),
+			"you couldn't complete a requested task accurately without information you learned from a tool call or a "+
+			"user message, add a concise context item. Craft your plan so that it can be executed in a fresh session "+
+			"without the current planning conversation thread.", tools.NamePlanAdd),
 		P("Once your plan is complete, explain it and ask the user for feedback."),
 	)
 
