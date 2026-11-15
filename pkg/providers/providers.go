@@ -322,15 +322,16 @@ func (d Details) ModelInfo(search string) (llms.ModelInfo, error) {
 	}
 
 	// Exact model names take precedence over aliases.
-	if idx := slices.IndexFunc(d.Models, func(info llms.ModelInfo) bool { return info.Model == search }); idx >= 0 {
-		return d.Models[idx], nil
+	for _, model := range d.Models {
+		if model.Model == search {
+			return model, nil
+		}
 	}
 
-	// Aliases are matched in declaration order, so the first model claiming an alias wins.
-	if idx := slices.IndexFunc(d.Models, func(info llms.ModelInfo) bool {
-		return slices.Contains(info.Aliases, search)
-	}); idx >= 0 {
-		return d.Models[idx], nil
+	for _, model := range d.Models {
+		if slices.Contains(model.Aliases, search) {
+			return model, nil
+		}
 	}
 
 	return llms.ModelInfo{}, fmt.Errorf("%w: %q\n\n%s", ErrUnknownModel, search, d.Models)
