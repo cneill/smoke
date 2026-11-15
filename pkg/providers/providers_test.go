@@ -5,10 +5,35 @@ import (
 
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/providers"
-	"github.com/openai/openai-go/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNoAliasOverlaps(t *testing.T) {
+	t.Parallel()
+
+	collisions := map[string][]string{}
+
+	for provider, details := range providers.All() {
+		seenAliases := map[string]struct{}{}
+
+		for _, model := range details.Models {
+			for _, alias := range model.Aliases {
+				if _, collision := seenAliases[alias]; collision {
+					if _, hasCollisions := collisions[provider]; !hasCollisions {
+						collisions[provider] = []string{}
+					}
+
+					collisions[provider] = append(collisions[provider], alias)
+				}
+
+				seenAliases[alias] = struct{}{}
+			}
+		}
+	}
+
+	assert.Empty(t, collisions)
+}
 
 func TestDetailsModelInfo(t *testing.T) {
 	t.Parallel()
@@ -24,7 +49,7 @@ func TestDetailsModelInfo(t *testing.T) {
 			name:              "default model",
 			provider:          llms.LLMTypeChatGPT,
 			search:            "",
-			wantModel:         openai.ChatModelGPT6Sol,
+			wantModel:         providers.All()[llms.LLMTypeChatGPT].DefaultModel,
 			wantContextTokens: 1_050_000,
 		},
 		{

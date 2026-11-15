@@ -32,12 +32,6 @@ var (
 var chatGPT = llms.ModelInfos{ //nolint:gochecknoglobals
 	{
 		Provider:            llms.LLMTypeChatGPT,
-		Model:               openai.ChatModelGPT5_1,
-		Aliases:             []string{"5.1", "gpt5.1", "gpt-5.1"},
-		ContextWindowTokens: 400_000,
-	},
-	{
-		Provider:            llms.LLMTypeChatGPT,
 		Model:               openai.ChatModelGPT5_2,
 		Aliases:             []string{"5.2", "gpt5.2", "gpt-5.2"},
 		ContextWindowTokens: 400_000,
@@ -62,12 +56,6 @@ var chatGPT = llms.ModelInfos{ //nolint:gochecknoglobals
 	},
 	{
 		Provider:            llms.LLMTypeChatGPT,
-		Model:               openai.ChatModelGPT5_4Nano,
-		Aliases:             []string{"5.4-nano", "gpt5.4-nano", "gpt-5.4-nano"},
-		ContextWindowTokens: 400_000,
-	},
-	{
-		Provider:            llms.LLMTypeChatGPT,
 		Model:               openai.ChatModelGPT5_5,
 		Aliases:             []string{"5.5", "gpt5.5", "gpt-5.5"},
 		ContextWindowTokens: 1_050_000,
@@ -81,7 +69,7 @@ var chatGPT = llms.ModelInfos{ //nolint:gochecknoglobals
 	{
 		Provider:            llms.LLMTypeChatGPT,
 		Model:               openai.ChatModelGPT5_6Terra,
-		Aliases:             []string{"terra", "5.6-terra"},
+		Aliases:             []string{"5.6-terra"},
 		ContextWindowTokens: 1_050_000,
 	},
 	{
@@ -106,6 +94,12 @@ var chatGPT = llms.ModelInfos{ //nolint:gochecknoglobals
 		Provider:            llms.LLMTypeChatGPT,
 		Model:               openai.ChatModelGPT6Luna,
 		Aliases:             []string{"luna", "6-luna"},
+		ContextWindowTokens: 1_050_000,
+	},
+	{
+		Provider:            llms.LLMTypeChatGPT,
+		Model:               openai.ChatModelGPT6_1Terra,
+		Aliases:             []string{"terra", "6.1-terra"},
 		ContextWindowTokens: 1_050_000,
 	},
 	{
@@ -227,7 +221,7 @@ var grok = llms.ModelInfos{ //nolint:gochecknoglobals
 var registry = Registry{ //nolint:gochecknoglobals
 	llms.LLMTypeChatGPT: {
 		Provider:      llms.LLMTypeChatGPT,
-		DefaultModel:  openai.ChatModelGPT6Sol,
+		DefaultModel:  openai.ChatModelGPT6_1Sol,
 		DefaultEffort: string(openai.ReasoningEffortMedium),
 		EffortOptions: utils.ToStrings(
 			openai.ReasoningEffortNone,
