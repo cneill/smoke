@@ -125,14 +125,10 @@ func (m *Model) View() string {
 	return m.viewport.View()
 }
 
-// Content returns the full rendered history log, not just the portion visible in the viewport. If the log is empty, the
-// initial content (e.g. the banner) is returned instead.
+// Content returns the full rendered history log, not just the portion visible in the viewport.
+// Initial viewport content is excluded, even when the log is empty.
 func (m *Model) Content() string {
-	if logContent := m.renderLogContent(); strings.TrimSpace(logContent) != "" {
-		return logContent
-	}
-
-	return m.initContent
+	return m.renderLogContent()
 }
 
 func (m *Model) Resize(width, height int) {

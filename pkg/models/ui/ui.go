@@ -188,8 +188,7 @@ func (m *Model) Banner() string {
 	return m.banner.View()
 }
 
-// HistoryContent returns the full rendered message history so it can be written to the terminal after the program
-// exits.
+// HistoryContent returns the full rendered message history without the banner, for terminal scrollback on exit.
 func (m *Model) HistoryContent() string {
 	return m.history.Content()
 }
