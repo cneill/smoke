@@ -127,7 +127,7 @@ func llmConfigFlags() []cli.Flag {
 			Category: category,
 			Aliases:  []string{"t"},
 			Sources:  cli.EnvVars(EnvMaxTokens),
-			Value:    8192,
+			Value:    16384,
 		},
 		&cli.BoolFlag{
 			Name:     FlagNoStream,
