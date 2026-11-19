@@ -40,8 +40,8 @@ func (c *conversation) sendNoStream(ctx context.Context) error {
 		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
 	}
 
-	if result.StopReason == anthropic.StopReasonRefusal {
-		return fmt.Errorf("%w: %s", llms.ErrPromptRefused, result.Content[0].Text)
+	if err := c.handleStopReason(result); err != nil {
+		return err
 	}
 
 	if err := c.handleResponse(ctx, result.ID, result.Content); err != nil {
@@ -99,8 +99,8 @@ func (c *conversation) sendStream(ctx context.Context) error { //nolint:cyclop
 		return fmt.Errorf("%w: no messages returned", llms.ErrEmptyResponse)
 	}
 
-	if accumulator.StopReason == anthropic.StopReasonRefusal {
-		return fmt.Errorf("%w: %s", llms.ErrPromptRefused, accumulator.Content[0].Text)
+	if err := c.handleStopReason(&accumulator); err != nil {
+		return err
 	}
 
 	c.Emit(ctx, llms.EventUsageUpdate{
@@ -351,6 +351,26 @@ func (c *conversation) handleResponse(ctx context.Context, id string, providerBl
 		c.Emit(ctx, llms.EventFinalMessage{
 			Message: msg,
 		})
+	}
+
+	return nil
+}
+
+func (c *conversation) handleStopReason(msg *anthropic.Message) error {
+	switch msg.StopReason {
+	case anthropic.StopReasonEndTurn, anthropic.StopReasonToolUse:
+		return nil
+	case anthropic.StopReasonModelContextWindowExceeded:
+		return llms.ErrMaxContext
+	case anthropic.StopReasonMaxTokens:
+		// TODO: automatically adjust if the user hasn't forced a hard limit?
+		return llms.ErrMaxTokens
+	case anthropic.StopReasonRefusal:
+		return fmt.Errorf("%w (%s): %s", llms.ErrPromptRefused, msg.StopDetails.Category, msg.StopDetails.Explanation)
+	case anthropic.StopReasonStopSequence, anthropic.StopReasonPauseTurn:
+		// TODO: tweak this
+		slog.Debug("stopped", "reason", msg.StopReason)
+		return nil
 	}
 
 	return nil
