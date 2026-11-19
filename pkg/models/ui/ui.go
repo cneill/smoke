@@ -26,6 +26,7 @@ import (
 	"github.com/cneill/smoke/pkg/models/history"
 	"github.com/cneill/smoke/pkg/models/input"
 	"github.com/cneill/smoke/pkg/models/planpicker"
+	planPkg "github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/smoke"
 	"golang.org/x/term"
 )
@@ -188,8 +189,7 @@ func (m *Model) Banner() string {
 	return m.banner.View()
 }
 
-// HistoryContent returns the full rendered message history so it can be written to the terminal after the program
-// exits.
+// HistoryContent returns the full rendered message history without the banner, for terminal scrollback on exit.
 func (m *Model) HistoryContent() string {
 	return m.history.Content()
 }
@@ -443,7 +443,10 @@ func (m *Model) handlePlanMessage(msg plan.Message) tea.Cmd {
 					Type:  uimsg.HistoryBlockMarkdown,
 					Title: "Plan contents",
 					Text: func() string {
-						content := m.smoke.PlanManager().Markdown()
+						content := m.smoke.PlanManager().Render(planPkg.RenderOpts{
+							Pending:   true,
+							Completed: true,
+						})
 						if strings.TrimSpace(content) == "" {
 							return "Plan is empty."
 						}
