@@ -7,10 +7,20 @@ import (
 	"time"
 )
 
-func (m *Manager) Markdown() string {
+type RenderOpts struct {
+	Pending   bool
+	Completed bool
+}
+
+func (m *Manager) Render(opts RenderOpts) string {
 	builder := &strings.Builder{}
-	m.printPendingTasks(builder)
-	m.printCompletedTasks(builder)
+	if opts.Pending {
+		m.printPendingTasks(builder)
+	}
+
+	if opts.Completed {
+		m.printCompletedTasks(builder)
+	}
 
 	return builder.String()
 }
