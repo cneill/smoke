@@ -1,9 +1,10 @@
 package llms
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 type BlockType string
@@ -53,6 +54,7 @@ const (
 	ReasoningDetailTypeUnknown   ReasoningDetailType = ""
 	ReasoningDetailTypeOpenAI    ReasoningDetailType = "openai"
 	ReasoningDetailTypeAnthropic ReasoningDetailType = "anthropic"
+	ReasoningDetailTypeGemini    ReasoningDetailType = "gemini"
 )
 
 type OpenAIReasoningDetail struct {
@@ -71,15 +73,23 @@ type AnthropicReasoningDetail struct {
 	Redacted  bool    `json:"redacted,omitempty"`
 }
 
+// GeminiReasoningDetail holds replayable Gemini thought metadata. Summary text
+// lives in ReasoningBlock.Summary, so it is not duplicated here.
+type GeminiReasoningDetail struct {
+	Source    LLMType `json:"source"`
+	Signature string  `json:"signature,omitempty"`
+}
+
 type ReasoningDetail struct {
 	OpenAI    *OpenAIReasoningDetail    `json:"openai,omitempty"`
 	Anthropic *AnthropicReasoningDetail `json:"anthropic,omitempty"`
+	Gemini    *GeminiReasoningDetail    `json:"gemini,omitempty"`
 }
 
 func (r ReasoningDetail) OK() error {
 	switch r.Type() {
 	case ReasoningDetailTypeUnknown:
-		return fmt.Errorf("unknown reasoning detail type, must supply exactly one of either OpenAI or Anthropic")
+		return fmt.Errorf("unknown reasoning detail type, must supply exactly one of OpenAI, Anthropic, or Gemini")
 	case ReasoningDetailTypeAnthropic:
 		if r.Anthropic.Source != LLMTypeClaude {
 			return fmt.Errorf("invalid Anthropic reasoning source %q", r.Anthropic.Source)
@@ -91,22 +101,40 @@ func (r ReasoningDetail) OK() error {
 		default:
 			return fmt.Errorf("invalid OpenAI reasoning source %q", r.OpenAI.Source)
 		}
+	case ReasoningDetailTypeGemini:
+		if r.Gemini.Source != LLMTypeGemini {
+			return fmt.Errorf("invalid Gemini reasoning source %q", r.Gemini.Source)
+		}
 	}
 
 	return nil
 }
 
 func (r ReasoningDetail) Type() ReasoningDetailType {
-	switch {
-	case (r.OpenAI == nil) == (r.Anthropic == nil):
-		return ReasoningDetailTypeUnknown
-	case r.OpenAI != nil:
-		return ReasoningDetailTypeOpenAI
-	case r.Anthropic != nil:
-		return ReasoningDetailTypeAnthropic
+	candidates := []struct {
+		typ     ReasoningDetailType
+		present bool
+	}{
+		{typ: ReasoningDetailTypeOpenAI, present: r.OpenAI != nil},
+		{typ: ReasoningDetailTypeAnthropic, present: r.Anthropic != nil},
+		{typ: ReasoningDetailTypeGemini, present: r.Gemini != nil},
 	}
 
-	return ReasoningDetailTypeUnknown
+	typ := ReasoningDetailTypeUnknown
+
+	for _, candidate := range candidates {
+		if !candidate.present {
+			continue
+		}
+
+		if typ != ReasoningDetailTypeUnknown {
+			return ReasoningDetailTypeUnknown
+		}
+
+		typ = candidate.typ
+	}
+
+	return typ
 }
 
 // TODO: Canonical server-side tool blocks can be added in the future.
@@ -190,10 +218,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 		Type BlockType `json:"type"`
 	}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&raw); err != nil {
+	if err := utils.UnmarshalUseNumber(data, &raw); err != nil {
 		return fmt.Errorf("unmarshal block: %w", err)
 	}
 
@@ -301,11 +326,7 @@ func (b Block) Clone() Block {
 	}
 
 	var result Block
-
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&result); err != nil {
+	if err := utils.UnmarshalUseNumber(data, &result); err != nil {
 		panic(err)
 	}
 

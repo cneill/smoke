@@ -20,8 +20,9 @@ const (
 	FlagTemperature  = "temperature"
 	FlagMaxTurns     = "max-turns"
 	FlagNoGit        = "no-git"
-	FlagOpenAIKey    = "openai-api-key"
 	FlagAnthropicKey = "anthropic-api-key"
+	FlagGoogleKey    = "google-api-key"
+	FlagOpenAIKey    = "openai-api-key"
 	FlagXAIKey       = "xai-api-key"
 	FlagOllamaHost   = "ollama-host"
 
@@ -35,8 +36,9 @@ const (
 	EnvTemperature  = "SMOKE_TEMPERATURE"
 	EnvMaxTurns     = "SMOKE_MAX_TURNS"
 	EnvNoGit        = "SMOKE_NO_GIT"
-	EnvOpenAIKey    = "OPENAI_API_KEY"
 	EnvAnthropicKey = "ANTHROPIC_API_KEY"
+	EnvGoogleKey    = "GOOGLE_API_KEY"
+	EnvOpenAIKey    = "OPENAI_API_KEY"
 	EnvXAIKey       = "XAI_API_KEY"
 	EnvOllamaHost   = "OLLAMA_HOST"
 )
@@ -152,16 +154,22 @@ func providerFlags() []cli.Flag {
 
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:     FlagOpenAIKey,
-			Category: category,
-			Usage:    fmt.Sprintf("The API key for OpenAI. Required when provider is %q", llms.LLMTypeChatGPT),
-			Sources:  cli.EnvVars(EnvOpenAIKey),
-		},
-		&cli.StringFlag{
 			Name:     FlagAnthropicKey,
 			Category: category,
 			Usage:    fmt.Sprintf("The API key for Anthropic. Required when provider is %q", llms.LLMTypeClaude),
 			Sources:  cli.EnvVars(EnvAnthropicKey),
+		},
+		&cli.StringFlag{
+			Name:     FlagGoogleKey,
+			Category: category,
+			Usage:    fmt.Sprintf("The API key for Google. Required when provider is %q", llms.LLMTypeGemini),
+			Sources:  cli.EnvVars(EnvGoogleKey),
+		},
+		&cli.StringFlag{
+			Name:     FlagOpenAIKey,
+			Category: category,
+			Usage:    fmt.Sprintf("The API key for OpenAI. Required when provider is %q", llms.LLMTypeChatGPT),
+			Sources:  cli.EnvVars(EnvOpenAIKey),
 		},
 		&cli.StringFlag{
 			Name:     FlagXAIKey,

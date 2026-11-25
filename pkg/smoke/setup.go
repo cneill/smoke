@@ -16,6 +16,7 @@ import (
 	"github.com/cneill/smoke/pkg/plan"
 	"github.com/cneill/smoke/pkg/providers/chatgpt"
 	"github.com/cneill/smoke/pkg/providers/claude"
+	"github.com/cneill/smoke/pkg/providers/gemini"
 	"github.com/cneill/smoke/pkg/providers/grok"
 	"github.com/cneill/smoke/pkg/providers/ollama"
 )
@@ -107,6 +108,8 @@ func (s *Smoke) setupLLM() error {
 		llm, err = chatgpt.New(s.llmConfig)
 	case llms.LLMTypeClaude:
 		llm, err = claude.New(s.llmConfig)
+	case llms.LLMTypeGemini:
+		llm, err = gemini.New(s.llmConfig)
 	case llms.LLMTypeGrok:
 		llm, err = grok.New(s.llmConfig)
 	case llms.LLMTypeOllama:

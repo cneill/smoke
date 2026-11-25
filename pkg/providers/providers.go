@@ -13,6 +13,7 @@ import (
 	"github.com/cneill/smoke/pkg/llms"
 	"github.com/cneill/smoke/pkg/utils"
 	"github.com/openai/openai-go/v3"
+	"google.golang.org/genai/interactions/models/interactions"
 )
 
 var (
@@ -191,6 +192,33 @@ var claude = llms.ModelInfos{ //nolint:gochecknoglobals
 	},
 }
 
+var gemini = llms.ModelInfos{ //nolint:gochecknoglobals
+	{
+		Provider:            llms.LLMTypeGemini,
+		Model:               string(interactions.ModelGemini4Argon),
+		Aliases:             []string{"argon", "argon4"},
+		ContextWindowTokens: 1_048_576,
+	},
+	{
+		Provider:            llms.LLMTypeGemini,
+		Model:               string(interactions.ModelGemini4Carbon),
+		Aliases:             []string{"carbon", "carbon4"},
+		ContextWindowTokens: 1_048_576,
+	},
+	{
+		Provider:            llms.LLMTypeGemini,
+		Model:               string(interactions.ModelGemini4Hydrogen),
+		Aliases:             []string{"hydrogen", "hydrogen4"},
+		ContextWindowTokens: 1_048_576,
+	},
+	{
+		Provider:            llms.LLMTypeGemini,
+		Model:               string(interactions.ModelGemini4Neon),
+		Aliases:             []string{"neon", "neon4"},
+		ContextWindowTokens: 1_048_576,
+	},
+}
+
 var grok = llms.ModelInfos{ //nolint:gochecknoglobals
 	{
 		Provider:            llms.LLMTypeGrok,
@@ -246,6 +274,19 @@ var registry = Registry{ //nolint:gochecknoglobals
 			anthropic.OutputConfigEffortMax,
 		),
 		Models: claude,
+	},
+	llms.LLMTypeGemini: {
+		Provider:      llms.LLMTypeGemini,
+		DefaultModel:  string(interactions.ModelGemini4Neon),
+		DefaultEffort: string(interactions.ThinkingLevelMedium),
+		EffortOptions: utils.ToStrings(
+			interactions.ThinkingLevelMinimal,
+			interactions.ThinkingLevelLow,
+			interactions.ThinkingLevelMedium,
+			interactions.ThinkingLevelHigh,
+			interactions.ThinkingLevelXhigh,
+		),
+		Models: gemini,
 	},
 	llms.LLMTypeGrok: {
 		Provider:      llms.LLMTypeGrok,

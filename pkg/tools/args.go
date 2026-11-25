@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -10,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/cneill/smoke/pkg/utils"
 )
 
 // Args is used as a generic container for accepting tool call information from the LLM. Its GetX methods allow for
@@ -20,10 +21,7 @@ type Args map[string]any
 func ParseArgs(params Params, input []byte) (Args, error) {
 	result := Args{}
 
-	decoder := json.NewDecoder(bytes.NewReader(input))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&result); err != nil {
+	if err := utils.UnmarshalUseNumber(input, &result); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidJSON, err)
 	}
 
@@ -85,11 +83,7 @@ func (a Args) Clone() Args {
 	}
 
 	var result Args
-
-	decoder := json.NewDecoder(bytes.NewReader(argBytes))
-	decoder.UseNumber()
-
-	if err := decoder.Decode(&result); err != nil {
+	if err := utils.UnmarshalUseNumber(argBytes, &result); err != nil {
 		panic(err)
 	}
 

@@ -41,26 +41,33 @@ func TestBlockOK(t *testing.T) {
 			wantErr: "missing media type",
 		},
 		{
-			name: "invalid OpenAI source",
-			block: llms.ReasoningContentBlock(llms.ReasoningBlock{
-				Detail: llms.ReasoningDetail{
-					OpenAI: &llms.OpenAIReasoningDetail{
-						Source: llms.LLMTypeClaude,
-					},
-				},
-			}),
+			name:    "invalid OpenAI source",
+			block:   reasoningBlock(llms.ReasoningDetail{OpenAI: &llms.OpenAIReasoningDetail{Source: llms.LLMTypeClaude}}),
 			wantErr: "invalid OpenAI reasoning source",
 		},
 		{
 			name: "invalid Anthropic source",
-			block: llms.ReasoningContentBlock(llms.ReasoningBlock{
-				Detail: llms.ReasoningDetail{
-					Anthropic: &llms.AnthropicReasoningDetail{
-						Source: llms.LLMTypeChatGPT,
-					},
-				},
+			block: reasoningBlock(llms.ReasoningDetail{
+				Anthropic: &llms.AnthropicReasoningDetail{Source: llms.LLMTypeChatGPT},
 			}),
 			wantErr: "invalid Anthropic reasoning source",
+		},
+		{
+			name:  "valid Gemini",
+			block: reasoningBlock(llms.ReasoningDetail{Gemini: &llms.GeminiReasoningDetail{Source: llms.LLMTypeGemini}}),
+		},
+		{
+			name:    "invalid Gemini source",
+			block:   reasoningBlock(llms.ReasoningDetail{Gemini: &llms.GeminiReasoningDetail{Source: llms.LLMTypeClaude}}),
+			wantErr: "invalid Gemini reasoning source",
+		},
+		{
+			name: "multiple reasoning details",
+			block: reasoningBlock(llms.ReasoningDetail{
+				Anthropic: &llms.AnthropicReasoningDetail{Source: llms.LLMTypeClaude},
+				Gemini:    &llms.GeminiReasoningDetail{Source: llms.LLMTypeGemini},
+			}),
+			wantErr: "must supply exactly one of OpenAI, Anthropic, or Gemini",
 		},
 	}
 
@@ -106,6 +113,72 @@ func TestBlockTypeIsDerivedFromPayload(t *testing.T) {
 			assert.Equal(t, test.want, test.block.Type())
 		})
 	}
+}
+
+// reasoningBlock builds a reasoning block without validation or cloning, so invalid details can be tested.
+func reasoningBlock(detail llms.ReasoningDetail) llms.Block {
+	return llms.Block{Reasoning: &llms.ReasoningBlock{Detail: detail}}
+}
+
+func TestReasoningDetailType(t *testing.T) {
+	t.Parallel()
+
+	openAI := &llms.OpenAIReasoningDetail{Source: llms.LLMTypeChatGPT}
+	anthropic := &llms.AnthropicReasoningDetail{Source: llms.LLMTypeClaude}
+	gemini := &llms.GeminiReasoningDetail{Source: llms.LLMTypeGemini}
+
+	tests := []struct {
+		name   string
+		detail llms.ReasoningDetail
+		want   llms.ReasoningDetailType
+	}{
+		{name: "empty", detail: llms.ReasoningDetail{}, want: llms.ReasoningDetailTypeUnknown},
+		{name: "openai", detail: llms.ReasoningDetail{OpenAI: openAI}, want: llms.ReasoningDetailTypeOpenAI},
+		{name: "anthropic", detail: llms.ReasoningDetail{Anthropic: anthropic}, want: llms.ReasoningDetailTypeAnthropic},
+		{name: "gemini", detail: llms.ReasoningDetail{Gemini: gemini}, want: llms.ReasoningDetailTypeGemini},
+		{
+			name:   "gemini and anthropic",
+			detail: llms.ReasoningDetail{Anthropic: anthropic, Gemini: gemini},
+			want:   llms.ReasoningDetailTypeUnknown,
+		},
+		{
+			name:   "all three",
+			detail: llms.ReasoningDetail{OpenAI: openAI, Anthropic: anthropic, Gemini: gemini},
+			want:   llms.ReasoningDetailTypeUnknown,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, test.want, test.detail.Type())
+		})
+	}
+}
+
+func TestGeminiReasoningBlockRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	block := llms.ReasoningContentBlock(llms.ReasoningBlock{
+		Summary: []string{"thinking"},
+		Detail: llms.ReasoningDetail{
+			Gemini: &llms.GeminiReasoningDetail{Source: llms.LLMTypeGemini, Signature: "sig"},
+		},
+	})
+
+	encoded, err := json.Marshal(block)
+	require.NoError(t, err)
+
+	var decoded llms.Block
+	require.NoError(t, json.Unmarshal(encoded, &decoded))
+	require.NoError(t, decoded.OK())
+	assert.Equal(t, block, decoded)
+
+	clone := block.Clone()
+	clone.Reasoning.Detail.Gemini.Signature = "changed"
+
+	assert.Equal(t, "sig", block.Reasoning.Detail.Gemini.Signature)
+	assert.Equal(t, []string{"thinking"}, decoded.Reasoning.Summary)
 }
 
 func TestBlockJSONTypeIsDerivedAndValidated(t *testing.T) {

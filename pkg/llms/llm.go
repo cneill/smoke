@@ -12,6 +12,7 @@ type LLMType string
 const (
 	LLMTypeChatGPT = "chatgpt"
 	LLMTypeClaude  = "claude"
+	LLMTypeGemini  = "gemini"
 	LLMTypeGrok    = "grok"
 	LLMTypeOllama  = "ollama"
 )
