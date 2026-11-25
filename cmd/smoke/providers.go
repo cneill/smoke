@@ -23,6 +23,10 @@ var apiKeyInfos = map[string]apiKeyInfo{ //nolint:gochecknoglobals
 		apiKeyFlag:   FlagAnthropicKey,
 		apiKeyEnvVar: EnvAnthropicKey,
 	},
+	llms.LLMTypeGemini: {
+		apiKeyFlag:   FlagGoogleKey,
+		apiKeyEnvVar: EnvGoogleKey,
+	},
 	llms.LLMTypeGrok: {
 		apiKeyFlag:   FlagXAIKey,
 		apiKeyEnvVar: EnvXAIKey,

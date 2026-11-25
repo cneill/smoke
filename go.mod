@@ -21,6 +21,7 @@ require (
 	github.com/urfave/cli/v3 v3.14.0
 	golang.org/x/term v0.48.0
 	golang.org/x/text v0.44.0
+	google.golang.org/genai v1.79.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -94,6 +95,7 @@ require (
 	go.opentelemetry.io/otel v1.47.0 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
@@ -102,5 +104,6 @@ require (
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
+	google.golang.org/api v0.197.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
